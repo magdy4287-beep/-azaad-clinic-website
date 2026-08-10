@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,7 +22,7 @@
     .tracking-box {
       width: 100%;
       max-width: 600px;
-      background: #fff;
+      background: #ffffff;
       border-radius: 22px;
       padding: 32px;
       box-shadow: 0 10px 35px rgba(0,0,0,.08);
@@ -140,6 +141,7 @@
 
       <label>
         رقم الحجز
+
         <input
           id="bookingCode"
           type="text"
@@ -147,10 +149,12 @@
           required
           autocomplete="off"
         >
+
       </label>
 
       <label>
         رقم الهاتف
+
         <input
           id="patientPhone"
           type="tel"
@@ -158,6 +162,7 @@
           required
           autocomplete="tel"
         >
+
       </label>
 
       <button type="submit">
@@ -183,8 +188,11 @@ const API_BASE =
   "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic";
 
 
-const form = document.getElementById("trackingForm");
-const result = document.getElementById("result");
+const form =
+  document.getElementById("trackingForm");
+
+const result =
+  document.getElementById("result");
 
 
 const statusArabic = {
@@ -192,14 +200,6 @@ const statusArabic = {
   confirmed: "تم تأكيد الموعد",
   cancelled: "تم إلغاء الموعد",
   completed: "تم إكمال الموعد"
-};
-
-
-const statusEnglish = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  cancelled: "Cancelled",
-  completed: "Completed"
 };
 
 
@@ -238,11 +238,17 @@ form.addEventListener("submit", async function(event) {
 
   event.preventDefault();
 
+
   const bookingCode =
-    document.getElementById("bookingCode").value.trim();
+    document.getElementById("bookingCode")
+      .value
+      .trim();
+
 
   const patientPhone =
-    document.getElementById("patientPhone").value.trim();
+    document.getElementById("patientPhone")
+      .value
+      .trim();
 
 
   if (!bookingCode || !patientPhone) {
@@ -279,22 +285,27 @@ form.addEventListener("submit", async function(event) {
 
 
     const response =
-      await fetch(API_BASE + "?" + params.toString());
+      await fetch(
+        API_BASE + "?" + params.toString()
+      );
 
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
 
     if (!response.ok) {
 
       throw new Error(
-        data.error || "لم يتم العثور على الحجز."
+        data.error ||
+        "لم يتم العثور على الحجز."
       );
 
     }
 
 
-    const booking = data.booking;
+    const booking =
+      data.booking;
 
 
     const status =
@@ -305,7 +316,9 @@ form.addEventListener("submit", async function(event) {
 
     const time =
       booking.appointment_time
-        ? String(booking.appointment_time).slice(0, 5)
+        ? String(
+            booking.appointment_time
+          ).slice(0, 5)
         : "—";
 
 
@@ -317,27 +330,43 @@ form.addEventListener("submit", async function(event) {
 
       <div class="booking-row">
         <strong>رقم الحجز</strong>
-        <span>${escapeHtml(booking.booking_code)}</span>
+        <span>
+          ${escapeHtml(
+            booking.booking_code
+          )}
+        </span>
       </div>
 
       <div class="booking-row">
         <strong>اسم المريض</strong>
-        <span>${escapeHtml(booking.patient_name)}</span>
+        <span>
+          ${escapeHtml(
+            booking.patient_name
+          )}
+        </span>
       </div>
 
       <div class="booking-row">
         <strong>التاريخ</strong>
-        <span>${escapeHtml(booking.appointment_date)}</span>
+        <span>
+          ${escapeHtml(
+            booking.appointment_date
+          )}
+        </span>
       </div>
 
       <div class="booking-row">
         <strong>الوقت</strong>
-        <span>${escapeHtml(time)}</span>
+        <span>
+          ${escapeHtml(time)}
+        </span>
       </div>
 
       <div class="booking-row">
         <strong>الحالة</strong>
-        <span>${escapeHtml(status)}</span>
+        <span>
+          ${escapeHtml(status)}
+        </span>
       </div>
 
     `;
