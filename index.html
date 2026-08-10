@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azaad Clinic | عيادة أزاد للصحة النفسية</title>
-  <meta name="description" content="Azaad Clinic - عيادة متخصصة في الصحة النفسية والعلاج النفسي">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Azaad Clinic | عيادة أزاد للصحة النفسية</title>
+<meta name="description" content="Azaad Clinic - عيادة متخصصة في الصحة النفسية والعلاج النفسي">
+<meta name="theme-color" content="#101b56">
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -14,22 +15,36 @@
   <div class="container nav">
 
     <a href="#home" class="logo">
-      AZAAD
-      <span>CLINIC</span>
+      AZAAD <span>CLINIC</span>
     </a>
 
     <nav id="nav">
-      <a href="#home">الرئيسية</a>
-      <a href="#about">عن العيادة</a>
-      <a href="#services">الخدمات</a>
-      <a href="#doctors">الأطباء</a>
-      <a href="#booking">الحجز</a>
-      <a href="#contact">تواصل معنا</a>
+      <a href="#home" data-i18n="navHome">الرئيسية</a>
+      <a href="#about" data-i18n="navAbout">عن العيادة</a>
+      <a href="#services" data-i18n="navServices">الخدمات</a>
+      <a href="#doctors" data-i18n="navDoctors">الأطباء</a>
+      <a href="#booking" data-i18n="navBooking">الحجز</a>
+      <a href="#contact" data-i18n="navContact">تواصل معنا</a>
     </nav>
 
-    <a href="#booking" class="btn nav-btn">احجز موعدك</a>
+    <div class="nav-actions">
 
-    <button id="menu" class="menu-btn" aria-label="القائمة">
+      <div class="language-switch">
+        <button class="lang-btn active" data-lang="ar">العربية</button>
+        <button class="lang-btn" data-lang="en">English</button>
+      </div>
+
+      <a href="#booking" class="btn nav-btn" data-i18n="bookNow">
+        احجز موعدك
+      </a>
+
+    </div>
+
+    <button
+      id="menu"
+      class="menu-btn"
+      aria-label="Menu"
+      aria-expanded="false">
       ☰
     </button>
 
@@ -38,6 +53,8 @@
 
 
 <main>
+
+<!-- HERO -->
 
 <section id="home" class="hero">
 
@@ -49,39 +66,42 @@
         AZAAD CLINIC • MENTAL HEALTH
       </div>
 
-      <h1>
-        مساحة آمنة
-        <br>
+      <h1 data-i18n="heroTitle">
+        مساحة آمنة<br>
         <span>لبداية التغيير</span>
       </h1>
 
-      <p>
-        رعاية نفسية متخصصة باهتمام إنساني،
-        وخصوصية كاملة، وخطة علاجية تناسب احتياجاتك.
+      <p data-i18n="heroText">
+        رعاية نفسية متخصصة باهتمام إنساني، وخصوصية كاملة،
+        وخطة علاجية تناسب احتياجاتك.
       </p>
 
       <div class="hero-buttons">
 
-        <a href="#booking" class="btn">
+        <a href="#booking"
+           class="btn"
+           data-i18n="heroBook">
           احجز جلستك الآن
         </a>
 
         <a id="waHero"
            href="#"
            target="_blank"
-           class="btn btn-light">
+           class="btn btn-light"
+           data-i18n="heroWhatsapp">
           تواصل عبر واتساب
         </a>
 
       </div>
 
       <div class="trust">
-        <span>✓ خصوصية كاملة</span>
-        <span>✓ حضوري وأونلاين</span>
-        <span>✓ رعاية متخصصة</span>
+        <span data-i18n="trustPrivacy">✓ خصوصية كاملة</span>
+        <span data-i18n="trustModes">✓ حضوري وأونلاين</span>
+        <span data-i18n="trustCare">✓ رعاية متخصصة</span>
       </div>
 
     </div>
+
 
     <div class="hero-card">
 
@@ -92,9 +112,8 @@
         </div>
 
         <div class="hero-subtitle">
-          PSYCHOTHERAPY
-          <br>
-          & MENTAL HEALTH
+          PSYCHOTHERAPY<br>
+          &amp; MENTAL HEALTH
         </div>
 
         <div class="hero-circle">
@@ -110,6 +129,8 @@
 </section>
 
 
+<!-- ABOUT -->
+
 <section id="about" class="section">
 
   <div class="container about-grid">
@@ -120,9 +141,8 @@
         ABOUT AZAAD CLINIC
       </div>
 
-      <h2>
-        مكان تستطيع فيه
-        <br>
+      <h2 data-i18n="aboutTitle">
+        مكان تستطيع فيه<br>
         أن تكون على طبيعتك.
       </h2>
 
@@ -130,13 +150,13 @@
 
     <div class="about-text">
 
-      <p>
+      <p data-i18n="aboutP1">
         نؤمن أن طلب المساعدة خطوة قوة وليست ضعفًا.
         لذلك نوفر بيئة آمنة ومحترمة تساعدك على فهم
         التحديات النفسية والتعامل معها بخطوات عملية.
       </p>
 
-      <p>
+      <p data-i18n="aboutP2">
         هدفنا أن تحصل على رعاية نفسية مهنية،
         إنسانية، وسرية بالكامل.
       </p>
@@ -148,6 +168,8 @@
 </section>
 
 
+<!-- SERVICES -->
+
 <section id="services" class="section section-light">
 
   <div class="container">
@@ -156,18 +178,18 @@
       OUR SERVICES
     </div>
 
-    <h2>
+    <h2 data-i18n="servicesTitle">
       خدماتنا
     </h2>
 
-    <p class="section-intro">
+    <p class="section-intro" data-i18n="servicesIntro">
       خدمات نفسية مصممة لتناسب احتياجات كل شخص.
     </p>
 
     <div id="servicesGrid" class="cards">
 
       <div class="loading">
-        جاري تحميل الخدمات...
+        جاري التحميل...
       </div>
 
     </div>
@@ -176,6 +198,8 @@
 
 </section>
 
+
+<!-- DOCTORS -->
 
 <section id="doctors" class="section">
 
@@ -185,18 +209,18 @@
       OUR TEAM
     </div>
 
-    <h2>
+    <h2 data-i18n="doctorsTitle">
       فريق العيادة
     </h2>
 
-    <p class="section-intro">
+    <p class="section-intro" data-i18n="doctorsIntro">
       متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.
     </p>
 
     <div id="doctorsGrid" class="cards">
 
       <div class="loading">
-        جاري تحميل فريق العيادة...
+        جاري التحميل...
       </div>
 
     </div>
@@ -205,6 +229,8 @@
 
 </section>
 
+
+<!-- BOOKING -->
 
 <section id="booking" class="section booking-section">
 
@@ -216,11 +242,11 @@
         APPOINTMENT
       </div>
 
-      <h2>
+      <h2 data-i18n="bookingTitle">
         احجز موعدك
       </h2>
 
-      <p>
+      <p data-i18n="bookingIntro">
         اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.
       </p>
 
@@ -232,51 +258,70 @@
       <div class="form-grid">
 
         <label>
-          الطبيب
+
+          <span data-i18n="doctorLabel">
+            الطبيب
+          </span>
 
           <select id="doctor" required>
+
             <option value="">
               اختر الطبيب
             </option>
+
           </select>
 
         </label>
 
 
         <label>
-          الخدمة
+
+          <span data-i18n="serviceLabel">
+            الخدمة
+          </span>
 
           <select id="service" required>
+
             <option value="">
               اختر الخدمة
             </option>
+
           </select>
 
         </label>
 
 
         <label>
-          التاريخ
+
+          <span data-i18n="dateLabel">
+            التاريخ
+          </span>
 
           <input
             id="date"
             type="date"
-            required
-          >
+            required>
 
         </label>
 
 
         <label>
-          نوع الجلسة
+
+          <span data-i18n="modeLabel">
+            نوع الجلسة
+          </span>
 
           <select id="mode">
 
-            <option value="clinic">
+            <option
+              value="clinic"
+              data-i18n="clinicMode">
               داخل العيادة
             </option>
 
-            <option value="online">
+            <option
+              value="online"
+              data-i18n="onlineMode">
               جلسة أونلاين
             </option>
 
@@ -288,7 +333,11 @@
         <div class="full">
 
           <label>
-            المواعيد المتاحة
+
+            <span data-i18n="slotsLabel">
+              المواعيد المتاحة
+            </span>
+
           </label>
 
           <div id="slots" class="slots">
@@ -302,51 +351,62 @@
 
 
         <label>
-          الاسم بالكامل
+
+          <span data-i18n="nameLabel">
+            الاسم بالكامل
+          </span>
 
           <input
             id="name"
-            type="text"
-            placeholder="اكتب اسمك"
             required
-          >
+            placeholder="اكتب اسمك"
+            data-i18n-placeholder="namePlaceholder">
 
         </label>
 
 
         <label>
-          رقم الهاتف
+
+          <span data-i18n="phoneLabel">
+            رقم الهاتف
+          </span>
 
           <input
             id="phone"
             type="tel"
-            placeholder="رقم الهاتف"
             required
-          >
+            placeholder="رقم الهاتف"
+            data-i18n-placeholder="phonePlaceholder">
 
         </label>
 
 
         <label>
-          البريد الإلكتروني
+
+          <span data-i18n="emailLabel">
+            البريد الإلكتروني
+          </span>
 
           <input
             id="email"
             type="email"
-            placeholder="example@email.com"
-          >
+            placeholder="example@email.com">
 
         </label>
 
 
         <label>
-          ملاحظات
+
+          <span data-i18n="notesLabel">
+            ملاحظات
+          </span>
 
           <textarea
             id="notes"
             rows="4"
             placeholder="أي معلومات إضافية..."
-          ></textarea>
+            data-i18n-placeholder="notesPlaceholder">
+          </textarea>
 
         </label>
 
@@ -356,15 +416,14 @@
       <button
         type="submit"
         class="btn booking-submit"
-      >
+        data-i18n="confirmBooking">
+
         تأكيد طلب الحجز
+
       </button>
 
 
-      <div
-        id="message"
-        class="message"
-      ></div>
+      <div id="message" class="message"></div>
 
     </form>
 
@@ -372,6 +431,8 @@
 
 </section>
 
+
+<!-- CONTACT -->
 
 <section id="contact" class="section">
 
@@ -381,34 +442,57 @@
       CONTACT
     </div>
 
-    <h2>
+    <h2 data-i18n="contactTitle">
       تواصل معنا
     </h2>
+
 
     <div class="contact-grid">
 
       <a id="phoneLink" href="#">
-        <strong>الهاتف</strong>
-        <span id="phone">—</span>
+
+        <strong data-i18n="phoneContact">
+          الهاتف
+        </strong>
+
+        <span id="phone">
+          —
+        </span>
+
       </a>
 
 
       <a id="emailLink" href="#">
-        <strong>البريد الإلكتروني</strong>
-        <span id="email">—</span>
+
+        <strong data-i18n="emailContact">
+          البريد الإلكتروني
+        </strong>
+
+        <span id="email">
+          —
+        </span>
+
       </a>
 
 
-      <a id="waLink" href="#" target="_blank">
-        <strong>واتساب</strong>
-        <span>ابدأ المحادثة</span>
+      <a id="waLink"
+         href="#"
+         target="_blank">
+
+        <strong data-i18n="whatsappContact">
+          واتساب
+        </strong>
+
+        <span data-i18n="startChat">
+          ابدأ المحادثة
+        </span>
+
       </a>
 
     </div>
 
 
-    <div id="address" class="address">
-    </div>
+    <div id="address" class="address"></div>
 
   </div>
 
@@ -422,14 +506,18 @@
   <div class="container footer">
 
     <div class="logo">
-      AZAAD
-      <span>CLINIC</span>
+      AZAAD <span>CLINIC</span>
     </div>
 
     <div>
+
       © <span id="year"></span>
-      Azaad Clinic
-      — جميع الحقوق محفوظة.
+      Azaad Clinic —
+
+      <span data-i18n="rights">
+        جميع الحقوق محفوظة.
+      </span>
+
     </div>
 
   </div>
