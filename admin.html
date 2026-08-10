@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Azaad Clinic | لوحة الإدارة</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary: #176f70;
+      --primary-dark: #105354;
+      --secondary: #e8f3f2;
+      --background: #f4f7f7;
+      --white: #ffffff;
+      --text: #173b3d;
+      --muted: #718083;
+      --border: #e0e7e7;
+      --danger: #c0392b;
+      --warning: #d68910;
+      --success: #218c5a;
+      --shadow: 0 8px 30px rgba(20, 60, 65, 0.08);
+    }
+
+    body {
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Tahoma,
+        Arial,
+        sans-serif;
+
+      background: var(--background);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    /* =========================
+       LOGIN
+    ========================= */
+
+    #loginPage {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(
+          circle at top left,
+          #dceeed 0,
+          transparent 40%
+        ),
+        var(--background);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 430px;
+      background: var(--white);
+      padding: 40px;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .clinic-logo {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 20px;
+      border-radius: 20px;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      font-weight: 800;
+    }
+
+    .login-card h1 {
+      text-align: center;
+      font-size: 25px;
+      margin-bottom: 8px;
+    }
+
+    .login-subtitle {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .form-control {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 12px;
+      padding: 13px 14px;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(23, 111, 112, 0.1);
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 11px;
+      padding: 12px 18px;
+      font-weight: 700;
+      transition: 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .login-btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 14px;
+    }
+
+    .login-error {
+      color: var(--danger);
+      background: #fff0ee;
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 15px;
+      display: none;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .security-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 22px;
+    }
+
+    /* =========================
+       ADMIN APP
+    ========================= */
+
+    #adminApp {
+      display: none;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      height: 72px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 25px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-logo {
+      width: 42px;
+      height: 42px;
+      background: var(--primary);
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
+
+    .topbar-brand strong {
+      display: block;
+    }
+
+    .topbar-brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mobile-menu {
+      display: none;
+      border: 0;
+      background: var(--secondary);
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      font-size: 21px;
+    }
+
+    .logout-btn {
+      background: #fff0ee;
+      color: var(--danger);
+      border: 0;
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+
+    .admin-layout {
+      display: flex;
+      min-height: calc(100vh - 72px);
+    }
+
+    /* SIDEBAR */
+
+    .sidebar {
+      width: 245px;
+      flex-shrink: 0;
+      background: #123f42;
+      padding: 22px 14px;
+      color: white;
+    }
+
+    .sidebar-title {
+      color: #a8c8c8;
+      font-size: 11px;
+      font-weight: 700;
+      margin: 5px 12px 12px;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: white;
+      text-align: right;
+      padding: 13px 14px;
+      border-radius: 10px;
+      margin-bottom: 5px;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      background: rgba(255,255,255,0.13);
+    }
+
+    .nav-icon {
+      display: inline-block;
+      width: 28px;
+    }
+
+    .sidebar-bottom {
+      border-top: 1px solid rgba(255,255,255,0.12);
+      margin-top: 20px;
+      padding-top: 20px;
+    }
+
+    .patient-site-btn {
+      display: block;
+      text-decoration: none;
+      color: white;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    /* MAIN */
+
+    .main-content {
+      flex: 1;
+      padding: 28px;
+      min-width: 0;
+    }
+
+    .page {
+      display: none;
+      max-width: 1250px;
+      margin: auto;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .page-header {
+      margin-bottom: 25px;
+    }
+
+    .page-header h1 {
+      font-size: 27px;
+      margin-bottom: 6px;
+    }
+
+    .page-header p {
+      color: var(--muted);
+    }
+
+    /* DASHBOARD */
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+      gap: 17px;
+      margin-bottom: 25px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 17px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-title {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--secondary);
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stat-number {
+      font-size: 30px;
+      font-weight: 800;
+      margin-top: 15px;
+    }
+
+    /* CARDS */
+
+    .content-card {
+      background: white;
+      border-radius: 17px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .content-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      gap: 15px;
+    }
+
+    .content-card-header h2 {
+      font-size: 18px;
+    }
+
+    /* TABLE */
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: right;
+      border-bottom: 1px solid #edf1f1;
+      font-size: 13px;
+    }
+
+    th {
+      background: #f8faf9;
+      color: #617174;
+      font-weight: 700;
+    }
+
+    td {
+      color: #294548;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status-new {
+      background: #e9f3ff;
+      color: #1768a8;
+    }
+
+    .status-confirmed {
+      background: #e8f7ee;
+      color: var(--success);
+    }
+
+    .status-cancelled {
+      background: #fff0ee;
+      color: var(--danger);
+    }
+
+    .status-completed {
+      background: #eeeefb;
+      color: #5b50a5;
+    }
+
+    /* SEARCH */
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .filters .form-control {
+      max-width: 250px;
+    }
+
+    /* GRID */
+
+    .management-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+      gap: 18px;
+    }
+
+    .management-card {
+      background: white;
+      border-radius: 17px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .management-card h3 {
+      margin-bottom: 8px;
+    }
+
+    .management-card p {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 13px;
+    }
+
+    .card-actions {
+      margin-top: 18px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-secondary {
+      background: var(--secondary);
+      color: var(--primary-dark);
+    }
+
+    .btn-danger {
+      background: #fff0ee;
+      color: var(--danger);
+    }
+
+    /* EMPTY */
+
+    .empty {
+      text-align: center;
+      padding: 45px 20px;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+
+    /* MODAL */
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 20px;
+      padding: 25px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-close {
+      border: 0;
+      background: #f1f4f4;
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      font-size: 20px;
+    }
+
+    .two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    /* RESPONSIVE */
+
+    @media (max-width: 1000px) {
+      .stats-grid {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+
+      .management-grid {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 800px) {
+
+      .topbar {
+        padding: 0 15px;
+      }
+
+      .mobile-menu {
+        display: block;
+      }
+
+      .sidebar {
+        position: fixed;
+        right: -260px;
+        top: 72px;
+        bottom: 0;
+        z-index: 200;
+        transition: right 0.25s;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+      }
+
+      .sidebar.open {
+        right: 0;
+      }
+
+      .main-content {
+        padding: 18px 13px;
+      }
+
+      .page-header h1 {
+        font-size: 23px;
+      }
+
+      .management-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .two-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .stat-card {
+        padding: 15px;
+      }
+
+      .stat-number {
+        font-size: 24px;
+      }
+
+      .stat-title {
+        font-size: 11px;
+      }
+
+      .topbar-brand strong {
+        font-size: 13px;
+      }
+
+      .topbar-brand span {
+        display: none;
+      }
+
+      .logout-btn {
+        padding: 9px 10px;
+        font-size: 11px;
+      }
+
+      .content-card {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- =====================================================
+     LOGIN PAGE
+===================================================== -->
+
+<div id="loginPage">
+
+  <form id="loginForm" class="login-card">
+
+    <div class="clinic-logo">
+      A
+    </div>
+
+    <h1>Azaad Clinic</h1>
+
+    <div class="login-subtitle">
+      لوحة إدارة العيادة
+    </div>
+
+    <div class="form-group">
+
+      <label for="username">
+        اسم المستخدم
+      </label>
+
+      <input
+        id="username"
+        class="form-control"
+        type="text"
+        autocomplete="username"
+        placeholder="اسم المستخدم"
+        required
+      >
+
+    </div>
+
+    <div class="form-group">
+
+      <label for="password">
+        كلمة المرور
+      </label>
+
+      <input
+        id="password"
+        class="form-control"
+        type="password"
+        autocomplete="current-password"
+        placeholder="كلمة المرور"
+        required
+      >
+
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn-primary login-btn"
+    >
+      تسجيل الدخول
+    </button>
+
+    <div
+      id="loginError"
+      class="login-error"
+    >
+      بيانات الدخول غير صحيحة.
+    </div>
+
+    <div class="security-note">
+      Azaad Clinic Administration
+    </div>
+
+  </form>
+
+</div>
+
+
+<!-- =====================================================
+     ADMIN APPLICATION
+===================================================== -->
+
+<div id="adminApp">
+
+  <!-- TOPBAR -->
+
+  <header class="topbar">
+
+    <div class="topbar-brand">
+
+      <button
+        id="mobileMenu"
+        class="mobile-menu"
+        type="button"
+      >
+        ☰
+      </button>
+
+      <div class="topbar-logo">
+        A
+      </div>
+
+      <div>
+        <strong>
+          Azaad Clinic
+        </strong>
+
+        <span>
+          Administration Dashboard
+        </span>
+      </div>
+
+    </div>
+
+    <div class="topbar-actions">
+
+      <button
+        id="logoutBtn"
+        class="logout-btn"
+        type="button"
+      >
+        تسجيل الخروج
+      </button>
+
+    </div>
+
+  </header>
+
+
+  <div class="admin-layout">
+
+
+    <!-- SIDEBAR -->
+
+    <aside
+      id="sidebar"
+      class="sidebar"
+    >
+
+      <div class="sidebar-title">
+        الإدارة
+      </div>
+
+      <button
+        class="nav-item active"
+        data-page="dashboardPage"
+      >
+        <span class="nav-icon">📊</span>
+        لوحة المعلومات
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="bookingsPage"
+      >
+        <span class="nav-icon">📅</span>
+        الحجوزات
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="doctorsPage"
+      >
+        <span class="nav-icon">👨‍⚕️</span>
+        الأطباء
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="servicesPage"
+      >
+        <span class="nav-icon">🩺</span>
+        الخدمات
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="schedulePage"
+      >
+        <span class="nav-icon">🕐</span>
+        مواعيد العمل
+      </button>
+
+      <button
+        class="nav-item"
+        data-page="settingsPage"
+      >
+        <span class="nav-icon">⚙️</span>
+        إعدادات العيادة
+      </button>
+
+      <div class="sidebar-bottom">
+
+        <a
+          href="/"
+          class="patient-site-btn"
+        >
+          ← فتح موقع المرضى
+        </a>
+
+      </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+
+      <!-- DASHBOARD -->
+
+      <section
+        id="dashboardPage"
+        class="page active"
+      >
+
+        <div class="page-header">
+
+          <h1>
+            لوحة المعلومات
+          </h1>
+
+          <p>
+            نظرة عامة على نشاط Azaad Clinic
+          </p>
+
+        </div>
+
+
+        <div class="stats-grid">
+
+          <div class="stat-card">
+
+            <div class="stat-top">
+
+              <span class="stat-title">
+                إجمالي الحجوزات
+              </span>
+
+              <div class="stat-icon">
+                📅
+              </div>
+
+            </div>
+
+            <div
+              id="totalBookings"
+              class="stat-number"
+            >
+              0
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-top">
+
+              <span class="stat-title">
+                حجوزات جديدة
+              </span>
+
+              <div class="stat-icon">
+                🆕
+              </div>
+
+            </div>
+
+            <div
+              id="newBookings"
+              class="stat-number"
+            >
+              0
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-top">
+
+              <span class="stat-title">
+                الأطباء
+              </span>
+
+              <div class="stat-icon">
+                👨‍⚕️
+              </div>
+
+            </div>
+
+            <div
+              id="totalDoctors"
+              class="stat-number"
+            >
+              0
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-top">
+
+              <span class="stat-title">
+                الخدمات
+              </span>
+
+              <div class="stat-icon">
+                🩺
+              </div>
+
+            </div>
+
+            <div
+              id="totalServices"
+              class="stat-number"
+            >
+              0
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="content-card">
+
+          <div class="content-card-header">
+
+            <h2>
+              آخر الحجوزات
+            </h2>
+
+            <button
+              class="btn btn-secondary"
+              onclick="openPage('bookingsPage')"
+            >
+              عرض كل الحجوزات
+            </button>
+
+          </div>
+
+          <div class="table-wrapper">
+
+            <table>
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    رقم الحجز
+                  </th>
+
+                  <th>
+                    المريض
+                  </th>
+
+                  <th>
+                    الطبيب
+                  </th>
+
+                  <th>
+                    التاريخ
+                  </th>
+
+                  <th>
+                    الوقت
+                  </th>
+
+                  <th>
+                    الحالة
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody id="recentBookings">
+
+                <tr>
+
+                  <td
+                    colspan="6"
+                    class="empty"
+                  >
+
+                    <div class="empty-icon">
+                      📅
+                    </div>
+
+                    لا توجد حجوزات حاليًا
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- BOOKINGS -->
+
+      <section
+        id="bookingsPage"
+        class="page"
+      >
+
+        <div class="page-header">
+
+          <h1>
+            الحجوزات
+          </h1>
+
+          <p>
+            إدارة جميع مواعيد المرضى
+          </p>
+
+        </div>
+
+
+        <div class="content-card">
+
+          <div class="filters">
+
+            <input
+              id="bookingSearch"
+              class="form-control"
+              placeholder="بحث باسم المريض أو رقم الحجز"
+            >
+
+            <select
+              id="bookingStatus"
+              class="form-control"
+            >
+
+              <option value="">
+                كل الحالات
+              </option>
+
+              <option value="new">
+                جديد
+              </option>
+
+              <option value="confirmed">
+                مؤكد
+              </option>
+
+              <option value="completed">
+                مكتمل
+              </option>
+
+              <option value="cancelled">
+                ملغي
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="table-wrapper">
+
+            <table>
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    رقم الحجز
+                  </th>
+
+                  <th>
+                    المريض
+                  </th>
+
+                  <th>
+                    الهاتف
+                  </th>
+
+                  <th>
+                    الطبيب
+                  </th>
+
+                  <th>
+                    التاريخ
+                  </th>
+
+                  <th>
+                    الوقت
+                  </th>
+
+                  <th>
+                    الحالة
+                  </th>
+
+                  <th>
+                    إجراء
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody id="bookingTable">
+
+                <tr>
+
+                  <td
+                    colspan="8"
+                    class="empty"
+                  >
+                    لا توجد حجوزات
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- DOCTORS -->
+
+      <section
+        id="doctorsPage"
+        class="page"
+      >
+
+        <div class="page-header">
+
+          <h1>
+            الأطباء
+          </h1>
+
+          <p>
+            إدارة فريق الأطباء والمتخصصين
+          </p>
+
+        </div>
+
+
+        <div class="content-card-header">
+
+          <h2>
+            فريق العيادة
+          </h2>
+
+          <button
+            class="btn btn-primary"
+            onclick="showMessage('سيتم ربط إضافة الطبيب بقاعدة البيانات في المرحلة التالية.')"
+          >
+            + إضافة طبيب
+          </button>
+
+        </div>
+
+
+        <div
+          id="doctorsGrid"
+          class="management-grid"
+        >
+
+          <div class="management-card">
+
+            <h3>
+              إدارة الأطباء
+            </h3>
+
+            <p>
+              من هنا سيتم إضافة وتعديل وحذف بيانات الأطباء،
+              الصور، التخصصات، والخدمات التي يقدمها كل طبيب.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- SERVICES -->
+
+      <section
+        id="servicesPage"
+        class="page"
+      >
+
+        <div class="page-header">
+
+          <h1>
+            الخدمات
+          </h1>
+
+          <p>
+            إدارة خدمات العيادة ومدد الجلسات
+          </p>
+
+        </div>
+
+
+        <div class="content-card-header">
+
+          <h2>
+            خدمات Azaad Clinic
+          </h2>
+
+          <button
+            class="btn btn-primary"
+            onclick="showMessage('سيتم ربط إضافة الخدمة بقاعدة البيانات في المرحلة التالية.')"
+          >
+            + إضافة خدمة
+          </button>
+
+        </div>
+
+
+        <div
+          id="servicesGrid"
+          class="management-grid"
+        >
+
+          <div class="management-card">
+
+            <h3>
+              إدارة الخدمات
+            </h3>
+
+            <p>
+              إضافة وتعديل وحذف الخدمات والأسعار ومدة الجلسة
+              ووصف الخدمة.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- SCHEDULE -->
+
+      <section
+        id="schedulePage"
+        class="page"
+      >
+
+        <div class="page-header">
+
+          <h1>
+            مواعيد العمل
+          </h1>
+
+          <p>
+            التحكم في أيام وساعات استقبال المرضى
+          </p>
+
+        </div>
+
+
+        <div class="content-card">
+
+          <div class="two-columns">
+
+            <div class="form-group">
+
+              <label>
+                بداية الدوام
+              </label>
+
+              <input
+                class="form-control"
+                type="time"
+                value="09:00"
+              >
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label>
+                نهاية الدوام
+              </label>
+
+              <input
+                class="form-control"
+                type="time"
+                value="21:00"
+              >
+
+            </div>
+
+          </div>
+
+
+          <button
+            class="btn btn-primary"
+            onclick="showMessage('تم تجهيز واجهة مواعيد العمل.')"
+          >
+            حفظ مواعيد العمل
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- SETTINGS -->
+
+      <section
+        id="settingsPage"
+        class="page"
+      >
+
+        <div class="page-header">
+
+          <h1>
+            إعدادات العيادة
+          </h1>
+
+          <p>
+            البيانات الأساسية التي تظهر للمريض
+          </p>
+
+        </div>
+
+
+        <div class="content-card">
+
+          <div class="two-columns">
+
+            <div class="form-group">
+
+              <label>
+                اسم العيادة
+              </label>
+
+              <input
+                class="form-control"
+                value="Azaad Clinic"
+              >
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label>
+                رقم الهاتف
+              </label>
+
+              <input
+                class="form-control"
+                type="tel"
+                placeholder="+20..."
+              >
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label>
+                WhatsApp
+              </label>
+
+              <input
+                class="form-control"
+                type="tel"
+                placeholder="+20..."
+              >
+
+            </div>
+
+
+            <div class="form-group">
+
+              <label>
+                البريد الإلكتروني
+              </label>
+
+              <input
+                class="form-control"
+                type="email"
+                placeholder="info@example.com"
+              >
+
+            </div>
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label>
+              عنوان العيادة
+            </label>
+
+            <textarea
+              class="form-control"
+              rows="4"
+              placeholder="عنوان العيادة"
+            ></textarea>
+
+          </div>
+
+
+          <button
+            class="btn btn-primary"
+            onclick="showMessage('تم تجهيز واجهة الإعدادات.')"
+          >
+            حفظ الإعدادات
+          </button>
+
+        </div>
+
+      </section>
+
+
+    </main>
+
+  </div>
+
+</div>
+
+
+<!-- =====================================================
+     MESSAGE
+===================================================== -->
+
+<div
+  id="toast"
+  style="
+    position:fixed;
+    bottom:25px;
+    left:25px;
+    background:#173b3d;
+    color:white;
+    padding:14px 20px;
+    border-radius:11px;
+    display:none;
+    z-index:2000;
+  "
+></div>
+
+
+<script>
+
+  /* ==========================================
+     ADMIN UI
+  ========================================== */
+
+  const loginPage =
+    document.getElementById("loginPage");
+
+  const adminApp =
+    document.getElementById("adminApp");
+
+  const loginForm =
+    document.getElementById("loginForm");
+
+  const loginError =
+    document.getElementById("loginError");
+
+  const logoutBtn =
+    document.getElementById("logoutBtn");
+
+  const mobileMenu =
+    document.getElementById("mobileMenu");
+
+  const sidebar =
+    document.getElementById("sidebar");
+
+
+  /*
+    TEMPORARY UI SESSION
+
+    مهم:
+    هذه ليست مصادقة حقيقية لبيانات المرضى.
+
+    بعد التأكد من أن الواجهة تعمل،
+    سنستبدلها بـ Supabase Authentication.
+  */
+
+  const SESSION_KEY =
+    "azaad_admin_ui_session";
+
+
+  function showAdmin() {
+
+    loginPage.style.display = "none";
+
+    adminApp.style.display = "block";
+
+  }
+
+
+  function showLogin() {
+
+    loginPage.style.display = "flex";
+
+    adminApp.style.display = "none";
+
+  }
+
+
+  loginForm.addEventListener(
+    "submit",
+    function(event) {
+
+      event.preventDefault();
+
+      const username =
+        document
+          .getElementById("username")
+          .value
+          .trim();
+
+      const password =
+        document
+          .getElementById("password")
+          .value;
+
+      /*
+        للتجربة فقط:
+
+        username:
+        admin
+
+        password:
+        admin
+
+        سيتم استبدال ذلك لاحقًا
+        بـ Supabase Auth.
+      */
+
+      if (
+        username === "admin" &&
+        password === "admin"
+      ) {
+
+        sessionStorage.setItem(
+          SESSION_KEY,
+          "1"
+        );
+
+        loginError.style.display =
+          "none";
+
+        showAdmin();
+
+      } else {
+
+        loginError.style.display =
+          "block";
+
+      }
+
+    }
+  );
+
+
+  logoutBtn.addEventListener(
+    "click",
+    function() {
+
+      sessionStorage.removeItem(
+        SESSION_KEY
+      );
+
+      showLogin();
+
+    }
+  );
+
+
+  /*
+    MOBILE MENU
+  */
+
+  mobileMenu.addEventListener(
+    "click",
+    function() {
+
+      sidebar.classList.toggle(
+        "open"
+      );
+
+    }
+  );
+
+
+  /*
+    PAGE NAVIGATION
+  */
+
+  const navItems =
+    document.querySelectorAll(
+      ".nav-item"
+    );
+
+
+  navItems.forEach(
+    function(item) {
+
+      item.addEventListener(
+        "click",
+        function() {
+
+          const pageId =
+            item.dataset.page;
+
+          openPage(pageId);
+
+          sidebar.classList.remove(
+            "open"
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+  function openPage(pageId) {
+
+    document
+      .querySelectorAll(".page")
+      .forEach(
+        function(page) {
+
+          page.classList.remove(
+            "active"
+          );
+
+        }
+      );
+
+
+    const target =
+      document.getElementById(
+        pageId
+      );
+
+
+    if (target) {
+
+      target.classList.add(
+        "active"
+      );
+
+    }
+
+
+    navItems.forEach(
+      function(item) {
+
+        item.classList.toggle(
+          "active",
+          item.dataset.page === pageId
+        );
+
+      }
+    );
+
+  }
+
+
+  /*
+    TOAST MESSAGE
+  */
+
+  function showMessage(message) {
+
+    const toast =
+      document.getElementById(
+        "toast"
+      );
+
+    toast.textContent =
+      message;
+
+    toast.style.display =
+      "block";
+
+    setTimeout(
+      function() {
+
+        toast.style.display =
+          "none";
+
+      },
+      3000
+    );
+
+  }
+
+
+  /*
+    INITIAL SESSION
+  */
+
+  if (
+    sessionStorage.getItem(
+      SESSION_KEY
+    ) === "1"
+  ) {
+
+    showAdmin();
+
+  } else {
+
+    showLogin();
+
+  }
+
+
+  /*
+    DEMO DASHBOARD COUNTERS
+
+    ستصبح بيانات حقيقية من Supabase
+    بعد ربط قاعدة البيانات.
+  */
+
+  document.getElementById(
+    "totalBookings"
+  ).textContent = "0";
+
+
+  document.getElementById(
+    "newBookings"
+  ).textContent = "0";
+
+
+  document.getElementById(
+    "totalDoctors"
+  ).textContent = "0";
+
+
+  document.getElementById(
+    "totalServices"
+  ).textContent = "0";
+
+
+</script>
+
+</body>
+</html>
