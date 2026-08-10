@@ -2,7 +2,7 @@
   const API =
     'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
 
-  const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
 
   let selectedSlot = '';
 
@@ -11,65 +11,102 @@
     services: []
   };
 
-  const esc = value =>
-    String(value ?? '').replace(
+  function escapeHtml(value) {
+    return String(value ?? '').replace(
       /[&<>"']/g,
-      c => ({
+      (char) => ({
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#039;'
-      }[c])
+      })[char]
     );
+  }
 
-  async function request(url, options) {
-    const response =
-      await fetch(url, options);
+  async function request(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      cache: 'no-store'
+    });
 
     let body = {};
 
     try {
       body = await response.json();
-    } catch (_) {}
+    } catch (_) {
+      body = {};
+    }
 
     if (!response.ok) {
       throw new Error(
-        body.error || 'تعذر تنفيذ الطلب'
+        body.error ||
+        body.message ||
+        `HTTP ${response.status}`
       );
     }
 
     return body;
   }
 
-  function showMessage(text, success = false) {
-    const element = $('message');
+  function showMessage(message, success = false) {
+    const messageElement =
+      $('message');
 
-    if (!element) return;
+    if (!messageElement) {
+      alert(message);
+      return;
+    }
 
-    element.textContent = text;
+    messageElement.textContent =
+      message;
 
-    element.style.color =
+    messageElement.style.display =
+      'block';
+
+    messageElement.style.color =
       success
         ? '#16734a'
         : '#a13a3a';
+
+    messageElement.style.background =
+      success
+        ? '#eaf8f1'
+        : '#fff1f1';
+
+    messageElement.style.padding =
+      '12px 16px';
+
+    messageElement.style.borderRadius =
+      '10px';
+
+    messageElement.style.marginTop =
+      '12px';
   }
 
-  /* ================================
-     تحميل الأطباء والخدمات
-  ================================= */
+  /*
+   * ============================
+   * تحميل الأطباء والخدمات
+   * ============================
+   */
 
-  function fillSelectors() {
-    const doctor = $('doctor');
-    const service = $('service');
+  function populateSelectors() {
+    const doctorSelect =
+      $('doctor');
 
-    if (!doctor || !service) return;
+    const serviceSelect =
+      $('service');
 
-    const previousDoctor =
-      doctor.value;
+    if (!doctorSelect ||
+        !serviceSelect) {
+      return;
+    }
 
-    const previousService =
-      service.value;
+    const oldDoctor =
+      doctorSelect.value;
+
+    const oldService =
+      serviceSelect.value;
 
     const doctors =
       Array.isArray(data.doctors)
@@ -81,34 +118,51 @@
         ? data.services
         : [];
 
-    doctor.innerHTML =
-      '<option value="">اختر الطبيب</option>' +
-
+    doctorSelect.innerHTML =
+      `
+        <option value="">
+          اختر الطبيب
+        </option>
+      ` +
       doctors
-        .map(d => `
-          <option value="${esc(d.id)}">
-            ${esc(d.name)}
+        .map((doctor) => `
+          <option value="${escapeHtml(doctor.id)}">
+            ${escapeHtml(
+              doctor.name ||
+              doctor.full_name ||
+              'طبيب'
+            )}
             ${
-              d.title
-                ? ' — ' + esc(d.title)
+              doctor.title
+                ? ' — ' +
+                  escapeHtml(
+                    doctor.title
+                  )
                 : ''
             }
           </option>
         `)
         .join('');
 
-    service.innerHTML =
-      '<option value="">اختر الخدمة</option>' +
-
+    serviceSelect.innerHTML =
+      `
+        <option value="">
+          اختر الخدمة
+        </option>
+      ` +
       services
-        .map(s => `
-          <option value="${esc(s.id)}">
-            ${esc(s.name)}
+        .map((service) => `
+          <option value="${escapeHtml(service.id)}">
+            ${escapeHtml(
+              service.name ||
+              service.title ||
+              'خدمة'
+            )}
             ${
-              s.duration_minutes
+              service.duration_minutes
                 ? ' — ' +
-                  esc(
-                    s.duration_minutes
+                  escapeHtml(
+                    service.duration_minutes
                   ) +
                   ' دقيقة'
                 : ''
@@ -118,120 +172,129 @@
         .join('');
 
     if (
-      [...doctor.options]
+      [...doctorSelect.options]
         .some(
-          option =>
+          (option) =>
             option.value ===
-            previousDoctor
+            oldDoctor
         )
     ) {
-      doctor.value =
-        previousDoctor;
+      doctorSelect.value =
+        oldDoctor;
     }
 
     if (
-      [...service.options]
+      [...serviceSelect.options]
         .some(
-          option =>
+          (option) =>
             option.value ===
-            previousService
+            oldService
         )
     ) {
-      service.value =
-        previousService;
+      serviceSelect.value =
+        oldService;
     }
   }
 
-  /* ================================
-     تحميل بيانات العيادة
-  ================================= */
+  /*
+   * ============================
+   * التاريخ
+   * ============================
+   */
 
-  async function loadData() {
+  function setupDate() {
+    const dateInput =
+      $('date');
+
+    if (!dateInput) {
+      return;
+    }
+
+    const now =
+      new Date();
+
+    now.setMinutes(
+      now.getMinutes() -
+      now.getTimezoneOffset()
+    );
+
+    const today =
+      now
+        .toISOString()
+        .slice(0, 10);
+
+    dateInput.min =
+      today;
+
+    if (!dateInput.value) {
+      dateInput.value =
+        today;
+    }
+  }
+
+  /*
+   * ============================
+   * تحميل البيانات الأساسية
+   * ============================
+   */
+
+  async function loadClinicData() {
     try {
 
-      const response =
+      const result =
         await request(
           API +
-          '?api=data&v=' +
+          '?api=data&_=' +
           Date.now()
         );
 
       data =
-        response || {};
+        result || {};
 
-      fillSelectors();
+      populateSelectors();
 
-      if (
-        $('date') &&
-        !$('date').value
-      ) {
+      setupDate();
 
-        const now =
-          new Date();
-
-        now.setMinutes(
-          now.getMinutes() -
-          now.getTimezoneOffset()
-        );
-
-        $('date').value =
-          now
-            .toISOString()
-            .slice(0, 10);
-
-        $('date').min =
-          $('date').value;
-      }
-
-      await loadSlots();
+      await loadAvailableSlots();
 
     } catch (error) {
 
-      showMessage(
-        error.message ||
-        'تعذر تحميل بيانات الحجز'
+      console.error(
+        'Azaad Clinic data error:',
+        error
       );
 
-      const service =
-        $('service');
-
-      if (
-        service &&
-        service.options.length === 1
-      ) {
-
-        service.innerHTML =
-          `
-            <option value="">
-              تعذر تحميل الخدمات —
-              أعد تحميل الصفحة
-            </option>
-          `;
-      }
+      showMessage(
+        'تعذر تحميل بيانات العيادة. يرجى تحديث الصفحة والمحاولة مرة أخرى.'
+      );
     }
   }
 
-  /* ================================
-     المواعيد المتاحة
-  ================================= */
+  /*
+   * ============================
+   * المواعيد المتاحة
+   * ============================
+   */
 
-  async function loadSlots() {
+  async function loadAvailableSlots() {
 
-    selectedSlot = '';
-
-    const slots =
+    const slotsContainer =
       $('slots');
 
     const doctor =
-      $('doctor')?.value;
+      $('doctor')?.value || '';
 
     const service =
-      $('service')?.value;
+      $('service')?.value || '';
 
     const date =
-      $('date')?.value;
+      $('date')?.value || '';
 
-    if (!slots) return;
+    selectedSlot = '';
+
+    if (!slotsContainer) {
+      return;
+    }
 
     if (
       !doctor ||
@@ -239,14 +302,23 @@
       !date
     ) {
 
-      slots.textContent =
-        'اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.';
+      slotsContainer.innerHTML =
+        `
+          <div class="slots-empty">
+            اختر الطبيب والخدمة والتاريخ
+            لعرض المواعيد المتاحة.
+          </div>
+        `;
 
       return;
     }
 
-    slots.textContent =
-      'جاري تحميل المواعيد...';
+    slotsContainer.innerHTML =
+      `
+        <div class="slots-loading">
+          جاري تحميل المواعيد...
+        </div>
+      `;
 
     try {
 
@@ -254,66 +326,66 @@
         API +
         '?api=slots' +
         '&doctor=' +
-        encodeURIComponent(
-          doctor
-        ) +
+        encodeURIComponent(doctor) +
         '&service=' +
-        encodeURIComponent(
-          service
-        ) +
+        encodeURIComponent(service) +
         '&date=' +
-        encodeURIComponent(
-          date
-        ) +
-        '&v=' +
+        encodeURIComponent(date) +
+        '&_=' +
         Date.now();
 
-      const response =
+      const result =
         await request(url);
 
-      const list =
-        Array.isArray(
-          response.slots
-        )
-          ? response.slots
+      const slots =
+        Array.isArray(result?.slots)
+          ? result.slots
           : [];
 
-      if (!list.length) {
+      if (!slots.length) {
 
-        slots.textContent =
-          'لا توجد مواعيد متاحة لهذا اليوم.';
+        slotsContainer.innerHTML =
+          `
+            <div class="slots-empty">
+              لا توجد مواعيد متاحة
+              لهذا اليوم.
+            </div>
+          `;
 
         return;
       }
 
-      slots.innerHTML =
-        list
-          .map(time => `
-            <button
-              class="slot"
-              type="button"
-              data-slot="${esc(time)}">
-
-              ${esc(time)}
-
-            </button>
-          `)
+      slotsContainer.innerHTML =
+        slots
+          .map(
+            (time) => `
+              <button
+                type="button"
+                class="slot"
+                data-slot="${escapeHtml(time)}"
+              >
+                ${escapeHtml(time)}
+              </button>
+            `
+          )
           .join('');
 
-      slots
-        .querySelectorAll('.slot')
-        .forEach(button => {
+      slotsContainer
+        .querySelectorAll(
+          '.slot'
+        )
+        .forEach((button) => {
 
           button.addEventListener(
             'click',
             () => {
 
-              slots
+              slotsContainer
                 .querySelectorAll(
                   '.slot'
                 )
                 .forEach(
-                  item =>
+                  (item) =>
                     item.classList
                       .remove(
                         'selected'
@@ -326,6 +398,11 @@
 
               selectedSlot =
                 button.dataset.slot;
+
+              showMessage(
+                `تم اختيار الموعد ${selectedSlot}`,
+                true
+              );
             }
           );
 
@@ -333,37 +410,83 @@
 
     } catch (error) {
 
-      slots.textContent =
+      console.error(
+        'Slots error:',
+        error
+      );
+
+      slotsContainer.innerHTML =
+        `
+          <div class="slots-error">
+            تعذر تحميل المواعيد.
+            يرجى المحاولة مرة أخرى.
+          </div>
+        `;
+
+      showMessage(
         error.message ||
-        'تعذر تحميل المواعيد.';
+        'تعذر تحميل المواعيد.'
+      );
     }
   }
 
-  /* ================================
-     إرسال الحجز
-  ================================= */
+  /*
+   * ============================
+   * إرسال الحجز
+   * ============================
+   */
 
   async function submitBooking(event) {
 
     event.preventDefault();
 
     const doctor =
-      $('doctor')?.value;
+      $('doctor')?.value || '';
 
     const service =
-      $('service')?.value;
+      $('service')?.value || '';
 
     const date =
-      $('date')?.value;
+      $('date')?.value || '';
 
-    if (
-      !doctor ||
-      !service ||
-      !date
-    ) {
+    const name =
+      $('name')?.value.trim() || '';
+
+    const phone =
+      $('phone')?.value.trim() || '';
+
+    const email =
+      $('email')?.value.trim() || '';
+
+    const notes =
+      $('notes')?.value.trim() || '';
+
+    const mode =
+      $('mode')?.value ||
+      'clinic';
+
+    if (!doctor) {
 
       showMessage(
-        'من فضلك اختر الطبيب والخدمة والتاريخ.'
+        'من فضلك اختر الطبيب.'
+      );
+
+      return;
+    }
+
+    if (!service) {
+
+      showMessage(
+        'من فضلك اختر الخدمة.'
+      );
+
+      return;
+    }
+
+    if (!date) {
+
+      showMessage(
+        'من فضلك اختر التاريخ.'
       );
 
       return;
@@ -372,15 +495,13 @@
     if (!selectedSlot) {
 
       showMessage(
-        'من فضلك اختر موعدًا متاحًا.'
+        'من فضلك اختر أحد المواعيد المتاحة.'
       );
 
       return;
     }
 
-    if (
-      !$('name')?.value.trim()
-    ) {
+    if (!name) {
 
       showMessage(
         'من فضلك اكتب الاسم بالكامل.'
@@ -389,9 +510,7 @@
       return;
     }
 
-    if (
-      !$('phone')?.value.trim()
-    ) {
+    if (!phone) {
 
       showMessage(
         'من فضلك اكتب رقم الهاتف.'
@@ -400,8 +519,14 @@
       return;
     }
 
-    const payload = {
+    /*
+     * مهم:
+     * لا نرسل patient_language
+     * لأن هذا العمود غير موجود
+     * في clinic_bookings.
+     */
 
+    const payload = {
       doctor_id:
         doctor,
 
@@ -415,55 +540,43 @@
         selectedSlot,
 
       mode:
-        $('mode')?.value ||
-        'clinic',
+        mode,
 
       patient_name:
-        $('name')
-          .value
-          .trim(),
+        name,
 
       patient_phone:
-        $('phone')
-          .value
-          .trim(),
+        phone,
 
       patient_email:
-        $('email')?.value
-          .trim() ||
-        '',
+        email || null,
 
       notes:
-        $('notes')?.value
-          .trim() ||
-        '',
-
-      patient_language:
-        document.documentElement
-          .lang ||
-        'ar'
+        notes || null
     };
 
-    const button =
+    const submitButton =
       document.querySelector(
         '#bookingForm button[type="submit"]'
       );
 
-    if (button) {
+    const oldButtonText =
+      submitButton
+        ? submitButton.textContent
+        : '';
 
-      button.disabled =
+    if (submitButton) {
+
+      submitButton.disabled =
         true;
 
-      button.dataset.oldText =
-        button.textContent;
-
-      button.textContent =
-        'جاري إرسال الطلب...';
+      submitButton.textContent =
+        'جاري تأكيد الحجز...';
     }
 
     try {
 
-      const response =
+      const result =
         await request(
           API + '?api=book',
           {
@@ -481,80 +594,179 @@
           }
         );
 
+      const bookingCode =
+        result?.booking_code ||
+        result?.booking?.booking_code ||
+        '';
+
       showMessage(
-        'تم إرسال الحجز بنجاح. رقم الحجز: ' +
-        (
-          response.booking_code ||
-          '—'
-        ),
+        bookingCode
+          ? `تم إرسال طلب الحجز بنجاح. رقم الحجز: ${bookingCode}`
+          : 'تم إرسال طلب الحجز بنجاح.',
         true
       );
 
-      $('bookingForm').reset();
+      /*
+       * تنظيف بيانات النموذج
+       */
+
+      const form =
+        $('bookingForm');
+
+      if (form) {
+        form.reset();
+      }
 
       selectedSlot = '';
 
-      const now =
-        new Date();
+      setupDate();
 
-      now.setMinutes(
-        now.getMinutes() -
-        now.getTimezoneOffset()
-      );
+      const slots =
+        $('slots');
 
-      $('date').value =
-        now
-          .toISOString()
-          .slice(0, 10);
+      if (slots) {
 
-      await loadSlots();
+        slots.innerHTML =
+          `
+            <div class="slots-empty">
+              اختر الطبيب والخدمة والتاريخ
+              لعرض المواعيد المتاحة.
+            </div>
+          `;
+      }
 
     } catch (error) {
 
-      showMessage(
-        error.message ||
-        'تعذر إرسال طلب الحجز.'
+      console.error(
+        'Booking error:',
+        error
       );
 
-      await loadSlots();
+      let message =
+        error.message ||
+        'تعذر إرسال طلب الحجز.';
+
+      /*
+       * رسالة مفهومة عند
+       * حجز الموعد من شخص آخر
+       */
+
+      if (
+        message
+          .toLowerCase()
+          .includes(
+            'duplicate'
+          ) ||
+        message
+          .toLowerCase()
+          .includes(
+            'unique'
+          ) ||
+        message
+          .toLowerCase()
+          .includes(
+            'already booked'
+          )
+      ) {
+
+        message =
+          'هذا الموعد تم حجزه بالفعل. يرجى اختيار موعد آخر.';
+      }
+
+      showMessage(
+        message
+      );
+
+      /*
+       * إعادة تحميل المواعيد
+       * بعد أي خطأ
+       */
+
+      await loadAvailableSlots();
 
     } finally {
 
-      if (button) {
+      if (submitButton) {
 
-        button.disabled =
+        submitButton.disabled =
           false;
 
-        button.textContent =
-          button.dataset.oldText ||
+        submitButton.textContent =
+          oldButtonText ||
           'تأكيد طلب الحجز';
       }
     }
   }
 
-  /* ================================
-     تشغيل النظام
-  ================================= */
+  /*
+   * ============================
+   * تشغيل الصفحة
+   * ============================
+   */
 
-  function start() {
+  function initializeBooking() {
 
-    if (!$('bookingForm'))
+    const form =
+      $('bookingForm');
+
+    if (!form) {
       return;
+    }
 
-    $('doctor').onchange =
-      loadSlots;
+    const doctor =
+      $('doctor');
 
-    $('service').onchange =
-      loadSlots;
+    const service =
+      $('service');
 
-    $('date').onchange =
-      loadSlots;
+    const date =
+      $('date');
 
-    $('bookingForm').onsubmit =
-      submitBooking;
+    if (doctor) {
 
-    loadData();
+      doctor.addEventListener(
+        'change',
+        () => {
+          loadAvailableSlots();
+        }
+      );
+    }
+
+    if (service) {
+
+      service.addEventListener(
+        'change',
+        () => {
+          loadAvailableSlots();
+        }
+      );
+    }
+
+    if (date) {
+
+      date.addEventListener(
+        'change',
+        () => {
+          loadAvailableSlots();
+        }
+      );
+    }
+
+    form.addEventListener(
+      'submit',
+      submitBooking
+    );
+
+    setupDate();
+
+    loadClinicData();
   }
+
+  /*
+   * ============================
+   * بدء التشغيل
+   * ============================
+   */
 
   if (
     document.readyState ===
@@ -563,12 +775,12 @@
 
     document.addEventListener(
       'DOMContentLoaded',
-      start
+      initializeBooking
     );
 
   } else {
 
-    start();
+    initializeBooking();
   }
 
 })();
