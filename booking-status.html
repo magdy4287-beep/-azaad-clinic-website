@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>تتبع الحجز | عيادة أزاد</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    .tracking-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 16px;
+      background: #f7f9fb;
+    }
+
+    .tracking-box {
+      width: 100%;
+      max-width: 600px;
+      background: #fff;
+      border-radius: 22px;
+      padding: 32px;
+      box-shadow: 0 10px 35px rgba(0,0,0,.08);
+    }
+
+    .tracking-box h1 {
+      margin: 0 0 10px;
+      text-align: center;
+    }
+
+    .tracking-subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 28px;
+    }
+
+    .tracking-form label {
+      display: block;
+      margin-bottom: 18px;
+      font-weight: 600;
+    }
+
+    .tracking-form input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 14px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      font-size: 16px;
+      direction: ltr;
+      text-align: left;
+    }
+
+    .tracking-form button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 15px;
+      background: #f5f8f7;
+      display: none;
+    }
+
+    .booking-status {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+
+    .booking-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .booking-row:last-child {
+      border-bottom: 0;
+    }
+
+    .back-home {
+      display: block;
+      text-align: center;
+      margin-top: 22px;
+      text-decoration: none;
+    }
+
+    .error-message {
+      color: #b42318;
+      background: #fff1f0;
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .success-message {
+      color: #067647;
+    }
+
+    @media (max-width: 600px) {
+      .tracking-box {
+        padding: 22px 16px;
+        border-radius: 16px;
+      }
+
+      .booking-row {
+        flex-direction: column;
+        gap: 4px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="tracking-page">
+
+  <div class="tracking-box">
+
+    <h1>تتبع موعدك</h1>
+
+    <p class="tracking-subtitle">
+      أدخل رقم الحجز ورقم الهاتف لمعرفة حالة موعدك.
+    </p>
+
+    <form id="trackingForm" class="tracking-form">
+
+      <label>
+        رقم الحجز
+        <input
+          id="bookingCode"
+          type="text"
+          placeholder="مثال: AZD-12345678"
+          required
+          autocomplete="off"
+        >
+      </label>
+
+      <label>
+        رقم الهاتف
+        <input
+          id="patientPhone"
+          type="tel"
+          placeholder="01xxxxxxxxx"
+          required
+          autocomplete="tel"
+        >
+      </label>
+
+      <button type="submit">
+        البحث عن الحجز
+      </button>
+
+    </form>
+
+    <div id="result"></div>
+
+    <a href="/" class="back-home">
+      ← العودة إلى موقع العيادة
+    </a>
+
+  </div>
+
+</div>
+
+
+<script>
+
+const API_BASE =
+  "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic";
+
+
+const form = document.getElementById("trackingForm");
+const result = document.getElementById("result");
+
+
+const statusArabic = {
+  pending: "قيد المراجعة",
+  confirmed: "تم تأكيد الموعد",
+  cancelled: "تم إلغاء الموعد",
+  completed: "تم إكمال الموعد"
+};
+
+
+const statusEnglish = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
+  completed: "Completed"
+};
+
+
+function escapeHtml(value) {
+
+  return String(value ?? "")
+    .replace(/[&<>"']/g, function(char) {
+
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char];
+
+    });
+
+}
+
+
+function showMessage(message, error = false) {
+
+  result.style.display = "block";
+
+  result.innerHTML = `
+    <div class="${error ? "error-message" : "success-message"}">
+      ${escapeHtml(message)}
+    </div>
+  `;
+
+}
+
+
+form.addEventListener("submit", async function(event) {
+
+  event.preventDefault();
+
+  const bookingCode =
+    document.getElementById("bookingCode").value.trim();
+
+  const patientPhone =
+    document.getElementById("patientPhone").value.trim();
+
+
+  if (!bookingCode || !patientPhone) {
+
+    showMessage(
+      "من فضلك أدخل رقم الحجز ورقم الهاتف.",
+      true
+    );
+
+    return;
+  }
+
+
+  result.style.display = "block";
+
+  result.innerHTML = `
+    <div>
+      جاري البحث عن الحجز...
+    </div>
+  `;
+
+
+  try {
+
+    const params = new URLSearchParams({
+
+      api: "booking-status",
+
+      code: bookingCode,
+
+      phone: patientPhone
+
+    });
+
+
+    const response =
+      await fetch(API_BASE + "?" + params.toString());
+
+
+    const data = await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error || "لم يتم العثور على الحجز."
+      );
+
+    }
+
+
+    const booking = data.booking;
+
+
+    const status =
+      statusArabic[booking.status] ||
+      booking.status ||
+      "غير معروف";
+
+
+    const time =
+      booking.appointment_time
+        ? String(booking.appointment_time).slice(0, 5)
+        : "—";
+
+
+    result.innerHTML = `
+
+      <div class="booking-status">
+        ${escapeHtml(status)}
+      </div>
+
+      <div class="booking-row">
+        <strong>رقم الحجز</strong>
+        <span>${escapeHtml(booking.booking_code)}</span>
+      </div>
+
+      <div class="booking-row">
+        <strong>اسم المريض</strong>
+        <span>${escapeHtml(booking.patient_name)}</span>
+      </div>
+
+      <div class="booking-row">
+        <strong>التاريخ</strong>
+        <span>${escapeHtml(booking.appointment_date)}</span>
+      </div>
+
+      <div class="booking-row">
+        <strong>الوقت</strong>
+        <span>${escapeHtml(time)}</span>
+      </div>
+
+      <div class="booking-row">
+        <strong>الحالة</strong>
+        <span>${escapeHtml(status)}</span>
+      </div>
+
+    `;
+
+  }
+
+  catch (error) {
+
+    showMessage(
+      error.message ||
+      "حدث خطأ أثناء البحث عن الحجز.",
+      true
+    );
+
+  }
+
+});
+
+</script>
+
+</body>
+</html>
