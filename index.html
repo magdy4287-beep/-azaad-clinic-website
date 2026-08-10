@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azaad Clinic | عيادة أزاد للصحة النفسية</title>
+  <meta name="description" content="Azaad Clinic - عيادة متخصصة في الصحة النفسية والعلاج النفسي">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="header">
+  <div class="container nav">
+
+    <a href="#home" class="logo">
+      AZAAD
+      <span>CLINIC</span>
+    </a>
+
+    <nav id="nav">
+      <a href="#home">الرئيسية</a>
+      <a href="#about">عن العيادة</a>
+      <a href="#services">الخدمات</a>
+      <a href="#doctors">الأطباء</a>
+      <a href="#booking">الحجز</a>
+      <a href="#contact">تواصل معنا</a>
+    </nav>
+
+    <a href="#booking" class="btn nav-btn">احجز موعدك</a>
+
+    <button id="menu" class="menu-btn" aria-label="القائمة">
+      ☰
+    </button>
+
+  </div>
+</header>
+
+
+<main>
+
+<section id="home" class="hero">
+
+  <div class="container hero-grid">
+
+    <div class="hero-content">
+
+      <div class="eyebrow">
+        AZAAD CLINIC • MENTAL HEALTH
+      </div>
+
+      <h1>
+        مساحة آمنة
+        <br>
+        <span>لبداية التغيير</span>
+      </h1>
+
+      <p>
+        رعاية نفسية متخصصة باهتمام إنساني،
+        وخصوصية كاملة، وخطة علاجية تناسب احتياجاتك.
+      </p>
+
+      <div class="hero-buttons">
+
+        <a href="#booking" class="btn">
+          احجز جلستك الآن
+        </a>
+
+        <a id="waHero"
+           href="#"
+           target="_blank"
+           class="btn btn-light">
+          تواصل عبر واتساب
+        </a>
+
+      </div>
+
+      <div class="trust">
+        <span>✓ خصوصية كاملة</span>
+        <span>✓ حضوري وأونلاين</span>
+        <span>✓ رعاية متخصصة</span>
+      </div>
+
+    </div>
+
+    <div class="hero-card">
+
+      <div class="hero-card-inner">
+
+        <div class="hero-logo">
+          AZAAD
+        </div>
+
+        <div class="hero-subtitle">
+          PSYCHOTHERAPY
+          <br>
+          & MENTAL HEALTH
+        </div>
+
+        <div class="hero-circle">
+          ✦
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<section id="about" class="section">
+
+  <div class="container about-grid">
+
+    <div>
+
+      <div class="eyebrow">
+        ABOUT AZAAD CLINIC
+      </div>
+
+      <h2>
+        مكان تستطيع فيه
+        <br>
+        أن تكون على طبيعتك.
+      </h2>
+
+    </div>
+
+    <div class="about-text">
+
+      <p>
+        نؤمن أن طلب المساعدة خطوة قوة وليست ضعفًا.
+        لذلك نوفر بيئة آمنة ومحترمة تساعدك على فهم
+        التحديات النفسية والتعامل معها بخطوات عملية.
+      </p>
+
+      <p>
+        هدفنا أن تحصل على رعاية نفسية مهنية،
+        إنسانية، وسرية بالكامل.
+      </p>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<section id="services" class="section section-light">
+
+  <div class="container">
+
+    <div class="eyebrow">
+      OUR SERVICES
+    </div>
+
+    <h2>
+      خدماتنا
+    </h2>
+
+    <p class="section-intro">
+      خدمات نفسية مصممة لتناسب احتياجات كل شخص.
+    </p>
+
+    <div id="servicesGrid" class="cards">
+
+      <div class="loading">
+        جاري تحميل الخدمات...
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<section id="doctors" class="section">
+
+  <div class="container">
+
+    <div class="eyebrow">
+      OUR TEAM
+    </div>
+
+    <h2>
+      فريق العيادة
+    </h2>
+
+    <p class="section-intro">
+      متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.
+    </p>
+
+    <div id="doctorsGrid" class="cards">
+
+      <div class="loading">
+        جاري تحميل فريق العيادة...
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<section id="booking" class="section booking-section">
+
+  <div class="container">
+
+    <div class="booking-header">
+
+      <div class="eyebrow">
+        APPOINTMENT
+      </div>
+
+      <h2>
+        احجز موعدك
+      </h2>
+
+      <p>
+        اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.
+      </p>
+
+    </div>
+
+
+    <form id="bookingForm" class="booking-form">
+
+      <div class="form-grid">
+
+        <label>
+          الطبيب
+
+          <select id="doctor" required>
+            <option value="">
+              اختر الطبيب
+            </option>
+          </select>
+
+        </label>
+
+
+        <label>
+          الخدمة
+
+          <select id="service" required>
+            <option value="">
+              اختر الخدمة
+            </option>
+          </select>
+
+        </label>
+
+
+        <label>
+          التاريخ
+
+          <input
+            id="date"
+            type="date"
+            required
+          >
+
+        </label>
+
+
+        <label>
+          نوع الجلسة
+
+          <select id="mode">
+
+            <option value="clinic">
+              داخل العيادة
+            </option>
+
+            <option value="online">
+              جلسة أونلاين
+            </option>
+
+          </select>
+
+        </label>
+
+
+        <div class="full">
+
+          <label>
+            المواعيد المتاحة
+          </label>
+
+          <div id="slots" class="slots">
+
+            اختر الطبيب والخدمة والتاريخ
+            لعرض المواعيد المتاحة.
+
+          </div>
+
+        </div>
+
+
+        <label>
+          الاسم بالكامل
+
+          <input
+            id="name"
+            type="text"
+            placeholder="اكتب اسمك"
+            required
+          >
+
+        </label>
+
+
+        <label>
+          رقم الهاتف
+
+          <input
+            id="phone"
+            type="tel"
+            placeholder="رقم الهاتف"
+            required
+          >
+
+        </label>
+
+
+        <label>
+          البريد الإلكتروني
+
+          <input
+            id="email"
+            type="email"
+            placeholder="example@email.com"
+          >
+
+        </label>
+
+
+        <label>
+          ملاحظات
+
+          <textarea
+            id="notes"
+            rows="4"
+            placeholder="أي معلومات إضافية..."
+          ></textarea>
+
+        </label>
+
+      </div>
+
+
+      <button
+        type="submit"
+        class="btn booking-submit"
+      >
+        تأكيد طلب الحجز
+      </button>
+
+
+      <div
+        id="message"
+        class="message"
+      ></div>
+
+    </form>
+
+  </div>
+
+</section>
+
+
+<section id="contact" class="section">
+
+  <div class="container">
+
+    <div class="eyebrow">
+      CONTACT
+    </div>
+
+    <h2>
+      تواصل معنا
+    </h2>
+
+    <div class="contact-grid">
+
+      <a id="phoneLink" href="#">
+        <strong>الهاتف</strong>
+        <span id="phone">—</span>
+      </a>
+
+
+      <a id="emailLink" href="#">
+        <strong>البريد الإلكتروني</strong>
+        <span id="email">—</span>
+      </a>
+
+
+      <a id="waLink" href="#" target="_blank">
+        <strong>واتساب</strong>
+        <span>ابدأ المحادثة</span>
+      </a>
+
+    </div>
+
+
+    <div id="address" class="address">
+    </div>
+
+  </div>
+
+</section>
+
+</main>
+
+
+<footer>
+
+  <div class="container footer">
+
+    <div class="logo">
+      AZAAD
+      <span>CLINIC</span>
+    </div>
+
+    <div>
+      © <span id="year"></span>
+      Azaad Clinic
+      — جميع الحقوق محفوظة.
+    </div>
+
+  </div>
+
+</footer>
+
+
+<script src="app.js"></script>
+
+</body>
+</html>
