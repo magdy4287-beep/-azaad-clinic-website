@@ -4,53 +4,2748 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
+
   <title>Azaad Clinic | لوحة الإدارة</title>
 
   <style>
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      font-family: Arial, Tahoma, sans-serif;
-      background: #f5f7fb;
-      color: #18213d;
+    * {
+      box-sizing: border-box;
     }
 
-    .loading {
-      height: 100%;
+    body {
+      margin: 0;
+      background: #f5f7fb;
+      color: #18213d;
+      font-family: Arial, Tahoma, sans-serif;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 430px;
+      background: #fff;
+      border-radius: 18px;
+      padding: 30px;
+      box-shadow: 0 15px 50px rgba(0,0,0,.08);
+    }
+
+    .logo {
+      font-size: 25px;
+      font-weight: 900;
+      color: #17214f;
+      letter-spacing: 2px;
+    }
+
+    .logo span {
+      color: #b38a42;
+      font-size: 12px;
+      display: block;
+      letter-spacing: 3px;
+      margin-top: 4px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      margin-top: 7px;
+      padding: 12px;
+      border: 1px solid #d9deea;
+      border-radius: 10px;
+      background: #fff;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #17214f;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background: #17214f;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: #17214f;
+      border: 1px solid #d9deea;
+    }
+
+    .btn-danger {
+      background: #fff0f2;
+      color: #a32939;
+      border: 1px solid #ffd2d8;
+    }
+
+    .btn-success {
+      background: #e7f7ed;
+      color: #167345;
+    }
+
+    .error {
+      background: #fff0f2;
+      color: #a32939;
+      padding: 11px;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .success {
+      background: #e7f7ed;
+      color: #167345;
+      padding: 11px;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .admin {
+      max-width: 1250px;
+      margin: auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      box-shadow: 0 7px 25px rgba(0,0,0,.05);
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stats {
       display: grid;
-      place-items: center;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .stat {
+      background: #fff;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 7px 25px rgba(0,0,0,.04);
+    }
+
+    .stat-number {
+      font-size: 30px;
+      font-weight: 900;
+      margin-bottom: 5px;
+    }
+
+    .muted {
+      color: #6c758c;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      margin: 16px 0;
+      padding-bottom: 3px;
+    }
+
+    .tab {
+      white-space: nowrap;
+      border: 1px solid #d9deea;
+      background: #fff;
+      color: #17214f;
+      border-radius: 22px;
+      padding: 10px 16px;
+    }
+
+    .tab.active {
+      background: #17214f;
+      color: #fff;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 7px 25px rgba(0,0,0,.04);
+      margin-bottom: 15px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid #e3e6ed;
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 950px;
+    }
+
+    th,
+    td {
+      padding: 11px;
+      text-align: right;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #fafbfe;
+      color: #17214f;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-pending {
+      background: #fff4cc;
+      color: #755c00;
+    }
+
+    .badge-confirmed {
+      background: #e5f7eb;
+      color: #167345;
+    }
+
+    .badge-cancelled {
+      background: #ffecef;
+      color: #a32939;
+    }
+
+    .badge-completed {
+      background: #e8edf8;
+      color: #273a70;
+    }
+
+    .items {
+      display: grid;
+      gap: 10px;
+    }
+
+    .item {
+      border: 1px solid #e2e6ef;
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 25, 70, .55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+      z-index: 100;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 650px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: #fff;
+      border-radius: 17px;
+      padding: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+      margin-top: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      max-width: 500px;
+      margin: auto;
+      background: #17214f;
+      color: #fff;
+      padding: 13px 17px;
+      border-radius: 10px;
+      display: none;
+      z-index: 200;
       text-align: center;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 800px) {
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .filters,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .full {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .admin {
+        padding: 10px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .login-card {
+        padding: 22px;
+      }
     }
   </style>
 </head>
 
 <body>
 
-  <div class="loading">
-    <div>
-      <strong>Azaad Clinic</strong>
-      <p>جاري فتح لوحة الإدارة الآمنة...</p>
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+
+    <div class="logo">
+      AZAAD
+      <span>CLINIC FOR MENTAL HEALTH</span>
     </div>
+
+    <h2 style="margin-top:25px">
+      لوحة إدارة العيادة
+    </h2>
+
+    <p class="muted">
+      تسجيل الدخول إلى لوحة الإدارة
+    </p>
+
+    <form id="loginForm">
+
+      <label>
+        اسم المستخدم
+        <input
+          id="username"
+          type="text"
+          autocomplete="username"
+          value="admin"
+          required
+        >
+      </label>
+
+      <label>
+        كلمة المرور
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        >
+      </label>
+
+      <button
+        type="submit"
+        class="btn btn-primary"
+        style="width:100%"
+      >
+        تسجيل الدخول
+      </button>
+
+      <div
+        id="loginError"
+        class="error hidden"
+      ></div>
+
+    </form>
+
+  </div>
+</div>
+
+
+<div id="adminPage" class="admin hidden">
+
+  <div class="topbar">
+
+    <div>
+      <div class="logo">
+        AZAAD
+        <span>ADMIN PANEL</span>
+      </div>
+
+      <div
+        class="muted"
+        style="margin-top:5px"
+      >
+        لوحة إدارة عيادة آزاد للصحة النفسية
+      </div>
+    </div>
+
+    <div class="top-actions">
+
+      <button
+        id="refreshBtn"
+        class="btn btn-secondary"
+      >
+        تحديث
+      </button>
+
+      <button
+        id="patientPageBtn"
+        class="btn btn-secondary"
+      >
+        صفحة المرضى
+      </button>
+
+      <button
+        id="logoutBtn"
+        class="btn btn-danger"
+      >
+        تسجيل الخروج
+      </button>
+
+    </div>
+
   </div>
 
-  <script>
-    const ADMIN_URL =
-      "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin";
 
-    window.location.replace(ADMIN_URL);
-  </script>
+  <div class="stats">
 
-  <noscript>
-    <div style="text-align:center;padding:40px">
-      JavaScript is required.
-      <br><br>
-      <a href="https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin">
-        فتح لوحة الإدارة
-      </a>
+    <div class="stat">
+      <div
+        id="totalCount"
+        class="stat-number"
+      >
+        0
+      </div>
+
+      <div class="muted">
+        إجمالي الحجوزات
+      </div>
     </div>
-  </noscript>
+
+    <div class="stat">
+      <div
+        id="pendingCount"
+        class="stat-number"
+      >
+        0
+      </div>
+
+      <div class="muted">
+        قيد المراجعة
+      </div>
+    </div>
+
+    <div class="stat">
+      <div
+        id="confirmedCount"
+        class="stat-number"
+      >
+        0
+      </div>
+
+      <div class="muted">
+        الحجوزات المؤكدة
+      </div>
+    </div>
+
+    <div class="stat">
+      <div
+        id="todayCount"
+        class="stat-number"
+      >
+        0
+      </div>
+
+      <div class="muted">
+        حجوزات اليوم
+      </div>
+    </div>
+
+  </div>
+
+
+  <div class="tabs">
+
+    <button
+      class="tab active"
+      data-panel="bookingsPanel"
+    >
+      الحجوزات
+    </button>
+
+    <button
+      class="tab"
+      data-panel="doctorsPanel"
+    >
+      الأطباء
+    </button>
+
+    <button
+      class="tab"
+      data-panel="servicesPanel"
+    >
+      الخدمات
+    </button>
+
+    <button
+      class="tab"
+      data-panel="hoursPanel"
+    >
+      ساعات العمل
+    </button>
+
+    <button
+      class="tab"
+      data-panel="settingsPanel"
+    >
+      إعدادات العيادة
+    </button>
+
+  </div>
+
+
+  <!-- BOOKINGS -->
+
+  <section
+    id="bookingsPanel"
+    class="panel active"
+  >
+
+    <div class="card">
+
+      <div class="panel-head">
+
+        <h2>
+          الحجوزات
+        </h2>
+
+        <button
+          id="refreshBookings"
+          class="btn btn-secondary"
+        >
+          تحديث الحجوزات
+        </button>
+
+      </div>
+
+      <div class="filters">
+
+        <input
+          id="bookingSearch"
+          placeholder="بحث بالاسم أو الهاتف أو رقم الحجز"
+        >
+
+        <select id="bookingStatus">
+          <option value="">
+            كل الحالات
+          </option>
+
+          <option value="pending">
+            قيد المراجعة
+          </option>
+
+          <option value="confirmed">
+            مؤكد
+          </option>
+
+          <option value="cancelled">
+            ملغي
+          </option>
+
+          <option value="completed">
+            مكتمل
+          </option>
+        </select>
+
+      </div>
+
+      <div
+        id="bookingsTable"
+      >
+        جاري تحميل الحجوزات...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- DOCTORS -->
+
+  <section
+    id="doctorsPanel"
+    class="panel"
+  >
+
+    <div class="card">
+
+      <div class="panel-head">
+
+        <h2>
+          الأطباء
+        </h2>
+
+        <button
+          id="addDoctorBtn"
+          class="btn btn-primary"
+        >
+          + إضافة طبيب
+        </button>
+
+      </div>
+
+      <div
+        id="doctorsList"
+        class="items"
+      >
+        جاري التحميل...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- SERVICES -->
+
+  <section
+    id="servicesPanel"
+    class="panel"
+  >
+
+    <div class="card">
+
+      <div class="panel-head">
+
+        <h2>
+          الخدمات
+        </h2>
+
+        <button
+          id="addServiceBtn"
+          class="btn btn-primary"
+        >
+          + إضافة خدمة
+        </button>
+
+      </div>
+
+      <div
+        id="servicesList"
+        class="items"
+      >
+        جاري التحميل...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- HOURS -->
+
+  <section
+    id="hoursPanel"
+    class="panel"
+  >
+
+    <div class="card">
+
+      <div class="panel-head">
+
+        <h2>
+          ساعات العمل
+        </h2>
+
+        <button
+          id="saveHoursBtn"
+          class="btn btn-primary"
+        >
+          حفظ
+        </button>
+
+      </div>
+
+      <div
+        id="hoursList"
+      >
+        جاري التحميل...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- SETTINGS -->
+
+  <section
+    id="settingsPanel"
+    class="panel"
+  >
+
+    <div class="card">
+
+      <div class="panel-head">
+
+        <h2>
+          إعدادات العيادة
+        </h2>
+
+        <button
+          id="saveSettingsBtn"
+          class="btn btn-primary"
+        >
+          حفظ
+        </button>
+
+      </div>
+
+      <div
+        id="settingsForm"
+      >
+        جاري التحميل...
+      </div>
+
+    </div>
+
+  </section>
+
+</div>
+
+
+<div
+  id="modal"
+  class="modal"
+>
+  <div class="modal-box">
+
+    <div class="panel-head">
+
+      <h2 id="modalTitle">
+        تعديل
+      </h2>
+
+      <button
+        id="closeModal"
+        class="btn btn-secondary"
+      >
+        إغلاق
+      </button>
+
+    </div>
+
+    <div id="modalContent"></div>
+
+  </div>
+</div>
+
+
+<div
+  id="toast"
+  class="toast"
+></div>
+
+
+<script>
+
+const API =
+  "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin";
+
+let adminToken =
+  sessionStorage.getItem(
+    "azaad_admin_token"
+  ) || "";
+
+let clinicData = {
+  bookings: [],
+  doctors: [],
+  services: [],
+  settings: {},
+  working_hours: []
+};
+
+
+const $ = (id) =>
+  document.getElementById(id);
+
+
+function escapeHTML(value) {
+
+  return String(
+    value ?? ""
+  ).replace(
+    /[&<>"']/g,
+    char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]
+  );
+}
+
+
+function showToast(
+  message
+) {
+
+  const toast =
+    $("toast");
+
+  toast.textContent =
+    message;
+
+  toast.classList.add(
+    "show"
+  );
+
+  setTimeout(() => {
+
+    toast.classList.remove(
+      "show"
+    );
+
+  }, 2500);
+}
+
+
+async function api(
+  query,
+  options = {}
+) {
+
+  const headers = {
+    "Content-Type":
+      "application/json"
+  };
+
+  if (adminToken) {
+
+    headers.Authorization =
+      "Bearer " +
+      adminToken;
+  }
+
+  const response =
+    await fetch(
+      API + query,
+      {
+        ...options,
+        headers,
+        cache: "no-store"
+      }
+    );
+
+  let data = {};
+
+  try {
+
+    data =
+      await response.json();
+
+  } catch (_) {}
+
+  if (!response.ok) {
+
+    throw new Error(
+      data.error ||
+      data.message ||
+      "حدث خطأ في الاتصال بالخادم."
+    );
+  }
+
+  return data;
+}
+
+
+/* ==========================
+   LOGIN
+========================== */
+
+$("loginForm")
+  .addEventListener(
+    "submit",
+    async event => {
+
+      event.preventDefault();
+
+      const username =
+        $("username")
+          .value
+          .trim();
+
+      const password =
+        $("password")
+          .value;
+
+      const error =
+        $("loginError");
+
+      error.classList.add(
+        "hidden"
+      );
+
+      try {
+
+        const result =
+          await api(
+            "?api=login",
+            {
+              method: "POST",
+
+              body:
+                JSON.stringify({
+                  username,
+                  password
+                })
+            }
+          );
+
+        if (!result.token) {
+
+          throw new Error(
+            "لم يتم إنشاء جلسة الإدارة."
+          );
+        }
+
+        adminToken =
+          result.token;
+
+        sessionStorage.setItem(
+          "azaad_admin_token",
+          adminToken
+        );
+
+        await loadData();
+
+      } catch (e) {
+
+        error.textContent =
+          e.message;
+
+        error.classList.remove(
+          "hidden"
+        );
+      }
+
+    }
+  );
+
+
+$("logoutBtn")
+  .addEventListener(
+    "click",
+    () => {
+
+      sessionStorage.removeItem(
+        "azaad_admin_token"
+      );
+
+      adminToken = "";
+
+      location.reload();
+
+    }
+  );
+
+
+$("refreshBtn")
+  .onclick =
+  loadData;
+
+$("refreshBookings")
+  .onclick =
+  loadData;
+
+
+$("patientPageBtn")
+  .onclick =
+  () => {
+
+    window.open(
+      "./",
+      "_blank"
+    );
+
+  };
+
+
+/* ==========================
+   LOAD DATA
+========================== */
+
+async function loadData() {
+
+  try {
+
+    clinicData =
+      await api(
+        "?api=data"
+      );
+
+    renderAdmin();
+
+    $("loginPage")
+      .classList
+      .add("hidden");
+
+    $("adminPage")
+      .classList
+      .remove("hidden");
+
+  } catch (e) {
+
+    sessionStorage.removeItem(
+      "azaad_admin_token"
+    );
+
+    adminToken = "";
+
+    $("loginPage")
+      .classList
+      .remove("hidden");
+
+    $("adminPage")
+      .classList
+      .add("hidden");
+
+    $("loginError")
+      .textContent =
+      e.message;
+
+    $("loginError")
+      .classList
+      .remove("hidden");
+
+  }
+
+}
+
+
+/* ==========================
+   RENDER ADMIN
+========================== */
+
+function renderAdmin() {
+
+  const bookings =
+    clinicData.bookings || [];
+
+  $("totalCount")
+    .textContent =
+    bookings.length;
+
+  $("pendingCount")
+    .textContent =
+    bookings.filter(
+      b =>
+        b.status ===
+        "pending"
+    ).length;
+
+  $("confirmedCount")
+    .textContent =
+    bookings.filter(
+      b =>
+        b.status ===
+        "confirmed"
+    ).length;
+
+  const today =
+    new Date()
+      .toISOString()
+      .slice(0,10);
+
+  $("todayCount")
+    .textContent =
+    bookings.filter(
+      b =>
+        b.appointment_date ===
+        today &&
+        b.status !==
+        "cancelled"
+    ).length;
+
+  renderBookings();
+
+  renderDoctors();
+
+  renderServices();
+
+  renderHours();
+
+  renderSettings();
+
+}
+
+
+/* ==========================
+   TABS
+========================== */
+
+document
+  .querySelectorAll(".tab")
+  .forEach(tab => {
+
+    tab.onclick = () => {
+
+      document
+        .querySelectorAll(".tab")
+        .forEach(
+          x =>
+            x.classList
+              .remove("active")
+        );
+
+      document
+        .querySelectorAll(".panel")
+        .forEach(
+          x =>
+            x.classList
+              .remove("active")
+        );
+
+      tab.classList.add(
+        "active"
+      );
+
+      $(tab.dataset.panel)
+        .classList
+        .add("active");
+
+    };
+
+  });
+
+
+/* ==========================
+   BOOKINGS
+========================== */
+
+function doctorName(
+  id
+) {
+
+  const doctor =
+    clinicData.doctors
+      .find(
+        d => d.id === id
+      );
+
+  return doctor
+    ? doctor.name
+    : "—";
+}
+
+
+function serviceName(
+  id
+) {
+
+  const service =
+    clinicData.services
+      .find(
+        s => s.id === id
+      );
+
+  return service
+    ? service.name
+    : "—";
+}
+
+
+function statusText(
+  status
+) {
+
+  return {
+
+    pending:
+      "قيد المراجعة",
+
+    confirmed:
+      "مؤكد",
+
+    cancelled:
+      "ملغي",
+
+    completed:
+      "مكتمل"
+
+  }[status] || status;
+
+}
+
+
+function statusClass(
+  status
+) {
+
+  return {
+
+    pending:
+      "badge-pending",
+
+    confirmed:
+      "badge-confirmed",
+
+    cancelled:
+      "badge-cancelled",
+
+    completed:
+      "badge-completed"
+
+  }[status] || "";
+
+}
+
+
+function renderBookings() {
+
+  const container =
+    $("bookingsTable");
+
+  const search =
+    (
+      $("bookingSearch")
+        ?.value || ""
+    )
+      .toLowerCase();
+
+  const status =
+    $("bookingStatus")
+      ?.value || "";
+
+  const rows =
+    clinicData.bookings
+      .filter(
+        booking => {
+
+          const text =
+            [
+              booking.booking_code,
+              booking.patient_name,
+              booking.patient_phone
+            ]
+              .join(" ")
+              .toLowerCase();
+
+          return (
+            (!search ||
+              text.includes(search)) &&
+            (!status ||
+              booking.status ===
+              status)
+          );
+
+        }
+      );
+
+  if (!rows.length) {
+
+    container.innerHTML =
+      `
+        <div class="muted">
+          لا توجد حجوزات مطابقة.
+        </div>
+      `;
+
+    return;
+  }
+
+
+  container.innerHTML =
+    `
+      <div class="table-wrap">
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>
+                رقم الحجز
+              </th>
+
+              <th>
+                المريض
+              </th>
+
+              <th>
+                الطبيب
+              </th>
+
+              <th>
+                الخدمة
+              </th>
+
+              <th>
+                التاريخ
+              </th>
+
+              <th>
+                الوقت
+              </th>
+
+              <th>
+                الحالة
+              </th>
+
+              <th>
+                تحديث
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            ${rows.map(
+              booking =>
+              `
+                <tr>
+
+                  <td>
+                    <strong>
+                      ${escapeHTML(
+                        booking.booking_code
+                      )}
+                    </strong>
+                  </td>
+
+                  <td>
+
+                    ${escapeHTML(
+                      booking.patient_name
+                    )}
+
+                    <br>
+
+                    <span class="muted">
+                      ${escapeHTML(
+                        booking.patient_phone
+                      )}
+                    </span>
+
+                  </td>
+
+                  <td>
+                    ${escapeHTML(
+                      doctorName(
+                        booking.doctor_id
+                      )
+                    )}
+                  </td>
+
+                  <td>
+                    ${escapeHTML(
+                      serviceName(
+                        booking.service_id
+                      )
+                    )}
+                  </td>
+
+                  <td>
+                    ${escapeHTML(
+                      booking.appointment_date
+                    )}
+                  </td>
+
+                  <td>
+                    ${escapeHTML(
+                      String(
+                        booking.appointment_time ||
+                        ""
+                      ).slice(0,5)
+                    )}
+                  </td>
+
+                  <td>
+
+                    <span
+                      class="badge ${statusClass(
+                        booking.status
+                      )}"
+                    >
+                      ${escapeHTML(
+                        statusText(
+                          booking.status
+                        )
+                      )}
+                    </span>
+
+                  </td>
+
+                  <td>
+
+                    <select
+                      data-booking-id="${escapeHTML(
+                        booking.id
+                      )}"
+                    >
+
+                      <option
+                        value="pending"
+                        ${
+                          booking.status ===
+                          "pending"
+                            ? "selected"
+                            : ""
+                        }
+                      >
+                        قيد المراجعة
+                      </option>
+
+                      <option
+                        value="confirmed"
+                        ${
+                          booking.status ===
+                          "confirmed"
+                            ? "selected"
+                            : ""
+                        }
+                      >
+                        مؤكد
+                      </option>
+
+                      <option
+                        value="cancelled"
+                        ${
+                          booking.status ===
+                          "cancelled"
+                            ? "selected"
+                            : ""
+                        }
+                      >
+                        ملغي
+                      </option>
+
+                      <option
+                        value="completed"
+                        ${
+                          booking.status ===
+                          "completed"
+                            ? "selected"
+                            : ""
+                        }
+                      >
+                        مكتمل
+                      </option>
+
+                    </select>
+
+                  </td>
+
+                </tr>
+              `
+            ).join("")}
+
+          </tbody>
+
+        </table>
+
+      </div>
+    `;
+
+
+  container
+    .querySelectorAll(
+      "[data-booking-id]"
+    )
+    .forEach(select => {
+
+      select.onchange =
+        async () => {
+
+          try {
+
+            await api(
+              "?api=booking&id=" +
+              encodeURIComponent(
+                select.dataset
+                  .bookingId
+              ),
+              {
+                method: "PATCH",
+
+                body:
+                  JSON.stringify({
+                    status:
+                      select.value
+                  })
+              }
+            );
+
+            await loadData();
+
+            showToast(
+              "تم تحديث حالة الحجز بنجاح."
+            );
+
+          } catch (e) {
+
+            showToast(
+              e.message
+            );
+
+          }
+
+        };
+
+    });
+
+}
+
+
+$("bookingSearch")
+  .addEventListener(
+    "input",
+    renderBookings
+  );
+
+$("bookingStatus")
+  .addEventListener(
+    "change",
+    renderBookings
+  );
+
+
+/* ==========================
+   DOCTORS
+========================== */
+
+function renderDoctors() {
+
+  const box =
+    $("doctorsList");
+
+  if (!clinicData.doctors.length) {
+
+    box.innerHTML =
+      `
+        <div class="muted">
+          لا يوجد أطباء.
+        </div>
+      `;
+
+    return;
+  }
+
+
+  box.innerHTML =
+    clinicData.doctors
+      .map(
+        doctor =>
+        `
+          <div class="item">
+
+            <div>
+
+              <strong>
+                ${escapeHTML(
+                  doctor.name
+                )}
+              </strong>
+
+              <div class="muted">
+                ${escapeHTML(
+                  doctor.title || ""
+                )}
+              </div>
+
+              <div
+                style="margin-top:6px"
+                class="muted"
+              >
+                الحالة:
+                ${
+                  doctor.active
+                    ? "نشط"
+                    : "غير نشط"
+                }
+              </div>
+
+            </div>
+
+            <div class="item-actions">
+
+              <button
+                class="btn btn-secondary"
+                onclick="editDoctor('${doctor.id}')"
+              >
+                تعديل
+              </button>
+
+              ${
+                doctor.active
+                  ? `
+                    <button
+                      class="btn btn-danger"
+                      onclick="disableDoctor('${doctor.id}')"
+                    >
+                      تعطيل
+                    </button>
+                  `
+                  : ""
+              }
+
+            </div>
+
+          </div>
+        `
+      )
+      .join("");
+
+}
+
+
+$("addDoctorBtn")
+  .onclick =
+  () =>
+    editDoctor(null);
+
+
+async function disableDoctor(
+  id
+) {
+
+  if (
+    !confirm(
+      "هل تريد تعطيل هذا الطبيب؟"
+    )
+  ) {
+    return;
+  }
+
+  try {
+
+    await api(
+      "?api=doctor&id=" +
+      encodeURIComponent(id),
+      {
+        method: "DELETE"
+      }
+    );
+
+    await loadData();
+
+    showToast(
+      "تم تعطيل الطبيب."
+    );
+
+  } catch (e) {
+
+    showToast(
+      e.message
+    );
+
+  }
+
+}
+
+
+function editDoctor(
+  id
+) {
+
+  const doctor =
+    id
+      ? clinicData.doctors
+          .find(
+            d => d.id === id
+          )
+      : null;
+
+  $("modalTitle")
+    .textContent =
+    doctor
+      ? "تعديل الطبيب"
+      : "إضافة طبيب";
+
+
+  $("modalContent")
+    .innerHTML =
+    `
+      <form id="doctorForm">
+
+        <div class="grid">
+
+          <label>
+            اسم الطبيب
+            <input
+              name="name"
+              required
+              value="${escapeHTML(
+                doctor?.name || ""
+              )}"
+            >
+          </label>
+
+          <label>
+            المسمى الوظيفي
+            <input
+              name="title"
+              value="${escapeHTML(
+                doctor?.title || ""
+              )}"
+            >
+          </label>
+
+          <label class="full">
+            نبذة
+            <textarea
+              name="bio"
+            >${escapeHTML(
+              doctor?.bio || ""
+            )}</textarea>
+          </label>
+
+          <label class="full">
+            رابط الصورة
+            <input
+              name="image_url"
+              value="${escapeHTML(
+                doctor?.image_url || ""
+              )}"
+            >
+          </label>
+
+          <label>
+            الترتيب
+            <input
+              name="sort_order"
+              type="number"
+              value="${
+                Number(
+                  doctor?.sort_order || 0
+                )
+              }"
+            >
+          </label>
+
+          <label>
+
+            <input
+              id="doctorActive"
+              type="checkbox"
+              ${
+                doctor?.active !== false
+                  ? "checked"
+                  : ""
+              }
+            >
+
+            الطبيب نشط
+
+          </label>
+
+        </div>
+
+        <div class="modal-actions">
+
+          <button
+            class="btn btn-primary"
+            type="submit"
+          >
+            حفظ
+          </button>
+
+        </div>
+
+      </form>
+    `;
+
+
+  $("doctorForm")
+    .onsubmit =
+    async event => {
+
+      event.preventDefault();
+
+      const form =
+        new FormData(
+          event.currentTarget
+        );
+
+      const payload =
+        Object.fromEntries(
+          form.entries()
+        );
+
+      payload.active =
+        $("doctorActive")
+          .checked;
+
+      try {
+
+        await api(
+          doctor
+            ? "?api=doctor&id=" +
+              encodeURIComponent(
+                doctor.id
+              )
+            : "?api=doctor",
+          {
+            method:
+              doctor
+                ? "PUT"
+                : "POST",
+
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
+
+        closeModal();
+
+        await loadData();
+
+        showToast(
+          "تم حفظ الطبيب."
+        );
+
+      } catch (e) {
+
+        showToast(
+          e.message
+        );
+
+      }
+
+    };
+
+
+  openModal();
+
+}
+
+
+/* ==========================
+   SERVICES
+========================== */
+
+function renderServices() {
+
+  const box =
+    $("servicesList");
+
+  if (!clinicData.services.length) {
+
+    box.innerHTML =
+      `
+        <div class="muted">
+          لا توجد خدمات.
+        </div>
+      `;
+
+    return;
+  }
+
+
+  box.innerHTML =
+    clinicData.services
+      .map(
+        service =>
+        `
+          <div class="item">
+
+            <div>
+
+              <strong>
+                ${escapeHTML(
+                  service.name
+                )}
+              </strong>
+
+              <div class="muted">
+                المدة:
+                ${
+                  Number(
+                    service.duration_minutes ||
+                    30
+                  )
+                }
+                دقيقة
+              </div>
+
+              <div class="muted">
+                الحالة:
+                ${
+                  service.active
+                    ? "نشطة"
+                    : "غير نشطة"
+                }
+              </div>
+
+            </div>
+
+            <div class="item-actions">
+
+              <button
+                class="btn btn-secondary"
+                onclick="editService('${service.id}')"
+              >
+                تعديل
+              </button>
+
+              ${
+                service.active
+                  ? `
+                    <button
+                      class="btn btn-danger"
+                      onclick="disableService('${service.id}')"
+                    >
+                      تعطيل
+                    </button>
+                  `
+                  : ""
+              }
+
+            </div>
+
+          </div>
+        `
+      )
+      .join("");
+
+}
+
+
+$("addServiceBtn")
+  .onclick =
+  () =>
+    editService(null);
+
+
+async function disableService(
+  id
+) {
+
+  if (
+    !confirm(
+      "هل تريد تعطيل هذه الخدمة؟"
+    )
+  ) {
+    return;
+  }
+
+  try {
+
+    await api(
+      "?api=service&id=" +
+      encodeURIComponent(id),
+      {
+        method: "DELETE"
+      }
+    );
+
+    await loadData();
+
+    showToast(
+      "تم تعطيل الخدمة."
+    );
+
+  } catch (e) {
+
+    showToast(
+      e.message
+    );
+
+  }
+
+}
+
+
+function editService(
+  id
+) {
+
+  const service =
+    id
+      ? clinicData.services
+          .find(
+            s => s.id === id
+          )
+      : null;
+
+  $("modalTitle")
+    .textContent =
+    service
+      ? "تعديل الخدمة"
+      : "إضافة خدمة";
+
+
+  $("modalContent")
+    .innerHTML =
+    `
+      <form id="serviceForm">
+
+        <div class="grid">
+
+          <label class="full">
+            اسم الخدمة
+            <input
+              name="name"
+              required
+              value="${escapeHTML(
+                service?.name || ""
+              )}"
+            >
+          </label>
+
+          <label class="full">
+            الوصف
+            <textarea
+              name="description"
+            >${escapeHTML(
+              service?.description || ""
+            )}</textarea>
+          </label>
+
+          <label>
+            مدة الخدمة بالدقائق
+            <input
+              name="duration_minutes"
+              type="number"
+              min="1"
+              value="${
+                Number(
+                  service?.duration_minutes ||
+                  30
+                )
+              }"
+            >
+          </label>
+
+          <label>
+            السعر
+            <input
+              name="price"
+              type="number"
+              min="0"
+              value="${
+                service?.price ??
+                ""
+              }"
+            >
+          </label>
+
+          <label>
+            الترتيب
+            <input
+              name="sort_order"
+              type="number"
+              value="${
+                Number(
+                  service?.sort_order ||
+                  0
+                )
+              }"
+            >
+          </label>
+
+          <label>
+
+            <input
+              id="serviceActive"
+              type="checkbox"
+              ${
+                service?.active !== false
+                  ? "checked"
+                  : ""
+              }
+            >
+
+            الخدمة نشطة
+
+          </label>
+
+        </div>
+
+        <div class="modal-actions">
+
+          <button
+            class="btn btn-primary"
+            type="submit"
+          >
+            حفظ
+          </button>
+
+        </div>
+
+      </form>
+    `;
+
+
+  $("serviceForm")
+    .onsubmit =
+    async event => {
+
+      event.preventDefault();
+
+      const form =
+        new FormData(
+          event.currentTarget
+        );
+
+      const payload =
+        Object.fromEntries(
+          form.entries()
+        );
+
+      payload.active =
+        $("serviceActive")
+          .checked;
+
+      try {
+
+        await api(
+          service
+            ? "?api=service&id=" +
+              encodeURIComponent(
+                service.id
+              )
+            : "?api=service",
+          {
+            method:
+              service
+                ? "PUT"
+                : "POST",
+
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
+
+        closeModal();
+
+        await loadData();
+
+        showToast(
+          "تم حفظ الخدمة."
+        );
+
+      } catch (e) {
+
+        showToast(
+          e.message
+        );
+
+      }
+
+    };
+
+
+  openModal();
+
+}
+
+
+/* ==========================
+   HOURS
+========================== */
+
+const dayNames = [
+  "الأحد",
+  "الاثنين",
+  "الثلاثاء",
+  "الأربعاء",
+  "الخميس",
+  "الجمعة",
+  "السبت"
+];
+
+
+function renderHours() {
+
+  const box =
+    $("hoursList");
+
+  if (
+    !clinicData.working_hours
+      .length
+  ) {
+
+    box.innerHTML =
+      `
+        <div class="muted">
+          لا توجد بيانات لساعات العمل.
+        </div>
+      `;
+
+    return;
+  }
+
+
+  box.innerHTML =
+    clinicData
+      .working_hours
+      .map(
+        hour =>
+        `
+          <div
+            class="card"
+            data-hour-id="${escapeHTML(
+              hour.id
+            )}"
+          >
+
+            <h3>
+              ${
+                dayNames[
+                  hour.weekday
+                ] ||
+                ""
+              }
+            </h3>
+
+            <label>
+
+              <input
+                class="hour-enabled"
+                type="checkbox"
+                ${
+                  hour.enabled
+                    ? "checked"
+                    : ""
+                }
+              >
+
+              يوم عمل
+
+            </label>
+
+            <div class="grid">
+
+              <label>
+                من
+                <input
+                  class="hour-start"
+                  type="time"
+                  value="${escapeHTML(
+                    String(
+                      hour.start_time ||
+                      ""
+                    ).slice(0,5)
+                  )}"
+                >
+              </label>
+
+              <label>
+                إلى
+                <input
+                  class="hour-end"
+                  type="time"
+                  value="${escapeHTML(
+                    String(
+                      hour.end_time ||
+                      ""
+                    ).slice(0,5)
+                  )}"
+                >
+              </label>
+
+              <label>
+                بداية الراحة
+                <input
+                  class="break-start"
+                  type="time"
+                  value="${escapeHTML(
+                    String(
+                      hour.break_start ||
+                      ""
+                    ).slice(0,5)
+                  )}"
+                >
+              </label>
+
+              <label>
+                نهاية الراحة
+                <input
+                  class="break-end"
+                  type="time"
+                  value="${escapeHTML(
+                    String(
+                      hour.break_end ||
+                      ""
+                    ).slice(0,5)
+                  )}"
+                >
+              </label>
+
+            </div>
+
+          </div>
+        `
+      )
+      .join("");
+
+}
+
+
+$("saveHoursBtn")
+  .onclick =
+  async () => {
+
+    const hours =
+      [
+        ...document
+          .querySelectorAll(
+            "[data-hour-id]"
+          )
+      ]
+      .map(card => ({
+        id:
+          card.dataset.hourId,
+
+        enabled:
+          card.querySelector(
+            ".hour-enabled"
+          ).checked,
+
+        start_time:
+          card.querySelector(
+            ".hour-start"
+          ).value,
+
+        end_time:
+          card.querySelector(
+            ".hour-end"
+          ).value,
+
+        break_start:
+          card.querySelector(
+            ".break-start"
+          ).value ||
+          null,
+
+        break_end:
+          card.querySelector(
+            ".break-end"
+          ).value ||
+          null
+      }));
+
+    try {
+
+      await api(
+        "?api=hours",
+        {
+          method: "PUT",
+
+          body:
+            JSON.stringify({
+              hours
+            })
+        }
+      );
+
+      await loadData();
+
+      showToast(
+        "تم حفظ ساعات العمل."
+      );
+
+    } catch (e) {
+
+      showToast(
+        e.message
+      );
+
+    }
+
+  };
+
+
+/* ==========================
+   SETTINGS
+========================== */
+
+function renderSettings() {
+
+  const s =
+    clinicData.settings || {};
+
+  const fields = [
+
+    [
+      "clinic_name",
+      "اسم العيادة"
+    ],
+
+    [
+      "tagline",
+      "الشعار"
+    ],
+
+    [
+      "phone",
+      "الهاتف"
+    ],
+
+    [
+      "landline",
+      "الهاتف الأرضي"
+    ],
+
+    [
+      "email",
+      "البريد الإلكتروني"
+    ],
+
+    [
+      "address",
+      "العنوان"
+    ],
+
+    [
+      "whatsapp",
+      "واتساب"
+    ],
+
+    [
+      "facebook_url",
+      "Facebook"
+    ],
+
+    [
+      "linkedin_url",
+      "LinkedIn"
+    ],
+
+    [
+      "instagram_url",
+      "Instagram"
+    ],
+
+    [
+      "tiktok_url",
+      "TikTok"
+    ],
+
+    [
+      "logo_url",
+      "رابط الشعار"
+    ],
+
+    [
+      "hero_image_url",
+      "رابط صورة الواجهة"
+    ],
+
+    [
+      "slot_minutes",
+      "الفاصل بين المواعيد بالدقائق"
+    ],
+
+    [
+      "booking_notice",
+      "ملاحظة الحجز"
+    ]
+
+  ];
+
+
+  $("settingsForm")
+    .innerHTML =
+    `
+      <form id="settingsEditForm">
+
+        <div class="grid">
+
+          ${
+            fields.map(
+              ([key,label]) => {
+
+                const big =
+                  key ===
+                    "address" ||
+                  key ===
+                    "booking_notice";
+
+                return `
+                  <label
+                    class="${
+                      big
+                        ? "full"
+                        : ""
+                    }"
+                  >
+
+                    ${label}
+
+                    ${
+                      big
+                        ? `
+                          <textarea
+                            name="${key}"
+                          >${escapeHTML(
+                            s[key] ||
+                            ""
+                          )}</textarea>
+                        `
+                        : `
+                          <input
+                            name="${key}"
+                            value="${escapeHTML(
+                              s[key] ??
+                              ""
+                            )}"
+                          >
+                        `
+                    }
+
+                  </label>
+                `;
+
+              }
+            ).join("")
+          }
+
+        </div>
+
+      </form>
+    `;
+
+}
+
+
+$("saveSettingsBtn")
+  .onclick =
+  async () => {
+
+    const form =
+      $("settingsEditForm");
+
+    if (!form) {
+      return;
+    }
+
+    const payload =
+      Object.fromEntries(
+        new FormData(form)
+      );
+
+    try {
+
+      await api(
+        "?api=settings",
+        {
+          method: "PUT",
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
+
+      await loadData();
+
+      showToast(
+        "تم حفظ إعدادات العيادة."
+      );
+
+    } catch (e) {
+
+      showToast(
+        e.message
+      );
+
+    }
+
+  };
+
+
+/* ==========================
+   MODAL
+========================== */
+
+function openModal() {
+
+  $("modal")
+    .classList
+    .add("show");
+
+}
+
+
+function closeModal() {
+
+  $("modal")
+    .classList
+    .remove("show");
+
+}
+
+
+$("closeModal")
+  .onclick =
+  closeModal;
+
+
+$("modal")
+  .addEventListener(
+    "click",
+    event => {
+
+      if (
+        event.target ===
+        $("modal")
+      ) {
+
+        closeModal();
+
+      }
+
+    }
+  );
+
+
+/* ==========================
+   START
+========================== */
+
+if (adminToken) {
+
+  loadData();
+
+} else {
+
+  $("loginPage")
+    .classList
+    .remove("hidden");
+
+  $("adminPage")
+    .classList
+    .add("hidden");
+
+}
+
+</script>
 
 </body>
 </html>
