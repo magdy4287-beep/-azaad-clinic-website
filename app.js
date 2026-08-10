@@ -10,10 +10,7 @@ const CLINIC_ADDRESS_AR =
 const CLINIC_ADDRESS_EN =
   'Damietta - Nafea Street, opposite Al-Mazloum Mosque - above Al Riyad Pharmacy';
 
-
-const $ = id =>
-  document.getElementById(id);
-
+const $ = id => document.getElementById(id);
 
 let chosen = '';
 
@@ -44,20 +41,13 @@ const T = {
     heroText:
       'رعاية نفسية متخصصة باهتمام إنساني، وخصوصية كاملة، وخطة علاجية تناسب احتياجاتك.',
 
-    heroBook:
-      'احجز جلستك الآن',
+    heroBook: 'احجز جلستك الآن',
 
-    heroWhatsapp:
-      'تواصل عبر واتساب',
+    heroWhatsapp: 'تواصل عبر واتساب',
 
-    trustPrivacy:
-      '✓ خصوصية كاملة',
-
-    trustModes:
-      '✓ حضوري وأونلاين',
-
-    trustCare:
-      '✓ رعاية متخصصة',
+    trustPrivacy: '✓ خصوصية كاملة',
+    trustModes: '✓ حضوري وأونلاين',
+    trustCare: '✓ رعاية متخصصة',
 
     aboutTitle:
       'مكان تستطيع فيه<br>أن تكون على طبيعتك.',
@@ -68,104 +58,64 @@ const T = {
     aboutP2:
       'هدفنا أن تحصل على رعاية نفسية مهنية، إنسانية، وسرية بالكامل.',
 
-    servicesTitle:
-      'خدماتنا',
+    servicesTitle: 'خدماتنا',
 
     servicesIntro:
       'خدمات نفسية مصممة لتناسب احتياجات كل شخص.',
 
-    doctorsTitle:
-      'فريق العيادة',
+    doctorsTitle: 'فريق العيادة',
 
     doctorsIntro:
       'متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.',
 
-    bookingTitle:
-      'احجز موعدك',
+    bookingTitle: 'احجز موعدك',
 
     bookingIntro:
       'اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.',
 
-    doctorLabel:
-      'الطبيب',
+    doctorLabel: 'الطبيب',
+    serviceLabel: 'الخدمة',
+    dateLabel: 'التاريخ',
+    modeLabel: 'نوع الجلسة',
 
-    serviceLabel:
-      'الخدمة',
+    clinicMode: 'داخل العيادة',
+    onlineMode: 'جلسة أونلاين',
 
-    dateLabel:
-      'التاريخ',
+    slotsLabel: 'المواعيد المتاحة',
 
-    modeLabel:
-      'نوع الجلسة',
+    nameLabel: 'الاسم بالكامل',
+    namePlaceholder: 'اكتب اسمك',
 
-    clinicMode:
-      'داخل العيادة',
+    phoneLabel: 'رقم الهاتف',
+    phonePlaceholder: 'رقم الهاتف',
 
-    onlineMode:
-      'جلسة أونلاين',
+    emailLabel: 'البريد الإلكتروني',
 
-    slotsLabel:
-      'المواعيد المتاحة',
+    notesLabel: 'ملاحظات',
+    notesPlaceholder: 'أي معلومات إضافية...',
 
-    slotsHint:
-      'اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.',
+    confirmBooking: 'تأكيد طلب الحجز',
 
-    nameLabel:
-      'الاسم بالكامل',
+    contactTitle: 'تواصل معنا',
 
-    namePlaceholder:
-      'اكتب اسمك',
+    phoneContact: 'الهاتف',
+    emailContact: 'البريد الإلكتروني',
+    whatsappContact: 'واتساب',
 
-    phoneLabel:
-      'رقم الهاتف',
+    startChat: 'ابدأ المحادثة',
 
-    phonePlaceholder:
-      'رقم الهاتف',
+    locationTitle: 'موقع العيادة',
 
-    emailLabel:
-      'البريد الإلكتروني',
-
-    notesLabel:
-      'ملاحظات',
-
-    notesPlaceholder:
-      'أي معلومات إضافية...',
-
-    confirmBooking:
-      'تأكيد طلب الحجز',
-
-    contactTitle:
-      'تواصل معنا',
-
-    phoneContact:
-      'الهاتف',
-
-    emailContact:
-      'البريد الإلكتروني',
-
-    whatsappContact:
-      'واتساب',
-
-    startChat:
-      'ابدأ المحادثة',
-
-    locationTitle:
-      'موقع العيادة',
-
-    openMaps:
-      'فتح الموقع على Google Maps',
+    openMaps: 'فتح الموقع على Google Maps',
 
     shareLocation:
       'مشاركة موقع العيادة عبر WhatsApp',
 
-    rights:
-      'جميع الحقوق محفوظة.',
+    rights: 'جميع الحقوق محفوظة.',
 
-    chooseDoctor:
-      'اختر الطبيب',
+    chooseDoctor: 'اختر الطبيب',
 
-    chooseService:
-      'اختر الخدمة',
+    chooseService: 'اختر الخدمة',
 
     chooseDate:
       'اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.',
@@ -195,26 +145,14 @@ const T = {
 
   en: {
 
-    navHome:
-      'Home',
+    navHome: 'Home',
+    navAbout: 'About',
+    navServices: 'Services',
+    navDoctors: 'Our Team',
+    navBooking: 'Booking',
+    navContact: 'Contact',
 
-    navAbout:
-      'About',
-
-    navServices:
-      'Services',
-
-    navDoctors:
-      'Our Team',
-
-    navBooking:
-      'Booking',
-
-    navContact:
-      'Contact',
-
-    bookNow:
-      'Book Appointment',
+    bookNow: 'Book Appointment',
 
     heroTitle:
       'A Safe Space<br><span>to Begin Your Change</span>',
@@ -222,20 +160,13 @@ const T = {
     heroText:
       'Specialized mental healthcare with empathy, complete privacy, and a care plan tailored to your needs.',
 
-    heroBook:
-      'Book Your Session',
+    heroBook: 'Book Your Session',
 
-    heroWhatsapp:
-      'Chat on WhatsApp',
+    heroWhatsapp: 'Chat on WhatsApp',
 
-    trustPrivacy:
-      '✓ Complete privacy',
-
-    trustModes:
-      '✓ In-clinic & online',
-
-    trustCare:
-      '✓ Specialized care',
+    trustPrivacy: '✓ Complete privacy',
+    trustModes: '✓ In-clinic & online',
+    trustCare: '✓ Specialized care',
 
     aboutTitle:
       'A place where you can<br>be yourself.',
@@ -246,89 +177,54 @@ const T = {
     aboutP2:
       'Our goal is to provide professional, compassionate, and fully confidential mental healthcare.',
 
-    servicesTitle:
-      'Our Services',
+    servicesTitle: 'Our Services',
 
     servicesIntro:
       'Mental health services designed around each person’s needs.',
 
-    doctorsTitle:
-      'Our Team',
+    doctorsTitle: 'Our Team',
 
     doctorsIntro:
       'Specialists working with you toward a more balanced life.',
 
-    bookingTitle:
-      'Book an Appointment',
+    bookingTitle: 'Book an Appointment',
 
     bookingIntro:
       'Choose your doctor, service, date, and preferred time.',
 
-    doctorLabel:
-      'Doctor',
+    doctorLabel: 'Doctor',
+    serviceLabel: 'Service',
+    dateLabel: 'Date',
+    modeLabel: 'Session Type',
 
-    serviceLabel:
-      'Service',
+    clinicMode: 'In-clinic',
+    onlineMode: 'Online Session',
 
-    dateLabel:
-      'Date',
+    slotsLabel: 'Available Times',
 
-    modeLabel:
-      'Session Type',
+    nameLabel: 'Full Name',
+    namePlaceholder: 'Enter your name',
 
-    clinicMode:
-      'In-clinic',
+    phoneLabel: 'Phone Number',
+    phonePlaceholder: 'Phone number',
 
-    onlineMode:
-      'Online Session',
+    emailLabel: 'Email',
 
-    slotsLabel:
-      'Available Times',
-
-    slotsHint:
-      'Choose a doctor, service, and date to see available times.',
-
-    nameLabel:
-      'Full Name',
-
-    namePlaceholder:
-      'Enter your name',
-
-    phoneLabel:
-      'Phone Number',
-
-    phonePlaceholder:
-      'Phone number',
-
-    emailLabel:
-      'Email',
-
-    notesLabel:
-      'Notes',
-
-    notesPlaceholder:
-      'Any additional information...',
+    notesLabel: 'Notes',
+    notesPlaceholder: 'Any additional information...',
 
     confirmBooking:
       'Confirm Booking Request',
 
-    contactTitle:
-      'Contact Us',
+    contactTitle: 'Contact Us',
 
-    phoneContact:
-      'Phone',
+    phoneContact: 'Phone',
+    emailContact: 'Email',
+    whatsappContact: 'WhatsApp',
 
-    emailContact:
-      'Email',
+    startChat: 'Start a conversation',
 
-    whatsappContact:
-      'WhatsApp',
-
-    startChat:
-      'Start a conversation',
-
-    locationTitle:
-      'Clinic Location',
+    locationTitle: 'Clinic Location',
 
     openMaps:
       'Open Location on Google Maps',
@@ -336,14 +232,11 @@ const T = {
     shareLocation:
       'Share Clinic Location via WhatsApp',
 
-    rights:
-      'All rights reserved.',
+    rights: 'All rights reserved.',
 
-    chooseDoctor:
-      'Choose doctor',
+    chooseDoctor: 'Choose doctor',
 
-    chooseService:
-      'Choose service',
+    chooseService: 'Choose service',
 
     chooseDate:
       'Choose a doctor, service, and date to see available times.',
@@ -374,103 +267,212 @@ const T = {
 
 
 /* =====================================================
-   LOCAL TRANSLATIONS FOR SERVICES
+   SERVICES TRANSLATION
+   Supports Arabic AND English database names
 ===================================================== */
 
-const SERVICE_TRANSLATIONS = {
+const SERVICES = {
 
-  'جلسة علاج نفسي فردية': {
-    enName: 'Individual Psychotherapy Session',
+  individual: {
+
+    arName:
+      'جلسة علاج نفسي فردية',
+
+    arDescription:
+      'جلسة فردية مع أحد المتخصصين',
+
+    enName:
+      'Individual Psychotherapy Session',
+
     enDescription:
-      'Individual session with one of our mental health specialists.'
+      'Individual session with one of our mental health specialists.',
+
+    duration: 60
   },
 
-  'جلسة علاج نفسي جماعية': {
-    enName: 'Group Psychotherapy Session',
+
+  group: {
+
+    arName:
+      'جلسة علاج نفسي جماعية',
+
+    arDescription:
+      'جلسات علاج نفسي جماعي',
+
+    enName:
+      'Group Psychotherapy Session',
+
     enDescription:
-      'Group psychotherapy sessions.'
+      'Group psychotherapy sessions.',
+
+    duration: 90
   },
 
-  'جلسة أونلاين': {
-    enName: 'Online Therapy Session',
+
+  online: {
+
+    arName:
+      'جلسة أونلاين',
+
+    arDescription:
+      'جلسة علاج نفسي عن بُعد',
+
+    enName:
+      'Online Therapy Session',
+
     enDescription:
-      'Remote mental health therapy session.'
+      'Remote mental health therapy session.',
+
+    duration: 60
   },
 
-  'تقييم نفسي': {
-    enName: 'Psychological Assessment',
+
+  assessment: {
+
+    arName:
+      'تقييم نفسي',
+
+    arDescription:
+      'تقييم ومقابلة نفسية أولية',
+
+    enName:
+      'Psychological Assessment',
+
     enDescription:
-      'Initial psychological assessment and consultation.'
+      'Initial psychological assessment and consultation.',
+
+    duration: 60
   }
 
 };
 
 
 /* =====================================================
-   LOCAL TRANSLATIONS FOR DOCTORS
+   DOCTORS TRANSLATION
 ===================================================== */
 
-const DOCTOR_TRANSLATIONS = {
+const DOCTORS = {
 
-  'أ/ لميا مجدي': {
+  lamya: {
 
-    enName:
-      'Lamya Magdy',
+    arNames: [
+      'أ/ لميا مجدي',
+      'لميا مجدي'
+    ],
+
+    enNames: [
+      'Lamya Magdy'
+    ],
+
+    arTitle:
+      'معالج نفسي',
 
     enTitle:
       'Psychotherapist',
+
+    arBio:
+      'جلسات العلاج النفسي السلوكي CBT - DBT - ACT - MI - Counseling - Schema Therapy، فردي وجماعي وأونلاين.',
 
     enBio:
       'Psychotherapy sessions using CBT, DBT, ACT, MI, Counseling, and Schema Therapy, including individual, group, and online sessions.'
   },
 
 
-  'د/ محمد أبو الخير': {
+  mohamed: {
 
-    enName:
+    arNames: [
+      'د/ محمد أبو الخير',
+      'محمد أبو الخير'
+    ],
+
+    enNames: [
       'Dr. Mohamed Abu Elkhair',
+      'Dr. Mohamed Abu Al-Khair'
+    ],
+
+    arTitle:
+      'طبيب مقيم الطب النفسي',
 
     enTitle:
       'Psychiatry Resident',
+
+    arBio:
+      'طبيب مقيم الطب النفسي.',
 
     enBio:
       'Psychiatry resident physician.'
   },
 
 
-  'د/ علي باسل': {
+  ali: {
 
-    enName:
-      'Dr. Ali Basel',
+    arNames: [
+      'د/ علي باسل',
+      'علي باسل'
+    ],
+
+    enNames: [
+      'Dr. Ali Basel'
+    ],
+
+    arTitle:
+      'أخصائي الطب النفسي وعلاج الإدمان',
 
     enTitle:
       'Psychiatry & Addiction Treatment Specialist',
+
+    arBio:
+      'أخصائي الطب النفسي وعلاج الإدمان.',
 
     enBio:
       'Specialist in psychiatry and addiction treatment.'
   },
 
 
-  'أ/ رحاب الصواف': {
+  rehab: {
 
-    enName:
-      'Rehab El-Sawaf',
+    arNames: [
+      'أ/ رحاب الصواف',
+      'رحاب الصواف'
+    ],
+
+    enNames: [
+      'Rehab El-Sawaf'
+    ],
+
+    arTitle:
+      'أخصائي نفسي',
 
     enTitle:
       'Psychologist',
+
+    arBio:
+      'أخصائي نفسي.',
 
     enBio:
       'Psychologist.'
   },
 
 
-  'د/ أحمد إبراهيم': {
+  ahmed: {
 
-    enName:
-      'Dr. Ahmed Ibrahim',
+    arNames: [
+      'د/ أحمد إبراهيم',
+      'أحمد إبراهيم'
+    ],
+
+    enNames: [
+      'Dr. Ahmed Ibrahim'
+    ],
+
+    arTitle:
+      'أخصائي الطب النفسي وعلاج الإدمان',
 
     enTitle:
       'Psychiatry & Addiction Treatment Specialist',
+
+    arBio:
+      'أخصائي الطب النفسي وعلاج الإدمان.',
 
     enBio:
       'Specialist in psychiatry and addiction treatment.'
@@ -480,7 +482,223 @@ const DOCTOR_TRANSLATIONS = {
 
 
 /* =====================================================
-   ESCAPE HTML
+   FIND SERVICE
+===================================================== */
+
+function findService(service) {
+
+  const value =
+    String(service?.name || '')
+      .trim()
+      .toLowerCase();
+
+
+  if (
+    value === 'جلسة علاج نفسي فردية' ||
+    value.includes('individual psychotherapy')
+  ) {
+
+    return SERVICES.individual;
+
+  }
+
+
+  if (
+    value === 'جلسة علاج نفسي جماعية' ||
+    value.includes('group psychotherapy')
+  ) {
+
+    return SERVICES.group;
+
+  }
+
+
+  if (
+    value === 'جلسة أونلاين' ||
+    value.includes('online therapy')
+  ) {
+
+    return SERVICES.online;
+
+  }
+
+
+  if (
+    value === 'تقييم نفسي' ||
+    value.includes('psychological assessment')
+  ) {
+
+    return SERVICES.assessment;
+
+  }
+
+
+  return null;
+
+}
+
+
+/* =====================================================
+   FIND DOCTOR
+===================================================== */
+
+function findDoctor(doctor) {
+
+  const value =
+    String(doctor?.name || '')
+      .trim();
+
+
+  for (
+    const key of Object.keys(DOCTORS)
+  ) {
+
+    const item =
+      DOCTORS[key];
+
+
+    if (
+      item.arNames.includes(value) ||
+      item.enNames.includes(value)
+    ) {
+
+      return item;
+
+    }
+
+  }
+
+
+  return null;
+
+}
+
+
+/* =====================================================
+   DISPLAY SERVICE
+===================================================== */
+
+function serviceName(service) {
+
+  const item =
+    findService(service);
+
+
+  if (!item) {
+
+    return service?.name || '';
+
+  }
+
+
+  return currentLang === 'ar'
+    ? item.arName
+    : item.enName;
+
+}
+
+
+function serviceDescription(service) {
+
+  const item =
+    findService(service);
+
+
+  if (!item) {
+
+    return service?.description || '';
+
+  }
+
+
+  return currentLang === 'ar'
+    ? item.arDescription
+    : item.enDescription;
+
+}
+
+
+function serviceDuration(service) {
+
+  const item =
+    findService(service);
+
+
+  return (
+    item?.duration ||
+    service?.duration_minutes ||
+    60
+  );
+
+}
+
+
+/* =====================================================
+   DISPLAY DOCTOR
+===================================================== */
+
+function doctorName(doctor) {
+
+  const item =
+    findDoctor(doctor);
+
+
+  if (!item) {
+
+    return doctor?.name || '';
+
+  }
+
+
+  return currentLang === 'ar'
+    ? item.arNames[0]
+    : item.enNames[0];
+
+}
+
+
+function doctorTitle(doctor) {
+
+  const item =
+    findDoctor(doctor);
+
+
+  if (!item) {
+
+    return doctor?.title || '';
+
+  }
+
+
+  return currentLang === 'ar'
+    ? item.arTitle
+    : item.enTitle;
+
+}
+
+
+function doctorBio(doctor) {
+
+  const item =
+    findDoctor(doctor);
+
+
+  if (!item) {
+
+    return doctor?.bio || '';
+
+  }
+
+
+  return currentLang === 'ar'
+    ? item.arBio
+    : item.enBio;
+
+}
+
+
+/* =====================================================
+   HTML ESCAPE
 ===================================================== */
 
 const esc = value =>
@@ -488,7 +706,6 @@ const esc = value =>
   String(value ?? '')
     .replace(
       /[&<>"']/g,
-
       char => ({
 
         '&': '&amp;',
@@ -533,7 +750,9 @@ async function api(query, options) {
     data =
       await response.json();
 
-  } catch {
+  }
+
+  catch {
 
     data = {};
 
@@ -556,124 +775,6 @@ async function api(query, options) {
 
 
 /* =====================================================
-   SERVICE DISPLAY
-===================================================== */
-
-function getServiceName(service) {
-
-  if (currentLang === 'ar') {
-
-    return service.name || '';
-
-  }
-
-
-  const translation =
-    SERVICE_TRANSLATIONS[
-      service.name
-    ];
-
-
-  return translation
-    ? translation.enName
-    : service.name || '';
-
-}
-
-
-function getServiceDescription(service) {
-
-  if (currentLang === 'ar') {
-
-    return service.description || '';
-
-  }
-
-
-  const translation =
-    SERVICE_TRANSLATIONS[
-      service.name
-    ];
-
-
-  return translation
-    ? translation.enDescription
-    : service.description || '';
-
-}
-
-
-/* =====================================================
-   DOCTOR DISPLAY
-===================================================== */
-
-function getDoctorName(doctor) {
-
-  if (currentLang === 'ar') {
-
-    return doctor.name || '';
-
-  }
-
-
-  const translation =
-    DOCTOR_TRANSLATIONS[
-      doctor.name
-    ];
-
-
-  return translation
-    ? translation.enName
-    : doctor.name || '';
-
-}
-
-
-function getDoctorTitle(doctor) {
-
-  if (currentLang === 'ar') {
-
-    return doctor.title || '';
-
-  }
-
-
-  const translation =
-    DOCTOR_TRANSLATIONS[
-      doctor.name
-    ];
-
-
-  return translation
-    ? translation.enTitle
-    : doctor.title || '';
-
-}
-
-
-function getDoctorBio(doctor) {
-
-  if (currentLang === 'ar') {
-
-    return doctor.bio || '';
-
-  }
-
-
-  const translation =
-    DOCTOR_TRANSLATIONS[
-      doctor.name
-    ];
-
-
-  return translation
-    ? translation.enBio
-    : doctor.bio || '';
-
-}
-
-
-/* =====================================================
    APPLY LANGUAGE
 ===================================================== */
 
@@ -681,7 +782,6 @@ function applyLanguage() {
 
   document.documentElement.lang =
     currentLang;
-
 
   document.documentElement.dir =
     currentLang === 'ar'
@@ -744,6 +844,7 @@ function applyLanguage() {
 
 
   document.title =
+
     currentLang === 'ar'
 
       ? 'Azaad Clinic | عيادة أزاد للصحة النفسية'
@@ -754,6 +855,7 @@ function applyLanguage() {
   if ($('address')) {
 
     $('address').textContent =
+
       currentLang === 'ar'
         ? CLINIC_ADDRESS_AR
         : CLINIC_ADDRESS_EN;
@@ -782,7 +884,7 @@ function applyLanguage() {
 
 
 /* =====================================================
-   LANGUAGE SWITCH
+   CHANGE LANGUAGE
 ===================================================== */
 
 function setLanguage(lang) {
@@ -802,6 +904,20 @@ function setLanguage(lang) {
   applyLanguage();
 
 
+  /*
+    إعادة بناء الأطباء والخدمات
+    حتى تتغير الأسماء فورًا
+  */
+
+  if (
+    window.clinicData
+  ) {
+
+    render(window.clinicData);
+
+  }
+
+
   if (
     $('doctor')?.value &&
     $('service')?.value &&
@@ -815,7 +931,9 @@ function setLanguage(lang) {
 
   $('nav')
     ?.classList
-    .remove('mobile-open');
+    .remove(
+      'mobile-open'
+    );
 
 
   $('menu')
@@ -828,76 +946,83 @@ function setLanguage(lang) {
 
 
 /* =====================================================
-   RENDER DATA
+   RENDER
 ===================================================== */
 
 function render(data) {
 
+  window.clinicData =
+    data;
+
+
   const services =
     data.services || [];
+
 
   const doctors =
     data.doctors || [];
 
 
   /* =========================
-     SERVICES
+     SERVICES CARDS
   ========================= */
 
   $('servicesGrid').innerHTML =
 
     services
       .map(
-        (service, index) => {
+        (service, index) => `
 
-          const name =
-            getServiceName(service);
+          <article class="card">
 
-          const description =
-            getServiceDescription(service);
+            <div class="icon">
 
-
-          return `
-
-            <article class="card">
-
-              <div class="icon">
-                ${[
+              ${
+                [
                   '🧠',
                   '🌿',
                   '💙',
                   '🔎',
                   '✨'
-                ][index % 5]}
-              </div>
+                ][index % 5]
+              }
 
-              <h3>
-                ${esc(name)}
-              </h3>
+            </div>
 
-              <p>
-                ${esc(description)}
-              </p>
 
-              <p>
-                ${
-                  service.duration_minutes ||
-                  30
-                }
+            <h3>
 
-                ${
-                  currentLang === 'ar'
-                    ? 'دقيقة'
-                    : 'minutes'
-                }
+              ${esc(
+                serviceName(service)
+              )}
 
-              </p>
+            </h3>
 
-            </article>
 
-          `;
+            <p>
 
-        }
+              ${esc(
+                serviceDescription(service)
+              )}
+
+            </p>
+
+
+            <p>
+
+              ${serviceDuration(service)}
+
+              ${
+                currentLang === 'ar'
+                  ? 'دقيقة'
+                  : 'minutes'
+              }
+
+            </p>
+
+          </article>
+
+        `
       )
       .join('');
 
@@ -910,71 +1035,71 @@ function render(data) {
 
     doctors
       .map(
-        doctor => {
+        doctor => `
 
-          const name =
-            getDoctorName(doctor);
+          <article class="card">
 
-          const title =
-            getDoctorTitle(doctor);
+            <div class="photo">
 
-          const bio =
-            getDoctorBio(doctor);
+              ${
+                doctor.image_url
 
+                  ? `
 
-          return `
+                    <img
+                      src="${esc(
+                        doctor.image_url
+                      )}"
+                      alt="${esc(
+                        doctorName(doctor)
+                      )}">
 
-            <article class="card">
+                    `
 
-              <div class="photo">
+                  : esc(
+                      (
+                        doctorName(doctor) ||
+                        'A'
+                      )[0]
+                    )
+              }
 
-                ${
-                  doctor.image_url
-
-                    ? `
-
-                      <img
-                        src="${esc(
-                          doctor.image_url
-                        )}"
-                        alt="${esc(name)}">
-
-                      `
-
-                    : esc(
-                        (
-                          name ||
-                          'A'
-                        )[0]
-                      )
-                }
-
-              </div>
+            </div>
 
 
-              <h3>
-                ${esc(name)}
-              </h3>
+            <h3>
+
+              ${esc(
+                doctorName(doctor)
+              )}
+
+            </h3>
 
 
-              <p>
+            <p>
 
-                <b>
-                  ${esc(title)}
-                </b>
+              <b>
 
-              </p>
+                ${esc(
+                  doctorTitle(doctor)
+                )}
+
+              </b>
+
+            </p>
 
 
-              <p>
-                ${esc(bio)}
-              </p>
+            <p>
 
-            </article>
+              ${esc(
+                doctorBio(doctor)
+              )}
 
-          `;
+            </p>
 
-        }
+          </article>
+
+        `
       )
       .join('');
 
@@ -987,7 +1112,9 @@ function render(data) {
 
     `
       <option value="">
-        ${esc(tr('chooseDoctor'))}
+        ${esc(
+          tr('chooseDoctor')
+        )}
       </option>
     `
 
@@ -995,29 +1122,26 @@ function render(data) {
 
     doctors
       .map(
-        doctor => {
+        doctor => `
 
-          const name =
-            getDoctorName(doctor);
+          <option
+            value="${esc(
+              doctor.id
+            )}">
 
-          const title =
-            getDoctorTitle(doctor);
+            ${esc(
+              doctorName(doctor)
+            )}
 
+            —
+            
+            ${esc(
+              doctorTitle(doctor)
+            )}
 
-          return `
+          </option>
 
-            <option
-              value="${esc(doctor.id)}">
-
-              ${esc(name)}
-              —
-              ${esc(title)}
-
-            </option>
-
-          `;
-
-        }
+        `
       )
       .join('');
 
@@ -1030,7 +1154,9 @@ function render(data) {
 
     `
       <option value="">
-        ${esc(tr('chooseService'))}
+        ${esc(
+          tr('chooseService')
+        )}
       </option>
     `
 
@@ -1041,10 +1167,12 @@ function render(data) {
         service => `
 
           <option
-            value="${esc(service.id)}">
+            value="${esc(
+              service.id
+            )}">
 
             ${esc(
-              getServiceName(service)
+              serviceName(service)
             )}
 
           </option>
@@ -1127,23 +1255,13 @@ function render(data) {
   }
 
 
-  if ($('address')) {
-
-    $('address').textContent =
-      currentLang === 'ar'
-        ? CLINIC_ADDRESS_AR
-        : CLINIC_ADDRESS_EN;
-
-  }
-
-
   updateLocationShareLink();
 
 }
 
 
 /* =====================================================
-   WHATSAPP LOCATION SHARE
+   LOCATION WHATSAPP
 ===================================================== */
 
 function updateLocationShareLink() {
@@ -1158,6 +1276,7 @@ function updateLocationShareLink() {
 
 
   const message =
+
     currentLang === 'ar'
 
       ? `مرحبًا، أريد معرفة موقع عيادة أزاد للصحة النفسية.\n\nالعنوان:\n${CLINIC_ADDRESS_AR}\n\nموقع Google Maps:\n${MAPS_URL}`
@@ -1174,7 +1293,7 @@ function updateLocationShareLink() {
 
 
 /* =====================================================
-   INITIALIZATION
+   INIT
 ===================================================== */
 
 async function init() {
@@ -1201,20 +1320,20 @@ async function init() {
     if ($('date')) {
 
       $('date').min =
-        now
-          .toISOString()
+        now.toISOString()
           .slice(0, 10);
 
 
       $('date').value =
-        now
-          .toISOString()
+        now.toISOString()
           .slice(0, 10);
 
     }
 
 
     applyLanguage();
+
+    render(data);
 
   }
 
@@ -1228,26 +1347,34 @@ async function init() {
 
     if ($('servicesGrid')) {
 
-      $('servicesGrid').innerHTML =
+      $('servicesGrid').innerHTML = `
 
-        `
-          <div class="loading">
-            ${esc(tr('loadError'))}
-          </div>
-        `;
+        <div class="loading">
+
+          ${esc(
+            tr('loadError')
+          )}
+
+        </div>
+
+      `;
 
     }
 
 
     if ($('doctorsGrid')) {
 
-      $('doctorsGrid').innerHTML =
+      $('doctorsGrid').innerHTML = `
 
-        `
-          <div class="loading">
-            ${esc(tr('loadError'))}
-          </div>
-        `;
+        <div class="loading">
+
+          ${esc(
+            tr('loadError')
+          )}
+
+        </div>
+
+      `;
 
     }
 
@@ -1257,7 +1384,7 @@ async function init() {
 
 
 /* =====================================================
-   LOAD AVAILABLE SLOTS
+   AVAILABLE SLOTS
 ===================================================== */
 
 async function loadSlots() {
@@ -1335,7 +1462,9 @@ async function loadSlots() {
 
       ||
 
-      esc(tr('noSlots'));
+      esc(
+        tr('noSlots')
+      );
 
 
     document
@@ -1344,16 +1473,13 @@ async function loadSlots() {
 
         button.onclick = () => {
 
-
           document
             .querySelectorAll('.slot')
-            .forEach(item => {
-
+            .forEach(item =>
               item.classList.remove(
                 'selected'
-              );
-
-            });
+              )
+            );
 
 
           button.classList.add(
@@ -1387,7 +1513,7 @@ async function loadSlots() {
 
 
 /* =====================================================
-   BOOKING FORM
+   BOOKING
 ===================================================== */
 
 if ($('bookingForm')) {
@@ -1427,12 +1553,9 @@ if ($('bookingForm')) {
               method: 'POST',
 
               headers: {
-
                 'Content-Type':
                   'application/json'
-
               },
-
 
               body:
                 JSON.stringify({
@@ -1479,7 +1602,6 @@ if ($('bookingForm')) {
           tr('booked') +
 
           (
-
             data.booking_code ||
 
             'AZD-' +
@@ -1487,7 +1609,6 @@ if ($('bookingForm')) {
               100000 +
               Math.random() * 900000
             )
-
           );
 
 
@@ -1518,7 +1639,6 @@ if ($('bookingForm')) {
 
 
         $('message').textContent =
-
           error.message ||
           tr('loadError');
 
@@ -1534,29 +1654,24 @@ if ($('bookingForm')) {
 
 
 /* =====================================================
-   FORM EVENTS
+   EVENTS
 ===================================================== */
 
 [
   'doctor',
   'service',
   'date'
-]
-  .forEach(id => {
+].forEach(id => {
 
-    if ($(id)) {
+  if ($(id)) {
 
-      $(id).onchange =
-        loadSlots;
+    $(id).onchange =
+      loadSlots;
 
-    }
+  }
 
-  });
+});
 
-
-/* =====================================================
-   YEAR
-===================================================== */
 
 if ($('year')) {
 
@@ -1565,10 +1680,6 @@ if ($('year')) {
 
 }
 
-
-/* =====================================================
-   LANGUAGE BUTTONS
-===================================================== */
 
 document
   .querySelectorAll('.lang-btn')
@@ -1585,15 +1696,11 @@ document
   });
 
 
-/* =====================================================
-   MOBILE MENU
-===================================================== */
-
 if ($('menu')) {
 
   $('menu').onclick = () => {
 
-    const isOpen =
+    const open =
       $('nav')
         .classList
         .toggle(
@@ -1604,17 +1711,13 @@ if ($('menu')) {
     $('menu')
       .setAttribute(
         'aria-expanded',
-        String(isOpen)
+        String(open)
       );
 
   };
 
 }
 
-
-/* =====================================================
-   CLOSE MOBILE MENU AFTER NAVIGATION
-===================================================== */
 
 document
   .querySelectorAll('#nav a')
@@ -1641,7 +1744,7 @@ document
 
 
 /* =====================================================
-   START
+   START APPLICATION
 ===================================================== */
 
 applyLanguage();
