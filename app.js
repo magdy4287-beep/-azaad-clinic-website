@@ -19,6 +19,7 @@ const T = {
     navDoctors:'الأطباء',
     navBooking:'الحجز',
     navContact:'تواصل معنا',
+    trackBooking:'تتبع الحجز',
 
     bookNow:'احجز موعدك',
 
@@ -85,6 +86,11 @@ const T = {
 
     confirmBooking:'تأكيد طلب الحجز',
 
+    trackTitle:'هل لديك حجز بالفعل؟',
+
+    trackText:
+      'يمكنك معرفة حالة موعدك باستخدام رقم الحجز ورقم الهاتف.',
+
     contactTitle:'تواصل معنا',
 
     phoneContact:'الهاتف',
@@ -121,6 +127,7 @@ const T = {
 
     slotsError:
       'تعذر تحميل المواعيد.'
+
   },
 
 
@@ -132,6 +139,7 @@ const T = {
     navDoctors:'Doctors',
     navBooking:'Booking',
     navContact:'Contact',
+    trackBooking:'Track Booking',
 
     bookNow:'Book Appointment',
 
@@ -199,6 +207,11 @@ const T = {
 
     confirmBooking:'Confirm Booking Request',
 
+    trackTitle:'Already have a booking?',
+
+    trackText:
+      'Check your appointment status using your booking number and phone number.',
+
     contactTitle:'Contact Us',
 
     phoneContact:'Phone',
@@ -235,6 +248,7 @@ const T = {
 
     slotsError:
       'Unable to load appointments.'
+
   }
 
 };
@@ -259,25 +273,56 @@ const tr = k =>
   k;
 
 
-async function api(q, opt){
+async function api(q, opt = {}) {
 
-  const r =
-    await fetch(API + q, opt);
+  const controller =
+    new AbortController();
 
-  let d = {};
+  const timeout =
+    setTimeout(
+      () => controller.abort(),
+      10000
+    );
 
-  try{
-    d = await r.json();
-  }catch{}
+  try {
 
-  if(!r.ok)
-    throw Error(d.error || 'Request failed');
+    const r =
+      await fetch(
+        API + q,
+        {
+          ...opt,
+          signal:
+            controller.signal
+        }
+      );
 
-  return d;
+    let d = {};
+
+    try {
+      d = await r.json();
+    }
+    catch {}
+
+    if(!r.ok)
+      throw Error(
+        d.error ||
+        'Request failed'
+      );
+
+    return d;
+
+  }
+
+  finally {
+
+    clearTimeout(timeout);
+
+  }
+
 }
 
 
-function applyLanguage(){
+function applyLanguage() {
 
   document.documentElement.lang =
     currentLang;
@@ -292,11 +337,18 @@ function applyLanguage(){
     .querySelectorAll('[data-i18n]')
     .forEach(el => {
 
-      const k = el.dataset.i18n;
+      const k =
+        el.dataset.i18n;
 
-      if(T[currentLang][k])
+      if(
+        T[currentLang] &&
+        T[currentLang][k]
+      ) {
+
         el.innerHTML =
           T[currentLang][k];
+
+      }
 
     });
 
@@ -308,9 +360,15 @@ function applyLanguage(){
       const k =
         el.dataset.i18nPlaceholder;
 
-      if(T[currentLang][k])
+      if(
+        T[currentLang] &&
+        T[currentLang][k]
+      ) {
+
         el.placeholder =
           T[currentLang][k];
+
+      }
 
     });
 
@@ -320,7 +378,8 @@ function applyLanguage(){
     .forEach(b =>
       b.classList.toggle(
         'active',
-        b.dataset.lang === currentLang
+        b.dataset.lang ===
+        currentLang
       )
     );
 
@@ -335,10 +394,12 @@ function applyLanguage(){
     $('slots') &&
     !chosen &&
     (
+      !$('doctor') ||
+      !$('service') ||
       !$('doctor').value ||
       !$('service').value
     )
-  ){
+  ) {
 
     $('slots').textContent =
       tr('chooseDate');
@@ -348,7 +409,7 @@ function applyLanguage(){
 }
 
 
-function setLanguage(lang){
+function setLanguage(lang) {
 
   currentLang =
     lang === 'en'
@@ -364,30 +425,44 @@ function setLanguage(lang){
 
 
   if(
+    $('doctor') &&
+    $('service') &&
+    $('date') &&
     $('doctor').value &&
     $('service').value &&
     $('date').value
-  ){
+  ) {
 
     loadSlots();
 
   }
 
 
-  $('nav')
-    .classList
-    .remove('mobile-open');
+  if($('nav')) {
 
-  $('menu')
-    .setAttribute(
-      'aria-expanded',
-      'false'
-    );
+    $('nav')
+      .classList
+      .remove(
+        'mobile-open'
+      );
+
+  }
+
+
+  if($('menu')) {
+
+    $('menu')
+      .setAttribute(
+        'aria-expanded',
+        'false'
+      );
+
+  }
 
 }
 
 
-function render(d){
+function render(d) {
 
   const services =
     d.services || [];
@@ -396,131 +471,229 @@ function render(d){
     d.doctors || [];
 
 
-  $('servicesGrid').innerHTML =
-    services.map(
-      (x,i) => `
+  if($('servicesGrid')) {
 
-      <article class="card">
+    $('servicesGrid').innerHTML =
+      services.length
+        ? services.map(
+            (x,i) => `
 
-        <div class="icon">
-          ${['🧠','🌿','💙','🔎','✨'][i%5]}
-        </div>
+            <article class="card">
 
-        <h3>
-          ${esc(x.name)}
-        </h3>
+              <div class="icon">
+                ${[
+                  '🧠',
+                  '🌿',
+                  '💙',
+                  '🔎',
+                  '✨'
+                ][i % 5]}
+              </div>
 
-        <p>
-          ${esc(x.description || '')}
-        </p>
+              <h3>
+                ${esc(x.name)}
+              </h3>
 
-        <p>
-          ${x.duration_minutes || 30}
-          ${currentLang === 'ar'
-            ? 'دقيقة'
-            : 'minutes'}
-        </p>
+              <p>
+                ${esc(
+                  x.description || ''
+                )}
+              </p>
 
-      </article>
+              <p>
+                <strong>
+                  ${x.duration_minutes || 30}
+                </strong>
 
+                ${
+                  currentLang === 'ar'
+                    ? ' دقيقة'
+                    : ' minutes'
+                }
+
+              </p>
+
+            </article>
+
+            `
+          ).join('')
+        : '';
+
+  }
+
+
+  if($('doctorsGrid')) {
+
+    $('doctorsGrid').innerHTML =
+      doctors.length
+        ? doctors.map(
+            x => `
+
+            <article class="card">
+
+              <div class="photo">
+
+                ${
+                  x.image_url
+                    ? `
+                      <img
+                        src="${esc(
+                          x.image_url
+                        )}"
+                        alt="${esc(
+                          x.name
+                        )}"
+                        loading="lazy">
+                      `
+                    : esc(
+                        (
+                          x.name ||
+                          'A'
+                        )[0]
+                      )
+                }
+
+              </div>
+
+              <h3>
+                ${esc(x.name)}
+              </h3>
+
+              <p>
+                <b>
+                  ${esc(
+                    x.title || ''
+                  )}
+                </b>
+              </p>
+
+              <p>
+                ${esc(
+                  x.bio || ''
+                )}
+              </p>
+
+            </article>
+
+            `
+          ).join('')
+        : '';
+
+  }
+
+
+  if($('doctor')) {
+
+    $('doctor').innerHTML =
       `
-    ).join('');
-
-
-  $('doctorsGrid').innerHTML =
-    doctors.map(
-      x => `
-
-      <article class="card">
-
-        <div class="photo">
-
-          ${
-            x.image_url
-              ? `
-                <img
-                  src="${esc(x.image_url)}"
-                  alt="${esc(x.name)}">
-                `
-              : esc(
-                  (x.name || 'A')[0]
-                )
-          }
-
-        </div>
-
-        <h3>
-          ${esc(x.name)}
-        </h3>
-
-        <p>
-          <b>
-            ${esc(x.title || '')}
-          </b>
-        </p>
-
-        <p>
-          ${esc(x.bio || '')}
-        </p>
-
-      </article>
-
-      `
-    ).join('');
-
-
-  $('doctor').innerHTML =
-    `
-      <option value="">
-        ${esc(tr('chooseDoctor'))}
-      </option>
-    ` +
-    doctors.map(
-      x => `
-        <option value="${esc(x.id)}">
-          ${esc(x.name)}
-          —
-          ${esc(x.title || '')}
+        <option value="">
+          ${esc(
+            tr('chooseDoctor')
+          )}
         </option>
+      ` +
+
+      doctors.map(
+        x => `
+
+          <option
+            value="${esc(x.id)}">
+
+            ${esc(x.name)}
+            —
+            ${esc(
+              x.title || ''
+            )}
+
+          </option>
+
+        `
+      ).join('');
+
+  }
+
+
+  if($('service')) {
+
+    $('service').innerHTML =
       `
-    ).join('');
-
-
-  $('service').innerHTML =
-    `
-      <option value="">
-        ${esc(tr('chooseService'))}
-      </option>
-    ` +
-    services.map(
-      x => `
-        <option value="${esc(x.id)}">
-          ${esc(x.name)}
+        <option value="">
+          ${esc(
+            tr('chooseService')
+          )}
         </option>
-      `
-    ).join('');
+      ` +
+
+      services.map(
+        x => `
+
+          <option
+            value="${esc(x.id)}">
+
+            ${esc(x.name)}
+
+          </option>
+
+        `
+      ).join('');
+
+  }
 
 
   const s =
     d.settings || {};
 
 
-  $('phone').textContent =
-    s.phone || '—';
+  if($('phone')) {
 
-  $('phoneLink').href =
-    s.phone
-      ? 'tel:' + s.phone
-      : '#';
+    $('phone').textContent =
+      s.phone || '—';
+
+  }
 
 
-  $('email').textContent =
-    s.email || '—';
+  if($('phoneText')) {
 
-  $('emailLink').href =
-    s.email
-      ? 'mailto:' + s.email
-      : '#';
+    $('phoneText').textContent =
+      s.phone || '—';
+
+  }
+
+
+  if($('phoneLink')) {
+
+    $('phoneLink').href =
+      s.phone
+        ? 'tel:' + s.phone
+        : '#';
+
+  }
+
+
+  if($('email')) {
+
+    $('email').textContent =
+      s.email || '—';
+
+  }
+
+
+  if($('emailText')) {
+
+    $('emailText').textContent =
+      s.email || '—';
+
+  }
+
+
+  if($('emailLink')) {
+
+    $('emailLink').href =
+      s.email
+        ? 'mailto:' + s.email
+        : '#';
+
+  }
 
 
   const w =
@@ -531,94 +704,154 @@ function render(d){
       : '#';
 
 
-  $('waLink').href = w;
+  if($('waLink')) {
 
-  $('waHero').href = w;
+    $('waLink').href =
+      w;
 
-  $('address').textContent =
-    s.address || '';
+  }
+
+
+  if($('waHero')) {
+
+    $('waHero').href =
+      w;
+
+  }
+
+
+  if($('address')) {
+
+    $('address').textContent =
+      s.address || '';
+
+  }
 
 }
 
 
-async function init(){
+async function init() {
 
-  try{
+  try {
 
     const d =
-      await api('?api=data');
+      await api(
+        '?api=data'
+      );
 
     render(d);
 
 
-    const now =
-      new Date();
+    if($('date')) {
 
-    now.setMinutes(
-      now.getMinutes()
-      -
-      now.getTimezoneOffset()
-    );
+      const now =
+        new Date();
+
+      now.setMinutes(
+        now.getMinutes()
+        -
+        now.getTimezoneOffset()
+      );
 
 
-    $('date').min =
-      now.toISOString()
-        .slice(0,10);
+      $('date').min =
+        now.toISOString()
+          .slice(0,10);
 
-    $('date').value =
-      now.toISOString()
-        .slice(0,10);
+      $('date').value =
+        now.toISOString()
+          .slice(0,10);
+
+    }
 
 
     applyLanguage();
 
   }
 
-  catch(e){
+  catch(e) {
 
-    $('servicesGrid').innerHTML =
-      `
-        <div class="loading">
-          ${esc(tr('loadError'))}
-        </div>
-      `;
+    console.error(
+      'Azaad Clinic:',
+      e
+    );
 
-    $('doctorsGrid').innerHTML =
-      `
-        <div class="loading">
-          ${esc(tr('loadError'))}
-        </div>
-      `;
+
+    if($('servicesGrid')) {
+
+      $('servicesGrid').innerHTML =
+        `
+          <div class="loading">
+            ${esc(
+              tr('loadError')
+            )}
+          </div>
+        `;
+
+    }
+
+
+    if($('doctorsGrid')) {
+
+      $('doctorsGrid').innerHTML =
+        `
+          <div class="loading">
+            ${esc(
+              tr('loadError')
+            )}
+          </div>
+        `;
+
+    }
 
   }
 
 }
 
 
-async function loadSlots(){
+async function loadSlots() {
 
   chosen = '';
 
 
   if(
-    !$('doctor').value ||
-    !$('service').value ||
-    !$('date').value
-  ){
-
-    $('slots').textContent =
-      tr('chooseDate');
+    !$('doctor') ||
+    !$('service') ||
+    !$('date')
+  ) {
 
     return;
 
   }
 
 
-  $('slots').textContent =
-    tr('loadingSlots');
+  if(
+    !$('doctor').value ||
+    !$('service').value ||
+    !$('date').value
+  ) {
+
+    if($('slots')) {
+
+      $('slots').textContent =
+        tr('chooseDate');
+
+    }
+
+    return;
+
+  }
 
 
-  try{
+  if($('slots')) {
+
+    $('slots').textContent =
+      tr('loadingSlots');
+
+  }
+
+
+  try {
 
     const d =
       await api(
@@ -636,26 +869,34 @@ async function loadSlots(){
 
 
     const slots =
-      d.slots || [];
+      Array.isArray(d.slots)
+        ? d.slots
+        : [];
+
+
+    if(!$('slots'))
+      return;
 
 
     $('slots').innerHTML =
-      slots.map(
-        t => `
+      slots.length
+        ? slots.map(
+            t => `
 
-        <button
-          class="slot"
-          type="button"
-          data-t="${esc(t)}">
+            <button
+              class="slot"
+              type="button"
+              data-t="${esc(t)}">
 
-          ${esc(t)}
+              ${esc(t)}
 
-        </button>
+            </button>
 
-        `
-      ).join('')
-      ||
-      esc(tr('noSlots'));
+            `
+          ).join('')
+        : esc(
+            tr('noSlots')
+          );
 
 
     document
@@ -665,7 +906,9 @@ async function loadSlots(){
         b.onclick = () => {
 
           document
-            .querySelectorAll('.slot')
+            .querySelectorAll(
+              '.slot'
+            )
             .forEach(x =>
               x.classList.remove(
                 'selected'
@@ -685,192 +928,312 @@ async function loadSlots(){
 
   }
 
-  catch(e){
+  catch(e) {
 
-    $('slots').textContent =
-      tr('slotsError');
+    console.error(e);
+
+    if($('slots')) {
+
+      $('slots').textContent =
+        tr('slotsError');
+
+    }
 
   }
 
 }
 
 
-$('bookingForm').onsubmit =
-  async e => {
+if($('bookingForm')) {
 
-    e.preventDefault();
+  $('bookingForm').onsubmit =
+    async e => {
 
-
-    if(!chosen){
-
-      $('message').textContent =
-        tr('chooseSlot');
-
-      $('message').style.color =
-        '#a13a3a';
-
-      return;
-
-    }
+      e.preventDefault();
 
 
-    try{
+      if(!chosen) {
 
-      const d =
-        await api(
-          '?api=book',
-          {
-            method:'POST',
+        if($('message')) {
 
-            headers:{
-              'Content-Type':
-                'application/json'
-            },
+          $('message').textContent =
+            tr('chooseSlot');
 
-            body:JSON.stringify({
+          $('message').style.color =
+            '#a13a3a';
 
-              doctor_id:
-                $('doctor').value,
+        }
 
-              service_id:
-                $('service').value,
+        return;
 
-              appointment_date:
-                $('date').value,
-
-              appointment_time:
-                chosen,
-
-              mode:
-                $('mode').value,
-
-              patient_name:
-                $('name').value,
-
-              patient_phone:
-                $('phone').value,
-
-              patient_email:
-                $('email').value,
-
-              notes:
-                $('notes').value,
-
-              patient_language:
-                currentLang
-
-            })
-
-          }
-        );
+      }
 
 
-      $('message').textContent =
-        tr('booked') +
-        (
+      const submitButton =
+        $('bookingForm')
+          .querySelector(
+            'button[type="submit"]'
+          );
+
+
+      try {
+
+        if(submitButton) {
+
+          submitButton.disabled =
+            true;
+
+          submitButton.style.opacity =
+            '0.7';
+
+        }
+
+
+        const d =
+          await api(
+            '?api=book',
+            {
+
+              method:'POST',
+
+              headers:{
+                'Content-Type':
+                  'application/json'
+              },
+
+              body:JSON.stringify({
+
+                doctor_id:
+                  $('doctor').value,
+
+                service_id:
+                  $('service').value,
+
+                appointment_date:
+                  $('date').value,
+
+                appointment_time:
+                  chosen,
+
+                mode:
+                  $('mode').value,
+
+                patient_name:
+                  $('name').value,
+
+                patient_phone:
+                  $('phone').value,
+
+                patient_email:
+                  $('email').value,
+
+                notes:
+                  $('notes').value,
+
+                patient_language:
+                  currentLang
+
+              })
+
+            }
+          );
+
+
+        const bookingCode =
           d.booking_code ||
-          'AZD-' +
-          Math.floor(
-            100000 +
-            Math.random() * 900000
-          )
-        );
+          (
+            'AZD-' +
+            Math.floor(
+              100000 +
+              Math.random() *
+              900000
+            )
+          );
 
 
-      $('message').style.color =
-        '#16734a';
+        if($('message')) {
+
+          $('message').innerHTML =
+            `
+              <strong>
+                ${esc(
+                  tr('booked')
+                )}
+              </strong>
+
+              <span
+                style="
+                  display:block;
+                  font-size:1.2em;
+                  margin-top:8px;
+                  font-weight:700;
+                ">
+
+                ${esc(
+                  bookingCode
+                )}
+
+              </span>
+            `;
+
+          $('message').style.color =
+            '#16734a';
+
+        }
 
 
-      $('bookingForm').reset();
+        $('bookingForm').reset();
 
-      chosen = '';
+        chosen = '';
 
 
-      $('slots').textContent =
-        tr('bookingReceived');
+        if($('slots')) {
 
-    }
+          $('slots').textContent =
+            tr('bookingReceived');
 
-    catch(e){
+        }
 
-      $('message').textContent =
-        e.message ||
-        tr('loadError');
+      }
 
-      $('message').style.color =
-        '#a13a3a';
+      catch(e) {
 
-    }
+        console.error(e);
 
-  };
+        if($('message')) {
+
+          $('message').textContent =
+            e.message ||
+            tr('loadError');
+
+          $('message').style.color =
+            '#a13a3a';
+
+        }
+
+      }
+
+      finally {
+
+        if(submitButton) {
+
+          submitButton.disabled =
+            false;
+
+          submitButton.style.opacity =
+            '';
+
+        }
+
+      }
+
+    };
+
+}
 
 
 [
   'doctor',
   'service',
   'date'
-].forEach(
-  id =>
-    $(id).onchange =
-      loadSlots
-);
+].forEach(id => {
+
+  const el = $(id);
+
+  if(el) {
+
+    el.onchange =
+      loadSlots;
+
+  }
+
+});
 
 
-$('year').textContent =
-  new Date().getFullYear();
+if($('year')) {
+
+  $('year').textContent =
+    new Date()
+      .getFullYear();
+
+}
 
 
 document
-  .querySelectorAll('.lang-btn')
-  .forEach(
-    b =>
-      b.onclick =
-        () =>
-          setLanguage(
-            b.dataset.lang
-          )
-  );
+  .querySelectorAll(
+    '.lang-btn'
+  )
+  .forEach(b => {
+
+    b.onclick =
+      () =>
+        setLanguage(
+          b.dataset.lang
+        );
+
+  });
 
 
-$('menu').onclick = () => {
+if($('menu')) {
 
-  const open =
-    $('nav')
-      .classList
-      .toggle(
+  $('menu').onclick = () => {
+
+    const nav =
+      $('nav');
+
+    if(!nav)
+      return;
+
+
+    const open =
+      nav.classList.toggle(
         'mobile-open'
       );
 
-  $('menu')
-    .setAttribute(
-      'aria-expanded',
-      String(open)
-    );
 
-};
+    $('menu')
+      .setAttribute(
+        'aria-expanded',
+        String(open)
+      );
+
+  };
+
+}
 
 
 document
-  .querySelectorAll('#nav a')
-  .forEach(
-    a =>
-      a.onclick =
-        () => {
+  .querySelectorAll(
+    '#nav a'
+  )
+  .forEach(a => {
 
-          $('nav')
-            .classList
-            .remove(
-              'mobile-open'
-            );
+    a.onclick = () => {
 
-          $('menu')
-            .setAttribute(
-              'aria-expanded',
-              'false'
-            );
+      if($('nav')) {
 
-        }
-  );
+        $('nav')
+          .classList
+          .remove(
+            'mobile-open'
+          );
+
+      }
+
+
+      if($('menu')) {
+
+        $('menu')
+          .setAttribute(
+            'aria-expanded',
+            'false'
+          );
+
+      }
+
+    };
+
+  });
 
 
 applyLanguage();
