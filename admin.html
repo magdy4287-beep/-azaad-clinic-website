@@ -1,1 +1,453 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Azaad Clinic | لوحة الإدارة</title>
 
+<style>
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+:root{
+  --primary:#176f70;
+  --primary-dark:#105354;
+  --bg:#f4f7f7;
+  --white:#fff;
+  --text:#173b3d;
+  --muted:#718083;
+  --border:#e0e7e7;
+  --danger:#c0392b;
+  --success:#218c5a;
+  --warning:#d68910;
+  --shadow:0 8px 30px rgba(20,60,65,.08);
+}
+
+body{
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Tahoma,
+    Arial,
+    sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+
+button,
+input,
+select,
+textarea{
+  font-family:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+/* LOGIN */
+
+#loginPage{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:
+    radial-gradient(
+      circle at top left,
+      #dceeed 0,
+      transparent 40%
+    ),
+    var(--bg);
+}
+
+.login-card{
+  width:100%;
+  max-width:430px;
+  background:#fff;
+  padding:40px;
+  border-radius:24px;
+  box-shadow:var(--shadow);
+}
+
+.logo{
+  width:70px;
+  height:70px;
+  margin:0 auto 20px;
+  border-radius:20px;
+  background:var(--primary);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:30px;
+  font-weight:800;
+}
+
+.login-card h1{
+  text-align:center;
+  font-size:25px;
+  margin-bottom:8px;
+}
+
+.login-subtitle{
+  text-align:center;
+  color:var(--muted);
+  margin-bottom:30px;
+}
+
+.form-group{
+  margin-bottom:18px;
+}
+
+.form-group label{
+  display:block;
+  margin-bottom:8px;
+  font-weight:700;
+  font-size:14px;
+}
+
+.form-control{
+  width:100%;
+  border:1px solid var(--border);
+  background:#fff;
+  border-radius:12px;
+  padding:13px 14px;
+  outline:none;
+}
+
+.form-control:focus{
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(23,111,112,.1);
+}
+
+.btn{
+  border:0;
+  border-radius:11px;
+  padding:12px 18px;
+  font-weight:700;
+  transition:.2s;
+}
+
+.btn-primary{
+  background:var(--primary);
+  color:#fff;
+}
+
+.btn-primary:hover{
+  background:var(--primary-dark);
+}
+
+.login-btn{
+  width:100%;
+  padding:14px;
+}
+
+.login-error{
+  color:var(--danger);
+  background:#fff0ee;
+  border-radius:10px;
+  padding:10px;
+  margin-top:15px;
+  display:none;
+  text-align:center;
+  font-size:14px;
+}
+
+/* ADMIN */
+
+#adminApp{
+  display:none;
+  min-height:100vh;
+}
+
+.topbar{
+  height:72px;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 25px;
+  position:sticky;
+  top:0;
+  z-index:100;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.brand-logo{
+  width:42px;
+  height:42px;
+  background:var(--primary);
+  color:#fff;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+}
+
+.brand strong{
+  display:block;
+}
+
+.brand small{
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
+}
+
+.logout{
+  background:#fff0ee;
+  color:var(--danger);
+  border:0;
+  padding:10px 15px;
+  border-radius:10px;
+  font-weight:700;
+}
+
+.layout{
+  display:flex;
+  min-height:calc(100vh - 72px);
+}
+
+.sidebar{
+  width:245px;
+  flex-shrink:0;
+  background:#123f42;
+  padding:22px 14px;
+  color:#fff;
+}
+
+.sidebar-title{
+  color:#a8c8c8;
+  font-size:11px;
+  font-weight:700;
+  margin:5px 12px 12px;
+}
+
+.nav-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  color:#fff;
+  text-align:right;
+  padding:13px 14px;
+  border-radius:10px;
+  margin-bottom:5px;
+  font-size:14px;
+}
+
+.nav-item:hover,
+.nav-item.active{
+  background:rgba(255,255,255,.13);
+}
+
+.nav-icon{
+  display:inline-block;
+  width:28px;
+}
+
+.sidebar-bottom{
+  border-top:1px solid rgba(255,255,255,.12);
+  margin-top:20px;
+  padding-top:20px;
+}
+
+.patient-site{
+  display:block;
+  text-decoration:none;
+  color:#fff;
+  padding:12px 14px;
+  border-radius:10px;
+  background:rgba(255,255,255,.08);
+  text-align:center;
+  font-size:13px;
+}
+
+.main{
+  flex:1;
+  padding:28px;
+  min-width:0;
+}
+
+.page{
+  display:none;
+  max-width:1250px;
+  margin:auto;
+}
+
+.page.active{
+  display:block;
+}
+
+.page-header{
+  margin-bottom:25px;
+}
+
+.page-header h1{
+  font-size:27px;
+  margin-bottom:6px;
+}
+
+.page-header p{
+  color:var(--muted);
+}
+
+/* STATS */
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:17px;
+  margin-bottom:25px;
+}
+
+.stat{
+  background:#fff;
+  border-radius:17px;
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+
+.stat-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.stat-title{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+}
+
+.stat-icon{
+  width:40px;
+  height:40px;
+  background:#e8f3f2;
+  border-radius:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.stat-number{
+  font-size:30px;
+  font-weight:800;
+  margin-top:15px;
+}
+
+/* CARDS */
+
+.card{
+  background:#fff;
+  border-radius:17px;
+  box-shadow:var(--shadow);
+  padding:22px;
+  margin-bottom:20px;
+}
+
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+  gap:15px;
+}
+
+.card-header h2{
+  font-size:18px;
+}
+
+/* TABLE */
+
+.table-wrapper{
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:850px;
+}
+
+th,
+td{
+  padding:14px 12px;
+  text-align:right;
+  border-bottom:1px solid #edf1f1;
+  font-size:13px;
+}
+
+th{
+  background:#f8faf9;
+  color:#617174;
+}
+
+td{
+  color:#294548;
+}
+
+.status{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+}
+
+.status-new{
+  background:#e9f3ff;
+  color:#1768a8;
+}
+
+.status-confirmed{
+  background:#e8f7ee;
+  color:var(--success);
+}
+
+.status-completed{
+  background:#eeeefb;
+  color:#5b50a5;
+}
+
+.status-cancelled{
+  background:#fff0ee;
+  color:var(--danger);
+}
+
+/* GRID */
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+}
+
+.management-card{
+  background:#fff;
+  border-radius:17px;
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+
+.management-card h3{
+  margin-bottom:8px;
+}
+
+.management-card p{
+  color:var(--muted
