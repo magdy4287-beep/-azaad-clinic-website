@@ -1,1289 +1,668 @@
-const API =
-  'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
+(() => {
+  "use strict";
 
-const $ = x => document.getElementById(x);
+  const API =
+    "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic";
 
-let chosen = '';
-let currentLang =
-  localStorage.getItem('azaad_lang') || 'ar';
+  const $ = (id) => document.getElementById(id);
 
+  let selectedSlot = "";
 
-/* =========================================================
-   TRANSLATIONS
-========================================================= */
-
-const T = {
-
-  ar: {
-
-    navHome: 'الرئيسية',
-    navAbout: 'عن العيادة',
-    navServices: 'الخدمات',
-    navDoctors: 'الأطباء',
-    navBooking: 'الحجز',
-    navContact: 'تواصل معنا',
-
-    bookNow: 'احجز موعدك',
-
-    heroTitle:
-      'مساحة آمنة<br><span>لبداية التغيير</span>',
-
-    heroText:
-      'رعاية نفسية متخصصة باهتمام إنساني، وخصوصية كاملة، وخطة علاجية تناسب احتياجاتك.',
-
-    heroBook: 'احجز جلستك الآن',
-
-    heroWhatsapp: 'تواصل عبر واتساب',
-
-    trustPrivacy: '✓ خصوصية كاملة',
-    trustModes: '✓ حضوري وأونلاين',
-    trustCare: '✓ رعاية متخصصة',
-
-    aboutTitle:
-      'مكان تستطيع فيه<br>أن تكون على طبيعتك.',
-
-    aboutP1:
-      'نؤمن أن طلب المساعدة خطوة قوة وليست ضعفًا. لذلك نوفر بيئة آمنة ومحترمة تساعدك على فهم التحديات النفسية والتعامل معها بخطوات عملية.',
-
-    aboutP2:
-      'هدفنا أن تحصل على رعاية نفسية مهنية، إنسانية، وسرية بالكامل.',
-
-    servicesTitle: 'خدماتنا',
-
-    servicesIntro:
-      'خدمات نفسية مصممة لتناسب احتياجات كل شخص.',
-
-    doctorsTitle: 'فريق العيادة',
-
-    doctorsIntro:
-      'متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.',
-
-    bookingTitle: 'احجز موعدك',
-
-    bookingIntro:
-      'اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.',
-
-    doctorLabel: 'الطبيب',
-    serviceLabel: 'الخدمة',
-    dateLabel: 'التاريخ',
-    modeLabel: 'نوع الجلسة',
-
-    clinicMode: 'داخل العيادة',
-    onlineMode: 'جلسة أونلاين',
-
-    slotsLabel: 'المواعيد المتاحة',
-
-    slotsHint:
-      'اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.',
-
-    nameLabel: 'الاسم بالكامل',
-    namePlaceholder: 'اكتب اسمك',
-
-    phoneLabel: 'رقم الهاتف',
-    phonePlaceholder: 'رقم الهاتف',
-
-    emailLabel: 'البريد الإلكتروني',
-
-    notesLabel: 'ملاحظات',
-    notesPlaceholder: 'أي معلومات إضافية...',
-
-    confirmBooking: 'تأكيد طلب الحجز',
-
-    contactTitle: 'تواصل معنا',
-
-    phoneContact: 'الهاتف',
-    emailContact: 'البريد الإلكتروني',
-    whatsappContact: 'واتساب',
-
-    startChat: 'ابدأ المحادثة',
-
-    rights: 'جميع الحقوق محفوظة.',
-
-    chooseDoctor: 'اختر الطبيب',
-    chooseService: 'اختر الخدمة',
-
-    chooseDate:
-      'اختر الطبيب والخدمة والتاريخ.',
-
-    loadingSlots:
-      'جاري تحميل المواعيد...',
-
-    noSlots:
-      'لا توجد مواعيد متاحة لهذا اليوم.',
-
-    booked:
-      'تم إرسال الحجز بنجاح. رقم الحجز: ',
-
-    bookingReceived:
-      'تم استلام طلب الحجز.',
-
-    chooseSlot:
-      'من فضلك اختر موعدًا.',
-
-    loadError:
-      'تعذر تحميل البيانات. يرجى المحاولة لاحقًا.',
-
-    slotsError:
-      'تعذر تحميل المواعيد.',
-
-    minutes: 'دقيقة',
-
-    locationTitle: 'موقع العيادة',
-
-    openMaps:
-      'فتح الموقع على Google Maps',
-
-    shareLocation:
-      'مشاركة موقع العيادة عبر WhatsApp'
-  },
-
-
-  en: {
-
-    navHome: 'Home',
-    navAbout: 'About',
-    navServices: 'Services',
-    navDoctors: 'Doctors',
-    navBooking: 'Booking',
-    navContact: 'Contact',
-
-    bookNow: 'Book Appointment',
-
-    heroTitle:
-      'A Safe Space<br><span>to Begin Your Change</span>',
-
-    heroText:
-      'Specialized mental healthcare with empathy, complete privacy, and a care plan tailored to your needs.',
-
-    heroBook: 'Book Your Session',
-
-    heroWhatsapp: 'Chat on WhatsApp',
-
-    trustPrivacy: '✓ Complete privacy',
-    trustModes: '✓ In-clinic & online',
-    trustCare: '✓ Specialized care',
-
-    aboutTitle:
-      'A place where you can<br>be yourself.',
-
-    aboutP1:
-      'We believe asking for help is a sign of strength. We provide a safe, respectful environment to understand mental health challenges and work through them with practical steps.',
-
-    aboutP2:
-      'Our goal is professional, compassionate, and fully confidential mental healthcare.',
-
-    servicesTitle: 'Our Services',
-
-    servicesIntro:
-      'Mental health services designed around each person’s needs.',
-
-    doctorsTitle: 'Our Team',
-
-    doctorsIntro:
-      'Specialists working with you toward a more balanced life.',
-
-    bookingTitle: 'Book an Appointment',
-
-    bookingIntro:
-      'Choose your doctor, service, date, and preferred time.',
-
-    doctorLabel: 'Doctor',
-    serviceLabel: 'Service',
-    dateLabel: 'Date',
-    modeLabel: 'Session type',
-
-    clinicMode: 'In-clinic',
-    onlineMode: 'Online session',
-
-    slotsLabel: 'Available times',
-
-    slotsHint:
-      'Choose a doctor, service, and date to see available times.',
-
-    nameLabel: 'Full name',
-    namePlaceholder: 'Enter your name',
-
-    phoneLabel: 'Phone number',
-    phonePlaceholder: 'Phone number',
-
-    emailLabel: 'Email',
-
-    notesLabel: 'Notes',
-    notesPlaceholder: 'Any additional information...',
-
-    confirmBooking: 'Confirm Booking Request',
-
-    contactTitle: 'Contact Us',
-
-    phoneContact: 'Phone',
-    emailContact: 'Email',
-    whatsappContact: 'WhatsApp',
-
-    startChat: 'Start a conversation',
-
-    rights: 'All rights reserved.',
-
-    chooseDoctor: 'Choose doctor',
-    chooseService: 'Choose service',
-
-    chooseDate:
-      'Choose a doctor, service, and date.',
-
-    loadingSlots:
-      'Loading available times...',
-
-    noSlots:
-      'No appointments are available for this day.',
-
-    booked:
-      'Booking submitted successfully. Booking number: ',
-
-    bookingReceived:
-      'Booking request received.',
-
-    chooseSlot:
-      'Please choose an appointment time.',
-
-    loadError:
-      'Unable to load clinic data. Please try again.',
-
-    slotsError:
-      'Unable to load appointments.',
-
-    minutes: 'minutes',
-
-    locationTitle: 'Clinic Location',
-
-    openMaps:
-      'Open Location in Google Maps',
-
-    shareLocation:
-      'Share Clinic Location via WhatsApp'
-  }
-
-};
-
-
-/* =========================================================
-   ENGLISH SERVICE TRANSLATIONS
-========================================================= */
-
-const SERVICE_EN = {
-
-  'جلسة علاج نفسي فردية': {
-    name: 'Individual Psychotherapy Session',
-    description:
-      'Individual session with one of our mental health specialists.'
-  },
-
-  'جلسة علاج نفسي جماعية': {
-    name: 'Group Psychotherapy Session',
-    description:
-      'Group psychotherapy sessions.'
-  },
-
-  'جلسة أونلاين': {
-    name: 'Online Therapy Session',
-    description:
-      'Remote mental health therapy session.'
-  },
-
-  'تقييم نفسي': {
-    name: 'Psychological Assessment',
-    description:
-      'Initial psychological assessment and consultation.'
-  }
-
-};
-
-
-/* =========================================================
-   ENGLISH DOCTOR TRANSLATIONS
-========================================================= */
-
-const DOCTOR_EN = {
-
-  'أ/ لميا مجدي': {
-    name: 'Lamia Magdy',
-    title: 'Psychotherapist',
-    bio:
-      'Psychotherapy sessions using CBT, DBT, ACT, MI, Counseling, and Schema Therapy. Individual, group, and online sessions.'
-  },
-
-  'د/ محمد أبو الخير': {
-    name: 'Dr. Mohamed Abu Elkhair',
-    title: 'Psychiatry Resident',
-    bio:
-      'Psychiatry Resident.'
-  },
-
-  'د/ علي باسل': {
-    name: 'Dr. Ali Basel',
-    title: 'Psychiatrist & Addiction Treatment Specialist',
-    bio:
-      'Psychiatrist and Addiction Treatment Specialist.'
-  },
-
-  'أ/ رحاب الصواف': {
-    name: 'Rehab El Sawaf',
-    title: 'Psychologist',
-    bio:
-      'Psychologist.'
-  },
-
-  'د/ أحمد إبراهيم': {
-    name: 'Dr. Ahmed Ibrahim',
-    title: 'Psychiatrist & Addiction Treatment Specialist',
-    bio:
-      'Psychiatrist and Addiction Treatment Specialist.'
-  }
-
-};
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-const esc = s =>
-  String(s ?? '').replace(
-    /[&<>"']/g,
-    c => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    }[c])
-  );
-
-
-const tr = k =>
-  T[currentLang][k] ||
-  T.ar[k] ||
-  k;
-
-
-/* =========================================================
-   API
-========================================================= */
-
-async function api(q, opt) {
-
-  const r =
-    await fetch(API + q, opt);
-
-  let d = {};
-
-  try {
-    d = await r.json();
-  } catch {}
-
-  if (!r.ok)
-    throw Error(
-      d.error || 'Request failed'
-    );
-
-  return d;
-}
-
-
-/* =========================================================
-   SERVICE TRANSLATION
-========================================================= */
-
-function getServiceText(service) {
-
-  if (currentLang === 'ar') {
-
-    return {
-      name: service.name || '',
-      description:
-        service.description || ''
-    };
-
-  }
-
-  const original =
-    String(service.name || '').trim();
-
-  const translated =
-    SERVICE_EN[original];
-
-  if (translated) {
-
-    return translated;
-
-  }
-
-  return {
-    name: original,
-    description:
-      service.description || ''
+  let clinicData = {
+    doctors: [],
+    services: [],
+    settings: {}
   };
 
-}
+  /* =========================================================
+     HELPERS
+  ========================================================= */
 
-
-/* =========================================================
-   DOCTOR TRANSLATION
-========================================================= */
-
-function getDoctorText(doctor) {
-
-  if (currentLang === 'ar') {
-
-    return {
-      name: doctor.name || '',
-      title: doctor.title || '',
-      bio: doctor.bio || ''
-    };
-
+  function escapeHtml(value) {
+    return String(value ?? "").replace(
+      /[&<>"']/g,
+      (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[char]
+    );
   }
 
-  const original =
-    String(doctor.name || '').trim();
+  function showMessage(message, success = false) {
+    const element = $("message");
 
-  const translated =
-    DOCTOR_EN[original];
+    if (!element) {
+      alert(message);
+      return;
+    }
 
-  if (translated) {
-
-    return translated;
-
+    element.textContent = message;
+    element.style.display = "block";
+    element.style.color = success ? "#16734a" : "#a13a3a";
+    element.style.background = success
+      ? "#eaf8f1"
+      : "#fff1f1";
+    element.style.padding = "12px 16px";
+    element.style.borderRadius = "10px";
+    element.style.marginTop = "12px";
   }
 
-  return {
-    name: original,
-    title: doctor.title || '',
-    bio: doctor.bio || ''
-  };
+  function clearMessage() {
+    const element = $("message");
 
-}
+    if (!element) return;
 
+    element.textContent = "";
+    element.style.display = "none";
+  }
 
-/* =========================================================
-   LANGUAGE
-========================================================= */
-
-function applyLanguage() {
-
-  document.documentElement.lang =
-    currentLang;
-
-  document.documentElement.dir =
-    currentLang === 'ar'
-      ? 'rtl'
-      : 'ltr';
-
-
-  document
-    .querySelectorAll('[data-i18n]')
-    .forEach(el => {
-
-      const k =
-        el.dataset.i18n;
-
-      if (T[currentLang][k])
-        el.innerHTML =
-          T[currentLang][k];
-
+  async function request(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      cache: "no-store"
     });
 
+    let body = {};
 
-  document
-    .querySelectorAll(
-      '[data-i18n-placeholder]'
-    )
-    .forEach(el => {
+    try {
+      body = await response.json();
+    } catch (_) {
+      body = {};
+    }
 
-      const k =
-        el.dataset.i18nPlaceholder;
+    if (!response.ok) {
+      throw new Error(
+        body.error ||
+        body.message ||
+        `HTTP ${response.status}`
+      );
+    }
 
-      if (T[currentLang][k])
-        el.placeholder =
-          T[currentLang][k];
-
-    });
-
-
-  document
-    .querySelectorAll('.lang-btn')
-    .forEach(b =>
-      b.classList.toggle(
-        'active',
-        b.dataset.lang === currentLang
-      )
-    );
-
-
-  document.title =
-    currentLang === 'ar'
-      ? 'Azaad Clinic | عيادة أزاد للصحة النفسية'
-      : 'Azaad Clinic | Mental Health Clinic';
-
-
-  if (
-    $('slots') &&
-    !chosen &&
-    (
-      !$('doctor').value ||
-      !$('service').value
-    )
-  ) {
-
-    $('slots').textContent =
-      tr('chooseDate');
-
+    return body;
   }
 
-
-  /*
-    Re-render dynamic database content
-    so doctors/services change language
-    immediately when language changes.
-  */
-
-  if (
-    window.clinicData
-  ) {
-
-    render(
-      window.clinicData,
-      false
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   CHANGE LANGUAGE
-========================================================= */
-
-function setLanguage(lang) {
-
-  currentLang =
-    lang === 'en'
-      ? 'en'
-      : 'ar';
-
-  localStorage.setItem(
-    'azaad_lang',
-    currentLang
-  );
-
-
-  applyLanguage();
-
-
-  if (
-    $('doctor').value &&
-    $('service').value &&
-    $('date').value
-  ) {
-
-    loadSlots();
-
-  }
-
-
-  $('nav')
-    .classList
-    .remove('mobile-open');
-
-  $('menu')
-    .setAttribute(
-      'aria-expanded',
-      'false'
-    );
-
-}
-
-
-/* =========================================================
-   RENDER DATA
-========================================================= */
-
-function render(d, resetSelectors = true) {
-
-  window.clinicData = d;
-
-  const services =
-    d.services || [];
-
-  const doctors =
-    d.doctors || [];
-
-
-  /* =========================
-     SERVICES
-  ========================= */
-
-  $('servicesGrid').innerHTML =
-    services.map(
-      (x, i) => {
-
-        const text =
-          getServiceText(x);
-
-        return `
-
-        <article class="card">
-
-          <div class="icon">
-            ${['🧠','🌿','💙','🔎','✨'][i % 5]}
-          </div>
-
-          <h3>
-            ${esc(text.name)}
-          </h3>
-
-          <p>
-            ${esc(text.description)}
-          </p>
-
-          <p>
-            ${x.duration_minutes || 30}
-            ${esc(tr('minutes'))}
-          </p>
-
-        </article>
-
-        `;
-
-      }
-    ).join('');
-
-
-  /* =========================
-     DOCTORS
-  ========================= */
-
-  $('doctorsGrid').innerHTML =
-    doctors.map(
-      x => {
-
-        const text =
-          getDoctorText(x);
-
-        return `
-
-        <article class="card">
-
-          <div class="photo">
-
-            ${
-              x.image_url
-                ? `
-                  <img
-                    src="${esc(x.image_url)}"
-                    alt="${esc(text.name)}">
-                  `
-                : esc(
-                    (text.name || 'A')[0]
-                  )
-            }
-
-          </div>
-
-          <h3>
-            ${esc(text.name)}
-          </h3>
-
-          <p>
-            <b>
-              ${esc(text.title)}
-            </b>
-          </p>
-
-          <p>
-            ${esc(text.bio)}
-          </p>
-
-        </article>
-
-        `;
-
-      }
-    ).join('');
-
-
-  /*
-     Keep currently selected doctor/service
-     when switching language.
-  */
-
-  const oldDoctor =
-    $('doctor').value;
-
-  const oldService =
-    $('service').value;
-
-
-  /* =========================
-     DOCTOR SELECT
-  ========================= */
-
-  $('doctor').innerHTML =
-    `
-      <option value="">
-        ${esc(tr('chooseDoctor'))}
-      </option>
-    ` +
-    doctors.map(
-      x => {
-
-        const text =
-          getDoctorText(x);
-
-        return `
-          <option value="${esc(x.id)}">
-            ${esc(text.name)}
-            —
-            ${esc(text.title)}
-          </option>
-        `;
-
-      }
-    ).join('');
-
-
-  /* =========================
-     SERVICE SELECT
-  ========================= */
-
-  $('service').innerHTML =
-    `
-      <option value="">
-        ${esc(tr('chooseService'))}
-      </option>
-    ` +
-    services.map(
-      x => {
-
-        const text =
-          getServiceText(x);
-
-        return `
-          <option value="${esc(x.id)}">
-            ${esc(text.name)}
-          </option>
-        `;
-
-      }
-    ).join('');
-
-
-  /*
-     Restore previous selections.
-  */
-
-  if (
-    oldDoctor &&
-    doctors.some(
-      x => String(x.id) === String(oldDoctor)
-    )
-  ) {
-
-    $('doctor').value =
-      oldDoctor;
-
-  }
-
-
-  if (
-    oldService &&
-    services.some(
-      x => String(x.id) === String(oldService)
-    )
-  ) {
-
-    $('service').value =
-      oldService;
-
-  }
-
-
-  /* =========================
-     SETTINGS
-  ========================= */
-
-  const s =
-    d.settings || {};
-
-
-  if ($('phone')) {
-
-    $('phone').textContent =
-      s.phone || '—';
-
-  }
-
-
-  if ($('phoneLink')) {
-
-    $('phoneLink').href =
-      s.phone
-        ? 'tel:' + s.phone
-        : '#';
-
-  }
-
-
-  if ($('email')) {
-
-    $('email').textContent =
-      s.email || '—';
-
-  }
-
-
-  if ($('emailLink')) {
-
-    $('emailLink').href =
-      s.email
-        ? 'mailto:' + s.email
-        : '#';
-
-  }
-
-
-  const w =
-    s.whatsapp
-      ? `https://wa.me/${String(
-          s.whatsapp
-        ).replace(/\D/g, '')}`
-      : '#';
-
-
-  if ($('waLink'))
-    $('waLink').href = w;
-
-
-  if ($('waHero'))
-    $('waHero').href = w;
-
-
-  if ($('address'))
-    $('address').textContent =
-      s.address || '';
-
-
-  /*
-     Google Maps location
-  */
-
-  const mapsURL =
-    'https://maps.app.goo.gl/6kta6eBxN7TH88ATA?g_st=ic';
-
-
-  if ($('mapsLink')) {
-
-    $('mapsLink').href =
-      mapsURL;
-
-  }
-
-
-  /*
-     WhatsApp location sharing
-  */
-
-  if ($('shareLocation')) {
-
-    const message =
-      currentLang === 'ar'
-        ? '📍 موقع عيادة أزاد على Google Maps:\n' +
-          mapsURL
-        : '📍 Azaad Clinic location on Google Maps:\n' +
-          mapsURL;
-
-    $('shareLocation').href =
-      'https://wa.me/?text=' +
-      encodeURIComponent(message);
-
-  }
-
-}
-
-
-/* =========================================================
-   INITIALIZE
-========================================================= */
-
-async function init() {
-
-  try {
-
-    const d =
-      await api('?api=data');
-
-
-    window.clinicData = d;
-
-
-    render(d);
-
-
-    const now =
-      new Date();
+  /* =========================================================
+     DATE
+  ========================================================= */
+
+  function getToday() {
+    const now = new Date();
 
     now.setMinutes(
-      now.getMinutes()
-      -
+      now.getMinutes() -
       now.getTimezoneOffset()
     );
 
-
-    $('date').min =
-      now.toISOString()
-        .slice(0, 10);
-
-    $('date').value =
-      now.toISOString()
-        .slice(0, 10);
-
-
-    applyLanguage();
-
+    return now.toISOString().slice(0, 10);
   }
 
-  catch (e) {
+  function setupDate() {
+    const dateInput = $("date");
 
-    $('servicesGrid').innerHTML =
-      `
-        <div class="loading">
-          ${esc(tr('loadError'))}
-        </div>
-      `;
+    if (!dateInput) return;
 
-    $('doctorsGrid').innerHTML =
-      `
-        <div class="loading">
-          ${esc(tr('loadError'))}
-        </div>
-      `;
+    const today = getToday();
 
+    dateInput.min = today;
+
+    if (!dateInput.value) {
+      dateInput.value = today;
+    }
   }
 
-}
+  /* =========================================================
+     SELECTORS
+  ========================================================= */
 
+  function populateSelectors() {
+    const doctorSelect = $("doctor");
+    const serviceSelect = $("service");
 
-/* =========================================================
-   LOAD AVAILABLE SLOTS
-========================================================= */
+    if (!doctorSelect || !serviceSelect) return;
 
-async function loadSlots() {
+    const oldDoctor = doctorSelect.value;
+    const oldService = serviceSelect.value;
 
-  chosen = '';
+    const doctors = Array.isArray(clinicData.doctors)
+      ? clinicData.doctors
+      : [];
 
+    const services = Array.isArray(clinicData.services)
+      ? clinicData.services
+      : [];
 
-  if (
-    !$('doctor').value ||
-    !$('service').value ||
-    !$('date').value
-  ) {
+    doctorSelect.innerHTML = `
+      <option value="">
+        اختر الطبيب
+      </option>
+    `;
 
-    $('slots').textContent =
-      tr('chooseDate');
+    doctors.forEach((doctor) => {
+      const option = document.createElement("option");
 
-    return;
+      option.value = String(doctor.id ?? "");
 
-  }
+      const name =
+        doctor.name ||
+        doctor.full_name ||
+        "طبيب";
 
+      const title =
+        doctor.title
+          ? ` — ${doctor.title}`
+          : "";
 
-  $('slots').textContent =
-    tr('loadingSlots');
+      option.textContent =
+        `${name}${title}`;
 
+      doctorSelect.appendChild(option);
+    });
 
-  try {
+    serviceSelect.innerHTML = `
+      <option value="">
+        اختر الخدمة
+      </option>
+    `;
 
-    const d =
-      await api(
-        `?api=slots` +
-        `&doctor=${encodeURIComponent(
-          $('doctor').value
-        )}` +
-        `&service=${encodeURIComponent(
-          $('service').value
-        )}` +
-        `&date=${encodeURIComponent(
-          $('date').value
-        )}`
-      );
+    services.forEach((service) => {
+      const option = document.createElement("option");
 
+      option.value = String(service.id ?? "");
 
-    const slots =
-      d.slots || [];
+      const name =
+        service.name ||
+        service.title ||
+        "خدمة";
 
+      const duration =
+        service.duration_minutes
+          ? ` — ${service.duration_minutes} دقيقة`
+          : "";
 
-    $('slots').innerHTML =
-      slots.map(
-        t => `
+      option.textContent =
+        `${name}${duration}`;
 
-        <button
-          class="slot"
-          type="button"
-          data-t="${esc(t)}">
+      serviceSelect.appendChild(option);
+    });
 
-          ${esc(t)}
-
-        </button>
-
-        `
-      ).join('')
-      ||
-      esc(tr('noSlots'));
-
-
-    document
-      .querySelectorAll('.slot')
-      .forEach(b => {
-
-        b.onclick = () => {
-
-          document
-            .querySelectorAll('.slot')
-            .forEach(x =>
-              x.classList.remove(
-                'selected'
-              )
-            );
-
-          b.classList.add(
-            'selected'
-          );
-
-          chosen =
-            b.dataset.t;
-
-        };
-
-      });
-
-  }
-
-  catch (e) {
-
-    $('slots').textContent =
-      tr('slotsError');
-
-  }
-
-}
-
-
-/* =========================================================
-   BOOKING
-========================================================= */
-
-$('bookingForm').onsubmit =
-  async e => {
-
-    e.preventDefault();
-
-
-    if (!chosen) {
-
-      $('message').textContent =
-        tr('chooseSlot');
-
-      $('message').style.color =
-        '#a13a3a';
-
-      return;
-
+    if (
+      oldDoctor &&
+      doctors.some(
+        (doctor) =>
+          String(doctor.id) ===
+          String(oldDoctor)
+      )
+    ) {
+      doctorSelect.value = oldDoctor;
     }
 
+    if (
+      oldService &&
+      services.some(
+        (service) =>
+          String(service.id) ===
+          String(oldService)
+      )
+    ) {
+      serviceSelect.value = oldService;
+    }
+  }
+
+  /* =========================================================
+     LOAD CLINIC DATA
+  ========================================================= */
+
+  async function loadClinicData() {
+    const result = await request(
+      API +
+      "?api=data&_=" +
+      Date.now()
+    );
+
+    clinicData = {
+      doctors: Array.isArray(result?.doctors)
+        ? result.doctors
+        : [],
+
+      services: Array.isArray(result?.services)
+        ? result.services
+        : [],
+
+      settings:
+        result?.settings &&
+        typeof result.settings === "object"
+          ? result.settings
+          : {}
+    };
+
+    window.clinicData = clinicData;
+
+    populateSelectors();
+    setupDate();
+
+    await loadAvailableSlots();
+  }
+
+  /* =========================================================
+     AVAILABLE SLOTS
+  ========================================================= */
+
+  async function loadAvailableSlots() {
+    const slotsContainer = $("slots");
+
+    if (!slotsContainer) return;
+
+    const doctor = $("doctor")?.value || "";
+    const service = $("service")?.value || "";
+    const date = $("date")?.value || "";
+
+    selectedSlot = "";
+
+    if (!doctor || !service || !date) {
+      slotsContainer.innerHTML = `
+        <div class="slots-empty">
+          اختر الطبيب والخدمة والتاريخ
+          لعرض المواعيد المتاحة.
+        </div>
+      `;
+
+      return;
+    }
+
+    slotsContainer.innerHTML = `
+      <div class="slots-loading">
+        جاري تحميل المواعيد...
+      </div>
+    `;
 
     try {
+      const url =
+        API +
+        "?api=slots" +
+        "&doctor=" +
+        encodeURIComponent(doctor) +
+        "&service=" +
+        encodeURIComponent(service) +
+        "&date=" +
+        encodeURIComponent(date) +
+        "&_=" +
+        Date.now();
 
-      const d =
-        await api(
-          '?api=book',
+      const result = await request(url);
+
+      const slots =
+        Array.isArray(result?.slots)
+          ? result.slots
+          : [];
+
+      if (!slots.length) {
+        slotsContainer.innerHTML = `
+          <div class="slots-empty">
+            لا توجد مواعيد متاحة لهذا اليوم.
+          </div>
+        `;
+
+        return;
+      }
+
+      slotsContainer.innerHTML =
+        slots
+          .map(
+            (time) => `
+              <button
+                type="button"
+                class="slot"
+                data-slot="${escapeHtml(time)}"
+              >
+                ${escapeHtml(time)}
+              </button>
+            `
+          )
+          .join("");
+
+      slotsContainer
+        .querySelectorAll(".slot")
+        .forEach((button) => {
+          button.addEventListener(
+            "click",
+            () => {
+              slotsContainer
+                .querySelectorAll(".slot")
+                .forEach((item) => {
+                  item.classList.remove(
+                    "selected"
+                  );
+                });
+
+              button.classList.add(
+                "selected"
+              );
+
+              selectedSlot =
+                button.dataset.slot || "";
+
+              clearMessage();
+            }
+          );
+        });
+    } catch (error) {
+      console.error(
+        "Azaad Clinic slots error:",
+        error
+      );
+
+      slotsContainer.innerHTML = `
+        <div class="slots-error">
+          تعذر تحميل المواعيد.
+          يرجى المحاولة مرة أخرى.
+        </div>
+      `;
+
+      showMessage(
+        error.message ||
+        "تعذر تحميل المواعيد."
+      );
+    }
+  }
+
+  /* =========================================================
+     BOOKING VALIDATION
+  ========================================================= */
+
+  function validateBooking() {
+    const doctor = $("doctor")?.value || "";
+    const service = $("service")?.value || "";
+    const date = $("date")?.value || "";
+    const name = $("name")?.value.trim() || "";
+    const phone = $("phone")?.value.trim() || "";
+
+    if (!doctor) {
+      showMessage(
+        "من فضلك اختر الطبيب."
+      );
+      return false;
+    }
+
+    if (!service) {
+      showMessage(
+        "من فضلك اختر الخدمة."
+      );
+      return false;
+    }
+
+    if (!date) {
+      showMessage(
+        "من فضلك اختر التاريخ."
+      );
+      return false;
+    }
+
+    if (!selectedSlot) {
+      showMessage(
+        "من فضلك اختر أحد المواعيد المتاحة."
+      );
+      return false;
+    }
+
+    if (!name) {
+      showMessage(
+        "من فضلك اكتب الاسم بالكامل."
+      );
+      return false;
+    }
+
+    if (!phone) {
+      showMessage(
+        "من فضلك اكتب رقم الهاتف."
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  /* =========================================================
+     BOOKING
+  ========================================================= */
+
+  async function submitBooking(event) {
+    event.preventDefault();
+
+    clearMessage();
+
+    if (!validateBooking()) {
+      return;
+    }
+
+    const doctor = $("doctor").value;
+    const service = $("service").value;
+    const date = $("date").value;
+    const name = $("name").value.trim();
+    const phone = $("phone").value.trim();
+    const email =
+      $("email")?.value.trim() || "";
+    const notes =
+      $("notes")?.value.trim() || "";
+    const mode =
+      $("mode")?.value || "clinic";
+
+    const payload = {
+      doctor_id: doctor,
+      service_id: service,
+      appointment_date: date,
+      appointment_time: selectedSlot,
+      mode: mode,
+      patient_name: name,
+      patient_phone: phone,
+      patient_email: email || null,
+      notes: notes || null
+    };
+
+    const submitButton =
+      document.querySelector(
+        '#bookingForm button[type="submit"]'
+      );
+
+    const originalText =
+      submitButton
+        ? submitButton.textContent
+        : "";
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent =
+        "جاري تأكيد الحجز...";
+    }
+
+    try {
+      const result =
+        await request(
+          API + "?api=book",
           {
-
-            method: 'POST',
+            method: "POST",
 
             headers: {
-              'Content-Type':
-                'application/json'
+              "Content-Type":
+                "application/json"
             },
 
-            body: JSON.stringify({
-
-              doctor_id:
-                $('doctor').value,
-
-              service_id:
-                $('service').value,
-
-              appointment_date:
-                $('date').value,
-
-              appointment_time:
-                chosen,
-
-              mode:
-                $('mode').value,
-
-              patient_name:
-                $('name').value,
-
-              patient_phone:
-                $('phone').value,
-
-              patient_email:
-                $('email').value,
-
-              notes:
-                $('notes').value,
-
-              patient_language:
-                currentLang
-
-            })
-
+            body:
+              JSON.stringify(payload)
           }
         );
 
+      const bookingCode =
+        result?.booking_code ||
+        result?.booking?.booking_code ||
+        "";
 
-      $('message').textContent =
-        tr('booked') +
-        (
-          d.booking_code ||
-          'AZD-' +
-          Math.floor(
-            100000 +
-            Math.random() * 900000
-          )
+      if (bookingCode) {
+        showMessage(
+          `تم إرسال طلب الحجز بنجاح. رقم الحجز: ${bookingCode}`,
+          true
         );
+      } else {
+        showMessage(
+          "تم إرسال طلب الحجز بنجاح.",
+          true
+        );
+      }
 
+      const form =
+        $("bookingForm");
 
-      $('message').style.color =
-        '#16734a';
+      if (form) {
+        form.reset();
+      }
 
+      selectedSlot = "";
 
-      $('bookingForm').reset();
+      setupDate();
 
-      chosen = '';
+      const slots =
+        $("slots");
 
+      if (slots) {
+        slots.innerHTML = `
+          <div class="slots-empty">
+            اختر الطبيب والخدمة والتاريخ
+            لعرض المواعيد المتاحة.
+          </div>
+        `;
+      }
+
+    } catch (error) {
+      console.error(
+        "Azaad Clinic booking error:",
+        error
+      );
+
+      let message =
+        error.message ||
+        "تعذر إرسال طلب الحجز.";
+
+      const lower =
+        message.toLowerCase();
+
+      if (
+        lower.includes("duplicate") ||
+        lower.includes("unique") ||
+        lower.includes("already booked") ||
+        lower.includes("already exists")
+      ) {
+        message =
+          "هذا الموعد تم حجزه بالفعل. يرجى اختيار موعد آخر.";
+      }
+
+      showMessage(message);
 
       /*
-         Restore today's date after reset
-      */
+       * تحديث المواعيد بعد الخطأ
+       * حتى لا يظل Slot محجوزًا ظاهرًا
+       */
+      await loadAvailableSlots();
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
 
-      const now =
-        new Date();
+        submitButton.textContent =
+          originalText ||
+          "تأكيد طلب الحجز";
+      }
+    }
+  }
 
-      now.setMinutes(
-        now.getMinutes()
-        -
-        now.getTimezoneOffset()
+  /* =========================================================
+     EVENTS
+  ========================================================= */
+
+  function initializeEvents() {
+    const form =
+      $("bookingForm");
+
+    if (!form) return;
+
+    const doctor =
+      $("doctor");
+
+    const service =
+      $("service");
+
+    const date =
+      $("date");
+
+    if (doctor) {
+      doctor.addEventListener(
+        "change",
+        loadAvailableSlots
       );
-
-      $('date').value =
-        now.toISOString()
-          .slice(0, 10);
-
-
-      $('slots').textContent =
-        tr('bookingReceived');
-
     }
 
-    catch (e) {
-
-      $('message').textContent =
-        e.message ||
-        tr('loadError');
-
-      $('message').style.color =
-        '#a13a3a';
-
+    if (service) {
+      service.addEventListener(
+        "change",
+        loadAvailableSlots
+      );
     }
 
-  };
-
-
-/* =========================================================
-   EVENTS
-========================================================= */
-
-[
-  'doctor',
-  'service',
-  'date'
-].forEach(
-  id =>
-    $(id).onchange =
-      loadSlots
-);
-
-
-$('year').textContent =
-  new Date().getFullYear();
-
-
-document
-  .querySelectorAll('.lang-btn')
-  .forEach(
-    b =>
-      b.onclick =
-        () =>
-          setLanguage(
-            b.dataset.lang
-          )
-  );
-
-
-$('menu').onclick = () => {
-
-  const open =
-    $('nav')
-      .classList
-      .toggle(
-        'mobile-open'
+    if (date) {
+      date.addEventListener(
+        "change",
+        loadAvailableSlots
       );
+    }
 
-  $('menu')
-    .setAttribute(
-      'aria-expanded',
-      String(open)
+    form.addEventListener(
+      "submit",
+      submitBooking
     );
+  }
 
-};
+  /* =========================================================
+     INITIALIZATION
+  ========================================================= */
 
+  async function initialize() {
+    const form =
+      $("bookingForm");
 
-document
-  .querySelectorAll('#nav a')
-  .forEach(
-    a =>
-      a.onclick =
-        () => {
+    if (!form) return;
 
-          $('nav')
-            .classList
-            .remove(
-              'mobile-open'
-            );
+    setupDate();
+    initializeEvents();
 
-          $('menu')
-            .setAttribute(
-              'aria-expanded',
-              'false'
-            );
+    try {
+      await loadClinicData();
+    } catch (error) {
+      console.error(
+        "Azaad Clinic initialization error:",
+        error
+      );
 
-        }
-  );
+      showMessage(
+        "تعذر تحميل بيانات العيادة. يرجى تحديث الصفحة والمحاولة مرة أخرى."
+      );
+    }
+  }
 
+  /* =========================================================
+     START
+  ========================================================= */
 
-/* =========================================================
-   START
-========================================================= */
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      initialize,
+      { once: true }
+    );
+  } else {
+    initialize();
+  }
 
-applyLanguage();
-
-init();
+})();
