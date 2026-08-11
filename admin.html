@@ -8,91 +8,535 @@
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#f5f7fb;color:#18213d;font-family:Arial,Tahoma,sans-serif}
+
+body{
+margin:0;
+background:#f5f7fb;
+color:#18213d;
+font-family:Arial,Tahoma,sans-serif
+}
+
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .hidden{display:none!important}
-.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.login-card{width:100%;max-width:430px;background:#fff;border-radius:18px;padding:30px;box-shadow:0 15px 50px rgba(0,0,0,.08)}
-.logo{font-size:25px;font-weight:900;color:#17214f;letter-spacing:2px}
-.logo span{color:#b38a42;font-size:12px;display:block;letter-spacing:3px;margin-top:4px}
-h1,h2,h3{margin-top:0}
-label{display:block;margin-bottom:14px;font-weight:700}
-input,select,textarea{width:100%;margin-top:7px;padding:12px;border:1px solid #d9deea;border-radius:10px;background:#fff;outline:none}
-input:focus,select:focus,textarea:focus{border-color:#17214f}
-textarea{min-height:100px;resize:vertical}
-.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700}
-.btn-primary{background:#17214f;color:#fff}
-.btn-secondary{background:#fff;color:#17214f;border:1px solid #d9deea}
-.btn-danger{background:#fff0f2;color:#a32939;border:1px solid #ffd2d8}
-.btn-success{background:#e7f7ed;color:#167345}
-.btn-gold{background:#b38a42;color:#fff}
-.error{background:#fff0f2;color:#a32939;padding:11px;border-radius:10px;margin-top:12px}
-.success{background:#e7f7ed;color:#167345;padding:11px;border-radius:10px;margin-top:12px}
-.muted{color:#6c758c}
-.admin{max-width:1400px;margin:auto;padding:18px}
-.topbar{background:#fff;border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;box-shadow:0 7px 25px rgba(0,0,0,.05)}
-.top-actions,.item-actions{display:flex;gap:8px;flex-wrap:wrap}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
-.stat{background:#fff;padding:20px;border-radius:15px;box-shadow:0 7px 25px rgba(0,0,0,.04)}
-.stat-number{font-size:30px;font-weight:900;margin-bottom:5px}
-.tabs{display:flex;gap:8px;overflow-x:auto;margin:16px 0;padding-bottom:3px}
-.tab{white-space:nowrap;border:1px solid #d9deea;background:#fff;color:#17214f;border-radius:22px;padding:10px 16px}
-.tab.active{background:#17214f;color:#fff}
-.panel{display:none}.panel.active{display:block}
-.card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 7px 25px rgba(0,0,0,.04);margin-bottom:15px}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.filters{display:grid;grid-template-columns:1fr 220px;gap:10px;margin:15px 0}
-.table-wrap{overflow-x:auto;border:1px solid #e3e6ed;border-radius:12px}
-table{width:100%;border-collapse:collapse;min-width:950px}
-th,td{padding:11px;text-align:right;border-bottom:1px solid #eee;font-size:13px;vertical-align:middle}
-th{background:#fafbfe;color:#17214f}
-.badge{display:inline-block;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.badge-pending{background:#fff4cc;color:#755c00}
-.badge-confirmed{background:#e5f7eb;color:#167345}
-.badge-cancelled{background:#ffecef;color:#a32939}
-.badge-completed{background:#e8edf8;color:#273a70}
-.badge-draft{background:#eee;color:#555}
-.badge-published{background:#e5f7eb;color:#167345}
-.items{display:grid;gap:10px}
-.item{border:1px solid #e2e6ef;border-radius:12px;padding:15px;display:flex;justify-content:space-between;gap:15px;align-items:center;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.full{grid-column:1/-1}
-.modal{position:fixed;inset:0;background:rgba(15,25,70,.55);display:none;align-items:center;justify-content:center;padding:15px;z-index:100}
-.modal.show{display:flex}
-.modal-box{width:100%;max-width:800px;max-height:92vh;overflow-y:auto;background:#fff;border-radius:17px;padding:20px}
-.modal-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:15px;flex-wrap:wrap}
-.toast{position:fixed;bottom:20px;left:20px;right:20px;max-width:550px;margin:auto;background:#17214f;color:#fff;padding:13px 17px;border-radius:10px;display:none;z-index:200;text-align:center}
-.toast.show{display:block}
-.preview{width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin-top:8px;border:1px solid #ddd}
-.post-card{border:1px solid #e2e6ef;border-radius:14px;overflow:hidden;background:#fff}
-.post-media{width:100%;max-height:300px;object-fit:cover;display:block}
-.post-body{padding:15px}
-.schedule-day{border:1px solid #e1e5ed;border-radius:13px;padding:15px;margin-bottom:10px;background:#fff}
-.schedule-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.time-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:10px}
-.small-note{font-size:12px;color:#70798e}
-.switch{display:flex;align-items:center;gap:8px}
-.switch input{width:auto;margin:0}
-.section-title{margin:20px 0 10px;padding-bottom:8px;border-bottom:1px solid #eee}
-.empty{text-align:center;padding:30px;color:#7a8294}
-.doctor-photo{width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #eee}
-.doctor-row{display:flex;align-items:center;gap:14px}
-@media(max-width:800px){
-.stats{grid-template-columns:1fr 1fr}
-.filters,.grid{grid-template-columns:1fr}
-.full{grid-column:auto}
-.time-row{grid-template-columns:1fr}
+
+.login-page{
+min-height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px;
+background:
+radial-gradient(circle at top right,rgba(179,138,66,.10),transparent 35%),
+#f5f7fb
 }
+
+.login-card{
+width:100%;
+max-width:430px;
+background:#fff;
+border-radius:20px;
+padding:32px;
+box-shadow:0 20px 60px rgba(0,0,0,.10)
+}
+
+.logo{
+font-size:25px;
+font-weight:900;
+color:#17214f;
+letter-spacing:2px
+}
+
+.logo span{
+color:#b38a42;
+font-size:12px;
+display:block;
+letter-spacing:3px;
+margin-top:4px
+}
+
+h1,h2,h3{margin-top:0}
+
+label{
+display:block;
+margin-bottom:14px;
+font-weight:700
+}
+
+input,select,textarea{
+width:100%;
+margin-top:7px;
+padding:12px;
+border:1px solid #d9deea;
+border-radius:10px;
+background:#fff;
+outline:none;
+color:#18213d
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+border-color:#17214f;
+box-shadow:0 0 0 3px rgba(23,33,79,.06)
+}
+
+textarea{
+min-height:100px;
+resize:vertical
+}
+
+.btn{
+border:0;
+border-radius:10px;
+padding:11px 16px;
+font-weight:700;
+transition:.15s ease
+}
+
+.btn:hover{
+transform:translateY(-1px)
+}
+
+.btn-primary{
+background:#17214f;
+color:#fff
+}
+
+.btn-secondary{
+background:#fff;
+color:#17214f;
+border:1px solid #d9deea
+}
+
+.btn-danger{
+background:#fff0f2;
+color:#a32939;
+border:1px solid #ffd2d8
+}
+
+.btn-success{
+background:#e7f7ed;
+color:#167345
+}
+
+.btn-gold{
+background:#b38a42;
+color:#fff
+}
+
+.error{
+background:#fff0f2;
+color:#a32939;
+padding:11px;
+border-radius:10px;
+margin-top:12px
+}
+
+.success{
+background:#e7f7ed;
+color:#167345;
+padding:11px;
+border-radius:10px;
+margin-top:12px
+}
+
+.muted{
+color:#6c758c
+}
+
+.admin{
+max-width:1400px;
+margin:auto;
+padding:18px
+}
+
+.topbar{
+background:#fff;
+border-radius:16px;
+padding:18px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:15px;
+flex-wrap:wrap;
+box-shadow:0 7px 25px rgba(0,0,0,.05)
+}
+
+.top-actions,
+.item-actions{
+display:flex;
+gap:8px;
+flex-wrap:wrap
+}
+
+.stats{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:12px;
+margin:16px 0
+}
+
+.stat{
+background:#fff;
+padding:20px;
+border-radius:15px;
+box-shadow:0 7px 25px rgba(0,0,0,.04)
+}
+
+.stat-number{
+font-size:30px;
+font-weight:900;
+margin-bottom:5px
+}
+
+.tabs{
+display:flex;
+gap:8px;
+overflow-x:auto;
+margin:16px 0;
+padding-bottom:3px
+}
+
+.tab{
+white-space:nowrap;
+border:1px solid #d9deea;
+background:#fff;
+color:#17214f;
+border-radius:22px;
+padding:10px 16px
+}
+
+.tab.active{
+background:#17214f;
+color:#fff
+}
+
+.panel{display:none}
+.panel.active{display:block}
+
+.card{
+background:#fff;
+border-radius:16px;
+padding:18px;
+box-shadow:0 7px 25px rgba(0,0,0,.04);
+margin-bottom:15px
+}
+
+.panel-head{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+flex-wrap:wrap
+}
+
+.filters{
+display:grid;
+grid-template-columns:1fr 220px;
+gap:10px;
+margin:15px 0
+}
+
+.table-wrap{
+overflow-x:auto;
+border:1px solid #e3e6ed;
+border-radius:12px
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+min-width:1050px
+}
+
+th,td{
+padding:11px;
+text-align:right;
+border-bottom:1px solid #eee;
+font-size:13px;
+vertical-align:middle
+}
+
+th{
+background:#fafbfe;
+color:#17214f
+}
+
+tr:last-child td{
+border-bottom:0
+}
+
+.badge{
+display:inline-block;
+padding:5px 10px;
+border-radius:20px;
+font-size:11px;
+font-weight:700
+}
+
+.badge-pending{
+background:#fff4cc;
+color:#755c00
+}
+
+.badge-confirmed{
+background:#e5f7eb;
+color:#167345
+}
+
+.badge-cancelled{
+background:#ffecef;
+color:#a32939
+}
+
+.badge-completed{
+background:#e8edf8;
+color:#273a70
+}
+
+.badge-draft{
+background:#eee;
+color:#555
+}
+
+.badge-published{
+background:#e5f7eb;
+color:#167345
+}
+
+.items{
+display:grid;
+gap:10px
+}
+
+.item{
+border:1px solid #e2e6ef;
+border-radius:12px;
+padding:15px;
+display:flex;
+justify-content:space-between;
+gap:15px;
+align-items:center;
+flex-wrap:wrap
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px
+}
+
+.full{
+grid-column:1/-1
+}
+
+.modal{
+position:fixed;
+inset:0;
+background:rgba(15,25,70,.55);
+display:none;
+align-items:center;
+justify-content:center;
+padding:15px;
+z-index:100
+}
+
+.modal.show{
+display:flex
+}
+
+.modal-box{
+width:100%;
+max-width:800px;
+max-height:92vh;
+overflow-y:auto;
+background:#fff;
+border-radius:17px;
+padding:20px
+}
+
+.modal-actions{
+display:flex;
+gap:8px;
+justify-content:flex-start;
+margin-top:15px;
+flex-wrap:wrap
+}
+
+.toast{
+position:fixed;
+bottom:20px;
+left:20px;
+right:20px;
+max-width:550px;
+margin:auto;
+background:#17214f;
+color:#fff;
+padding:13px 17px;
+border-radius:10px;
+display:none;
+z-index:200;
+text-align:center;
+box-shadow:0 10px 30px rgba(0,0,0,.18)
+}
+
+.toast.show{
+display:block
+}
+
+.preview{
+width:100%;
+max-height:260px;
+object-fit:cover;
+border-radius:12px;
+margin-top:8px;
+border:1px solid #ddd
+}
+
+.post-card{
+border:1px solid #e2e6ef;
+border-radius:14px;
+overflow:hidden;
+background:#fff
+}
+
+.post-media{
+width:100%;
+max-height:300px;
+object-fit:cover;
+display:block
+}
+
+.post-body{
+padding:15px
+}
+
+.schedule-day{
+border:1px solid #e1e5ed;
+border-radius:13px;
+padding:15px;
+margin-bottom:10px;
+background:#fff
+}
+
+.schedule-head{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+flex-wrap:wrap
+}
+
+.time-row{
+display:grid;
+grid-template-columns:1fr 1fr 1fr 1fr;
+gap:8px;
+align-items:end;
+margin-top:10px
+}
+
+.small-note{
+font-size:12px;
+color:#70798e
+}
+
+.switch{
+display:flex;
+align-items:center;
+gap:8px
+}
+
+.switch input{
+width:auto;
+margin:0
+}
+
+.section-title{
+margin:20px 0 10px;
+padding-bottom:8px;
+border-bottom:1px solid #eee
+}
+
+.empty{
+text-align:center;
+padding:30px;
+color:#7a8294
+}
+
+.doctor-photo{
+width:70px;
+height:70px;
+border-radius:50%;
+object-fit:cover;
+border:2px solid #eee
+}
+
+.doctor-row{
+display:flex;
+align-items:center;
+gap:14px
+}
+
+.loading{
+padding:30px;
+text-align:center;
+color:#6c758c
+}
+
+.danger-text{
+color:#a32939
+}
+
+@media(max-width:800px){
+
+.stats{
+grid-template-columns:1fr 1fr
+}
+
+.filters,
+.grid{
+grid-template-columns:1fr
+}
+
+.full{
+grid-column:auto
+}
+
+.time-row{
+grid-template-columns:1fr
+}
+
+}
+
 @media(max-width:500px){
-.admin{padding:10px}.login-card{padding:22px}.stats{grid-template-columns:1fr 1fr}
+
+.admin{
+padding:10px
+}
+
+.login-card{
+padding:22px
+}
+
+.stats{
+grid-template-columns:1fr 1fr
+}
+
+.topbar{
+padding:14px
+}
+
 }
 </style>
 </head>
 
 <body>
 
+<!-- LOGIN -->
+
 <div id="loginPage" class="login-page">
+
 <div class="login-card">
 
 <div class="logo">
@@ -100,51 +544,99 @@ AZAAD
 <span>CLINIC FOR MENTAL HEALTH</span>
 </div>
 
-<h2 style="margin-top:25px">لوحة إدارة العيادة</h2>
-<p class="muted">تسجيل الدخول إلى لوحة الإدارة</p>
+<h2 style="margin-top:25px">
+لوحة إدارة العيادة
+</h2>
+
+<p class="muted">
+تسجيل الدخول إلى لوحة الإدارة
+</p>
 
 <form id="loginForm">
 
 <label>
 اسم المستخدم
-<input id="username" type="text" autocomplete="username" value="azaadadmin" required>
+<input
+id="username"
+type="text"
+autocomplete="username"
+value="azaadadmin"
+required
+>
 </label>
 
 <label>
 كلمة المرور
-<input id="password" type="password" autocomplete="current-password" required>
+<input
+id="password"
+type="password"
+autocomplete="current-password"
+required
+>
 </label>
 
-<button type="submit" class="btn btn-primary" style="width:100%">
+<button
+type="submit"
+class="btn btn-primary"
+style="width:100%"
+id="loginBtn"
+>
 تسجيل الدخول
 </button>
 
 <div id="loginError" class="error hidden"></div>
 
 </form>
+
 </div>
 </div>
 
+
+<!-- ADMIN -->
 
 <div id="adminPage" class="admin hidden">
 
 <div class="topbar">
 
 <div>
-<div class="logo">AZAAD<span>ADMIN PANEL</span></div>
+
+<div class="logo">
+AZAAD
+<span>ADMIN PANEL</span>
+</div>
+
 <div class="muted" style="margin-top:5px">
 لوحة إدارة عيادة آزاد للصحة النفسية
 </div>
+
 </div>
 
 <div class="top-actions">
-<button id="refreshBtn" class="btn btn-secondary">تحديث</button>
-<button id="patientPageBtn" class="btn btn-secondary">صفحة المرضى</button>
-<button id="logoutBtn" class="btn btn-danger">تسجيل الخروج</button>
-</div>
+
+<button
+id="refreshBtn"
+class="btn btn-secondary">
+تحديث
+</button>
+
+<button
+id="patientPageBtn"
+class="btn btn-secondary">
+صفحة المرضى
+</button>
+
+<button
+id="logoutBtn"
+class="btn btn-danger">
+تسجيل الخروج
+</button>
 
 </div>
 
+</div>
+
+
+<!-- STATS -->
 
 <div class="stats">
 
@@ -171,16 +663,41 @@ AZAAD
 </div>
 
 
+<!-- TABS -->
+
 <div class="tabs">
 
-<button class="tab active" data-panel="bookingsPanel">الحجوزات</button>
-<button class="tab" data-panel="doctorsPanel">الأطباء</button>
-<button class="tab" data-panel="servicesPanel">الخدمات</button>
-<button class="tab" data-panel="schedulePanel">جداول الأطباء</button>
-<button class="tab" data-panel="postsPanel">المنشورات والعروض</button>
-<button class="tab" data-panel="holidaysPanel">العطلات والإغلاقات</button>
-<button class="tab" data-panel="hoursPanel">ساعات العمل</button>
-<button class="tab" data-panel="settingsPanel">إعدادات العيادة</button>
+<button class="tab active" data-panel="bookingsPanel">
+الحجوزات
+</button>
+
+<button class="tab" data-panel="doctorsPanel">
+الأطباء
+</button>
+
+<button class="tab" data-panel="servicesPanel">
+الخدمات
+</button>
+
+<button class="tab" data-panel="schedulePanel">
+جداول الأطباء
+</button>
+
+<button class="tab" data-panel="postsPanel">
+المنشورات والعروض
+</button>
+
+<button class="tab" data-panel="holidaysPanel">
+العطلات والإغلاقات
+</button>
+
+<button class="tab" data-panel="hoursPanel">
+ساعات العمل
+</button>
+
+<button class="tab" data-panel="settingsPanel">
+إعدادات العيادة
+</button>
 
 </div>
 
@@ -192,27 +709,58 @@ AZAAD
 <div class="card">
 
 <div class="panel-head">
-<h2>الحجوزات</h2>
-<button id="refreshBookings" class="btn btn-secondary">تحديث الحجوزات</button>
+
+<h2>
+الحجوزات
+</h2>
+
+<button
+id="refreshBookings"
+class="btn btn-secondary">
+تحديث الحجوزات
+</button>
+
 </div>
 
 <div class="filters">
 
-<input id="bookingSearch" placeholder="بحث بالاسم أو الهاتف أو رقم الحجز">
+<input
+id="bookingSearch"
+placeholder="بحث بالاسم أو الهاتف أو رقم الحجز"
+>
 
 <select id="bookingStatus">
-<option value="">كل الحالات</option>
-<option value="pending">قيد المراجعة</option>
-<option value="confirmed">مؤكد</option>
-<option value="cancelled">ملغي</option>
-<option value="completed">مكتمل</option>
+
+<option value="">
+كل الحالات
+</option>
+
+<option value="pending">
+قيد المراجعة
+</option>
+
+<option value="confirmed">
+مؤكد
+</option>
+
+<option value="cancelled">
+ملغي
+</option>
+
+<option value="completed">
+مكتمل
+</option>
+
 </select>
 
 </div>
 
-<div id="bookingsTable">جاري تحميل الحجوزات...</div>
+<div id="bookingsTable" class="loading">
+جاري تحميل الحجوزات...
+</div>
 
 </div>
+
 </section>
 
 
@@ -223,13 +771,27 @@ AZAAD
 <div class="card">
 
 <div class="panel-head">
-<h2>الأطباء</h2>
-<button id="addDoctorBtn" class="btn btn-primary">+ إضافة طبيب</button>
+
+<h2>
+الأطباء
+</h2>
+
+<button
+id="addDoctorBtn"
+class="btn btn-primary">
++ إضافة طبيب
+</button>
+
 </div>
 
-<div id="doctorsList" class="items">جاري التحميل...</div>
+<div
+id="doctorsList"
+class="items">
+جاري التحميل...
+</div>
 
 </div>
+
 </section>
 
 
@@ -240,40 +802,74 @@ AZAAD
 <div class="card">
 
 <div class="panel-head">
-<h2>الخدمات</h2>
-<button id="addServiceBtn" class="btn btn-primary">+ إضافة خدمة</button>
+
+<h2>
+الخدمات
+</h2>
+
+<button
+id="addServiceBtn"
+class="btn btn-primary">
++ إضافة خدمة
+</button>
+
 </div>
 
-<div id="servicesList" class="items">جاري التحميل...</div>
+<div
+id="servicesList"
+class="items">
+جاري التحميل...
+</div>
 
 </div>
+
 </section>
 
 
-<!-- DOCTOR SCHEDULE -->
+<!-- SCHEDULE -->
 
 <section id="schedulePanel" class="panel">
 
 <div class="card">
 
 <div class="panel-head">
+
 <div>
-<h2>جداول مواعيد الأطباء</h2>
+
+<h2>
+جداول مواعيد الأطباء
+</h2>
+
 <div class="muted">
 تحديد أوقات العمل والبريك ومدة الموعد والسعة اليومية لكل طبيب.
 </div>
+
 </div>
 
-<select id="scheduleDoctor" style="max-width:320px">
-<option value="">اختر الطبيب</option>
+<select
+id="scheduleDoctor"
+style="max-width:320px">
+
+<option value="">
+اختر الطبيب
+</option>
+
 </select>
-</div>
-
-<div id="scheduleEditor" style="margin-top:20px">
-<div class="empty">اختر طبيبًا لعرض جدول مواعيده.</div>
-</div>
 
 </div>
+
+<div
+id="scheduleEditor"
+style="margin-top:20px">
+
+<div class="empty">
+اختر طبيبًا لعرض جدول مواعيده.
+</div>
+
+</div>
+
+</div>
+
 </section>
 
 
@@ -286,23 +882,36 @@ AZAAD
 <div class="panel-head">
 
 <div>
-<h2>المنشورات والعروض</h2>
+
+<h2>
+المنشورات والعروض
+</h2>
+
 <div class="muted">
 منشورات نصية أو صور أو فيديوهات وروابط خارجية.
 </div>
+
 </div>
 
-<button id="addPostBtn" class="btn btn-primary">
+<button
+id="addPostBtn"
+class="btn btn-primary">
 + إضافة منشور
 </button>
 
 </div>
 
-<div id="postsList" class="items" style="margin-top:15px">
+<div
+id="postsList"
+class="items"
+style="margin-top:15px">
+
 جاري تحميل المنشورات...
+
 </div>
 
 </div>
+
 </section>
 
 
@@ -313,22 +922,36 @@ AZAAD
 <div class="card">
 
 <div class="panel-head">
+
 <div>
-<h2>العطلات والإغلاقات</h2>
+
+<h2>
+العطلات والإغلاقات
+</h2>
+
 <div class="muted">
 إغلاق العيادة أو طبيب معين في تاريخ محدد.
 </div>
+
 </div>
 
-<button id="addHolidayBtn" class="btn btn-primary">
+<button
+id="addHolidayBtn"
+class="btn btn-primary">
 + إضافة عطلة / إغلاق
 </button>
 
 </div>
 
-<div id="holidaysList" class="items" style="margin-top:15px"></div>
+<div
+id="holidaysList"
+class="items"
+style="margin-top:15px">
+جاري التحميل...
+</div>
 
 </div>
+
 </section>
 
 
@@ -340,9 +963,13 @@ AZAAD
 
 <div class="panel-head">
 
-<h2>ساعات العمل العامة</h2>
+<h2>
+ساعات العمل العامة
+</h2>
 
-<button id="saveHoursBtn" class="btn btn-primary">
+<button
+id="saveHoursBtn"
+class="btn btn-primary">
 حفظ
 </button>
 
@@ -353,6 +980,7 @@ AZAAD
 </div>
 
 </div>
+
 </section>
 
 
@@ -364,17 +992,25 @@ AZAAD
 
 <div class="panel-head">
 
-<h2>إعدادات العيادة</h2>
+<h2>
+إعدادات العيادة
+</h2>
 
-<button id="saveSettingsBtn" class="btn btn-primary">
+<button
+id="saveSettingsBtn"
+class="btn btn-primary">
 حفظ
 </button>
 
 </div>
 
-<div id="settingsForm">جاري التحميل...</div>
+<div
+id="settingsForm">
+جاري التحميل...
+</div>
 
 </div>
+
 </section>
 
 </div>
@@ -388,9 +1024,13 @@ AZAAD
 
 <div class="panel-head">
 
-<h2 id="modalTitle">تعديل</h2>
+<h2 id="modalTitle">
+تعديل
+</h2>
 
-<button id="closeModal" class="btn btn-secondary">
+<button
+id="closeModal"
+class="btn btn-secondary">
 إغلاق
 </button>
 
@@ -399,6 +1039,7 @@ AZAAD
 <div id="modalContent"></div>
 
 </div>
+
 </div>
 
 
@@ -407,14 +1048,24 @@ AZAAD
 
 <script>
 
+/* =========================================================
+   AZAAD ADMIN PANEL
+   IMPORTANT:
+   This file does NOT modify the patient page.
+   Patient-facing functionality remains outside this panel.
+========================================================= */
+
+
 const API =
 "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin";
 
 const MANAGEMENT_API =
 "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-management";
 
+
 let adminToken =
 sessionStorage.getItem("azaad_admin_token") || "";
+
 
 let clinicData={
 bookings:[],
@@ -424,6 +1075,7 @@ settings:{},
 working_hours:[]
 };
 
+
 let managementData={
 posts:[],
 holidays:[],
@@ -432,6 +1084,11 @@ schedules:[]
 
 
 const $=id=>document.getElementById(id);
+
+
+/* =========================================================
+   UTILITIES
+========================================================= */
 
 
 function escapeHTML(value){
@@ -458,24 +1115,52 @@ toast.textContent=message;
 
 toast.classList.add("show");
 
+clearTimeout(window.__azaadToastTimer);
+
+window.__azaadToastTimer=
 setTimeout(
 ()=>toast.classList.remove("show"),
-3000
+3500
 );
 
 }
 
 
-async function api(query,options={}){
+function localDateISO(){
+
+const d=new Date();
+
+const year=d.getFullYear();
+
+const month=
+String(d.getMonth()+1).padStart(2,"0");
+
+const day=
+String(d.getDate()).padStart(2,"0");
+
+return `${year}-${month}-${day}`;
+
+}
+
+
+/* =========================================================
+   API
+========================================================= */
+
+
+async function api(query="",options={}){
 
 const headers={
 "Content-Type":"application/json"
 };
 
-if(adminToken)
-headers.Authorization="Bearer "+adminToken;
+if(adminToken){
+headers.Authorization=
+"Bearer "+adminToken;
+}
 
-const response=await fetch(
+const response=
+await fetch(
 API+query,
 {
 ...options,
@@ -484,45 +1169,44 @@ cache:"no-store"
 }
 );
 
+
 let data={};
 
 try{
 data=await response.json();
 }catch(_){}
 
+
 if(!response.ok){
 
 throw new Error(
 data.error||
 data.message||
-"حدث خطأ في الاتصال بالخادم."
+`حدث خطأ في الخادم (${response.status}).`
 );
 
 }
+
 
 return data;
 
 }
 
 
-/*
-  Management API
-
-  This is intentionally separate from the
-  existing booking API so the current
-  patient booking system is not disturbed.
-*/
-
-async function managementApi(query,options={}){
+async function managementApi(query="",options={}){
 
 const headers={
 "Content-Type":"application/json"
 };
 
-if(adminToken)
-headers.Authorization="Bearer "+adminToken;
+if(adminToken){
+headers.Authorization=
+"Bearer "+adminToken;
+}
 
-const response=await fetch(
+
+const response=
+await fetch(
 MANAGEMENT_API+query,
 {
 ...options,
@@ -531,28 +1215,34 @@ cache:"no-store"
 }
 );
 
+
 let data={};
 
 try{
 data=await response.json();
 }catch(_){}
 
+
 if(!response.ok){
 
 throw new Error(
 data.error||
 data.message||
-"تعذر تنفيذ العملية."
+`تعذر تنفيذ العملية (${response.status}).`
 );
 
 }
+
 
 return data;
 
 }
 
 
-/* LOGIN */
+/* =========================================================
+   LOGIN
+========================================================= */
+
 
 $("loginForm").addEventListener(
 "submit",
@@ -560,14 +1250,24 @@ async event=>{
 
 event.preventDefault();
 
-const username=$("username").value.trim();
-const password=$("password").value;
+const username=
+$("username").value.trim();
+
+const password=
+$("password").value;
+
+const loginBtn=$("loginBtn");
 
 $("loginError").classList.add("hidden");
 
+loginBtn.disabled=true;
+loginBtn.textContent="جاري تسجيل الدخول...";
+
+
 try{
 
-const result=await api(
+const result=
+await api(
 "?api=login",
 {
 method:"POST",
@@ -578,8 +1278,15 @@ password
 }
 );
 
-if(!result.token)
-throw new Error("لم يتم إنشاء جلسة الإدارة.");
+
+if(!result.token){
+
+throw new Error(
+"لم يتم إنشاء جلسة الإدارة."
+);
+
+}
+
 
 adminToken=result.token;
 
@@ -588,12 +1295,24 @@ sessionStorage.setItem(
 adminToken
 );
 
+
 await loadAll();
+
 
 }catch(e){
 
-$("loginError").textContent=e.message;
-$("loginError").classList.remove("hidden");
+$("loginError").textContent=
+e.message;
+
+$("loginError")
+.classList.remove("hidden");
+
+
+}finally{
+
+loginBtn.disabled=false;
+loginBtn.textContent=
+"تسجيل الدخول";
 
 }
 
@@ -603,7 +1322,9 @@ $("loginError").classList.remove("hidden");
 
 $("logoutBtn").onclick=()=>{
 
-sessionStorage.removeItem("azaad_admin_token");
+sessionStorage.removeItem(
+"azaad_admin_token"
+);
 
 adminToken="";
 
@@ -616,6 +1337,12 @@ $("refreshBtn").onclick=loadAll;
 $("refreshBookings").onclick=loadAll;
 
 
+/*
+IMPORTANT:
+This button only opens the existing patient-facing
+website. It does not edit or modify the patient page.
+*/
+
 $("patientPageBtn").onclick=()=>{
 
 window.open("./","_blank");
@@ -623,48 +1350,76 @@ window.open("./","_blank");
 };
 
 
-/* LOAD */
+/* =========================================================
+   LOAD ALL
+========================================================= */
+
 
 async function loadAll(){
 
+$("refreshBtn").disabled=true;
+
 try{
 
-clinicData=await api("?api=data");
+clinicData=
+await api("?api=data");
+
 
 await loadManagement();
 
+
 renderAdmin();
 
-$("loginPage").classList.add("hidden");
-$("adminPage").classList.remove("hidden");
+
+$("loginPage")
+.classList.add("hidden");
+
+$("adminPage")
+.classList.remove("hidden");
+
 
 }catch(e){
 
-sessionStorage.removeItem("azaad_admin_token");
+console.error("Azaad admin:",e);
+
+
+sessionStorage.removeItem(
+"azaad_admin_token"
+);
 
 adminToken="";
 
-$("loginPage").classList.remove("hidden");
-$("adminPage").classList.add("hidden");
 
-$("loginError").textContent=e.message;
-$("loginError").classList.remove("hidden");
+$("loginPage")
+.classList.remove("hidden");
+
+$("adminPage")
+.classList.add("hidden");
+
+
+$("loginError").textContent=
+e.message;
+
+$("loginError")
+.classList.remove("hidden");
+
+
+}finally{
+
+$("refreshBtn").disabled=false;
 
 }
 
 }
 
-
-/*
-  Management data is allowed to fail independently.
-  This protects the working patient/admin system.
-*/
 
 async function loadManagement(){
 
 try{
 
-const result=await managementApi("?api=data");
+const result=
+await managementApi("?api=data");
+
 
 managementData={
 posts:result.posts||[],
@@ -672,12 +1427,20 @@ holidays:result.holidays||[],
 schedules:result.schedules||[]
 };
 
+
 }catch(e){
 
 console.warn(
-"Management data:",
+"Management API:",
 e.message
 );
+
+
+/*
+Management data is isolated.
+If it fails, the existing booking/admin
+system remains available.
+*/
 
 managementData={
 posts:[],
@@ -690,47 +1453,68 @@ schedules:[]
 }
 
 
-/* RENDER */
+/* =========================================================
+   RENDER ADMIN
+========================================================= */
+
 
 function renderAdmin(){
 
-const bookings=clinicData.bookings||[];
+const bookings=
+clinicData.bookings||[];
 
-$("totalCount").textContent=bookings.length;
+
+$("totalCount").textContent=
+bookings.length;
+
 
 $("pendingCount").textContent=
 bookings.filter(
 b=>b.status==="pending"
 ).length;
 
+
 $("confirmedCount").textContent=
 bookings.filter(
 b=>b.status==="confirmed"
 ).length;
 
-const today=new Date()
-.toISOString()
-.slice(0,10);
+
+const today=
+localDateISO();
+
 
 $("todayCount").textContent=
 bookings.filter(
-b=>b.appointment_date===today &&
+b=>
+b.appointment_date===today &&
 b.status!=="cancelled"
 ).length;
 
+
 renderBookings();
+
 renderDoctors();
+
 renderServices();
+
 renderScheduleDoctorList();
+
 renderPosts();
+
 renderHolidays();
+
 renderHours();
+
 renderSettings();
 
 }
 
 
-/* TABS */
+/* =========================================================
+   TABS
+========================================================= */
+
 
 document.querySelectorAll(".tab")
 .forEach(tab=>{
@@ -742,12 +1526,15 @@ document.querySelectorAll(".tab")
 x=>x.classList.remove("active")
 );
 
+
 document.querySelectorAll(".panel")
 .forEach(
 x=>x.classList.remove("active")
 );
 
+
 tab.classList.add("active");
+
 
 $(tab.dataset.panel)
 .classList.add("active");
@@ -757,24 +1544,33 @@ $(tab.dataset.panel)
 });
 
 
-/* BOOKINGS */
+/* =========================================================
+   BOOKINGS
+========================================================= */
+
 
 function doctorName(id){
 
-const doctor=(clinicData.doctors||[])
-.find(d=>d.id===id);
+const doctor=
+(clinicData.doctors||[])
+.find(d=>String(d.id)===String(id));
 
-return doctor?doctor.name:"—";
+return doctor?
+doctor.name:
+"—";
 
 }
 
 
 function serviceName(id){
 
-const service=(clinicData.services||[])
-.find(s=>s.id===id);
+const service=
+(clinicData.services||[])
+.find(s=>String(s.id)===String(id));
 
-return service?service.name:"—";
+return service?
+service.name:
+"—";
 
 }
 
@@ -782,11 +1578,16 @@ return service?service.name:"—";
 function statusText(status){
 
 return {
+
 pending:"قيد المراجعة",
+
 confirmed:"مؤكد",
+
 cancelled:"ملغي",
+
 completed:"مكتمل"
-}[status]||status;
+
+}[status]||status||"—";
 
 }
 
@@ -794,10 +1595,15 @@ completed:"مكتمل"
 function statusClass(status){
 
 return {
+
 pending:"badge-pending",
+
 confirmed:"badge-confirmed",
+
 cancelled:"badge-cancelled",
+
 completed:"badge-completed"
+
 }[status]||"";
 
 }
@@ -805,22 +1611,35 @@ completed:"badge-completed"
 
 function renderBookings(){
 
-const container=$("bookingsTable");
+const container=
+$("bookingsTable");
 
-const search=(
+
+const search=
+(
 $("bookingSearch")?.value||""
-).toLowerCase();
+)
+.trim()
+.toLowerCase();
 
-const status=$("bookingStatus")?.value||"";
 
-const rows=(clinicData.bookings||[])
+const status=
+$("bookingStatus")?.value||"";
+
+
+const rows=
+(clinicData.bookings||[])
 .filter(b=>{
 
 const text=[
 b.booking_code,
 b.patient_name,
-b.patient_phone
-].join(" ").toLowerCase();
+b.patient_phone,
+b.id
+]
+.join(" ")
+.toLowerCase();
+
 
 return(
 (!search||text.includes(search))&&
@@ -828,6 +1647,7 @@ return(
 );
 
 });
+
 
 if(!rows.length){
 
@@ -842,10 +1662,13 @@ return;
 container.innerHTML=`
 
 <div class="table-wrap">
+
 <table>
 
 <thead>
+
 <tr>
+
 <th>رقم الحجز</th>
 <th>المريض</th>
 <th>الطبيب</th>
@@ -854,7 +1677,9 @@ container.innerHTML=`
 <th>الوقت</th>
 <th>الحالة</th>
 <th>تحديث</th>
+
 </tr>
+
 </thead>
 
 <tbody>
@@ -864,29 +1689,58 @@ ${rows.map(b=>`
 <tr>
 
 <td>
-<strong>${escapeHTML(b.booking_code)}</strong>
+<strong>
+${escapeHTML(b.booking_code||b.id||"—")}
+</strong>
 </td>
 
 <td>
-${escapeHTML(b.patient_name)}
+
+${escapeHTML(b.patient_name||"—")}
+
 <br>
+
 <span class="muted">
-${escapeHTML(b.patient_phone)}
+${escapeHTML(b.patient_phone||"—")}
 </span>
+
 </td>
 
-<td>${escapeHTML(doctorName(b.doctor_id))}</td>
-
-<td>${escapeHTML(serviceName(b.service_id))}</td>
-
-<td>${escapeHTML(b.appointment_date)}</td>
-
-<td>${escapeHTML(String(b.appointment_time||"").slice(0,5))}</td>
+<td>
+${escapeHTML(
+doctorName(b.doctor_id)
+)}
+</td>
 
 <td>
+${escapeHTML(
+serviceName(b.service_id)
+)}
+</td>
+
+<td>
+${escapeHTML(
+b.appointment_date||"—"
+)}
+</td>
+
+<td>
+${escapeHTML(
+String(b.appointment_time||"")
+.slice(0,5)
+)}
+</td>
+
+<td>
+
 <span class="badge ${statusClass(b.status)}">
-${escapeHTML(statusText(b.status))}
+
+${escapeHTML(
+statusText(b.status)
+)}
+
 </span>
+
 </td>
 
 <td>
@@ -894,19 +1748,27 @@ ${escapeHTML(statusText(b.status))}
 <select
 data-booking-id="${escapeHTML(b.id)}">
 
-<option value="pending" ${b.status==="pending"?"selected":""}>
+<option
+value="pending"
+${b.status==="pending"?"selected":""}>
 قيد المراجعة
 </option>
 
-<option value="confirmed" ${b.status==="confirmed"?"selected":""}>
+<option
+value="confirmed"
+${b.status==="confirmed"?"selected":""}>
 مؤكد
 </option>
 
-<option value="cancelled" ${b.status==="cancelled"?"selected":""}>
+<option
+value="cancelled"
+${b.status==="cancelled"?"selected":""}>
 ملغي
 </option>
 
-<option value="completed" ${b.status==="completed"?"selected":""}>
+<option
+value="completed"
+${b.status==="completed"?"selected":""}>
 مكتمل
 </option>
 
@@ -919,17 +1781,29 @@ data-booking-id="${escapeHTML(b.id)}">
 `).join("")}
 
 </tbody>
+
 </table>
+
 </div>
 `;
 
 
-container.querySelectorAll("[data-booking-id]")
+container
+.querySelectorAll("[data-booking-id]")
 .forEach(select=>{
 
-select.onchange=async()=>{
+select.onchange=
+async()=>{
+
+const original=
+select.dataset.original||
+select.value;
+
 
 try{
+
+select.disabled=true;
+
 
 await api(
 "?api=booking&id="+
@@ -944,13 +1818,25 @@ status:select.value
 }
 );
 
+
 await loadAll();
 
-showToast("تم تحديث حالة الحجز.");
+
+showToast(
+"تم تحديث حالة الحجز بنجاح."
+);
+
 
 }catch(e){
 
+select.value=original;
+
 showToast(e.message);
+
+
+}finally{
+
+select.disabled=false;
 
 }
 
@@ -961,22 +1847,30 @@ showToast(e.message);
 }
 
 
-$("bookingSearch").addEventListener(
+$("bookingSearch")
+.addEventListener(
 "input",
 renderBookings
 );
 
-$("bookingStatus").addEventListener(
+
+$("bookingStatus")
+.addEventListener(
 "change",
 renderBookings
 );
 
 
-/* DOCTORS */
+/* =========================================================
+   DOCTORS
+========================================================= */
+
 
 function renderDoctors(){
 
-const box=$("doctorsList");
+const box=
+$("doctorsList");
+
 
 if(!(clinicData.doctors||[]).length){
 
@@ -989,7 +1883,8 @@ return;
 
 
 box.innerHTML=
-clinicData.doctors.map(d=>`
+clinicData.doctors
+.map(d=>`
 
 <div class="item">
 
@@ -998,21 +1893,47 @@ clinicData.doctors.map(d=>`
 ${
 d.image_url
 ?
-`<img class="doctor-photo" src="${escapeHTML(d.image_url)}" alt="">`
+`
+<img
+class="doctor-photo"
+src="${escapeHTML(d.image_url)}"
+alt=""
+onerror="this.style.display='none'"
+>
+`
 :
-`<div class="doctor-photo" style="display:flex;align-items:center;justify-content:center;background:#f1f3f8">👨‍⚕️</div>`
+`
+<div
+class="doctor-photo"
+style="
+display:flex;
+align-items:center;
+justify-content:center;
+background:#f1f3f8
+">
+👨‍⚕️
+</div>
+`
 }
 
 <div>
 
-<strong>${escapeHTML(d.name)}</strong>
+<strong>
+${escapeHTML(d.name||"")}
+</strong>
 
 <div class="muted">
 ${escapeHTML(d.title||"")}
 </div>
 
-<div class="muted" style="margin-top:5px">
-${d.active?"نشط":"غير نشط"}
+<div
+class="muted"
+style="margin-top:5px">
+
+${d.active!==false?
+"نشط":
+"غير نشط"}
+
 </div>
 
 </div>
@@ -1023,24 +1944,26 @@ ${d.active?"نشط":"غير نشط"}
 
 <button
 class="btn btn-secondary"
-onclick="editDoctor('${d.id}')">
+onclick="editDoctor('${escapeHTML(d.id)}')">
 تعديل / صورة
 </button>
 
 <button
 class="btn btn-gold"
-onclick="openDoctorSchedule('${d.id}')">
+onclick="openDoctorSchedule('${escapeHTML(d.id)}')">
 جدول المواعيد
 </button>
 
 ${
-d.active
+d.active!==false
 ?
-`<button
+`
+<button
 class="btn btn-danger"
-onclick="disableDoctor('${d.id}')">
+onclick="disableDoctor('${escapeHTML(d.id)}')">
 تعطيل
-</button>`
+</button>
+`
 :
 ""
 }
@@ -1054,24 +1977,36 @@ onclick="disableDoctor('${d.id}')">
 }
 
 
-$("addDoctorBtn").onclick=()=>editDoctor(null);
+$("addDoctorBtn").onclick=
+()=>editDoctor(null);
 
 
 async function disableDoctor(id){
 
-if(!confirm("هل تريد تعطيل هذا الطبيب؟"))
+if(!confirm(
+"هل تريد تعطيل هذا الطبيب؟"
+))
 return;
+
 
 try{
 
 await api(
-"?api=doctor&id="+encodeURIComponent(id),
-{method:"DELETE"}
+"?api=doctor&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
 );
+
 
 await loadAll();
 
-showToast("تم تعطيل الطبيب.");
+
+showToast(
+"تم تعطيل الطبيب."
+);
+
 
 }catch(e){
 
@@ -1084,12 +2019,22 @@ showToast(e.message);
 
 function editDoctor(id){
 
-const doctor=id?
-clinicData.doctors.find(d=>d.id===id):
+const doctor=
+id
+?
+clinicData.doctors.find(
+d=>String(d.id)===String(id)
+)
+:
 null;
 
+
 $("modalTitle").textContent=
-doctor?"تعديل الطبيب":"إضافة طبيب";
+doctor
+?
+"تعديل الطبيب"
+:
+"إضافة طبيب";
 
 
 $("modalContent").innerHTML=`
@@ -1099,84 +2044,138 @@ $("modalContent").innerHTML=`
 <div class="grid">
 
 <label>
+
 اسم الطبيب
-<input name="name" required
-value="${escapeHTML(doctor?.name||"")}">
+
+<input
+name="name"
+required
+value="${escapeHTML(
+doctor?.name||""
+)}">
+
 </label>
+
 
 <label>
+
 المسمى الوظيفي
-<input name="title"
-value="${escapeHTML(doctor?.title||"")}">
+
+<input
+name="title"
+value="${escapeHTML(
+doctor?.title||""
+)}">
+
 </label>
 
+
 <label class="full">
+
 نبذة
-<textarea name="bio">${escapeHTML(doctor?.bio||"")}</textarea>
+
+<textarea
+name="bio">${escapeHTML(
+doctor?.bio||""
+)}</textarea>
+
 </label>
 
+
 <label class="full">
+
 رابط صورة الطبيب
+
 <input
 id="doctorImageUrl"
 name="image_url"
 placeholder="https://..."
-value="${escapeHTML(doctor?.image_url||"")}"
+value="${escapeHTML(
+doctor?.image_url||""
+)}"
 >
+
 <div class="small-note">
-يمكنك استخدام رابط صورة مباشر.
+يمكن استخدام رابط صورة مباشر.
 </div>
 
 ${
 doctor?.image_url
 ?
-`<img
+`
+<img
 id="doctorPreview"
 class="preview"
-src="${escapeHTML(doctor.image_url)}"
+src="${escapeHTML(
+doctor.image_url
+)}"
 alt="صورة الطبيب"
-onerror="this.style.display='none'"
->`
+onerror="
+this.style.display='none'
+">
+`
 :
-`<img
+`
+<img
 id="doctorPreview"
 class="preview hidden"
-alt="معاينة"
->`
+alt="معاينة">
+`
 }
 
 </label>
 
+
 <label>
+
 الترتيب
+
 <input
 name="sort_order"
 type="number"
-value="${Number(doctor?.sort_order||0)}">
+value="${Number(
+doctor?.sort_order||0
+)}">
+
 </label>
 
+
 <label class="switch">
+
 <input
 id="doctorActive"
 type="checkbox"
 ${doctor?.active!==false?"checked":""}>
+
 الطبيب نشط
+
 </label>
 
 </div>
 
+
 <div class="modal-actions">
 
-<button class="btn btn-primary" type="submit">
+<button
+class="btn btn-primary"
+type="submit">
 حفظ الطبيب
 </button>
 
+${
+doctor
+?
+`
 <button
 type="button"
 class="btn btn-gold"
-onclick="${doctor?`openDoctorSchedule('${doctor.id}')`:"void(0)"}">
+id="doctorScheduleFromModal">
 جدول المواعيد
 </button>
+`
+:
+""
+}
 
 </div>
 
@@ -1184,22 +2183,32 @@ onclick="${doctor?`openDoctorSchedule('${doctor.id}')`:"void(0)"}">
 `;
 
 
-$("doctorImageUrl").addEventListener(
+$("doctorImageUrl")
+.addEventListener(
 "input",
 ()=>{
 
-const img=$("doctorPreview");
+const img=
+$("doctorPreview");
 
-const url=$("doctorImageUrl").value.trim();
+const url=
+$("doctorImageUrl")
+.value.trim();
+
 
 if(url){
 
 img.src=url;
-img.classList.remove("hidden");
+
+img.classList.remove(
+"hidden"
+);
 
 }else{
 
-img.classList.add("hidden");
+img.classList.add(
+"hidden"
+);
 
 }
 
@@ -1207,35 +2216,69 @@ img.classList.add("hidden");
 );
 
 
-$("doctorForm").onsubmit=async event=>{
+if(doctor){
+
+$("doctorScheduleFromModal")
+.onclick=
+()=>openDoctorSchedule(
+doctor.id
+);
+
+}
+
+
+$("doctorForm").onsubmit=
+async event=>{
 
 event.preventDefault();
 
-const form=new FormData(event.currentTarget);
 
-const payload=Object.fromEntries(form.entries());
+const form=
+new FormData(
+event.currentTarget
+);
 
-payload.active=$("doctorActive").checked;
+
+const payload=
+Object.fromEntries(
+form.entries()
+);
+
+
+payload.active=
+$("doctorActive").checked;
+
 
 try{
 
 await api(
 doctor
 ?
-"?api=doctor&id="+encodeURIComponent(doctor.id)
+"?api=doctor&id="+
+encodeURIComponent(doctor.id)
 :
 "?api=doctor",
 {
-method:doctor?"PUT":"POST",
+method:
+doctor
+?
+"PUT"
+:
+"POST",
 body:JSON.stringify(payload)
 }
 );
+
 
 closeModal();
 
 await loadAll();
 
-showToast("تم حفظ الطبيب.");
+
+showToast(
+"تم حفظ الطبيب بنجاح."
+);
+
 
 }catch(e){
 
@@ -1245,16 +2288,22 @@ showToast(e.message);
 
 };
 
+
 openModal();
 
 }
 
 
-/* SERVICES */
+/* =========================================================
+   SERVICES
+========================================================= */
+
 
 function renderServices(){
 
-const box=$("servicesList");
+const box=
+$("servicesList");
+
 
 if(!(clinicData.services||[]).length){
 
@@ -1266,22 +2315,45 @@ return;
 }
 
 
-box.innerHTML=clinicData.services.map(s=>`
+box.innerHTML=
+clinicData.services
+.map(s=>`
 
 <div class="item">
 
 <div>
 
-<strong>${escapeHTML(s.name)}</strong>
+<strong>
+${escapeHTML(s.name||"")}
+</strong>
 
 <div class="muted">
 المدة:
-${Number(s.duration_minutes||30)}
+${Number(
+s.duration_minutes||30
+)}
 دقيقة
 </div>
 
+${
+s.price!==null &&
+s.price!==undefined &&
+s.price!==""
+?
+`
 <div class="muted">
-${s.active?"نشطة":"غير نشطة"}
+السعر:
+${escapeHTML(s.price)}
+</div>
+`
+:
+""
+}
+
+<div class="muted">
+${s.active!==false?
+"نشطة":
+"غير نشطة"}
 </div>
 
 </div>
@@ -1290,19 +2362,22 @@ ${s.active?"نشطة":"غير نشطة"}
 
 <button
 class="btn btn-secondary"
-onclick="editService('${s.id}')">
+onclick="editService('${escapeHTML(s.id)}')">
 تعديل
 </button>
 
 ${
-s.active
+s.active!==false
 ?
-`<button
+`
+<button
 class="btn btn-danger"
-onclick="disableService('${s.id}')">
+onclick="disableService('${escapeHTML(s.id)}')">
 تعطيل
-</button>`
-:""
+</button>
+`
+:
+""
 }
 
 </div>
@@ -1314,24 +2389,36 @@ onclick="disableService('${s.id}')">
 }
 
 
-$("addServiceBtn").onclick=()=>editService(null);
+$("addServiceBtn").onclick=
+()=>editService(null);
 
 
 async function disableService(id){
 
-if(!confirm("هل تريد تعطيل هذه الخدمة؟"))
+if(!confirm(
+"هل تريد تعطيل هذه الخدمة؟"
+))
 return;
+
 
 try{
 
 await api(
-"?api=service&id="+encodeURIComponent(id),
-{method:"DELETE"}
+"?api=service&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
 );
+
 
 await loadAll();
 
-showToast("تم تعطيل الخدمة.");
+
+showToast(
+"تم تعطيل الخدمة."
+);
+
 
 }catch(e){
 
@@ -1344,12 +2431,22 @@ showToast(e.message);
 
 function editService(id){
 
-const service=id?
-clinicData.services.find(s=>s.id===id):
+const service=
+id
+?
+clinicData.services.find(
+s=>String(s.id)===String(id)
+)
+:
 null;
 
+
 $("modalTitle").textContent=
-service?"تعديل الخدمة":"إضافة خدمة";
+service
+?
+"تعديل الخدمة"
+:
+"إضافة خدمة";
 
 
 $("modalContent").innerHTML=`
@@ -1359,51 +2456,93 @@ $("modalContent").innerHTML=`
 <div class="grid">
 
 <label class="full">
+
 اسم الخدمة
-<input name="name" required
-value="${escapeHTML(service?.name||"")}">
+
+<input
+name="name"
+required
+value="${escapeHTML(
+service?.name||""
+)}">
+
 </label>
+
 
 <label class="full">
+
 الوصف
-<textarea name="description">${escapeHTML(service?.description||"")}</textarea>
+
+<textarea
+name="description">${escapeHTML(
+service?.description||""
+)}</textarea>
+
 </label>
 
+
 <label>
+
 مدة الخدمة بالدقائق
-<input name="duration_minutes"
+
+<input
+name="duration_minutes"
 type="number"
 min="1"
-value="${Number(service?.duration_minutes||30)}">
+value="${Number(
+service?.duration_minutes||30
+)}">
+
 </label>
 
+
 <label>
+
 السعر
-<input name="price"
+
+<input
+name="price"
 type="number"
 min="0"
+step="0.01"
 value="${service?.price??""}">
+
 </label>
+
 
 <label>
+
 الترتيب
-<input name="sort_order"
+
+<input
+name="sort_order"
 type="number"
-value="${Number(service?.sort_order||0)}">
+value="${Number(
+service?.sort_order||0
+)}">
+
 </label>
 
+
 <label class="switch">
-<input id="serviceActive"
+
+<input
+id="serviceActive"
 type="checkbox"
 ${service?.active!==false?"checked":""}>
+
 الخدمة نشطة
+
 </label>
 
 </div>
 
+
 <div class="modal-actions">
 
-<button class="btn btn-primary" type="submit">
+<button
+class="btn btn-primary"
+type="submit">
 حفظ
 </button>
 
@@ -1413,35 +2552,58 @@ ${service?.active!==false?"checked":""}>
 `;
 
 
-$("serviceForm").onsubmit=async event=>{
+$("serviceForm").onsubmit=
+async event=>{
 
 event.preventDefault();
 
-const form=new FormData(event.currentTarget);
 
-const payload=Object.fromEntries(form.entries());
+const form=
+new FormData(
+event.currentTarget
+);
 
-payload.active=$("serviceActive").checked;
+
+const payload=
+Object.fromEntries(
+form.entries()
+);
+
+
+payload.active=
+$("serviceActive").checked;
+
 
 try{
 
 await api(
 service
 ?
-"?api=service&id="+encodeURIComponent(service.id)
+"?api=service&id="+
+encodeURIComponent(service.id)
 :
 "?api=service",
 {
-method:service?"PUT":"POST",
+method:
+service
+?
+"PUT"
+:
+"POST",
 body:JSON.stringify(payload)
 }
 );
+
 
 closeModal();
 
 await loadAll();
 
-showToast("تم حفظ الخدمة.");
+
+showToast(
+"تم حفظ الخدمة بنجاح."
+);
+
 
 }catch(e){
 
@@ -1451,28 +2613,48 @@ showToast(e.message);
 
 };
 
+
 openModal();
 
 }
 
 
-/* SCHEDULE DOCTOR LIST */
+/* =========================================================
+   DOCTOR SCHEDULE
+========================================================= */
+
 
 function renderScheduleDoctorList(){
 
-const select=$("scheduleDoctor");
+const select=
+$("scheduleDoctor");
 
-const current=select.value;
+
+const current=
+select.value;
+
 
 select.innerHTML=
-'<option value="">اختر الطبيب</option>'+
+`
+<option value="">
+اختر الطبيب
+</option>
+`
++
 (clinicData.doctors||[])
-.filter(d=>d.active!==false)
+.filter(
+d=>d.active!==false
+)
 .map(d=>
-`<option value="${escapeHTML(d.id)}">
+`
+<option
+value="${escapeHTML(d.id)}">
 ${escapeHTML(d.name)}
-</option>`
-).join("");
+</option>
+`
+)
+.join("");
+
 
 if(current)
 select.value=current;
@@ -1480,17 +2662,29 @@ select.value=current;
 }
 
 
-$("scheduleDoctor").addEventListener(
+$("scheduleDoctor")
+.addEventListener(
 "change",
 ()=>{
 
-const id=$("scheduleDoctor").value;
+const id=
+$("scheduleDoctor").value;
 
-if(id)
+
+if(id){
+
 loadDoctorSchedule(id);
-else
+
+}else{
+
 $("scheduleEditor").innerHTML=
-'<div class="empty">اختر طبيبًا لعرض جدول مواعيده.</div>';
+`
+<div class="empty">
+اختر طبيبًا لعرض جدول مواعيده.
+</div>
+`;
+
+}
 
 }
 );
@@ -1501,11 +2695,17 @@ function openDoctorSchedule(id){
 document.querySelectorAll(".tab")
 .forEach(x=>{
 
-if(x.dataset.panel==="schedulePanel"){
+if(
+x.dataset.panel===
+"schedulePanel"
+){
+
 x.click();
+
 }
 
 });
+
 
 $("scheduleDoctor").value=id;
 
@@ -1517,31 +2717,28 @@ loadDoctorSchedule(id);
 async function loadDoctorSchedule(id){
 
 $("scheduleEditor").innerHTML=
-'<div class="empty">جاري تحميل جدول الطبيب...</div>';
+`
+<div class="loading">
+جاري تحميل جدول الطبيب...
+</div>
+`;
+
 
 try{
 
-let result;
-
-try{
-
-result=await managementApi(
+const result=
+await managementApi(
 "?api=schedule&doctor_id="+
 encodeURIComponent(id)
 );
 
-}catch(e){
 
-result={
-schedule:[],
-settings:{}
-};
+const schedule=
+result.schedule||[];
 
-}
+const settings=
+result.settings||{};
 
-const schedule=result.schedule||[];
-
-const settings=result.settings||{};
 
 renderDoctorSchedule(
 id,
@@ -1549,10 +2746,15 @@ schedule,
 settings
 );
 
+
 }catch(e){
 
 $("scheduleEditor").innerHTML=
-`<div class="error">${escapeHTML(e.message)}</div>`;
+`
+<div class="error">
+${escapeHTML(e.message)}
+</div>
+`;
 
 }
 
@@ -1570,11 +2772,16 @@ const weekDays=[
 ];
 
 
-function getDaySchedule(schedule,weekday){
+function getDaySchedule(
+schedule,
+weekday
+){
 
 return schedule.find(
 x=>Number(x.weekday)===weekday
-)||{
+)
+||
+{
 weekday,
 enabled:false,
 start_time:"09:00",
@@ -1595,51 +2802,94 @@ schedule,
 settings
 ){
 
-const doctor=clinicData.doctors.find(
-d=>d.id===doctorId
+const doctor=
+clinicData.doctors.find(
+d=>String(d.id)===String(doctorId)
 );
+
 
 $("scheduleEditor").innerHTML=`
 
-<div class="card" style="background:#f9fafc">
+<div
+class="card"
+style="background:#f9fafc">
 
 <h3>
-جدول ${escapeHTML(doctor?.name||"الطبيب")}
+جدول
+${escapeHTML(
+doctor?.name||"الطبيب"
+)}
 </h3>
+
 
 <div class="grid">
 
 <label>
+
 مدة الموعد بالدقائق
 
-<select id="doctorAppointmentMinutes">
+<select
+id="doctorAppointmentMinutes">
 
-<option value="15">15 دقيقة</option>
-<option value="20">20 دقيقة</option>
-<option value="30">30 دقيقة</option>
-<option value="45">45 دقيقة</option>
-<option value="60">60 دقيقة</option>
+<option value="15">
+15 دقيقة
+</option>
+
+<option value="20">
+20 دقيقة
+</option>
+
+<option value="30">
+30 دقيقة
+</option>
+
+<option value="45">
+45 دقيقة
+</option>
+
+<option value="60">
+60 دقيقة
+</option>
 
 </select>
 
 </label>
 
+
 <label>
+
 Buffer بين المواعيد
 
-<select id="doctorBufferMinutes">
+<select
+id="doctorBufferMinutes">
 
-<option value="0">بدون</option>
-<option value="5">5 دقائق</option>
-<option value="10">10 دقائق</option>
-<option value="15">15 دقيقة</option>
-<option value="20">20 دقيقة</option>
+<option value="0">
+بدون
+</option>
+
+<option value="5">
+5 دقائق
+</option>
+
+<option value="10">
+10 دقائق
+</option>
+
+<option value="15">
+15 دقيقة
+</option>
+
+<option value="20">
+20 دقيقة
+</option>
 
 </select>
 
 </label>
 
+
 <label>
+
 الحد الأقصى للحجوزات يوميًا
 
 <input
@@ -1647,30 +2897,37 @@ id="doctorMaxBookings"
 type="number"
 min="0"
 placeholder="بدون حد"
-value="${escapeHTML(settings.max_daily_bookings||"")}"
->
+value="${escapeHTML(
+settings.max_daily_bookings||""
+)}">
 
 </label>
 
+
 <label>
+
 تطبيق الجدول من
 
 <input
 id="doctorScheduleFrom"
 type="date"
-value="${escapeHTML(settings.valid_from||"")}"
->
+value="${escapeHTML(
+settings.valid_from||""
+)}">
 
 </label>
 
+
 <label>
+
 تطبيق الجدول حتى
 
 <input
 id="doctorScheduleTo"
 type="date"
-value="${escapeHTML(settings.valid_to||"")}"
->
+value="${escapeHTML(
+settings.valid_to||""
+)}">
 
 </label>
 
@@ -1678,15 +2935,23 @@ value="${escapeHTML(settings.valid_to||"")}"
 
 </div>
 
+
 <div id="doctorWeekSchedule">
 
-${weekDays.map((name,i)=>{
+${weekDays.map(
+(name,i)=>{
 
-const d=getDaySchedule(schedule,i);
+const d=
+getDaySchedule(
+schedule,
+i
+);
+
 
 return`
 
-<div class="schedule-day"
+<div
+class="schedule-day"
 data-weekday="${i}">
 
 <div class="schedule-head">
@@ -1695,13 +2960,14 @@ data-weekday="${i}">
 ${name}
 </h3>
 
-<label class="switch" style="margin:0">
+<label
+class="switch"
+style="margin:0">
 
 <input
 class="schedule-enabled"
 type="checkbox"
-${d.enabled?"checked":""}
->
+${d.enabled?"checked":""}>
 
 يعمل هذا اليوم
 
@@ -1709,57 +2975,92 @@ ${d.enabled?"checked":""}
 
 </div>
 
+
 <div class="time-row">
 
 <label>
+
 من
+
 <input
 class="schedule-start"
 type="time"
-value="${escapeHTML(String(d.start_time||"").slice(0,5))}"
->
+value="${escapeHTML(
+String(
+d.start_time||""
+).slice(0,5)
+)}">
+
 </label>
 
+
 <label>
+
 إلى
+
 <input
 class="schedule-end"
 type="time"
-value="${escapeHTML(String(d.end_time||"").slice(0,5))}"
->
+value="${escapeHTML(
+String(
+d.end_time||""
+).slice(0,5)
+)}">
+
 </label>
 
+
 <label>
+
 بداية البريك
+
 <input
 class="schedule-break-start"
 type="time"
-value="${escapeHTML(String(d.break_start||"").slice(0,5))}"
->
+value="${escapeHTML(
+String(
+d.break_start||""
+).slice(0,5)
+)}">
+
 </label>
 
+
 <label>
+
 نهاية البريك
+
 <input
 class="schedule-break-end"
 type="time"
-value="${escapeHTML(String(d.break_end||"").slice(0,5))}"
->
+value="${escapeHTML(
+String(
+d.break_end||""
+).slice(0,5)
+)}">
+
 </label>
 
 </div>
 
-<div class="small-note" style="margin-top:8px">
+
+<div
+class="small-note"
+style="margin-top:8px">
+
 يمكن ترك البريك فارغًا إذا لم يوجد بريك في هذا اليوم.
+
 </div>
 
 </div>
 
 `;
 
-}).join("")}
+}
+).join("")}
 
 </div>
+
 
 <div class="modal-actions">
 
@@ -1777,6 +3078,7 @@ class="btn btn-secondary">
 
 </div>
 
+
 <div
 id="scheduleMessage"
 class="small-note"
@@ -1785,86 +3087,161 @@ style="margin-top:10px">
 `;
 
 
-if(settings.appointment_minutes)
-$("doctorAppointmentMinutes").value=
-settings.appointment_minutes;
+if(settings.appointment_minutes){
 
-if(settings.buffer_minutes!==undefined)
+$("doctorAppointmentMinutes").value=
+String(
+settings.appointment_minutes
+);
+
+}
+
+
+if(settings.buffer_minutes!==undefined){
+
 $("doctorBufferMinutes").value=
-settings.buffer_minutes;
+String(
+settings.buffer_minutes
+);
+
+}
 
 
 $("saveDoctorScheduleBtn").onclick=
-()=>saveDoctorSchedule(doctorId);
+()=>saveDoctorSchedule(
+doctorId
+);
 
 
 $("copyScheduleBtn").onclick=()=>{
 
 if(!confirm(
-"سيتم نسخ الجدول الحالي كقالب لجميع الأيام. هل تريد المتابعة؟"
+"سيتم نسخ جدول الأحد إلى باقي الأيام. هل تريد المتابعة؟"
 ))
 return;
 
-const cards=
-[...document.querySelectorAll("[data-weekday]")];
 
-if(!cards.length)return;
+const cards=
+[
+...document.querySelectorAll(
+"[data-weekday]"
+)
+];
+
+
+if(!cards.length)
+return;
+
 
 const source=cards[0];
 
-cards.forEach((card,index)=>{
 
-if(index===0)return;
+cards.forEach(
+(card,index)=>{
 
-card.querySelector(".schedule-start").value=
-source.querySelector(".schedule-start").value;
+if(index===0)
+return;
 
-card.querySelector(".schedule-end").value=
-source.querySelector(".schedule-end").value;
 
-card.querySelector(".schedule-break-start").value=
-source.querySelector(".schedule-break-start").value;
+card.querySelector(
+".schedule-start"
+).value=
+source.querySelector(
+".schedule-start"
+).value;
 
-card.querySelector(".schedule-break-end").value=
-source.querySelector(".schedule-break-end").value;
 
-card.querySelector(".schedule-enabled").checked=
-source.querySelector(".schedule-enabled").checked;
+card.querySelector(
+".schedule-end"
+).value=
+source.querySelector(
+".schedule-end"
+).value;
 
-});
 
-showToast("تم نسخ الجدول.");
+card.querySelector(
+".schedule-break-start"
+).value=
+source.querySelector(
+".schedule-break-start"
+).value;
+
+
+card.querySelector(
+".schedule-break-end"
+).value=
+source.querySelector(
+".schedule-break-end"
+).value;
+
+
+card.querySelector(
+".schedule-enabled"
+).checked=
+source.querySelector(
+".schedule-enabled"
+).checked;
+
+}
+);
+
+
+showToast(
+"تم نسخ جدول الأحد إلى باقي الأيام."
+);
 
 };
 
 }
 
 
-async function saveDoctorSchedule(doctorId){
+async function saveDoctorSchedule(
+doctorId
+){
 
 const cards=
-[...document.querySelectorAll("[data-weekday]")];
+[
+...document.querySelectorAll(
+"[data-weekday]"
+)
+];
 
-const schedule=cards.map(card=>({
 
-weekday:Number(card.dataset.weekday),
+const schedule=
+cards.map(card=>({
+
+weekday:
+Number(
+card.dataset.weekday
+),
 
 enabled:
-card.querySelector(".schedule-enabled").checked,
+card.querySelector(
+".schedule-enabled"
+).checked,
 
 start_time:
-card.querySelector(".schedule-start").value||null,
+card.querySelector(
+".schedule-start"
+).value||null,
 
 end_time:
-card.querySelector(".schedule-end").value||null,
+card.querySelector(
+".schedule-end"
+).value||null,
 
 break_start:
-card.querySelector(".schedule-break-start").value||null,
+card.querySelector(
+".schedule-break-start"
+).value||null,
 
 break_end:
-card.querySelector(".schedule-break-end").value||null
+card.querySelector(
+".schedule-break-end"
+).value||null
 
 }));
+
 
 const payload={
 
@@ -1873,16 +3250,23 @@ doctor_id:doctorId,
 schedule,
 
 appointment_minutes:
-Number($("doctorAppointmentMinutes").value||30),
+Number(
+$("doctorAppointmentMinutes").value||30
+),
 
 buffer_minutes:
-Number($("doctorBufferMinutes").value||0),
+Number(
+$("doctorBufferMinutes").value||0
+),
 
 max_daily_bookings:
 $("doctorMaxBookings").value
 ?
-Number($("doctorMaxBookings").value)
-:null,
+Number(
+$("doctorMaxBookings").value
+)
+:
+null,
 
 valid_from:
 $("doctorScheduleFrom").value||null,
@@ -1891,6 +3275,7 @@ valid_to:
 $("doctorScheduleTo").value||null
 
 };
+
 
 try{
 
@@ -1903,9 +3288,11 @@ body:JSON.stringify(payload)
 }
 );
 
+
 showToast(
 "تم حفظ جدول الطبيب بنجاح."
 );
+
 
 }catch(e){
 
@@ -1916,21 +3303,33 @@ showToast(e.message);
 }
 
 
-/* POSTS */
+/* =========================================================
+   POSTS
+========================================================= */
+
 
 function renderPosts(){
 
-const box=$("postsList");
+const box=
+$("postsList");
 
-const posts=managementData.posts||[];
+
+const posts=
+managementData.posts||[];
+
 
 if(!posts.length){
 
-box.innerHTML=
-`
+box.innerHTML=`
 <div class="empty">
-لا توجد منشورات حاليًا.<br>
-اضغط «إضافة منشور» لإنشاء أول منشور.
+
+لا توجد منشورات حاليًا.
+
+<br>
+
+اضغط «إضافة منشور»
+لإنشاء أول منشور.
+
 </div>
 `;
 
@@ -1939,86 +3338,163 @@ return;
 }
 
 
-box.innerHTML=posts.map(post=>`
+box.innerHTML=
+posts.map(post=>`
 
 <div class="post-card">
 
 ${
-post.media_type==="image"&&post.media_url
+post.media_type==="image" &&
+post.media_url
 ?
-`<img class="post-media"
-src="${escapeHTML(post.media_url)}"
+`
+<img
+class="post-media"
+src="${escapeHTML(
+post.media_url
+)}"
 alt=""
-onerror="this.style.display='none'">`
-:""
+onerror="
+this.style.display='none'
+">
+`
+:
+""
 }
 
+
 ${
-post.media_type==="video"&&post.media_url
+post.media_type==="video" &&
+post.media_url
 ?
-`<video class="post-media" controls preload="metadata">
-<source src="${escapeHTML(post.media_url)}">
-</video>`
-:""
+`
+<video
+class="post-media"
+controls
+preload="metadata">
+
+<source
+src="${escapeHTML(
+post.media_url
+)}">
+
+</video>
+`
+:
+""
 }
+
 
 <div class="post-body">
 
-<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+<div
+style="
+display:flex;
+justify-content:space-between;
+gap:10px;
+flex-wrap:wrap">
 
 <h3>
-${escapeHTML(post.title||"منشور بدون عنوان")}
+
+${escapeHTML(
+post.title||
+"منشور بدون عنوان"
+)}
+
 </h3>
 
-<span class="badge ${
+
+<span
+class="badge ${
 post.status==="published"
-?"badge-published"
-:"badge-draft"
+?
+"badge-published"
+:
+"badge-draft"
 }">
-${post.status==="published"?"منشور":"مسودة"}
+
+${
+post.status==="published"
+?
+"منشور"
+:
+"مسودة"
+}
+
 </span>
 
 </div>
 
+
 <p class="muted">
-${escapeHTML(post.content||"")}
+
+${escapeHTML(
+post.content||""
+)}
+
 </p>
+
 
 ${
 post.external_url
 ?
-`<a
-href="${escapeHTML(post.external_url)}"
+`
+<a
+href="${escapeHTML(
+post.external_url
+)}"
 target="_blank"
 rel="noopener noreferrer">
 فتح الرابط الخارجي
-</a>`
-:""
+</a>
+`
+:
+""
 }
 
-<div class="item-actions" style="margin-top:12px">
+
+<div
+class="item-actions"
+style="margin-top:12px">
 
 <button
 class="btn btn-secondary"
-onclick="editPost('${post.id}')">
+onclick="editPost('${escapeHTML(post.id)}')">
 تعديل
 </button>
 
+
 <button
-class="btn ${post.status==="published"?"btn-danger":"btn-success"}"
-onclick="togglePostStatus('${post.id}')">
-${post.status==="published"?"إخفاء":"نشر"}
+class="btn ${
+post.status==="published"
+?
+"btn-danger"
+:
+"btn-success"
+}"
+onclick="togglePostStatus('${escapeHTML(post.id)}')">
+
+${
+post.status==="published"
+?
+"إخفاء"
+:
+"نشر"
+}
+
 </button>
+
 
 <button
 class="btn btn-danger"
-onclick="deletePost('${post.id}')">
+onclick="deletePost('${escapeHTML(post.id)}')">
 حذف
 </button>
 
 </div>
 
 </div>
+
 </div>
 
 `).join("");
@@ -2026,17 +3502,28 @@ onclick="deletePost('${post.id}')">
 }
 
 
-$("addPostBtn").onclick=()=>editPost(null);
+$("addPostBtn").onclick=
+()=>editPost(null);
 
 
 function editPost(id){
 
-const post=id?
-managementData.posts.find(p=>p.id===id):
+const post=
+id
+?
+managementData.posts.find(
+p=>String(p.id)===String(id)
+)
+:
 null;
 
+
 $("modalTitle").textContent=
-post?"تعديل المنشور":"إضافة منشور";
+post
+?
+"تعديل المنشور"
+:
+"إضافة منشور";
 
 
 $("modalContent").innerHTML=`
@@ -2046,25 +3533,37 @@ $("modalContent").innerHTML=`
 <div class="grid">
 
 <label>
+
 عنوان المنشور
+
 <input
 name="title"
-value="${escapeHTML(post?.title||"")}"
->
+value="${escapeHTML(
+post?.title||""
+)}">
+
 </label>
 
+
 <label>
+
 الحالة
 
 <select name="status">
 
-<option value="draft"
-${post?.status!=="published"?"selected":""}>
+<option
+value="draft"
+${post?.status!=="published"?
+"selected":
+""}>
 مسودة
 </option>
 
-<option value="published"
-${post?.status==="published"?"selected":""}>
+<option
+value="published"
+${post?.status==="published"?
+"selected":
+""}>
 منشور
 </option>
 
@@ -2072,33 +3571,52 @@ ${post?.status==="published"?"selected":""}>
 
 </label>
 
+
 <label class="full">
+
 نص المنشور
+
 <textarea
 name="content"
 placeholder="اكتب محتوى المنشور أو العرض هنا..."
->${escapeHTML(post?.content||"")}</textarea>
+>${escapeHTML(
+post?.content||""
+)}</textarea>
+
 </label>
 
+
 <label>
+
 نوع الوسائط
 
 <select
 id="postMediaType"
 name="media_type">
 
-<option value="none"
-${!post?.media_type||post?.media_type==="none"?"selected":""}>
+<option
+value="none"
+${!post?.media_type||
+post?.media_type==="none"
+?
+"selected":
+""}>
 بدون وسائط
 </option>
 
-<option value="image"
-${post?.media_type==="image"?"selected":""}>
+<option
+value="image"
+${post?.media_type==="image"?
+"selected":
+""}>
 صورة
 </option>
 
-<option value="video"
-${post?.media_type==="video"?"selected":""}>
+<option
+value="video"
+${post?.media_type==="video"?
+"selected":
+""}>
 فيديو
 </option>
 
@@ -2106,41 +3624,60 @@ ${post?.media_type==="video"?"selected":""}>
 
 </label>
 
+
 <label>
+
 رابط الصورة / الفيديو
+
 <input
 id="postMediaUrl"
 name="media_url"
 placeholder="https://..."
-value="${escapeHTML(post?.media_url||"")}"
->
+value="${escapeHTML(
+post?.media_url||""
+)}">
+
 </label>
 
+
 <label class="full">
+
 رابط خارجي
+
 <input
 name="external_url"
 placeholder="Instagram / Facebook / WhatsApp / Website"
-value="${escapeHTML(post?.external_url||"")}"
->
+value="${escapeHTML(
+post?.external_url||""
+)}">
+
 </label>
 
+
 <label>
+
 ترتيب الظهور
+
 <input
 name="sort_order"
 type="number"
-value="${Number(post?.sort_order||0)}"
->
+value="${Number(
+post?.sort_order||0
+)}">
+
 </label>
 
 </div>
 
+
 <div id="postPreviewBox"></div>
+
 
 <div class="modal-actions">
 
-<button class="btn btn-primary" type="submit">
+<button
+class="btn btn-primary"
+type="submit">
 حفظ المنشور
 </button>
 
@@ -2152,82 +3689,132 @@ value="${Number(post?.sort_order||0)}"
 
 function updatePostPreview(){
 
-const type=$("postMediaType").value;
-const url=$("postMediaUrl").value.trim();
-const box=$("postPreviewBox");
+const type=
+$("postMediaType").value;
+
+const url=
+$("postMediaUrl")
+.value
+.trim();
+
+const box=
+$("postPreviewBox");
+
 
 if(!url||type==="none"){
 
 box.innerHTML="";
+
 return;
 
 }
 
+
 if(type==="image"){
 
 box.innerHTML=
-`<img class="preview"
+`
+<img
+class="preview"
 src="${escapeHTML(url)}"
-onerror="this.style.display='none'">`;
+onerror="
+this.style.display='none'
+">
+`;
 
 }else{
 
 box.innerHTML=
-`<video class="preview" controls>
-<source src="${escapeHTML(url)}">
-</video>`;
+`
+<video
+class="preview"
+controls>
+
+<source
+src="${escapeHTML(url)}">
+
+</video>
+`;
 
 }
 
 }
 
 
-$("postMediaType").addEventListener(
+$("postMediaType")
+.addEventListener(
 "change",
 updatePostPreview
 );
 
-$("postMediaUrl").addEventListener(
+
+$("postMediaUrl")
+.addEventListener(
 "input",
 updatePostPreview
 );
 
+
 updatePostPreview();
 
 
-$("postForm").onsubmit=async event=>{
+$("postForm").onsubmit=
+async event=>{
 
 event.preventDefault();
 
+
 const payload=
 Object.fromEntries(
-new FormData(event.currentTarget)
+new FormData(
+event.currentTarget
+)
 );
 
-if(payload.media_type==="none")
+
+if(
+payload.media_type==="none"
+){
+
 payload.media_url=null;
+
+}
+
 
 try{
 
 await managementApi(
 post
 ?
-"?api=post&id="+encodeURIComponent(post.id)
+"?api=post&id="+
+encodeURIComponent(post.id)
 :
 "?api=post",
 {
-method:post?"PUT":"POST",
+method:
+post
+?
+"PUT"
+:
+"POST",
 body:JSON.stringify(payload)
 }
 );
 
+
 closeModal();
+
 
 await loadManagement();
 
+
 renderPosts();
 
-showToast("تم حفظ المنشور.");
+
+showToast(
+"تم حفظ المنشور بنجاح."
+);
+
 
 }catch(e){
 
@@ -2237,6 +3824,7 @@ showToast(e.message);
 
 };
 
+
 openModal();
 
 }
@@ -2244,36 +3832,52 @@ openModal();
 
 async function togglePostStatus(id){
 
-const post=managementData.posts.find(
-p=>p.id===id
+const post=
+managementData.posts.find(
+p=>String(p.id)===String(id)
 );
 
-if(!post)return;
+
+if(!post)
+return;
+
 
 const status=
 post.status==="published"
-?"draft"
-:"published";
+?
+"draft"
+:
+"published";
+
 
 try{
 
 await managementApi(
-"?api=post&id="+encodeURIComponent(id),
+"?api=post&id="+
+encodeURIComponent(id),
 {
 method:"PATCH",
-body:JSON.stringify({status})
+body:JSON.stringify({
+status
+})
 }
 );
 
+
 await loadManagement();
+
 
 renderPosts();
 
+
 showToast(
 status==="published"
-?"تم نشر المنشور."
-:"تم تحويل المنشور إلى مسودة."
+?
+"تم نشر المنشور."
+:
+"تم تحويل المنشور إلى مسودة."
 );
+
 
 }catch(e){
 
@@ -2286,21 +3890,33 @@ showToast(e.message);
 
 async function deletePost(id){
 
-if(!confirm("هل تريد حذف هذا المنشور نهائيًا؟"))
+if(!confirm(
+"هل تريد حذف هذا المنشور نهائيًا؟"
+))
 return;
+
 
 try{
 
 await managementApi(
-"?api=post&id="+encodeURIComponent(id),
-{method:"DELETE"}
+"?api=post&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
 );
+
 
 await loadManagement();
 
+
 renderPosts();
 
-showToast("تم حذف المنشور.");
+
+showToast(
+"تم حذف المنشور."
+);
+
 
 }catch(e){
 
@@ -2311,18 +3927,24 @@ showToast(e.message);
 }
 
 
-/* HOLIDAYS */
+/* =========================================================
+   HOLIDAYS
+========================================================= */
+
 
 function renderHolidays(){
 
-const box=$("holidaysList");
+const box=
+$("holidaysList");
 
-const holidays=managementData.holidays||[];
+
+const holidays=
+managementData.holidays||[];
+
 
 if(!holidays.length){
 
-box.innerHTML=
-`
+box.innerHTML=`
 <div class="empty">
 لا توجد عطلات أو إغلاقات مضافة.
 </div>
@@ -2333,46 +3955,84 @@ return;
 }
 
 
-box.innerHTML=holidays.map(h=>`
+box.innerHTML=
+holidays.map(h=>`
 
 <div class="item">
 
 <div>
 
 <strong>
-${escapeHTML(h.name||"إغلاق")}
+${escapeHTML(
+h.name||"إغلاق"
+)}
 </strong>
 
-<div class="muted">
-${escapeHTML(h.start_date||"")}
-${h.end_date&&h.end_date!==h.start_date
-?" → "+escapeHTML(h.end_date)
-:""}
-</div>
 
 <div class="muted">
+
+${escapeHTML(
+h.start_date||""
+)}
+
+${
+h.end_date &&
+h.end_date!==h.start_date
+?
+" → "+
+escapeHTML(h.end_date)
+:
+""
+}
+
+</div>
+
+
+<div class="muted">
+
 ${
 h.doctor_id
 ?
-"خاص بالطبيب: "+escapeHTML(doctorName(h.doctor_id))
+"خاص بالطبيب: "+
+escapeHTML(
+doctorName(h.doctor_id)
+)
 :
 "إغلاق عام للعيادة"
 }
-</div>
 
 </div>
+
+
+${
+h.notes
+?
+`
+<div
+class="small-note"
+style="margin-top:5px">
+${escapeHTML(h.notes)}
+</div>
+`
+:
+""
+}
+
+</div>
+
 
 <div class="item-actions">
 
 <button
 class="btn btn-secondary"
-onclick="editHoliday('${h.id}')">
+onclick="editHoliday('${escapeHTML(h.id)}')">
 تعديل
 </button>
 
+
 <button
 class="btn btn-danger"
-onclick="deleteHoliday('${h.id}')">
+onclick="deleteHoliday('${escapeHTML(h.id)}')">
 حذف
 </button>
 
@@ -2391,12 +4051,22 @@ $("addHolidayBtn").onclick=
 
 function editHoliday(id){
 
-const h=id?
-managementData.holidays.find(x=>x.id===id):
+const h=
+id
+?
+managementData.holidays.find(
+x=>String(x.id)===String(id)
+)
+:
 null;
 
+
 $("modalTitle").textContent=
-h?"تعديل العطلة":"إضافة عطلة / إغلاق";
+h
+?
+"تعديل العطلة"
+:
+"إضافة عطلة / إغلاق";
 
 
 $("modalContent").innerHTML=`
@@ -2406,26 +4076,40 @@ $("modalContent").innerHTML=`
 <div class="grid">
 
 <label>
+
 اسم العطلة / سبب الإغلاق
+
 <input
 name="name"
 required
-value="${escapeHTML(h?.name||"")}"
->
+value="${escapeHTML(
+h?.name||""
+)}">
+
 </label>
 
+
 <label>
+
 نوع الإغلاق
 
-<select name="scope" id="holidayScope">
+<select
+name="scope"
+id="holidayScope">
 
-<option value="clinic"
-${!h?.doctor_id?"selected":""}>
+<option
+value="clinic"
+${!h?.doctor_id?
+"selected":
+""}>
 العيادة بالكامل
 </option>
 
-<option value="doctor"
-${h?.doctor_id?"selected":""}>
+<option
+value="doctor"
+${h?.doctor_id?
+"selected":
+""}>
 طبيب محدد
 </option>
 
@@ -2433,19 +4117,31 @@ ${h?.doctor_id?"selected":""}>
 
 </label>
 
+
 <label>
+
 الطبيب
 
-<select name="doctor_id" id="holidayDoctor">
+<select
+name="doctor_id"
+id="holidayDoctor">
 
-<option value="">كل الأطباء</option>
+<option value="">
+كل الأطباء
+</option>
 
-${(clinicData.doctors||[]).map(d=>`
+${(clinicData.doctors||[])
+.map(d=>`
 
 <option
 value="${escapeHTML(d.id)}"
-${h?.doctor_id===d.id?"selected":""}>
+${String(h?.doctor_id||"")===
+String(d.id)?
+"selected":
+""}>
+
 ${escapeHTML(d.name)}
+
 </option>
 
 `).join("")}
@@ -2454,36 +4150,58 @@ ${escapeHTML(d.name)}
 
 </label>
 
+
 <label>
+
 تاريخ البداية
+
 <input
 name="start_date"
 type="date"
 required
-value="${escapeHTML(h?.start_date||"")}"
->
+value="${escapeHTML(
+h?.start_date||""
+)}">
+
 </label>
 
+
 <label>
+
 تاريخ النهاية
+
 <input
 name="end_date"
 type="date"
 required
-value="${escapeHTML(h?.end_date||h?.start_date||"")}"
->
+value="${escapeHTML(
+h?.end_date||
+h?.start_date||
+""
+)}">
+
 </label>
 
+
 <label class="full">
+
 ملاحظة
-<textarea name="notes">${escapeHTML(h?.notes||"")}</textarea>
+
+<textarea
+name="notes">${escapeHTML(
+h?.notes||""
+)}</textarea>
+
 </label>
 
 </div>
 
+
 <div class="modal-actions">
 
-<button class="btn btn-primary" type="submit">
+<button
+class="btn btn-primary"
+type="submit">
 حفظ
 </button>
 
@@ -2495,59 +4213,91 @@ value="${escapeHTML(h?.end_date||h?.start_date||"")}"
 
 function updateHolidayDoctor(){
 
-const scope=$("holidayScope").value;
+const scope=
+$("holidayScope").value;
+
 
 $("holidayDoctor").disabled=
 scope!=="doctor";
 
-if(scope!=="doctor")
+
+if(scope!=="doctor"){
+
 $("holidayDoctor").value="";
 
 }
 
-$("holidayScope").addEventListener(
+}
+
+
+$("holidayScope")
+.addEventListener(
 "change",
 updateHolidayDoctor
 );
 
+
 updateHolidayDoctor();
 
 
-$("holidayForm").onsubmit=async event=>{
+$("holidayForm").onsubmit=
+async event=>{
 
 event.preventDefault();
 
+
 const payload=
 Object.fromEntries(
-new FormData(event.currentTarget)
+new FormData(
+event.currentTarget
+)
 );
 
-if(payload.scope==="clinic")
+
+if(payload.scope==="clinic"){
+
 payload.doctor_id=null;
 
+}
+
+
 delete payload.scope;
+
 
 try{
 
 await managementApi(
 h
 ?
-"?api=holiday&id="+encodeURIComponent(h.id)
+"?api=holiday&id="+
+encodeURIComponent(h.id)
 :
 "?api=holiday",
 {
-method:h?"PUT":"POST",
+method:
+h
+?
+"PUT"
+:
+"POST",
 body:JSON.stringify(payload)
 }
 );
 
+
 closeModal();
+
 
 await loadManagement();
 
+
 renderHolidays();
 
-showToast("تم حفظ العطلة.");
+
+showToast(
+"تم حفظ العطلة بنجاح."
+);
+
 
 }catch(e){
 
@@ -2557,6 +4307,7 @@ showToast(e.message);
 
 };
 
+
 openModal();
 
 }
@@ -2564,21 +4315,33 @@ openModal();
 
 async function deleteHoliday(id){
 
-if(!confirm("هل تريد حذف هذا الإغلاق؟"))
+if(!confirm(
+"هل تريد حذف هذا الإغلاق؟"
+))
 return;
+
 
 try{
 
 await managementApi(
-"?api=holiday&id="+encodeURIComponent(id),
-{method:"DELETE"}
+"?api=holiday&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
 );
+
 
 await loadManagement();
 
+
 renderHolidays();
 
-showToast("تم حذف الإغلاق.");
+
+showToast(
+"تم حذف الإغلاق."
+);
+
 
 }catch(e){
 
@@ -2589,7 +4352,10 @@ showToast(e.message);
 }
 
 
-/* GENERAL HOURS */
+/* =========================================================
+   GENERAL HOURS
+========================================================= */
+
 
 const dayNames=[
 "الأحد",
@@ -2604,28 +4370,39 @@ const dayNames=[
 
 function renderHours(){
 
-const box=$("hoursList");
+const box=
+$("hoursList");
 
-const hours=clinicData.working_hours||[];
+
+const hours=
+clinicData.working_hours||[];
+
 
 if(!hours.length){
 
 box.innerHTML=
-'<div class="empty">لا توجد بيانات لساعات العمل.</div>';
+`
+<div class="empty">
+لا توجد بيانات لساعات العمل.
+</div>
+`;
 
 return;
 
 }
 
 
-box.innerHTML=hours.map(hour=>`
+box.innerHTML=
+hours.map(hour=>`
 
-<div class="card"
+<div
+class="card"
 data-hour-id="${escapeHTML(hour.id)}">
 
 <h3>
 ${dayNames[hour.weekday]||""}
 </h3>
+
 
 <label class="switch">
 
@@ -2638,38 +4415,70 @@ ${hour.enabled?"checked":""}>
 
 </label>
 
+
 <div class="grid">
 
 <label>
+
 من
+
 <input
 class="hour-start"
 type="time"
-value="${escapeHTML(String(hour.start_time||"").slice(0,5))}">
+value="${escapeHTML(
+String(
+hour.start_time||""
+).slice(0,5)
+)}">
+
 </label>
 
+
 <label>
+
 إلى
+
 <input
 class="hour-end"
 type="time"
-value="${escapeHTML(String(hour.end_time||"").slice(0,5))}">
+value="${escapeHTML(
+String(
+hour.end_time||""
+).slice(0,5)
+)}">
+
 </label>
 
+
 <label>
+
 بداية الراحة
+
 <input
 class="break-start"
 type="time"
-value="${escapeHTML(String(hour.break_start||"").slice(0,5))}">
+value="${escapeHTML(
+String(
+hour.break_start||""
+).slice(0,5)
+)}">
+
 </label>
 
+
 <label>
+
 نهاية الراحة
+
 <input
 class="break-end"
 type="time"
-value="${escapeHTML(String(hour.break_end||"").slice(0,5))}">
+value="${escapeHTML(
+String(
+hour.break_end||""
+).slice(0,5)
+)}">
+
 </label>
 
 </div>
@@ -2681,30 +4490,45 @@ value="${escapeHTML(String(hour.break_end||"").slice(0,5))}">
 }
 
 
-$("saveHoursBtn").onclick=async()=>{
+$("saveHoursBtn").onclick=
+async()=>{
 
 const hours=[
-...document.querySelectorAll("[data-hour-id]")
+...document.querySelectorAll(
+"[data-hour-id]"
+)
 ].map(card=>({
 
-id:card.dataset.hourId,
+id:
+card.dataset.hourId,
 
 enabled:
-card.querySelector(".hour-enabled").checked,
+card.querySelector(
+".hour-enabled"
+).checked,
 
 start_time:
-card.querySelector(".hour-start").value,
+card.querySelector(
+".hour-start"
+).value,
 
 end_time:
-card.querySelector(".hour-end").value,
+card.querySelector(
+".hour-end"
+).value,
 
 break_start:
-card.querySelector(".break-start").value||null,
+card.querySelector(
+".break-start"
+).value||null,
 
 break_end:
-card.querySelector(".break-end").value||null
+card.querySelector(
+".break-end"
+).value||null
 
 }));
+
 
 try{
 
@@ -2712,13 +4536,20 @@ await api(
 "?api=hours",
 {
 method:"PUT",
-body:JSON.stringify({hours})
+body:JSON.stringify({
+hours
+})
 }
 );
 
+
 await loadAll();
 
-showToast("تم حفظ ساعات العمل.");
+
+showToast(
+"تم حفظ ساعات العمل."
+);
+
 
 }catch(e){
 
@@ -2729,28 +4560,49 @@ showToast(e.message);
 };
 
 
-/* SETTINGS */
+/* =========================================================
+   SETTINGS
+========================================================= */
+
 
 function renderSettings(){
 
-const s=clinicData.settings||{};
+const s=
+clinicData.settings||{};
+
 
 const fields=[
+
 ["clinic_name","اسم العيادة"],
+
 ["tagline","الشعار"],
+
 ["phone","الهاتف"],
+
 ["landline","الهاتف الأرضي"],
+
 ["email","البريد الإلكتروني"],
+
 ["address","العنوان"],
+
 ["whatsapp","واتساب"],
+
 ["facebook_url","Facebook"],
+
 ["linkedin_url","LinkedIn"],
+
 ["instagram_url","Instagram"],
+
 ["tiktok_url","TikTok"],
+
 ["logo_url","رابط الشعار"],
+
 ["hero_image_url","رابط صورة الواجهة"],
+
 ["slot_minutes","الفاصل بين المواعيد بالدقائق"],
+
 ["booking_notice","ملاحظة الحجز"]
+
 ];
 
 
@@ -2760,51 +4612,71 @@ $("settingsForm").innerHTML=`
 
 <div class="grid">
 
-${fields.map(([key,label])=>{
+${fields.map(
+([key,label])=>{
 
 const big=
 key==="address"||
 key==="booking_notice";
 
+
 return`
 
-<label class="${big?"full":""}">
+<label
+class="${big?"full":""}">
 
 ${label}
 
 ${
 big
 ?
-`<textarea name="${key}">${escapeHTML(s[key]||"")}</textarea>`
+`
+<textarea
+name="${key}">${escapeHTML(
+s[key]||""
+)}</textarea>
+`
 :
-`<input name="${key}" value="${escapeHTML(s[key]??"")}">`
+`
+<input
+name="${key}"
+value="${escapeHTML(
+s[key]??""
+)}">
+`
 }
 
 </label>
 
 `;
 
-}).join("")}
+}
+).join("")}
 
 </div>
 
 </form>
-
 `;
 
 }
 
 
-$("saveSettingsBtn").onclick=async()=>{
+$("saveSettingsBtn").onclick=
+async()=>{
 
-const form=$("settingsEditForm");
+const form=
+$("settingsEditForm");
 
-if(!form)return;
+
+if(!form)
+return;
+
 
 const payload=
 Object.fromEntries(
 new FormData(form)
 );
+
 
 try{
 
@@ -2816,9 +4688,14 @@ body:JSON.stringify(payload)
 }
 );
 
+
 await loadAll();
 
-showToast("تم حفظ إعدادات العيادة.");
+
+showToast(
+"تم حفظ إعدادات العيادة."
+);
+
 
 }catch(e){
 
@@ -2829,37 +4706,68 @@ showToast(e.message);
 };
 
 
-/* MODAL */
+/* =========================================================
+   MODAL
+========================================================= */
+
 
 function openModal(){
 
-$("modal").classList.add("show");
+$("modal")
+.classList.add("show");
 
 }
 
 
 function closeModal(){
 
-$("modal").classList.remove("show");
+$("modal")
+.classList.remove("show");
+
+$("modalContent").innerHTML="";
 
 }
 
 
-$("closeModal").onclick=closeModal;
+$("closeModal").onclick=
+closeModal;
 
 
 $("modal").addEventListener(
 "click",
 event=>{
 
-if(event.target===$("modal"))
+if(
+event.target===
+$("modal")
+){
+
 closeModal();
+
+}
 
 }
 );
 
 
-/* START */
+document.addEventListener(
+"keydown",
+event=>{
+
+if(event.key==="Escape"){
+
+closeModal();
+
+}
+
+}
+);
+
+
+/* =========================================================
+   SESSION START
+========================================================= */
+
 
 if(adminToken){
 
@@ -2867,8 +4775,11 @@ loadAll();
 
 }else{
 
-$("loginPage").classList.remove("hidden");
-$("adminPage").classList.add("hidden");
+$("loginPage")
+.classList.remove("hidden");
+
+$("adminPage")
+.classList.add("hidden");
 
 }
 
