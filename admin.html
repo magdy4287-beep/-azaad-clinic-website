@@ -8,525 +8,446 @@
 
 <style>
 *{box-sizing:border-box}
-
 body{
-margin:0;
-background:#f5f7fb;
-color:#18213d;
-font-family:Arial,Tahoma,sans-serif
+  margin:0;
+  background:#f5f7fb;
+  color:#18213d;
+  font-family:Arial,Tahoma,sans-serif
 }
-
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .hidden{display:none!important}
 
 .login-page{
-min-height:100vh;
-display:flex;
-align-items:center;
-justify-content:center;
-padding:20px;
-background:
-radial-gradient(circle at top right,rgba(179,138,66,.10),transparent 35%),
-#f5f7fb
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px
 }
-
 .login-card{
-width:100%;
-max-width:430px;
-background:#fff;
-border-radius:20px;
-padding:32px;
-box-shadow:0 20px 60px rgba(0,0,0,.10)
+  width:100%;
+  max-width:430px;
+  background:#fff;
+  border-radius:18px;
+  padding:30px;
+  box-shadow:0 15px 50px rgba(0,0,0,.08)
 }
-
 .logo{
-font-size:25px;
-font-weight:900;
-color:#17214f;
-letter-spacing:2px
+  font-size:25px;
+  font-weight:900;
+  color:#17214f;
+  letter-spacing:2px
 }
-
 .logo span{
-color:#b38a42;
-font-size:12px;
-display:block;
-letter-spacing:3px;
-margin-top:4px
+  color:#b38a42;
+  font-size:12px;
+  display:block;
+  letter-spacing:3px;
+  margin-top:4px
 }
-
 h1,h2,h3{margin-top:0}
-
 label{
-display:block;
-margin-bottom:14px;
-font-weight:700
+  display:block;
+  margin-bottom:14px;
+  font-weight:700
 }
-
 input,select,textarea{
-width:100%;
-margin-top:7px;
-padding:12px;
-border:1px solid #d9deea;
-border-radius:10px;
-background:#fff;
-outline:none;
-color:#18213d
+  width:100%;
+  margin-top:7px;
+  padding:12px;
+  border:1px solid #d9deea;
+  border-radius:10px;
+  background:#fff;
+  outline:none
 }
-
-input:focus,
-select:focus,
-textarea:focus{
-border-color:#17214f;
-box-shadow:0 0 0 3px rgba(23,33,79,.06)
+input:focus,select:focus,textarea:focus{
+  border-color:#17214f
 }
-
 textarea{
-min-height:100px;
-resize:vertical
+  min-height:100px;
+  resize:vertical
 }
 
 .btn{
-border:0;
-border-radius:10px;
-padding:11px 16px;
-font-weight:700;
-transition:.15s ease
+  border:0;
+  border-radius:10px;
+  padding:11px 16px;
+  font-weight:700
 }
-
-.btn:hover{
-transform:translateY(-1px)
-}
-
-.btn-primary{
-background:#17214f;
-color:#fff
-}
-
+.btn-primary{background:#17214f;color:#fff}
 .btn-secondary{
-background:#fff;
-color:#17214f;
-border:1px solid #d9deea
+  background:#fff;
+  color:#17214f;
+  border:1px solid #d9deea
 }
-
 .btn-danger{
-background:#fff0f2;
-color:#a32939;
-border:1px solid #ffd2d8
+  background:#fff0f2;
+  color:#a32939;
+  border:1px solid #ffd2d8
 }
-
 .btn-success{
-background:#e7f7ed;
-color:#167345
+  background:#e7f7ed;
+  color:#167345
 }
-
 .btn-gold{
-background:#b38a42;
-color:#fff
+  background:#b38a42;
+  color:#fff
 }
+.muted{color:#6c758c}
 
 .error{
-background:#fff0f2;
-color:#a32939;
-padding:11px;
-border-radius:10px;
-margin-top:12px
+  background:#fff0f2;
+  color:#a32939;
+  padding:11px;
+  border-radius:10px;
+  margin-top:12px
 }
-
 .success{
-background:#e7f7ed;
-color:#167345;
-padding:11px;
-border-radius:10px;
-margin-top:12px
-}
-
-.muted{
-color:#6c758c
+  background:#e7f7ed;
+  color:#167345;
+  padding:11px;
+  border-radius:10px;
+  margin-top:12px
 }
 
 .admin{
-max-width:1400px;
-margin:auto;
-padding:18px
+  max-width:1400px;
+  margin:auto;
+  padding:18px
 }
-
 .topbar{
-background:#fff;
-border-radius:16px;
-padding:18px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:15px;
-flex-wrap:wrap;
-box-shadow:0 7px 25px rgba(0,0,0,.05)
+  background:#fff;
+  border-radius:16px;
+  padding:18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
+  flex-wrap:wrap;
+  box-shadow:0 7px 25px rgba(0,0,0,.05)
 }
-
-.top-actions,
-.item-actions{
-display:flex;
-gap:8px;
-flex-wrap:wrap
+.top-actions,.item-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
 }
 
 .stats{
-display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:12px;
-margin:16px 0
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin:16px 0
 }
-
 .stat{
-background:#fff;
-padding:20px;
-border-radius:15px;
-box-shadow:0 7px 25px rgba(0,0,0,.04)
+  background:#fff;
+  padding:20px;
+  border-radius:15px;
+  box-shadow:0 7px 25px rgba(0,0,0,.04)
 }
-
 .stat-number{
-font-size:30px;
-font-weight:900;
-margin-bottom:5px
+  font-size:30px;
+  font-weight:900;
+  margin-bottom:5px
 }
 
 .tabs{
-display:flex;
-gap:8px;
-overflow-x:auto;
-margin:16px 0;
-padding-bottom:3px
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  margin:16px 0;
+  padding-bottom:3px
 }
-
 .tab{
-white-space:nowrap;
-border:1px solid #d9deea;
-background:#fff;
-color:#17214f;
-border-radius:22px;
-padding:10px 16px
+  white-space:nowrap;
+  border:1px solid #d9deea;
+  background:#fff;
+  color:#17214f;
+  border-radius:22px;
+  padding:10px 16px
 }
-
 .tab.active{
-background:#17214f;
-color:#fff
+  background:#17214f;
+  color:#fff
 }
 
 .panel{display:none}
 .panel.active{display:block}
 
 .card{
-background:#fff;
-border-radius:16px;
-padding:18px;
-box-shadow:0 7px 25px rgba(0,0,0,.04);
-margin-bottom:15px
+  background:#fff;
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 7px 25px rgba(0,0,0,.04);
+  margin-bottom:15px
 }
-
 .panel-head{
-display:flex;
-align-items:center;
-justify-content:space-between;
-gap:10px;
-flex-wrap:wrap
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap
 }
-
 .filters{
-display:grid;
-grid-template-columns:1fr 220px;
-gap:10px;
-margin:15px 0
+  display:grid;
+  grid-template-columns:1fr 220px;
+  gap:10px;
+  margin:15px 0
 }
-
 .table-wrap{
-overflow-x:auto;
-border:1px solid #e3e6ed;
-border-radius:12px
+  overflow-x:auto;
+  border:1px solid #e3e6ed;
+  border-radius:12px
 }
-
 table{
-width:100%;
-border-collapse:collapse;
-min-width:1050px
+  width:100%;
+  border-collapse:collapse;
+  min-width:950px
 }
-
 th,td{
-padding:11px;
-text-align:right;
-border-bottom:1px solid #eee;
-font-size:13px;
-vertical-align:middle
+  padding:11px;
+  text-align:right;
+  border-bottom:1px solid #eee;
+  font-size:13px;
+  vertical-align:middle
 }
-
 th{
-background:#fafbfe;
-color:#17214f
-}
-
-tr:last-child td{
-border-bottom:0
+  background:#fafbfe;
+  color:#17214f
 }
 
 .badge{
-display:inline-block;
-padding:5px 10px;
-border-radius:20px;
-font-size:11px;
-font-weight:700
+  display:inline-block;
+  padding:5px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700
 }
-
-.badge-pending{
-background:#fff4cc;
-color:#755c00
-}
-
-.badge-confirmed{
-background:#e5f7eb;
-color:#167345
-}
-
-.badge-cancelled{
-background:#ffecef;
-color:#a32939
-}
-
-.badge-completed{
-background:#e8edf8;
-color:#273a70
-}
-
-.badge-draft{
-background:#eee;
-color:#555
-}
-
-.badge-published{
-background:#e5f7eb;
-color:#167345
-}
+.badge-pending{background:#fff4cc;color:#755c00}
+.badge-confirmed{background:#e5f7eb;color:#167345}
+.badge-cancelled{background:#ffecef;color:#a32939}
+.badge-completed{background:#e8edf8;color:#273a70}
+.badge-draft{background:#eee;color:#555}
+.badge-published{background:#e5f7eb;color:#167345}
 
 .items{
-display:grid;
-gap:10px
+  display:grid;
+  gap:10px
 }
-
 .item{
-border:1px solid #e2e6ef;
-border-radius:12px;
-padding:15px;
-display:flex;
-justify-content:space-between;
-gap:15px;
-align-items:center;
-flex-wrap:wrap
+  border:1px solid #e2e6ef;
+  border-radius:12px;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  align-items:center;
+  flex-wrap:wrap
 }
 
 .grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:12px
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px
 }
-
-.full{
-grid-column:1/-1
-}
+.full{grid-column:1/-1}
 
 .modal{
-position:fixed;
-inset:0;
-background:rgba(15,25,70,.55);
-display:none;
-align-items:center;
-justify-content:center;
-padding:15px;
-z-index:100
+  position:fixed;
+  inset:0;
+  background:rgba(15,25,70,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+  z-index:100
 }
-
-.modal.show{
-display:flex
-}
-
+.modal.show{display:flex}
 .modal-box{
-width:100%;
-max-width:800px;
-max-height:92vh;
-overflow-y:auto;
-background:#fff;
-border-radius:17px;
-padding:20px
+  width:100%;
+  max-width:850px;
+  max-height:92vh;
+  overflow-y:auto;
+  background:#fff;
+  border-radius:17px;
+  padding:20px
 }
-
 .modal-actions{
-display:flex;
-gap:8px;
-justify-content:flex-start;
-margin-top:15px;
-flex-wrap:wrap
+  display:flex;
+  gap:8px;
+  justify-content:flex-start;
+  margin-top:15px;
+  flex-wrap:wrap
 }
 
 .toast{
-position:fixed;
-bottom:20px;
-left:20px;
-right:20px;
-max-width:550px;
-margin:auto;
-background:#17214f;
-color:#fff;
-padding:13px 17px;
-border-radius:10px;
-display:none;
-z-index:200;
-text-align:center;
-box-shadow:0 10px 30px rgba(0,0,0,.18)
+  position:fixed;
+  bottom:20px;
+  left:20px;
+  right:20px;
+  max-width:550px;
+  margin:auto;
+  background:#17214f;
+  color:#fff;
+  padding:13px 17px;
+  border-radius:10px;
+  display:none;
+  z-index:200;
+  text-align:center
 }
-
-.toast.show{
-display:block
-}
+.toast.show{display:block}
 
 .preview{
-width:100%;
-max-height:260px;
-object-fit:cover;
-border-radius:12px;
-margin-top:8px;
-border:1px solid #ddd
+  width:100%;
+  max-height:300px;
+  object-fit:cover;
+  border-radius:12px;
+  margin-top:8px;
+  border:1px solid #ddd
 }
 
 .post-card{
-border:1px solid #e2e6ef;
-border-radius:14px;
-overflow:hidden;
-background:#fff
+  border:1px solid #e2e6ef;
+  border-radius:14px;
+  overflow:hidden;
+  background:#fff
 }
-
 .post-media{
-width:100%;
-max-height:300px;
-object-fit:cover;
-display:block
+  width:100%;
+  max-height:300px;
+  object-fit:cover;
+  display:block
 }
-
-.post-body{
-padding:15px
-}
+.post-body{padding:15px}
 
 .schedule-day{
-border:1px solid #e1e5ed;
-border-radius:13px;
-padding:15px;
-margin-bottom:10px;
-background:#fff
+  border:1px solid #e1e5ed;
+  border-radius:13px;
+  padding:15px;
+  margin-bottom:10px;
+  background:#fff
 }
-
 .schedule-head{
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:10px;
-flex-wrap:wrap
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap
 }
-
 .time-row{
-display:grid;
-grid-template-columns:1fr 1fr 1fr 1fr;
-gap:8px;
-align-items:end;
-margin-top:10px
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr 1fr;
+  gap:8px;
+  align-items:end;
+  margin-top:10px
 }
-
 .small-note{
-font-size:12px;
-color:#70798e
+  font-size:12px;
+  color:#70798e
 }
-
 .switch{
-display:flex;
-align-items:center;
-gap:8px
+  display:flex;
+  align-items:center;
+  gap:8px
 }
-
 .switch input{
-width:auto;
-margin:0
+  width:auto;
+  margin:0
 }
-
-.section-title{
-margin:20px 0 10px;
-padding-bottom:8px;
-border-bottom:1px solid #eee
-}
-
 .empty{
-text-align:center;
-padding:30px;
-color:#7a8294
+  text-align:center;
+  padding:30px;
+  color:#7a8294
 }
-
 .doctor-photo{
-width:70px;
-height:70px;
-border-radius:50%;
-object-fit:cover;
-border:2px solid #eee
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid #eee
 }
-
 .doctor-row{
-display:flex;
-align-items:center;
-gap:14px
+  display:flex;
+  align-items:center;
+  gap:14px
 }
 
-.loading{
-padding:30px;
-text-align:center;
-color:#6c758c
+.upload-box{
+  border:2px dashed #cfd6e4;
+  border-radius:14px;
+  padding:20px;
+  text-align:center;
+  background:#fafbfe;
+  margin-top:8px
 }
-
-.danger-text{
-color:#a32939
+.upload-box.drag{
+  border-color:#b38a42;
+  background:#fffaf1
+}
+.upload-icon{
+  font-size:35px;
+  margin-bottom:8px
+}
+.file-name{
+  margin-top:10px;
+  font-size:13px;
+  word-break:break-word
+}
+.progress{
+  height:10px;
+  background:#e8ebf2;
+  border-radius:20px;
+  overflow:hidden;
+  margin-top:12px
+}
+.progress-bar{
+  height:100%;
+  width:0;
+  background:#17214f;
+  transition:width .2s
+}
+.progress-text{
+  font-size:12px;
+  margin-top:7px;
+  color:#667087
+}
+.media-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:center;
+  margin-top:12px
+}
+.media-preview{
+  margin-top:15px
+}
+.media-preview img,
+.media-preview video{
+  width:100%;
+  max-height:320px;
+  object-fit:contain;
+  background:#f3f4f7;
+  border-radius:12px
+}
+.warning{
+  background:#fff8df;
+  color:#755c00;
+  padding:10px;
+  border-radius:10px;
+  font-size:12px;
+  margin-top:10px
 }
 
 @media(max-width:800px){
-
-.stats{
-grid-template-columns:1fr 1fr
+  .stats{grid-template-columns:1fr 1fr}
+  .filters,.grid{grid-template-columns:1fr}
+  .full{grid-column:auto}
+  .time-row{grid-template-columns:1fr}
 }
-
-.filters,
-.grid{
-grid-template-columns:1fr
-}
-
-.full{
-grid-column:auto
-}
-
-.time-row{
-grid-template-columns:1fr
-}
-
-}
-
 @media(max-width:500px){
-
-.admin{
-padding:10px
-}
-
-.login-card{
-padding:22px
-}
-
-.stats{
-grid-template-columns:1fr 1fr
-}
-
-.topbar{
-padding:14px
-}
-
+  .admin{padding:10px}
+  .login-card{padding:22px}
+  .stats{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -537,58 +458,53 @@ padding:14px
 
 <div id="loginPage" class="login-page">
 
-<div class="login-card">
+  <div class="login-card">
 
-<div class="logo">
-AZAAD
-<span>CLINIC FOR MENTAL HEALTH</span>
-</div>
+    <div class="logo">
+      AZAAD
+      <span>CLINIC FOR MENTAL HEALTH</span>
+    </div>
 
-<h2 style="margin-top:25px">
-لوحة إدارة العيادة
-</h2>
+    <h2 style="margin-top:25px">لوحة إدارة العيادة</h2>
 
-<p class="muted">
-تسجيل الدخول إلى لوحة الإدارة
-</p>
+    <p class="muted">
+      تسجيل الدخول إلى لوحة الإدارة
+    </p>
 
-<form id="loginForm">
+    <form id="loginForm">
 
-<label>
-اسم المستخدم
-<input
-id="username"
-type="text"
-autocomplete="username"
-value="azaadadmin"
-required
->
-</label>
+      <label>
+        اسم المستخدم
+        <input
+          id="username"
+          type="text"
+          autocomplete="username"
+          value="azaadadmin"
+          required>
+      </label>
 
-<label>
-كلمة المرور
-<input
-id="password"
-type="password"
-autocomplete="current-password"
-required
->
-</label>
+      <label>
+        كلمة المرور
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          required>
+      </label>
 
-<button
-type="submit"
-class="btn btn-primary"
-style="width:100%"
-id="loginBtn"
->
-تسجيل الدخول
-</button>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        style="width:100%">
+        تسجيل الدخول
+      </button>
 
-<div id="loginError" class="error hidden"></div>
+      <div id="loginError" class="error hidden"></div>
 
-</form>
+    </form>
 
-</div>
+  </div>
+
 </div>
 
 
@@ -596,422 +512,385 @@ id="loginBtn"
 
 <div id="adminPage" class="admin hidden">
 
-<div class="topbar">
+  <div class="topbar">
 
-<div>
+    <div>
 
-<div class="logo">
-AZAAD
-<span>ADMIN PANEL</span>
-</div>
+      <div class="logo">
+        AZAAD
+        <span>ADMIN PANEL</span>
+      </div>
 
-<div class="muted" style="margin-top:5px">
-لوحة إدارة عيادة آزاد للصحة النفسية
-</div>
+      <div class="muted" style="margin-top:5px">
+        لوحة إدارة عيادة آزاد للصحة النفسية
+      </div>
 
-</div>
+    </div>
 
-<div class="top-actions">
+    <div class="top-actions">
 
-<button
-id="refreshBtn"
-class="btn btn-secondary">
-تحديث
-</button>
+      <button
+        id="refreshBtn"
+        class="btn btn-secondary">
+        تحديث
+      </button>
 
-<button
-id="patientPageBtn"
-class="btn btn-secondary">
-صفحة المرضى
-</button>
+      <button
+        id="patientPageBtn"
+        class="btn btn-secondary">
+        صفحة المرضى
+      </button>
 
-<button
-id="logoutBtn"
-class="btn btn-danger">
-تسجيل الخروج
-</button>
+      <button
+        id="logoutBtn"
+        class="btn btn-danger">
+        تسجيل الخروج
+      </button>
 
-</div>
+    </div>
 
-</div>
+  </div>
 
 
-<!-- STATS -->
+  <!-- STATS -->
 
-<div class="stats">
+  <div class="stats">
 
-<div class="stat">
-<div id="totalCount" class="stat-number">0</div>
-<div class="muted">إجمالي الحجوزات</div>
-</div>
+    <div class="stat">
+      <div id="totalCount" class="stat-number">0</div>
+      <div class="muted">إجمالي الحجوزات</div>
+    </div>
 
-<div class="stat">
-<div id="pendingCount" class="stat-number">0</div>
-<div class="muted">قيد المراجعة</div>
-</div>
+    <div class="stat">
+      <div id="pendingCount" class="stat-number">0</div>
+      <div class="muted">قيد المراجعة</div>
+    </div>
 
-<div class="stat">
-<div id="confirmedCount" class="stat-number">0</div>
-<div class="muted">الحجوزات المؤكدة</div>
-</div>
+    <div class="stat">
+      <div id="confirmedCount" class="stat-number">0</div>
+      <div class="muted">الحجوزات المؤكدة</div>
+    </div>
 
-<div class="stat">
-<div id="todayCount" class="stat-number">0</div>
-<div class="muted">حجوزات اليوم</div>
-</div>
+    <div class="stat">
+      <div id="todayCount" class="stat-number">0</div>
+      <div class="muted">حجوزات اليوم</div>
+    </div>
 
-</div>
+  </div>
 
 
-<!-- TABS -->
+  <!-- TABS -->
 
-<div class="tabs">
+  <div class="tabs">
 
-<button class="tab active" data-panel="bookingsPanel">
-الحجوزات
-</button>
+    <button class="tab active" data-panel="bookingsPanel">
+      الحجوزات
+    </button>
 
-<button class="tab" data-panel="doctorsPanel">
-الأطباء
-</button>
+    <button class="tab" data-panel="doctorsPanel">
+      الأطباء
+    </button>
 
-<button class="tab" data-panel="servicesPanel">
-الخدمات
-</button>
+    <button class="tab" data-panel="servicesPanel">
+      الخدمات
+    </button>
 
-<button class="tab" data-panel="schedulePanel">
-جداول الأطباء
-</button>
+    <button class="tab" data-panel="schedulePanel">
+      جداول الأطباء
+    </button>
 
-<button class="tab" data-panel="postsPanel">
-المنشورات والعروض
-</button>
+    <button class="tab" data-panel="postsPanel">
+      المنشورات والعروض
+    </button>
 
-<button class="tab" data-panel="holidaysPanel">
-العطلات والإغلاقات
-</button>
+    <button class="tab" data-panel="holidaysPanel">
+      العطلات والإغلاقات
+    </button>
 
-<button class="tab" data-panel="hoursPanel">
-ساعات العمل
-</button>
+    <button class="tab" data-panel="hoursPanel">
+      ساعات العمل
+    </button>
 
-<button class="tab" data-panel="settingsPanel">
-إعدادات العيادة
-</button>
+    <button class="tab" data-panel="settingsPanel">
+      إعدادات العيادة
+    </button>
 
-</div>
+  </div>
 
 
-<!-- BOOKINGS -->
+  <!-- BOOKINGS -->
 
-<section id="bookingsPanel" class="panel active">
+  <section id="bookingsPanel" class="panel active">
 
-<div class="card">
+    <div class="card">
 
-<div class="panel-head">
+      <div class="panel-head">
 
-<h2>
-الحجوزات
-</h2>
+        <h2>الحجوزات</h2>
 
-<button
-id="refreshBookings"
-class="btn btn-secondary">
-تحديث الحجوزات
-</button>
+        <button
+          id="refreshBookings"
+          class="btn btn-secondary">
+          تحديث الحجوزات
+        </button>
 
-</div>
+      </div>
 
-<div class="filters">
+      <div class="filters">
 
-<input
-id="bookingSearch"
-placeholder="بحث بالاسم أو الهاتف أو رقم الحجز"
->
+        <input
+          id="bookingSearch"
+          placeholder="بحث بالاسم أو الهاتف أو رقم الحجز">
 
-<select id="bookingStatus">
+        <select id="bookingStatus">
 
-<option value="">
-كل الحالات
-</option>
+          <option value="">كل الحالات</option>
+          <option value="pending">قيد المراجعة</option>
+          <option value="confirmed">مؤكد</option>
+          <option value="cancelled">ملغي</option>
+          <option value="completed">مكتمل</option>
 
-<option value="pending">
-قيد المراجعة
-</option>
+        </select>
 
-<option value="confirmed">
-مؤكد
-</option>
+      </div>
 
-<option value="cancelled">
-ملغي
-</option>
+      <div id="bookingsTable">
+        جاري تحميل الحجوزات...
+      </div>
 
-<option value="completed">
-مكتمل
-</option>
+    </div>
 
-</select>
+  </section>
 
-</div>
 
-<div id="bookingsTable" class="loading">
-جاري تحميل الحجوزات...
-</div>
+  <!-- DOCTORS -->
 
-</div>
+  <section id="doctorsPanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- DOCTORS -->
+        <h2>الأطباء</h2>
 
-<section id="doctorsPanel" class="panel">
+        <button
+          id="addDoctorBtn"
+          class="btn btn-primary">
+          + إضافة طبيب
+        </button>
 
-<div class="card">
+      </div>
 
-<div class="panel-head">
+      <div id="doctorsList" class="items">
+        جاري التحميل...
+      </div>
 
-<h2>
-الأطباء
-</h2>
+    </div>
 
-<button
-id="addDoctorBtn"
-class="btn btn-primary">
-+ إضافة طبيب
-</button>
+  </section>
 
-</div>
 
-<div
-id="doctorsList"
-class="items">
-جاري التحميل...
-</div>
+  <!-- SERVICES -->
 
-</div>
+  <section id="servicesPanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- SERVICES -->
+        <h2>الخدمات</h2>
 
-<section id="servicesPanel" class="panel">
+        <button
+          id="addServiceBtn"
+          class="btn btn-primary">
+          + إضافة خدمة
+        </button>
 
-<div class="card">
+      </div>
 
-<div class="panel-head">
+      <div id="servicesList" class="items">
+        جاري التحميل...
+      </div>
 
-<h2>
-الخدمات
-</h2>
+    </div>
 
-<button
-id="addServiceBtn"
-class="btn btn-primary">
-+ إضافة خدمة
-</button>
+  </section>
 
-</div>
 
-<div
-id="servicesList"
-class="items">
-جاري التحميل...
-</div>
+  <!-- SCHEDULE -->
 
-</div>
+  <section id="schedulePanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- SCHEDULE -->
+        <div>
 
-<section id="schedulePanel" class="panel">
+          <h2>جداول مواعيد الأطباء</h2>
 
-<div class="card">
+          <div class="muted">
+            تحديد أيام العمل وأوقات الدوام والبريك ومدة الموعد والسعة اليومية.
+          </div>
 
-<div class="panel-head">
+        </div>
 
-<div>
+        <select
+          id="scheduleDoctor"
+          style="max-width:320px">
 
-<h2>
-جداول مواعيد الأطباء
-</h2>
+          <option value="">
+            اختر الطبيب
+          </option>
 
-<div class="muted">
-تحديد أوقات العمل والبريك ومدة الموعد والسعة اليومية لكل طبيب.
-</div>
+        </select>
 
-</div>
+      </div>
 
-<select
-id="scheduleDoctor"
-style="max-width:320px">
+      <div
+        id="scheduleEditor"
+        style="margin-top:20px">
 
-<option value="">
-اختر الطبيب
-</option>
+        <div class="empty">
+          اختر طبيبًا لعرض جدول مواعيده.
+        </div>
 
-</select>
+      </div>
 
-</div>
+    </div>
 
-<div
-id="scheduleEditor"
-style="margin-top:20px">
+  </section>
 
-<div class="empty">
-اختر طبيبًا لعرض جدول مواعيده.
-</div>
 
-</div>
+  <!-- POSTS -->
 
-</div>
+  <section id="postsPanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- POSTS -->
+        <div>
 
-<section id="postsPanel" class="panel">
+          <h2>المنشورات والعروض</h2>
 
-<div class="card">
+          <div class="muted">
+            منشورات نصية أو صور أو فيديوهات.
+          </div>
 
-<div class="panel-head">
+        </div>
 
-<div>
+        <button
+          id="addPostBtn"
+          class="btn btn-primary">
+          + إضافة منشور
+        </button>
 
-<h2>
-المنشورات والعروض
-</h2>
+      </div>
 
-<div class="muted">
-منشورات نصية أو صور أو فيديوهات وروابط خارجية.
-</div>
+      <div
+        id="postsList"
+        class="items"
+        style="margin-top:15px">
 
-</div>
+        جاري تحميل المنشورات...
 
-<button
-id="addPostBtn"
-class="btn btn-primary">
-+ إضافة منشور
-</button>
+      </div>
 
-</div>
+    </div>
 
-<div
-id="postsList"
-class="items"
-style="margin-top:15px">
+  </section>
 
-جاري تحميل المنشورات...
 
-</div>
+  <!-- HOLIDAYS -->
 
-</div>
+  <section id="holidaysPanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- HOLIDAYS -->
+        <div>
 
-<section id="holidaysPanel" class="panel">
+          <h2>العطلات والإغلاقات</h2>
 
-<div class="card">
+          <div class="muted">
+            إغلاق العيادة أو طبيب معين في تاريخ محدد.
+          </div>
 
-<div class="panel-head">
+        </div>
 
-<div>
+        <button
+          id="addHolidayBtn"
+          class="btn btn-primary">
+          + إضافة عطلة / إغلاق
+        </button>
 
-<h2>
-العطلات والإغلاقات
-</h2>
+      </div>
 
-<div class="muted">
-إغلاق العيادة أو طبيب معين في تاريخ محدد.
-</div>
+      <div
+        id="holidaysList"
+        class="items"
+        style="margin-top:15px">
+      </div>
 
-</div>
+    </div>
 
-<button
-id="addHolidayBtn"
-class="btn btn-primary">
-+ إضافة عطلة / إغلاق
-</button>
+  </section>
 
-</div>
 
-<div
-id="holidaysList"
-class="items"
-style="margin-top:15px">
-جاري التحميل...
-</div>
+  <!-- HOURS -->
 
-</div>
+  <section id="hoursPanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- HOURS -->
+        <h2>ساعات العمل العامة</h2>
 
-<section id="hoursPanel" class="panel">
+        <button
+          id="saveHoursBtn"
+          class="btn btn-primary">
+          حفظ
+        </button>
 
-<div class="card">
+      </div>
 
-<div class="panel-head">
+      <div id="hoursList">
+        جاري التحميل...
+      </div>
 
-<h2>
-ساعات العمل العامة
-</h2>
+    </div>
 
-<button
-id="saveHoursBtn"
-class="btn btn-primary">
-حفظ
-</button>
+  </section>
 
-</div>
 
-<div id="hoursList">
-جاري التحميل...
-</div>
+  <!-- SETTINGS -->
 
-</div>
+  <section id="settingsPanel" class="panel">
 
-</section>
+    <div class="card">
 
+      <div class="panel-head">
 
-<!-- SETTINGS -->
+        <h2>إعدادات العيادة</h2>
 
-<section id="settingsPanel" class="panel">
+        <button
+          id="saveSettingsBtn"
+          class="btn btn-primary">
+          حفظ
+        </button>
 
-<div class="card">
+      </div>
 
-<div class="panel-head">
+      <div id="settingsForm">
+        جاري التحميل...
+      </div>
 
-<h2>
-إعدادات العيادة
-</h2>
+    </div>
 
-<button
-id="saveSettingsBtn"
-class="btn btn-primary">
-حفظ
-</button>
-
-</div>
-
-<div
-id="settingsForm">
-جاري التحميل...
-</div>
-
-</div>
-
-</section>
+  </section>
 
 </div>
 
@@ -1020,25 +899,25 @@ id="settingsForm">
 
 <div id="modal" class="modal">
 
-<div class="modal-box">
+  <div class="modal-box">
 
-<div class="panel-head">
+    <div class="panel-head">
 
-<h2 id="modalTitle">
-تعديل
-</h2>
+      <h2 id="modalTitle">
+        تعديل
+      </h2>
 
-<button
-id="closeModal"
-class="btn btn-secondary">
-إغلاق
-</button>
+      <button
+        id="closeModal"
+        class="btn btn-secondary">
+        إغلاق
+      </button>
 
-</div>
+    </div>
 
-<div id="modalContent"></div>
+    <div id="modalContent"></div>
 
-</div>
+  </div>
 
 </div>
 
@@ -1048,3738 +927,3530 @@ class="btn btn-secondary">
 
 <script>
 
-/* =========================================================
-   AZAAD ADMIN PANEL
-   IMPORTANT:
-   This file does NOT modify the patient page.
-   Patient-facing functionality remains outside this panel.
-========================================================= */
-
-
 const API =
 "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin";
 
 const MANAGEMENT_API =
 "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-management";
 
+const SUPABASE_URL =
+"https://derofsthjivlkcdnojww.supabase.co";
 
 let adminToken =
 sessionStorage.getItem("azaad_admin_token") || "";
 
-
-let clinicData={
-bookings:[],
-doctors:[],
-services:[],
-settings:{},
-working_hours:[]
+let clinicData = {
+  bookings:[],
+  doctors:[],
+  services:[],
+  settings:{},
+  working_hours:[]
 };
 
-
-let managementData={
-posts:[],
-holidays:[],
-schedules:[]
+let managementData = {
+  posts:[],
+  holidays:[],
+  schedules:[]
 };
 
+let selectedMedia = null;
 
-const $=id=>document.getElementById(id);
-
-
-/* =========================================================
-   UTILITIES
-========================================================= */
+const $ = id => document.getElementById(id);
 
 
 function escapeHTML(value){
 
-return String(value??"").replace(
-/[&<>"']/g,
-c=>({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#039;"
-}[c])
-);
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    c => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[c])
+  );
 
 }
 
 
 function showToast(message){
 
-const toast=$("toast");
+  const toast = $("toast");
 
-toast.textContent=message;
+  toast.textContent = message;
 
-toast.classList.add("show");
+  toast.classList.add("show");
 
-clearTimeout(window.__azaadToastTimer);
-
-window.__azaadToastTimer=
-setTimeout(
-()=>toast.classList.remove("show"),
-3500
-);
+  setTimeout(
+    () => toast.classList.remove("show"),
+    3500
+  );
 
 }
 
 
-function localDateISO(){
+async function api(query, options={}){
 
-const d=new Date();
+  const headers = {
+    "Content-Type":"application/json"
+  };
 
-const year=d.getFullYear();
+  if(adminToken)
+    headers.Authorization =
+      "Bearer " + adminToken;
 
-const month=
-String(d.getMonth()+1).padStart(2,"0");
+  const response = await fetch(
+    API + query,
+    {
+      ...options,
+      headers,
+      cache:"no-store"
+    }
+  );
 
-const day=
-String(d.getDate()).padStart(2,"0");
+  let data = {};
 
-return `${year}-${month}-${day}`;
+  try{
+    data = await response.json();
+  }catch(_){}
 
-}
+  if(!response.ok){
 
+    throw new Error(
+      data.error ||
+      data.message ||
+      "حدث خطأ في الاتصال بالخادم."
+    );
 
-/* =========================================================
-   API
-========================================================= */
+  }
 
-
-async function api(query="",options={}){
-
-const headers={
-"Content-Type":"application/json"
-};
-
-if(adminToken){
-headers.Authorization=
-"Bearer "+adminToken;
-}
-
-const response=
-await fetch(
-API+query,
-{
-...options,
-headers,
-cache:"no-store"
-}
-);
-
-
-let data={};
-
-try{
-data=await response.json();
-}catch(_){}
-
-
-if(!response.ok){
-
-throw new Error(
-data.error||
-data.message||
-`حدث خطأ في الخادم (${response.status}).`
-);
+  return data;
 
 }
 
 
-return data;
+async function managementApi(query, options={}){
+
+  const headers = {
+    "Content-Type":"application/json"
+  };
+
+  if(adminToken)
+    headers.Authorization =
+      "Bearer " + adminToken;
+
+  const response = await fetch(
+    MANAGEMENT_API + query,
+    {
+      ...options,
+      headers,
+      cache:"no-store"
+    }
+  );
+
+  let data = {};
+
+  try{
+    data = await response.json();
+  }catch(_){}
+
+  if(!response.ok){
+
+    throw new Error(
+      data.error ||
+      data.message ||
+      "تعذر تنفيذ العملية."
+    );
+
+  }
+
+  return data;
 
 }
 
 
-async function managementApi(query="",options={}){
-
-const headers={
-"Content-Type":"application/json"
-};
-
-if(adminToken){
-headers.Authorization=
-"Bearer "+adminToken;
-}
-
-
-const response=
-await fetch(
-MANAGEMENT_API+query,
-{
-...options,
-headers,
-cache:"no-store"
-}
-);
-
-
-let data={};
-
-try{
-data=await response.json();
-}catch(_){}
-
-
-if(!response.ok){
-
-throw new Error(
-data.error||
-data.message||
-`تعذر تنفيذ العملية (${response.status}).`
-);
-
-}
-
-
-return data;
-
-}
-
-
-/* =========================================================
-   LOGIN
-========================================================= */
-
+/* LOGIN */
 
 $("loginForm").addEventListener(
-"submit",
-async event=>{
+  "submit",
+  async event => {
 
-event.preventDefault();
+    event.preventDefault();
 
-const username=
-$("username").value.trim();
+    const username =
+      $("username").value.trim();
 
-const password=
-$("password").value;
+    const password =
+      $("password").value;
 
-const loginBtn=$("loginBtn");
+    $("loginError").classList.add("hidden");
 
-$("loginError").classList.add("hidden");
+    try{
 
-loginBtn.disabled=true;
-loginBtn.textContent="جاري تسجيل الدخول...";
+      const result = await api(
+        "?api=login",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            username,
+            password
+          })
+        }
+      );
 
+      if(!result.token)
+        throw new Error(
+          "لم يتم إنشاء جلسة الإدارة."
+        );
 
-try{
+      adminToken = result.token;
 
-const result=
-await api(
-"?api=login",
-{
-method:"POST",
-body:JSON.stringify({
-username,
-password
-})
-}
+      sessionStorage.setItem(
+        "azaad_admin_token",
+        adminToken
+      );
+
+      await loadAll();
+
+    }catch(e){
+
+      $("loginError").textContent =
+        e.message;
+
+      $("loginError").classList.remove(
+        "hidden"
+      );
+
+    }
+
+  }
 );
 
 
-if(!result.token){
+$("logoutBtn").onclick = () => {
 
-throw new Error(
-"لم يتم إنشاء جلسة الإدارة."
-);
+  sessionStorage.removeItem(
+    "azaad_admin_token"
+  );
 
-}
+  adminToken = "";
 
-
-adminToken=result.token;
-
-sessionStorage.setItem(
-"azaad_admin_token",
-adminToken
-);
-
-
-await loadAll();
-
-
-}catch(e){
-
-$("loginError").textContent=
-e.message;
-
-$("loginError")
-.classList.remove("hidden");
-
-
-}finally{
-
-loginBtn.disabled=false;
-loginBtn.textContent=
-"تسجيل الدخول";
-
-}
-
-}
-);
-
-
-$("logoutBtn").onclick=()=>{
-
-sessionStorage.removeItem(
-"azaad_admin_token"
-);
-
-adminToken="";
-
-location.reload();
+  location.reload();
 
 };
 
 
-$("refreshBtn").onclick=loadAll;
-$("refreshBookings").onclick=loadAll;
+$("refreshBtn").onclick = loadAll;
+$("refreshBookings").onclick = loadAll;
 
 
-/*
-IMPORTANT:
-This button only opens the existing patient-facing
-website. It does not edit or modify the patient page.
-*/
+$("patientPageBtn").onclick = () => {
 
-$("patientPageBtn").onclick=()=>{
-
-window.open("./","_blank");
+  window.open("./","_blank");
 
 };
 
 
-/* =========================================================
-   LOAD ALL
-========================================================= */
-
+/* LOAD */
 
 async function loadAll(){
 
-$("refreshBtn").disabled=true;
+  try{
 
-try{
+    clinicData =
+      await api("?api=data");
 
-clinicData=
-await api("?api=data");
+    await loadManagement();
 
+    renderAdmin();
 
-await loadManagement();
+    $("loginPage")
+      .classList.add("hidden");
 
+    $("adminPage")
+      .classList.remove("hidden");
 
-renderAdmin();
+  }catch(e){
 
+    sessionStorage.removeItem(
+      "azaad_admin_token"
+    );
 
-$("loginPage")
-.classList.add("hidden");
+    adminToken = "";
 
-$("adminPage")
-.classList.remove("hidden");
+    $("loginPage")
+      .classList.remove("hidden");
 
+    $("adminPage")
+      .classList.add("hidden");
 
-}catch(e){
+    $("loginError").textContent =
+      e.message;
 
-console.error("Azaad admin:",e);
+    $("loginError")
+      .classList.remove("hidden");
 
-
-sessionStorage.removeItem(
-"azaad_admin_token"
-);
-
-adminToken="";
-
-
-$("loginPage")
-.classList.remove("hidden");
-
-$("adminPage")
-.classList.add("hidden");
-
-
-$("loginError").textContent=
-e.message;
-
-$("loginError")
-.classList.remove("hidden");
-
-
-}finally{
-
-$("refreshBtn").disabled=false;
-
-}
+  }
 
 }
 
 
 async function loadManagement(){
 
-try{
+  try{
 
-const result=
-await managementApi("?api=data");
+    const result =
+      await managementApi(
+        "?api=data"
+      );
 
+    managementData = {
+      posts:result.posts || [],
+      holidays:result.holidays || [],
+      schedules:result.schedules || []
+    };
 
-managementData={
-posts:result.posts||[],
-holidays:result.holidays||[],
-schedules:result.schedules||[]
-};
+  }catch(e){
 
+    console.warn(e);
 
-}catch(e){
+    managementData = {
+      posts:[],
+      holidays:[],
+      schedules:[]
+    };
 
-console.warn(
-"Management API:",
-e.message
-);
-
-
-/*
-Management data is isolated.
-If it fails, the existing booking/admin
-system remains available.
-*/
-
-managementData={
-posts:[],
-holidays:[],
-schedules:[]
-};
-
-}
+  }
 
 }
 
 
-/* =========================================================
-   RENDER ADMIN
-========================================================= */
-
+/* RENDER */
 
 function renderAdmin(){
 
-const bookings=
-clinicData.bookings||[];
+  const bookings =
+    clinicData.bookings || [];
 
+  $("totalCount").textContent =
+    bookings.length;
 
-$("totalCount").textContent=
-bookings.length;
+  $("pendingCount").textContent =
+    bookings.filter(
+      b => b.status === "pending"
+    ).length;
 
+  $("confirmedCount").textContent =
+    bookings.filter(
+      b => b.status === "confirmed"
+    ).length;
 
-$("pendingCount").textContent=
-bookings.filter(
-b=>b.status==="pending"
-).length;
+  const today =
+    new Date()
+      .toISOString()
+      .slice(0,10);
 
+  $("todayCount").textContent =
+    bookings.filter(
+      b =>
+        b.appointment_date === today &&
+        b.status !== "cancelled"
+    ).length;
 
-$("confirmedCount").textContent=
-bookings.filter(
-b=>b.status==="confirmed"
-).length;
-
-
-const today=
-localDateISO();
-
-
-$("todayCount").textContent=
-bookings.filter(
-b=>
-b.appointment_date===today &&
-b.status!=="cancelled"
-).length;
-
-
-renderBookings();
-
-renderDoctors();
-
-renderServices();
-
-renderScheduleDoctorList();
-
-renderPosts();
-
-renderHolidays();
-
-renderHours();
-
-renderSettings();
+  renderBookings();
+  renderDoctors();
+  renderServices();
+  renderScheduleDoctorList();
+  renderPosts();
+  renderHolidays();
+  renderHours();
+  renderSettings();
 
 }
 
 
-/* =========================================================
-   TABS
-========================================================= */
+/* TABS */
+
+document
+  .querySelectorAll(".tab")
+  .forEach(tab => {
+
+    tab.onclick = () => {
+
+      document
+        .querySelectorAll(".tab")
+        .forEach(
+          x => x.classList.remove("active")
+        );
+
+      document
+        .querySelectorAll(".panel")
+        .forEach(
+          x => x.classList.remove("active")
+        );
+
+      tab.classList.add("active");
+
+      $(tab.dataset.panel)
+        .classList.add("active");
+
+    };
+
+  });
 
 
-document.querySelectorAll(".tab")
-.forEach(tab=>{
-
-tab.onclick=()=>{
-
-document.querySelectorAll(".tab")
-.forEach(
-x=>x.classList.remove("active")
-);
-
-
-document.querySelectorAll(".panel")
-.forEach(
-x=>x.classList.remove("active")
-);
-
-
-tab.classList.add("active");
-
-
-$(tab.dataset.panel)
-.classList.add("active");
-
-};
-
-});
-
-
-/* =========================================================
-   BOOKINGS
-========================================================= */
-
+/* BOOKINGS */
 
 function doctorName(id){
 
-const doctor=
-(clinicData.doctors||[])
-.find(d=>String(d.id)===String(id));
+  const doctor =
+    (clinicData.doctors || [])
+      .find(d => d.id === id);
 
-return doctor?
-doctor.name:
-"—";
+  return doctor
+    ? doctor.name
+    : "—";
 
 }
 
 
 function serviceName(id){
 
-const service=
-(clinicData.services||[])
-.find(s=>String(s.id)===String(id));
+  const service =
+    (clinicData.services || [])
+      .find(s => s.id === id);
 
-return service?
-service.name:
-"—";
+  return service
+    ? service.name
+    : "—";
 
 }
 
 
 function statusText(status){
 
-return {
-
-pending:"قيد المراجعة",
-
-confirmed:"مؤكد",
-
-cancelled:"ملغي",
-
-completed:"مكتمل"
-
-}[status]||status||"—";
+  return {
+    pending:"قيد المراجعة",
+    confirmed:"مؤكد",
+    cancelled:"ملغي",
+    completed:"مكتمل"
+  }[status] || status;
 
 }
 
 
 function statusClass(status){
 
-return {
-
-pending:"badge-pending",
-
-confirmed:"badge-confirmed",
-
-cancelled:"badge-cancelled",
-
-completed:"badge-completed"
-
-}[status]||"";
+  return {
+    pending:"badge-pending",
+    confirmed:"badge-confirmed",
+    cancelled:"badge-cancelled",
+    completed:"badge-completed"
+  }[status] || "";
 
 }
 
 
 function renderBookings(){
 
-const container=
-$("bookingsTable");
+  const container =
+    $("bookingsTable");
+
+  const search =
+    ($("bookingSearch")?.value || "")
+      .toLowerCase();
+
+  const status =
+    $("bookingStatus")?.value || "";
+
+  const rows =
+    (clinicData.bookings || [])
+      .filter(b => {
+
+        const text = [
+          b.booking_code,
+          b.patient_name,
+          b.patient_phone
+        ].join(" ").toLowerCase();
+
+        return (
+          (!search ||
+            text.includes(search)) &&
+          (!status ||
+            b.status === status)
+        );
+
+      });
+
+  if(!rows.length){
+
+    container.innerHTML =
+      '<div class="empty">لا توجد حجوزات مطابقة.</div>';
+
+    return;
+
+  }
+
+  container.innerHTML = `
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>رقم الحجز</th>
+            <th>المريض</th>
+            <th>الطبيب</th>
+            <th>الخدمة</th>
+            <th>التاريخ</th>
+            <th>الوقت</th>
+            <th>الحالة</th>
+            <th>تحديث</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${rows.map(b => `
+
+            <tr>
+
+              <td>
+                <strong>
+                  ${escapeHTML(b.booking_code)}
+                </strong>
+              </td>
+
+              <td>
+                ${escapeHTML(b.patient_name)}
+                <br>
+                <span class="muted">
+                  ${escapeHTML(b.patient_phone)}
+                </span>
+              </td>
+
+              <td>
+                ${escapeHTML(
+                  doctorName(b.doctor_id)
+                )}
+              </td>
+
+              <td>
+                ${escapeHTML(
+                  serviceName(b.service_id)
+                )}
+              </td>
+
+              <td>
+                ${escapeHTML(
+                  b.appointment_date
+                )}
+              </td>
+
+              <td>
+                ${escapeHTML(
+                  String(
+                    b.appointment_time || ""
+                  ).slice(0,5)
+                )}
+              </td>
+
+              <td>
+
+                <span class="badge ${
+                  statusClass(b.status)
+                }">
+
+                  ${escapeHTML(
+                    statusText(b.status)
+                  )}
+
+                </span>
+
+              </td>
+
+              <td>
+
+                <select
+                  data-booking-id="${escapeHTML(
+                    b.id
+                  )}">
+
+                  <option
+                    value="pending"
+                    ${b.status==="pending"?"selected":""}>
+                    قيد المراجعة
+                  </option>
+
+                  <option
+                    value="confirmed"
+                    ${b.status==="confirmed"?"selected":""}>
+                    مؤكد
+                  </option>
+
+                  <option
+                    value="cancelled"
+                    ${b.status==="cancelled"?"selected":""}>
+                    ملغي
+                  </option>
+
+                  <option
+                    value="completed"
+                    ${b.status==="completed"?"selected":""}>
+                    مكتمل
+                  </option>
+
+                </select>
+
+              </td>
+
+            </tr>
+
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    </div>
+  `;
 
 
-const search=
-(
-$("bookingSearch")?.value||""
-)
-.trim()
-.toLowerCase();
+  container
+    .querySelectorAll("[data-booking-id]")
+    .forEach(select => {
 
+      select.onchange = async () => {
 
-const status=
-$("bookingStatus")?.value||"";
+        try{
 
+          await api(
+            "?api=booking&id=" +
+            encodeURIComponent(
+              select.dataset.bookingId
+            ),
+            {
+              method:"PATCH",
+              body:JSON.stringify({
+                status:select.value
+              })
+            }
+          );
 
-const rows=
-(clinicData.bookings||[])
-.filter(b=>{
+          await loadAll();
 
-const text=[
-b.booking_code,
-b.patient_name,
-b.patient_phone,
-b.id
-]
-.join(" ")
-.toLowerCase();
+          showToast(
+            "تم تحديث حالة الحجز."
+          );
 
+        }catch(e){
 
-return(
-(!search||text.includes(search))&&
-(!status||b.status===status)
-);
+          showToast(e.message);
 
-});
+        }
 
+      };
 
-if(!rows.length){
-
-container.innerHTML=
-'<div class="empty">لا توجد حجوزات مطابقة.</div>';
-
-return;
+    });
 
 }
 
 
-container.innerHTML=`
+$("bookingSearch").addEventListener(
+  "input",
+  renderBookings
+);
 
-<div class="table-wrap">
-
-<table>
-
-<thead>
-
-<tr>
-
-<th>رقم الحجز</th>
-<th>المريض</th>
-<th>الطبيب</th>
-<th>الخدمة</th>
-<th>التاريخ</th>
-<th>الوقت</th>
-<th>الحالة</th>
-<th>تحديث</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-${rows.map(b=>`
-
-<tr>
-
-<td>
-<strong>
-${escapeHTML(b.booking_code||b.id||"—")}
-</strong>
-</td>
-
-<td>
-
-${escapeHTML(b.patient_name||"—")}
-
-<br>
-
-<span class="muted">
-${escapeHTML(b.patient_phone||"—")}
-</span>
-
-</td>
-
-<td>
-${escapeHTML(
-doctorName(b.doctor_id)
-)}
-</td>
-
-<td>
-${escapeHTML(
-serviceName(b.service_id)
-)}
-</td>
-
-<td>
-${escapeHTML(
-b.appointment_date||"—"
-)}
-</td>
-
-<td>
-${escapeHTML(
-String(b.appointment_time||"")
-.slice(0,5)
-)}
-</td>
-
-<td>
-
-<span class="badge ${statusClass(b.status)}">
-
-${escapeHTML(
-statusText(b.status)
-)}
-
-</span>
-
-</td>
-
-<td>
-
-<select
-data-booking-id="${escapeHTML(b.id)}">
-
-<option
-value="pending"
-${b.status==="pending"?"selected":""}>
-قيد المراجعة
-</option>
-
-<option
-value="confirmed"
-${b.status==="confirmed"?"selected":""}>
-مؤكد
-</option>
-
-<option
-value="cancelled"
-${b.status==="cancelled"?"selected":""}>
-ملغي
-</option>
-
-<option
-value="completed"
-${b.status==="completed"?"selected":""}>
-مكتمل
-</option>
-
-</select>
-
-</td>
-
-</tr>
-
-`).join("")}
-
-</tbody>
-
-</table>
-
-</div>
-`;
-
-
-container
-.querySelectorAll("[data-booking-id]")
-.forEach(select=>{
-
-select.onchange=
-async()=>{
-
-const original=
-select.dataset.original||
-select.value;
-
-
-try{
-
-select.disabled=true;
-
-
-await api(
-"?api=booking&id="+
-encodeURIComponent(
-select.dataset.bookingId
-),
-{
-method:"PATCH",
-body:JSON.stringify({
-status:select.value
-})
-}
+$("bookingStatus").addEventListener(
+  "change",
+  renderBookings
 );
 
 
-await loadAll();
-
-
-showToast(
-"تم تحديث حالة الحجز بنجاح."
-);
-
-
-}catch(e){
-
-select.value=original;
-
-showToast(e.message);
-
-
-}finally{
-
-select.disabled=false;
-
-}
-
-};
-
-});
-
-}
-
-
-$("bookingSearch")
-.addEventListener(
-"input",
-renderBookings
-);
-
-
-$("bookingStatus")
-.addEventListener(
-"change",
-renderBookings
-);
-
-
-/* =========================================================
-   DOCTORS
-========================================================= */
-
+/* DOCTORS */
 
 function renderDoctors(){
 
-const box=
-$("doctorsList");
+  const box =
+    $("doctorsList");
 
+  if(!(clinicData.doctors || []).length){
 
-if(!(clinicData.doctors||[]).length){
+    box.innerHTML =
+      '<div class="empty">لا يوجد أطباء.</div>';
 
-box.innerHTML=
-'<div class="empty">لا يوجد أطباء.</div>';
+    return;
 
-return;
+  }
 
-}
+  box.innerHTML =
+    clinicData.doctors
+      .map(d => `
 
+        <div class="item">
 
-box.innerHTML=
-clinicData.doctors
-.map(d=>`
+          <div class="doctor-row">
 
-<div class="item">
+            ${
+              d.image_url
+              ?
+              `<img
+                class="doctor-photo"
+                src="${escapeHTML(d.image_url)}"
+                alt="">`
+              :
+              `<div
+                class="doctor-photo"
+                style="
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  background:#f1f3f8">
+                👨‍⚕️
+              </div>`
+            }
 
-<div class="doctor-row">
+            <div>
 
-${
-d.image_url
-?
-`
-<img
-class="doctor-photo"
-src="${escapeHTML(d.image_url)}"
-alt=""
-onerror="this.style.display='none'"
->
-`
-:
-`
-<div
-class="doctor-photo"
-style="
-display:flex;
-align-items:center;
-justify-content:center;
-background:#f1f3f8
-">
-👨‍⚕️
-</div>
-`
-}
+              <strong>
+                ${escapeHTML(d.name)}
+              </strong>
 
-<div>
+              <div class="muted">
+                ${escapeHTML(d.title || "")}
+              </div>
 
-<strong>
-${escapeHTML(d.name||"")}
-</strong>
+              <div class="muted"
+                   style="margin-top:5px">
 
-<div class="muted">
-${escapeHTML(d.title||"")}
-</div>
+                ${d.active
+                  ? "نشط"
+                  : "غير نشط"}
 
-<div
-class="muted"
-style="margin-top:5px">
+              </div>
 
-${d.active!==false?
-"نشط":
-"غير نشط"}
+            </div>
 
-</div>
+          </div>
 
-</div>
+          <div class="item-actions">
 
-</div>
+            <button
+              class="btn btn-secondary"
+              onclick="editDoctor('${d.id}')">
+              تعديل / صورة
+            </button>
 
-<div class="item-actions">
+            <button
+              class="btn btn-gold"
+              onclick="openDoctorSchedule('${d.id}')">
+              جدول المواعيد
+            </button>
 
-<button
-class="btn btn-secondary"
-onclick="editDoctor('${escapeHTML(d.id)}')">
-تعديل / صورة
-</button>
+            ${
+              d.active
+              ?
+              `<button
+                class="btn btn-danger"
+                onclick="disableDoctor('${d.id}')">
+                تعطيل
+              </button>`
+              :
+              ""
+            }
 
-<button
-class="btn btn-gold"
-onclick="openDoctorSchedule('${escapeHTML(d.id)}')">
-جدول المواعيد
-</button>
+          </div>
 
-${
-d.active!==false
-?
-`
-<button
-class="btn btn-danger"
-onclick="disableDoctor('${escapeHTML(d.id)}')">
-تعطيل
-</button>
-`
-:
-""
-}
+        </div>
 
-</div>
-
-</div>
-
-`).join("");
+      `)
+      .join("");
 
 }
 
 
-$("addDoctorBtn").onclick=
-()=>editDoctor(null);
+$("addDoctorBtn").onclick =
+  () => editDoctor(null);
 
 
 async function disableDoctor(id){
 
-if(!confirm(
-"هل تريد تعطيل هذا الطبيب؟"
-))
-return;
+  if(!confirm(
+    "هل تريد تعطيل هذا الطبيب؟"
+  ))
+    return;
 
+  try{
 
-try{
+    await api(
+      "?api=doctor&id=" +
+      encodeURIComponent(id),
+      {method:"DELETE"}
+    );
 
-await api(
-"?api=doctor&id="+
-encodeURIComponent(id),
-{
-method:"DELETE"
-}
-);
+    await loadAll();
 
+    showToast(
+      "تم تعطيل الطبيب."
+    );
 
-await loadAll();
+  }catch(e){
 
+    showToast(e.message);
 
-showToast(
-"تم تعطيل الطبيب."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
+  }
 
 }
 
 
 function editDoctor(id){
 
-const doctor=
-id
-?
-clinicData.doctors.find(
-d=>String(d.id)===String(id)
-)
-:
-null;
+  const doctor =
+    id
+    ?
+    clinicData.doctors.find(
+      d => d.id === id
+    )
+    :
+    null;
+
+  $("modalTitle").textContent =
+    doctor
+    ?
+    "تعديل الطبيب"
+    :
+    "إضافة طبيب";
+
+  $("modalContent").innerHTML = `
+
+    <form id="doctorForm">
+
+      <div class="grid">
+
+        <label>
+          اسم الطبيب
+
+          <input
+            name="name"
+            required
+            value="${escapeHTML(
+              doctor?.name || ""
+            )}">
+
+        </label>
+
+        <label>
+          المسمى الوظيفي
+
+          <input
+            name="title"
+            value="${escapeHTML(
+              doctor?.title || ""
+            )}">
+
+        </label>
+
+        <label class="full">
+
+          نبذة
+
+          <textarea
+            name="bio">${escapeHTML(
+              doctor?.bio || ""
+            )}</textarea>
+
+        </label>
+
+        <label class="full">
+
+          رابط صورة الطبيب
+
+          <input
+            name="image_url"
+            value="${escapeHTML(
+              doctor?.image_url || ""
+            )}"
+            placeholder="https://...">
+
+        </label>
+
+        <label>
+
+          الترتيب
+
+          <input
+            name="sort_order"
+            type="number"
+            value="${Number(
+              doctor?.sort_order || 0
+            )}">
+
+        </label>
+
+        <label class="switch">
+
+          <input
+            id="doctorActive"
+            type="checkbox"
+            ${doctor?.active!==false
+              ?"checked"
+              :
+              ""}>
+
+          الطبيب نشط
+
+        </label>
+
+      </div>
+
+      <div class="modal-actions">
+
+        <button
+          class="btn btn-primary"
+          type="submit">
+          حفظ الطبيب
+        </button>
+
+      </div>
+
+    </form>
+  `;
 
 
-$("modalTitle").textContent=
-doctor
-?
-"تعديل الطبيب"
-:
-"إضافة طبيب";
+  $("doctorForm").onsubmit =
+    async event => {
 
+      event.preventDefault();
 
-$("modalContent").innerHTML=`
+      const form =
+        new FormData(
+          event.currentTarget
+        );
 
-<form id="doctorForm">
+      const payload =
+        Object.fromEntries(
+          form.entries()
+        );
 
-<div class="grid">
+      payload.active =
+        $("doctorActive").checked;
 
-<label>
+      try{
 
-اسم الطبيب
+        await api(
+          doctor
+          ?
+          "?api=doctor&id=" +
+          encodeURIComponent(
+            doctor.id
+          )
+          :
+          "?api=doctor",
+          {
+            method:
+              doctor
+              ?
+              "PUT"
+              :
+              "POST",
 
-<input
-name="name"
-required
-value="${escapeHTML(
-doctor?.name||""
-)}">
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
 
-</label>
+        closeModal();
 
+        await loadAll();
 
-<label>
+        showToast(
+          "تم حفظ الطبيب."
+        );
 
-المسمى الوظيفي
+      }catch(e){
 
-<input
-name="title"
-value="${escapeHTML(
-doctor?.title||""
-)}">
+        showToast(e.message);
 
-</label>
+      }
 
+    };
 
-<label class="full">
-
-نبذة
-
-<textarea
-name="bio">${escapeHTML(
-doctor?.bio||""
-)}</textarea>
-
-</label>
-
-
-<label class="full">
-
-رابط صورة الطبيب
-
-<input
-id="doctorImageUrl"
-name="image_url"
-placeholder="https://..."
-value="${escapeHTML(
-doctor?.image_url||""
-)}"
->
-
-<div class="small-note">
-يمكن استخدام رابط صورة مباشر.
-</div>
-
-${
-doctor?.image_url
-?
-`
-<img
-id="doctorPreview"
-class="preview"
-src="${escapeHTML(
-doctor.image_url
-)}"
-alt="صورة الطبيب"
-onerror="
-this.style.display='none'
-">
-`
-:
-`
-<img
-id="doctorPreview"
-class="preview hidden"
-alt="معاينة">
-`
-}
-
-</label>
-
-
-<label>
-
-الترتيب
-
-<input
-name="sort_order"
-type="number"
-value="${Number(
-doctor?.sort_order||0
-)}">
-
-</label>
-
-
-<label class="switch">
-
-<input
-id="doctorActive"
-type="checkbox"
-${doctor?.active!==false?"checked":""}>
-
-الطبيب نشط
-
-</label>
-
-</div>
-
-
-<div class="modal-actions">
-
-<button
-class="btn btn-primary"
-type="submit">
-حفظ الطبيب
-</button>
-
-${
-doctor
-?
-`
-<button
-type="button"
-class="btn btn-gold"
-id="doctorScheduleFromModal">
-جدول المواعيد
-</button>
-`
-:
-""
-}
-
-</div>
-
-</form>
-`;
-
-
-$("doctorImageUrl")
-.addEventListener(
-"input",
-()=>{
-
-const img=
-$("doctorPreview");
-
-const url=
-$("doctorImageUrl")
-.value.trim();
-
-
-if(url){
-
-img.src=url;
-
-img.classList.remove(
-"hidden"
-);
-
-}else{
-
-img.classList.add(
-"hidden"
-);
-
-}
-
-}
-);
-
-
-if(doctor){
-
-$("doctorScheduleFromModal")
-.onclick=
-()=>openDoctorSchedule(
-doctor.id
-);
+  openModal();
 
 }
 
 
-$("doctorForm").onsubmit=
-async event=>{
-
-event.preventDefault();
-
-
-const form=
-new FormData(
-event.currentTarget
-);
-
-
-const payload=
-Object.fromEntries(
-form.entries()
-);
-
-
-payload.active=
-$("doctorActive").checked;
-
-
-try{
-
-await api(
-doctor
-?
-"?api=doctor&id="+
-encodeURIComponent(doctor.id)
-:
-"?api=doctor",
-{
-method:
-doctor
-?
-"PUT"
-:
-"POST",
-body:JSON.stringify(payload)
-}
-);
-
-
-closeModal();
-
-await loadAll();
-
-
-showToast(
-"تم حفظ الطبيب بنجاح."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
-
-};
-
-
-openModal();
-
-}
-
-
-/* =========================================================
-   SERVICES
-========================================================= */
-
+/* SERVICES */
 
 function renderServices(){
 
-const box=
-$("servicesList");
+  const box =
+    $("servicesList");
 
+  if(!(clinicData.services || []).length){
 
-if(!(clinicData.services||[]).length){
+    box.innerHTML =
+      '<div class="empty">لا توجد خدمات.</div>';
 
-box.innerHTML=
-'<div class="empty">لا توجد خدمات.</div>';
+    return;
 
-return;
+  }
 
-}
+  box.innerHTML =
+    clinicData.services
+      .map(s => `
 
+        <div class="item">
 
-box.innerHTML=
-clinicData.services
-.map(s=>`
+          <div>
 
-<div class="item">
+            <strong>
+              ${escapeHTML(s.name)}
+            </strong>
 
-<div>
+            <div class="muted">
+              المدة:
+              ${Number(
+                s.duration_minutes || 30
+              )}
+              دقيقة
+            </div>
 
-<strong>
-${escapeHTML(s.name||"")}
-</strong>
+            <div class="muted">
+              ${s.active
+                ?"نشطة"
+                :
+                "غير نشطة"}
+            </div>
 
-<div class="muted">
-المدة:
-${Number(
-s.duration_minutes||30
-)}
-دقيقة
-</div>
+          </div>
 
-${
-s.price!==null &&
-s.price!==undefined &&
-s.price!==""
-?
-`
-<div class="muted">
-السعر:
-${escapeHTML(s.price)}
-</div>
-`
-:
-""
-}
+          <div class="item-actions">
 
-<div class="muted">
-${s.active!==false?
-"نشطة":
-"غير نشطة"}
-</div>
+            <button
+              class="btn btn-secondary"
+              onclick="editService('${s.id}')">
+              تعديل
+            </button>
 
-</div>
+            ${
+              s.active
+              ?
+              `<button
+                class="btn btn-danger"
+                onclick="disableService('${s.id}')">
+                تعطيل
+              </button>`
+              :
+              ""
+            }
 
-<div class="item-actions">
+          </div>
 
-<button
-class="btn btn-secondary"
-onclick="editService('${escapeHTML(s.id)}')">
-تعديل
-</button>
+        </div>
 
-${
-s.active!==false
-?
-`
-<button
-class="btn btn-danger"
-onclick="disableService('${escapeHTML(s.id)}')">
-تعطيل
-</button>
-`
-:
-""
-}
-
-</div>
-
-</div>
-
-`).join("");
+      `)
+      .join("");
 
 }
 
 
-$("addServiceBtn").onclick=
-()=>editService(null);
+$("addServiceBtn").onclick =
+  () => editService(null);
 
 
 async function disableService(id){
 
-if(!confirm(
-"هل تريد تعطيل هذه الخدمة؟"
-))
-return;
+  if(!confirm(
+    "هل تريد تعطيل هذه الخدمة؟"
+  ))
+    return;
 
+  try{
 
-try{
+    await api(
+      "?api=service&id=" +
+      encodeURIComponent(id),
+      {method:"DELETE"}
+    );
 
-await api(
-"?api=service&id="+
-encodeURIComponent(id),
-{
-method:"DELETE"
-}
-);
+    await loadAll();
 
+    showToast(
+      "تم تعطيل الخدمة."
+    );
 
-await loadAll();
+  }catch(e){
 
+    showToast(e.message);
 
-showToast(
-"تم تعطيل الخدمة."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
+  }
 
 }
 
 
 function editService(id){
 
-const service=
-id
-?
-clinicData.services.find(
-s=>String(s.id)===String(id)
-)
-:
-null;
+  const service =
+    id
+    ?
+    clinicData.services.find(
+      s => s.id === id
+    )
+    :
+    null;
 
+  $("modalTitle").textContent =
+    service
+    ?
+    "تعديل الخدمة"
+    :
+    "إضافة خدمة";
 
-$("modalTitle").textContent=
-service
-?
-"تعديل الخدمة"
-:
-"إضافة خدمة";
+  $("modalContent").innerHTML = `
 
+    <form id="serviceForm">
 
-$("modalContent").innerHTML=`
+      <div class="grid">
 
-<form id="serviceForm">
+        <label class="full">
 
-<div class="grid">
+          اسم الخدمة
 
-<label class="full">
+          <input
+            name="name"
+            required
+            value="${escapeHTML(
+              service?.name || ""
+            )}">
 
-اسم الخدمة
+        </label>
 
-<input
-name="name"
-required
-value="${escapeHTML(
-service?.name||""
-)}">
+        <label class="full">
 
-</label>
+          الوصف
 
+          <textarea
+            name="description">${escapeHTML(
+              service?.description || ""
+            )}</textarea>
 
-<label class="full">
+        </label>
 
-الوصف
+        <label>
 
-<textarea
-name="description">${escapeHTML(
-service?.description||""
-)}</textarea>
+          مدة الخدمة بالدقائق
 
-</label>
+          <input
+            name="duration_minutes"
+            type="number"
+            min="1"
+            value="${Number(
+              service?.duration_minutes || 30
+            )}">
 
+        </label>
 
-<label>
+        <label>
 
-مدة الخدمة بالدقائق
+          السعر
 
-<input
-name="duration_minutes"
-type="number"
-min="1"
-value="${Number(
-service?.duration_minutes||30
-)}">
+          <input
+            name="price"
+            type="number"
+            min="0"
+            value="${service?.price ?? ""}">
 
-</label>
+        </label>
 
+        <label>
 
-<label>
+          الترتيب
 
-السعر
+          <input
+            name="sort_order"
+            type="number"
+            value="${Number(
+              service?.sort_order || 0
+            )}">
 
-<input
-name="price"
-type="number"
-min="0"
-step="0.01"
-value="${service?.price??""}">
+        </label>
 
-</label>
+        <label class="switch">
 
+          <input
+            id="serviceActive"
+            type="checkbox"
+            ${service?.active!==false
+              ?"checked"
+              :
+              ""}>
 
-<label>
+          الخدمة نشطة
 
-الترتيب
+        </label>
 
-<input
-name="sort_order"
-type="number"
-value="${Number(
-service?.sort_order||0
-)}">
+      </div>
 
-</label>
+      <div class="modal-actions">
 
+        <button
+          class="btn btn-primary"
+          type="submit">
+          حفظ
+        </button>
 
-<label class="switch">
+      </div>
 
-<input
-id="serviceActive"
-type="checkbox"
-${service?.active!==false?"checked":""}>
+    </form>
+  `;
 
-الخدمة نشطة
 
-</label>
+  $("serviceForm").onsubmit =
+    async event => {
 
-</div>
+      event.preventDefault();
 
+      const form =
+        new FormData(
+          event.currentTarget
+        );
 
-<div class="modal-actions">
+      const payload =
+        Object.fromEntries(
+          form.entries()
+        );
 
-<button
-class="btn btn-primary"
-type="submit">
-حفظ
-</button>
+      payload.active =
+        $("serviceActive").checked;
 
-</div>
+      try{
 
-</form>
-`;
+        await api(
+          service
+          ?
+          "?api=service&id=" +
+          encodeURIComponent(
+            service.id
+          )
+          :
+          "?api=service",
+          {
+            method:
+              service
+              ?
+              "PUT"
+              :
+              "POST",
 
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
 
-$("serviceForm").onsubmit=
-async event=>{
+        closeModal();
 
-event.preventDefault();
+        await loadAll();
 
+        showToast(
+          "تم حفظ الخدمة."
+        );
 
-const form=
-new FormData(
-event.currentTarget
-);
+      }catch(e){
 
+        showToast(e.message);
 
-const payload=
-Object.fromEntries(
-form.entries()
-);
+      }
 
+    };
 
-payload.active=
-$("serviceActive").checked;
-
-
-try{
-
-await api(
-service
-?
-"?api=service&id="+
-encodeURIComponent(service.id)
-:
-"?api=service",
-{
-method:
-service
-?
-"PUT"
-:
-"POST",
-body:JSON.stringify(payload)
-}
-);
-
-
-closeModal();
-
-await loadAll();
-
-
-showToast(
-"تم حفظ الخدمة بنجاح."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
-
-};
-
-
-openModal();
+  openModal();
 
 }
 
 
-/* =========================================================
-   DOCTOR SCHEDULE
-========================================================= */
+/* SCHEDULE */
+
+const weekDays = [
+  "الأحد",
+  "الاثنين",
+  "الثلاثاء",
+  "الأربعاء",
+  "الخميس",
+  "الجمعة",
+  "السبت"
+];
 
 
 function renderScheduleDoctorList(){
 
-const select=
-$("scheduleDoctor");
+  const select =
+    $("scheduleDoctor");
 
+  const current =
+    select.value;
 
-const current=
-select.value;
+  select.innerHTML =
+    '<option value="">اختر الطبيب</option>' +
 
+    (clinicData.doctors || [])
+      .filter(
+        d => d.active !== false
+      )
+      .map(
+        d =>
+          `<option value="${escapeHTML(
+            d.id
+          )}">
+            ${escapeHTML(d.name)}
+          </option>`
+      )
+      .join("");
 
-select.innerHTML=
-`
-<option value="">
-اختر الطبيب
-</option>
-`
-+
-(clinicData.doctors||[])
-.filter(
-d=>d.active!==false
-)
-.map(d=>
-`
-<option
-value="${escapeHTML(d.id)}">
-${escapeHTML(d.name)}
-</option>
-`
-)
-.join("");
-
-
-if(current)
-select.value=current;
+  if(current)
+    select.value = current;
 
 }
 
 
-$("scheduleDoctor")
-.addEventListener(
-"change",
-()=>{
+$("scheduleDoctor").addEventListener(
+  "change",
+  () => {
 
-const id=
-$("scheduleDoctor").value;
+    const id =
+      $("scheduleDoctor").value;
 
+    if(id)
+      loadDoctorSchedule(id);
+    else
+      $("scheduleEditor").innerHTML =
+        '<div class="empty">اختر طبيبًا لعرض جدول مواعيده.</div>';
 
-if(id){
-
-loadDoctorSchedule(id);
-
-}else{
-
-$("scheduleEditor").innerHTML=
-`
-<div class="empty">
-اختر طبيبًا لعرض جدول مواعيده.
-</div>
-`;
-
-}
-
-}
+  }
 );
 
 
 function openDoctorSchedule(id){
 
-document.querySelectorAll(".tab")
-.forEach(x=>{
+  document
+    .querySelectorAll(".tab")
+    .forEach(x => {
 
-if(
-x.dataset.panel===
-"schedulePanel"
-){
+      if(
+        x.dataset.panel ===
+        "schedulePanel"
+      )
+        x.click();
 
-x.click();
+    });
+
+  $("scheduleDoctor").value = id;
+
+  loadDoctorSchedule(id);
 
 }
 
-});
 
+function getDaySchedule(
+  schedule,
+  weekday
+){
 
-$("scheduleDoctor").value=id;
+  return schedule.find(
+    x =>
+      Number(x.weekday) ===
+      weekday
+  ) || {
 
-loadDoctorSchedule(id);
+    weekday,
+
+    enabled:false,
+
+    start_time:"09:00",
+
+    end_time:"17:00",
+
+    break_start:"",
+
+    break_end:""
+
+  };
 
 }
 
 
 async function loadDoctorSchedule(id){
 
-$("scheduleEditor").innerHTML=
-`
-<div class="loading">
-جاري تحميل جدول الطبيب...
-</div>
-`;
+  $("scheduleEditor").innerHTML =
+    '<div class="empty">جاري تحميل جدول الطبيب...</div>';
 
+  try{
 
-try{
+    const result =
+      await managementApi(
+        "?api=schedule&doctor_id=" +
+        encodeURIComponent(id)
+      );
 
-const result=
-await managementApi(
-"?api=schedule&doctor_id="+
-encodeURIComponent(id)
-);
+    renderDoctorSchedule(
+      id,
+      result.schedule || [],
+      result.settings || {}
+    );
 
+  }catch(e){
 
-const schedule=
-result.schedule||[];
+    $("scheduleEditor").innerHTML =
+      `<div class="error">
+        ${escapeHTML(e.message)}
+      </div>`;
 
-const settings=
-result.settings||{};
-
-
-renderDoctorSchedule(
-id,
-schedule,
-settings
-);
-
-
-}catch(e){
-
-$("scheduleEditor").innerHTML=
-`
-<div class="error">
-${escapeHTML(e.message)}
-</div>
-`;
-
-}
-
-}
-
-
-const weekDays=[
-"الأحد",
-"الاثنين",
-"الثلاثاء",
-"الأربعاء",
-"الخميس",
-"الجمعة",
-"السبت"
-];
-
-
-function getDaySchedule(
-schedule,
-weekday
-){
-
-return schedule.find(
-x=>Number(x.weekday)===weekday
-)
-||
-{
-weekday,
-enabled:false,
-start_time:"09:00",
-end_time:"17:00",
-break_start:"",
-break_end:"",
-appointment_minutes:30,
-buffer_minutes:0,
-max_daily_bookings:""
-};
+  }
 
 }
 
 
 function renderDoctorSchedule(
-doctorId,
-schedule,
-settings
+  doctorId,
+  schedule,
+  settings
 ){
 
-const doctor=
-clinicData.doctors.find(
-d=>String(d.id)===String(doctorId)
-);
+  const doctor =
+    clinicData.doctors.find(
+      d => d.id === doctorId
+    );
 
+  $("scheduleEditor").innerHTML = `
 
-$("scheduleEditor").innerHTML=`
+    <div class="card"
+         style="background:#f9fafc">
 
-<div
-class="card"
-style="background:#f9fafc">
+      <h3>
+        جدول ${escapeHTML(
+          doctor?.name || "الطبيب"
+        )}
+      </h3>
 
-<h3>
-جدول
-${escapeHTML(
-doctor?.name||"الطبيب"
-)}
-</h3>
+      <div class="grid">
 
+        <label>
 
-<div class="grid">
+          مدة الموعد
 
-<label>
+          <select
+            id="doctorAppointmentMinutes">
 
-مدة الموعد بالدقائق
+            ${[15,20,30,45,60]
+              .map(
+                n =>
+                `<option value="${n}">
+                  ${n} دقيقة
+                </option>`
+              )
+              .join("")}
 
-<select
-id="doctorAppointmentMinutes">
+          </select>
 
-<option value="15">
-15 دقيقة
-</option>
+        </label>
 
-<option value="20">
-20 دقيقة
-</option>
+        <label>
 
-<option value="30">
-30 دقيقة
-</option>
+          Buffer بين المواعيد
 
-<option value="45">
-45 دقيقة
-</option>
+          <select
+            id="doctorBufferMinutes">
 
-<option value="60">
-60 دقيقة
-</option>
+            ${[0,5,10,15,20]
+              .map(
+                n =>
+                `<option value="${n}">
+                  ${n===0
+                    ?"بدون"
+                    :
+                    n+" دقيقة"}
+                </option>`
+              )
+              .join("")}
 
-</select>
+          </select>
+
+        </label>
+
+        <label>
+
+          الحد الأقصى للحجوزات يوميًا
+
+          <input
+            id="doctorMaxBookings"
+            type="number"
+            min="0"
+            value="${escapeHTML(
+              settings.max_daily_bookings || ""
+            )}"
+            placeholder="بدون حد">
+
+        </label>
+
+      </div>
+
+    </div>
+
+
+    <div id="doctorWeekSchedule">
+
+      ${weekDays.map(
+        (name,i) => {
+
+          const d =
+            getDaySchedule(
+              schedule,
+              i
+            );
+
+          return `
+
+            <div
+              class="schedule-day"
+              data-weekday="${i}">
+
+              <div
+                class="schedule-head">
 
-</label>
-
-
-<label>
-
-Buffer بين المواعيد
-
-<select
-id="doctorBufferMinutes">
-
-<option value="0">
-بدون
-</option>
-
-<option value="5">
-5 دقائق
-</option>
-
-<option value="10">
-10 دقائق
-</option>
-
-<option value="15">
-15 دقيقة
-</option>
-
-<option value="20">
-20 دقيقة
-</option>
-
-</select>
-
-</label>
-
-
-<label>
-
-الحد الأقصى للحجوزات يوميًا
-
-<input
-id="doctorMaxBookings"
-type="number"
-min="0"
-placeholder="بدون حد"
-value="${escapeHTML(
-settings.max_daily_bookings||""
-)}">
-
-</label>
-
-
-<label>
-
-تطبيق الجدول من
-
-<input
-id="doctorScheduleFrom"
-type="date"
-value="${escapeHTML(
-settings.valid_from||""
-)}">
-
-</label>
-
-
-<label>
-
-تطبيق الجدول حتى
-
-<input
-id="doctorScheduleTo"
-type="date"
-value="${escapeHTML(
-settings.valid_to||""
-)}">
-
-</label>
-
-</div>
-
-</div>
-
-
-<div id="doctorWeekSchedule">
-
-${weekDays.map(
-(name,i)=>{
-
-const d=
-getDaySchedule(
-schedule,
-i
-);
-
-
-return`
-
-<div
-class="schedule-day"
-data-weekday="${i}">
-
-<div class="schedule-head">
-
-<h3 style="margin:0">
-${name}
-</h3>
-
-<label
-class="switch"
-style="margin:0">
-
-<input
-class="schedule-enabled"
-type="checkbox"
-${d.enabled?"checked":""}>
-
-يعمل هذا اليوم
-
-</label>
-
-</div>
-
-
-<div class="time-row">
-
-<label>
-
-من
-
-<input
-class="schedule-start"
-type="time"
-value="${escapeHTML(
-String(
-d.start_time||""
-).slice(0,5)
-)}">
-
-</label>
-
-
-<label>
-
-إلى
-
-<input
-class="schedule-end"
-type="time"
-value="${escapeHTML(
-String(
-d.end_time||""
-).slice(0,5)
-)}">
-
-</label>
-
-
-<label>
-
-بداية البريك
-
-<input
-class="schedule-break-start"
-type="time"
-value="${escapeHTML(
-String(
-d.break_start||""
-).slice(0,5)
-)}">
-
-</label>
-
-
-<label>
-
-نهاية البريك
-
-<input
-class="schedule-break-end"
-type="time"
-value="${escapeHTML(
-String(
-d.break_end||""
-).slice(0,5)
-)}">
-
-</label>
-
-</div>
-
-
-<div
-class="small-note"
-style="margin-top:8px">
-
-يمكن ترك البريك فارغًا إذا لم يوجد بريك في هذا اليوم.
-
-</div>
-
-</div>
-
-`;
-
-}
-).join("")}
-
-</div>
-
-
-<div class="modal-actions">
-
-<button
-id="saveDoctorScheduleBtn"
-class="btn btn-primary">
-حفظ جدول الطبيب
-</button>
-
-<button
-id="copyScheduleBtn"
-class="btn btn-secondary">
-نسخ جدول هذا الأسبوع
-</button>
-
-</div>
-
-
-<div
-id="scheduleMessage"
-class="small-note"
-style="margin-top:10px">
-</div>
-`;
-
-
-if(settings.appointment_minutes){
-
-$("doctorAppointmentMinutes").value=
-String(
-settings.appointment_minutes
-);
-
-}
-
-
-if(settings.buffer_minutes!==undefined){
-
-$("doctorBufferMinutes").value=
-String(
-settings.buffer_minutes
-);
-
-}
-
-
-$("saveDoctorScheduleBtn").onclick=
-()=>saveDoctorSchedule(
-doctorId
-);
-
-
-$("copyScheduleBtn").onclick=()=>{
-
-if(!confirm(
-"سيتم نسخ جدول الأحد إلى باقي الأيام. هل تريد المتابعة؟"
-))
-return;
-
-
-const cards=
-[
-...document.querySelectorAll(
-"[data-weekday]"
-)
-];
-
-
-if(!cards.length)
-return;
-
-
-const source=cards[0];
-
-
-cards.forEach(
-(card,index)=>{
-
-if(index===0)
-return;
-
-
-card.querySelector(
-".schedule-start"
-).value=
-source.querySelector(
-".schedule-start"
-).value;
-
-
-card.querySelector(
-".schedule-end"
-).value=
-source.querySelector(
-".schedule-end"
-).value;
-
-
-card.querySelector(
-".schedule-break-start"
-).value=
-source.querySelector(
-".schedule-break-start"
-).value;
-
-
-card.querySelector(
-".schedule-break-end"
-).value=
-source.querySelector(
-".schedule-break-end"
-).value;
-
-
-card.querySelector(
-".schedule-enabled"
-).checked=
-source.querySelector(
-".schedule-enabled"
-).checked;
-
-}
-);
-
-
-showToast(
-"تم نسخ جدول الأحد إلى باقي الأيام."
-);
-
-};
+                <h3 style="margin:0">
+                  ${name}
+                </h3>
+
+                <label
+                  class="switch"
+                  style="margin:0">
+
+                  <input
+                    class="schedule-enabled"
+                    type="checkbox"
+                    ${d.enabled
+                      ?"checked"
+                      :
+                      ""}>
+
+                  يعمل هذا اليوم
+
+                </label>
+
+              </div>
+
+              <div class="time-row">
+
+                <label>
+                  من
+                  <input
+                    class="schedule-start"
+                    type="time"
+                    value="${escapeHTML(
+                      String(
+                        d.start_time || ""
+                      ).slice(0,5)
+                    )}">
+                </label>
+
+                <label>
+                  إلى
+                  <input
+                    class="schedule-end"
+                    type="time"
+                    value="${escapeHTML(
+                      String(
+                        d.end_time || ""
+                      ).slice(0,5)
+                    )}">
+                </label>
+
+                <label>
+                  بداية البريك
+                  <input
+                    class="schedule-break-start"
+                    type="time"
+                    value="${escapeHTML(
+                      String(
+                        d.break_start || ""
+                      ).slice(0,5)
+                    )}">
+                </label>
+
+                <label>
+                  نهاية البريك
+                  <input
+                    class="schedule-break-end"
+                    type="time"
+                    value="${escapeHTML(
+                      String(
+                        d.break_end || ""
+                      ).slice(0,5)
+                    )}">
+                </label>
+
+              </div>
+
+            </div>
+          `;
+
+        }
+      ).join("")}
+
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        id="saveDoctorScheduleBtn"
+        class="btn btn-primary">
+        حفظ جدول الطبيب
+      </button>
+
+    </div>
+  `;
+
+
+  if(settings.appointment_minutes)
+    $("doctorAppointmentMinutes")
+      .value =
+      settings.appointment_minutes;
+
+  if(settings.buffer_minutes !== undefined)
+    $("doctorBufferMinutes")
+      .value =
+      settings.buffer_minutes;
+
+
+  $("saveDoctorScheduleBtn").onclick =
+    () =>
+      saveDoctorSchedule(
+        doctorId
+      );
 
 }
 
 
 async function saveDoctorSchedule(
-doctorId
+  doctorId
 ){
 
-const cards=
-[
-...document.querySelectorAll(
-"[data-weekday]"
-)
-];
+  const cards =
+    [
+      ...document.querySelectorAll(
+        "[data-weekday]"
+      )
+    ];
 
+  const schedule =
+    cards.map(card => ({
 
-const schedule=
-cards.map(card=>({
+      weekday:
+        Number(
+          card.dataset.weekday
+        ),
 
-weekday:
-Number(
-card.dataset.weekday
-),
+      enabled:
+        card.querySelector(
+          ".schedule-enabled"
+        ).checked,
 
-enabled:
-card.querySelector(
-".schedule-enabled"
-).checked,
+      start_time:
+        card.querySelector(
+          ".schedule-start"
+        ).value || null,
 
-start_time:
-card.querySelector(
-".schedule-start"
-).value||null,
+      end_time:
+        card.querySelector(
+          ".schedule-end"
+        ).value || null,
 
-end_time:
-card.querySelector(
-".schedule-end"
-).value||null,
+      break_start:
+        card.querySelector(
+          ".schedule-break-start"
+        ).value || null,
 
-break_start:
-card.querySelector(
-".schedule-break-start"
-).value||null,
+      break_end:
+        card.querySelector(
+          ".schedule-break-end"
+        ).value || null
 
-break_end:
-card.querySelector(
-".schedule-break-end"
-).value||null
+    }));
 
-}));
+  const payload = {
 
+    doctor_id:doctorId,
 
-const payload={
+    schedule,
 
-doctor_id:doctorId,
+    appointment_minutes:
+      Number(
+        $("doctorAppointmentMinutes")
+          .value || 30
+      ),
 
-schedule,
+    buffer_minutes:
+      Number(
+        $("doctorBufferMinutes")
+          .value || 0
+      ),
 
-appointment_minutes:
-Number(
-$("doctorAppointmentMinutes").value||30
-),
+    max_daily_bookings:
+      $("doctorMaxBookings").value
+      ?
+      Number(
+        $("doctorMaxBookings").value
+      )
+      :
+      null
 
-buffer_minutes:
-Number(
-$("doctorBufferMinutes").value||0
-),
+  };
 
-max_daily_bookings:
-$("doctorMaxBookings").value
-?
-Number(
-$("doctorMaxBookings").value
-)
-:
-null,
+  try{
 
-valid_from:
-$("doctorScheduleFrom").value||null,
+    await managementApi(
+      "?api=schedule&doctor_id=" +
+      encodeURIComponent(
+        doctorId
+      ),
+      {
+        method:"PUT",
+        body:JSON.stringify(
+          payload
+        )
+      }
+    );
 
-valid_to:
-$("doctorScheduleTo").value||null
+    showToast(
+      "تم حفظ جدول الطبيب بنجاح."
+    );
 
-};
+  }catch(e){
 
+    showToast(e.message);
 
-try{
-
-await managementApi(
-"?api=schedule&doctor_id="+
-encodeURIComponent(doctorId),
-{
-method:"PUT",
-body:JSON.stringify(payload)
-}
-);
-
-
-showToast(
-"تم حفظ جدول الطبيب بنجاح."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
+  }
 
 }
 
 
-/* =========================================================
-   POSTS
-========================================================= */
+/* =========================
+   MEDIA UPLOAD
+========================= */
 
+function resetMedia(){
+
+  selectedMedia = null;
+
+  const input =
+    $("postFile");
+
+  if(input)
+    input.value = "";
+
+  const name =
+    $("selectedFileName");
+
+  if(name)
+    name.textContent =
+      "لم يتم اختيار ملف";
+
+  const bar =
+    $("uploadProgressBar");
+
+  if(bar)
+    bar.style.width = "0%";
+
+  const text =
+    $("uploadProgressText");
+
+  if(text)
+    text.textContent =
+      "جاهز للرفع";
+
+  const preview =
+    $("mediaPreview");
+
+  if(preview)
+    preview.innerHTML = "";
+
+}
+
+
+function formatBytes(bytes){
+
+  if(bytes < 1024)
+    return bytes + " B";
+
+  if(bytes < 1024*1024)
+    return (
+      bytes/1024
+    ).toFixed(1) + " KB";
+
+  if(bytes < 1024*1024*1024)
+    return (
+      bytes/(1024*1024)
+    ).toFixed(1) + " MB";
+
+  return (
+    bytes/(1024*1024*1024)
+  ).toFixed(1) + " GB";
+
+}
+
+
+function selectMediaFile(file){
+
+  if(!file)
+    return;
+
+  const allowed = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime"
+  ];
+
+  if(!allowed.includes(
+    file.type.toLowerCase()
+  )){
+
+    showToast(
+      "نوع الملف غير مسموح."
+    );
+
+    return;
+
+  }
+
+  if(file.size > 50 * 1024 * 1024){
+
+    showToast(
+      "الحد الأقصى للملف هو 50 MB."
+    );
+
+    return;
+
+  }
+
+  selectedMedia = file;
+
+  $("selectedFileName").textContent =
+    file.name +
+    " — " +
+    formatBytes(file.size);
+
+  $("mediaPreview").innerHTML = "";
+
+  const url =
+    URL.createObjectURL(file);
+
+  if(file.type.startsWith("image/")){
+
+    $("mediaPreview").innerHTML =
+      `<img
+        src="${url}"
+        alt="معاينة الصورة">`;
+
+  }else{
+
+    $("mediaPreview").innerHTML =
+      `<video
+        src="${url}"
+        controls
+        playsinline></video>`;
+
+  }
+
+}
+
+
+async function uploadMedia(){
+
+  if(!selectedMedia)
+    return null;
+
+  const file =
+    selectedMedia;
+
+  $("uploadProgressBar")
+    .style.width = "5%";
+
+  $("uploadProgressText")
+    .textContent =
+      "جاري تجهيز الرفع...";
+
+
+  const signed =
+    await managementApi(
+      "?api=media-sign",
+      {
+        method:"POST",
+        body:JSON.stringify({
+
+          file_name:file.name,
+
+          mime_type:file.type,
+
+          file_size:file.size
+
+        })
+      }
+    );
+
+
+  if(!signed.path ||
+     !signed.token){
+
+    throw new Error(
+      "لم يتم إنشاء رابط الرفع."
+    );
+
+  }
+
+
+  /*
+    Supabase signed upload.
+    We load supabase-js only when
+    an actual file needs uploading.
+  */
+
+  $("uploadProgressText")
+    .textContent =
+      "جاري رفع الملف...";
+
+
+  const {
+    createClient
+  } =
+    await import(
+      "https://esm.sh/@supabase/supabase-js@2"
+    );
+
+
+  const supabase =
+    createClient(
+      SUPABASE_URL,
+      /*
+        The browser does not receive
+        the service role key.
+        Anonymous client is enough because
+        the signed upload token controls
+        the upload.
+      */
+      "public-anon-key-not-required"
+    );
+
+
+  /*
+    We do not use the normal client
+    upload method here because the signed
+    token returned by the management API
+    is specifically intended for one upload.
+  */
+
+  const uploadUrl =
+    SUPABASE_URL +
+    "/storage/v1/object/upload/sign/" +
+    signed.path +
+    "?token=" +
+    encodeURIComponent(
+      signed.token
+    );
+
+
+  const response =
+    await fetch(
+      uploadUrl,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":
+            file.type ||
+            "application/octet-stream",
+          "x-upsert":"false"
+        },
+        body:file
+      }
+    );
+
+
+  if(!response.ok){
+
+    let message =
+      "فشل رفع الملف.";
+
+    try{
+
+      const data =
+        await response.json();
+
+      message =
+        data.message ||
+        data.error ||
+        message;
+
+    }catch(_){}
+
+    throw new Error(message);
+
+  }
+
+
+  $("uploadProgressBar")
+    .style.width = "100%";
+
+  $("uploadProgressText")
+    .textContent =
+      "تم رفع الملف بنجاح";
+
+
+  /*
+    Register the uploaded file.
+  */
+
+  await managementApi(
+    "?api=media-record",
+    {
+      method:"POST",
+      body:JSON.stringify({
+
+        path:signed.path,
+
+        file_name:file.name,
+
+        mime_type:file.type,
+
+        file_size:file.size,
+
+        media_type:
+          signed.media_type
+
+      })
+    }
+  );
+
+
+  return {
+
+    media_url:
+      signed.publicUrl,
+
+    media_type:
+      signed.media_type
+
+  };
+
+}
+
+
+/* POSTS */
 
 function renderPosts(){
 
-const box=
-$("postsList");
+  const box =
+    $("postsList");
+
+  const posts =
+    managementData.posts || [];
+
+  if(!posts.length){
+
+    box.innerHTML = `
+      <div class="empty">
+
+        لا توجد منشورات حاليًا.
+
+        <br>
+
+        اضغط «إضافة منشور»
+        لإنشاء أول منشور.
+
+      </div>
+    `;
+
+    return;
+
+  }
 
 
-const posts=
-managementData.posts||[];
+  box.innerHTML =
+    posts.map(post => `
 
+      <div class="post-card">
 
-if(!posts.length){
+        ${
+          post.media_type === "image" &&
+          post.media_url
+          ?
+          `<img
+            class="post-media"
+            src="${escapeHTML(
+              post.media_url
+            )}"
+            alt="">`
+          :
+          ""
+        }
 
-box.innerHTML=`
-<div class="empty">
+        ${
+          post.media_type === "video" &&
+          post.media_url
+          ?
+          `<video
+            class="post-media"
+            controls
+            preload="metadata">
 
-لا توجد منشورات حاليًا.
+            <source
+              src="${escapeHTML(
+                post.media_url
+              )}">
 
-<br>
+          </video>`
+          :
+          ""
+        }
 
-اضغط «إضافة منشور»
-لإنشاء أول منشور.
+        <div class="post-body">
 
-</div>
-`;
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              gap:10px;
+              flex-wrap:wrap">
 
-return;
+            <h3>
+              ${escapeHTML(
+                post.title ||
+                "منشور بدون عنوان"
+              )}
+            </h3>
 
-}
+            <span class="badge ${
+              post.status === "published"
+              ?
+              "badge-published"
+              :
+              "badge-draft"
+            }">
 
+              ${
+                post.status === "published"
+                ?
+                "منشور"
+                :
+                "مسودة"
+              }
 
-box.innerHTML=
-posts.map(post=>`
+            </span>
 
-<div class="post-card">
+          </div>
 
-${
-post.media_type==="image" &&
-post.media_url
-?
-`
-<img
-class="post-media"
-src="${escapeHTML(
-post.media_url
-)}"
-alt=""
-onerror="
-this.style.display='none'
-">
-`
-:
-""
-}
+          <p class="muted">
+            ${escapeHTML(
+              post.content || ""
+            )}
+          </p>
 
+          ${
+            post.external_url
+            ?
+            `<a
+              href="${escapeHTML(
+                post.external_url
+              )}"
+              target="_blank"
+              rel="noopener noreferrer">
+              فتح الرابط الخارجي
+            </a>`
+            :
+            ""
+          }
 
-${
-post.media_type==="video" &&
-post.media_url
-?
-`
-<video
-class="post-media"
-controls
-preload="metadata">
+          <div
+            class="item-actions"
+            style="margin-top:12px">
 
-<source
-src="${escapeHTML(
-post.media_url
-)}">
+            <button
+              class="btn btn-secondary"
+              onclick="editPost('${post.id}')">
+              تعديل
+            </button>
 
-</video>
-`
-:
-""
-}
+            <button
+              class="btn ${
+                post.status === "published"
+                ?
+                "btn-danger"
+                :
+                "btn-success"
+              }"
+              onclick="togglePostStatus('${post.id}')">
 
+              ${
+                post.status === "published"
+                ?
+                "إخفاء"
+                :
+                "نشر"
+              }
 
-<div class="post-body">
+            </button>
 
-<div
-style="
-display:flex;
-justify-content:space-between;
-gap:10px;
-flex-wrap:wrap">
+            <button
+              class="btn btn-danger"
+              onclick="deletePost('${post.id}')">
+              حذف
+            </button>
 
-<h3>
+          </div>
 
-${escapeHTML(
-post.title||
-"منشور بدون عنوان"
-)}
+        </div>
 
-</h3>
+      </div>
 
-
-<span
-class="badge ${
-post.status==="published"
-?
-"badge-published"
-:
-"badge-draft"
-}">
-
-${
-post.status==="published"
-?
-"منشور"
-:
-"مسودة"
-}
-
-</span>
-
-</div>
-
-
-<p class="muted">
-
-${escapeHTML(
-post.content||""
-)}
-
-</p>
-
-
-${
-post.external_url
-?
-`
-<a
-href="${escapeHTML(
-post.external_url
-)}"
-target="_blank"
-rel="noopener noreferrer">
-فتح الرابط الخارجي
-</a>
-`
-:
-""
-}
-
-
-<div
-class="item-actions"
-style="margin-top:12px">
-
-<button
-class="btn btn-secondary"
-onclick="editPost('${escapeHTML(post.id)}')">
-تعديل
-</button>
-
-
-<button
-class="btn ${
-post.status==="published"
-?
-"btn-danger"
-:
-"btn-success"
-}"
-onclick="togglePostStatus('${escapeHTML(post.id)}')">
-
-${
-post.status==="published"
-?
-"إخفاء"
-:
-"نشر"
-}
-
-</button>
-
-
-<button
-class="btn btn-danger"
-onclick="deletePost('${escapeHTML(post.id)}')">
-حذف
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-`).join("");
+    `)
+    .join("");
 
 }
 
 
-$("addPostBtn").onclick=
-()=>editPost(null);
+$("addPostBtn").onclick =
+  () => editPost(null);
 
 
 function editPost(id){
 
-const post=
-id
-?
-managementData.posts.find(
-p=>String(p.id)===String(id)
-)
-:
-null;
+  const post =
+    id
+    ?
+    managementData.posts.find(
+      p => p.id === id
+    )
+    :
+    null;
 
+  selectedMedia = null;
 
-$("modalTitle").textContent=
-post
-?
-"تعديل المنشور"
-:
-"إضافة منشور";
+  $("modalTitle").textContent =
+    post
+    ?
+    "تعديل المنشور"
+    :
+    "إضافة منشور";
 
 
-$("modalContent").innerHTML=`
+  $("modalContent").innerHTML = `
 
-<form id="postForm">
+    <form id="postForm">
 
-<div class="grid">
+      <div class="grid">
 
-<label>
+        <label>
 
-عنوان المنشور
+          عنوان المنشور
 
-<input
-name="title"
-value="${escapeHTML(
-post?.title||""
-)}">
+          <input
+            name="title"
+            value="${escapeHTML(
+              post?.title || ""
+            )}">
 
-</label>
+        </label>
 
+        <label>
 
-<label>
+          الحالة
 
-الحالة
+          <select name="status">
+
+            <option
+              value="draft"
+              ${
+                post?.status !==
+                "published"
+                ?
+                "selected"
+                :
+                ""
+              }>
+              مسودة
+            </option>
+
+            <option
+              value="published"
+              ${
+                post?.status ===
+                "published"
+                ?
+                "selected"
+                :
+                ""
+              }>
+              منشور
+            </option>
+
+          </select>
+
+        </label>
+
+        <label class="full">
+
+          نص المنشور
+
+          <textarea
+            name="content"
+            placeholder="اكتب محتوى المنشور أو العرض هنا...">${escapeHTML(
+              post?.content || ""
+            )}</textarea>
+
+        </label>
+
+      </div>
+
+
+      <div class="card"
+           style="background:#fafbfe">
+
+        <h3>
+          الوسائط
+        </h3>
+
+        <div class="muted">
+          يمكنك اختيار صورة أو فيديو من الجهاز.
+          الحد الأقصى 50 MB.
+        </div>
+
+        <div
+          id="uploadBox"
+          class="upload-box">
+
+          <div class="upload-icon">
+            📷 🎥
+          </div>
+
+          <strong>
+            اختر صورة أو فيديو
+          </strong>
+
+          <div class="small-note">
+            يعمل من الهاتف والكمبيوتر
+          </div>
+
+          <div class="media-actions">
+
+            <button
+              type="button"
+              id="chooseMediaBtn"
+              class="btn btn-primary">
+              اختيار ملف
+            </button>
+
+            <button
+              type="button"
+              id="removeMediaBtn"
+              class="btn btn-danger">
+              إزالة
+            </button>
+
+          </div>
+
+          <input
+            id="postFile"
+            type="file"
+            accept="
+              image/jpeg,
+              image/png,
+              image/webp,
+              image/gif,
+              video/mp4,
+              video/webm,
+              video/quicktime"
+            class="hidden">
+
+          <div
+            id="selectedFileName"
+            class="file-name">
+            ${
+              post?.media_url
+              ?
+              "يوجد ملف حالي. اختر ملفًا جديدًا لاستبداله."
+              :
+              "لم يتم اختيار ملف"
+            }
+          </div>
+
+          <div class="progress">
+
+            <div
+              id="uploadProgressBar"
+              class="progress-bar">
+            </div>
+
+          </div>
+
+          <div
+            id="uploadProgressText"
+            class="progress-text">
+            جاهز للرفع
+          </div>
+
+          <div
+            id="mediaPreview"
+            class="media-preview">
+
+            ${
+              post?.media_url &&
+              post?.media_type === "image"
+              ?
+              `<img
+                src="${escapeHTML(
+                  post.media_url
+                )}"
+                alt="الوسائط الحالية">`
+              :
+              ""
+            }
+
+            ${
+              post?.media_url &&
+              post?.media_type === "video"
+              ?
+              `<video
+                src="${escapeHTML(
+                  post.media_url
+                )}"
+                controls
+                playsinline></video>`
+              :
+              ""
+            }
 
-<select name="status">
+          </div>
 
-<option
-value="draft"
-${post?.status!=="published"?
-"selected":
-""}>
-مسودة
-</option>
+          <div class="warning">
+            لن يتم رفع أي ملف إلى الخادم
+            إلا بعد الضغط على «حفظ المنشور».
+          </div>
 
-<option
-value="published"
-${post?.status==="published"?
-"selected":
-""}>
-منشور
-</option>
+        </div>
 
-</select>
+      </div>
 
-</label>
 
+      <div class="grid">
 
-<label class="full">
+        <label class="full">
 
-نص المنشور
+          رابط خارجي اختياري
 
-<textarea
-name="content"
-placeholder="اكتب محتوى المنشور أو العرض هنا..."
->${escapeHTML(
-post?.content||""
-)}</textarea>
+          <input
+            name="external_url"
+            placeholder="Instagram / Facebook / WhatsApp / Website"
+            value="${escapeHTML(
+              post?.external_url || ""
+            )}">
 
-</label>
+        </label>
 
+        <label>
 
-<label>
+          ترتيب الظهور
 
-نوع الوسائط
+          <input
+            name="sort_order"
+            type="number"
+            value="${Number(
+              post?.sort_order || 0
+            )}">
 
-<select
-id="postMediaType"
-name="media_type">
+        </label>
 
-<option
-value="none"
-${!post?.media_type||
-post?.media_type==="none"
-?
-"selected":
-""}>
-بدون وسائط
-</option>
+      </div>
 
-<option
-value="image"
-${post?.media_type==="image"?
-"selected":
-""}>
-صورة
-</option>
 
-<option
-value="video"
-${post?.media_type==="video"?
-"selected":
-""}>
-فيديو
-</option>
+      <div
+        id="postSaveStatus"
+        class="small-note">
+      </div>
 
-</select>
 
-</label>
+      <div class="modal-actions">
 
+        <button
+          id="savePostBtn"
+          class="btn btn-primary"
+          type="submit">
 
-<label>
+          ${
+            post
+            ?
+            "حفظ التعديلات"
+            :
+            "حفظ المنشور"
+          }
 
-رابط الصورة / الفيديو
+        </button>
 
-<input
-id="postMediaUrl"
-name="media_url"
-placeholder="https://..."
-value="${escapeHTML(
-post?.media_url||""
-)}">
+      </div>
 
-</label>
+    </form>
 
+  `;
 
-<label class="full">
 
-رابط خارجي
+  const fileInput =
+    $("postFile");
 
-<input
-name="external_url"
-placeholder="Instagram / Facebook / WhatsApp / Website"
-value="${escapeHTML(
-post?.external_url||""
-)}">
+  const chooseBtn =
+    $("chooseMediaBtn");
 
-</label>
+  const removeBtn =
+    $("removeMediaBtn");
 
+  const uploadBox =
+    $("uploadBox");
 
-<label>
 
-ترتيب الظهور
+  chooseBtn.onclick =
+    () => fileInput.click();
 
-<input
-name="sort_order"
-type="number"
-value="${Number(
-post?.sort_order||0
-)}">
 
-</label>
+  fileInput.onchange =
+    () => {
 
-</div>
+      const file =
+        fileInput.files?.[0];
 
+      selectMediaFile(file);
 
-<div id="postPreviewBox"></div>
+    };
 
 
-<div class="modal-actions">
+  removeBtn.onclick =
+    () => {
 
-<button
-class="btn btn-primary"
-type="submit">
-حفظ المنشور
-</button>
+      resetMedia();
 
-</div>
+    };
 
-</form>
-`;
 
+  uploadBox.addEventListener(
+    "dragover",
+    event => {
 
-function updatePostPreview(){
+      event.preventDefault();
 
-const type=
-$("postMediaType").value;
+      uploadBox.classList.add(
+        "drag"
+      );
 
-const url=
-$("postMediaUrl")
-.value
-.trim();
+    }
+  );
 
-const box=
-$("postPreviewBox");
 
+  uploadBox.addEventListener(
+    "dragleave",
+    () => {
 
-if(!url||type==="none"){
+      uploadBox.classList.remove(
+        "drag"
+      );
 
-box.innerHTML="";
+    }
+  );
 
-return;
 
-}
+  uploadBox.addEventListener(
+    "drop",
+    event => {
 
+      event.preventDefault();
 
-if(type==="image"){
+      uploadBox.classList.remove(
+        "drag"
+      );
 
-box.innerHTML=
-`
-<img
-class="preview"
-src="${escapeHTML(url)}"
-onerror="
-this.style.display='none'
-">
-`;
+      const file =
+        event.dataTransfer.files?.[0];
 
-}else{
+      selectMediaFile(file);
 
-box.innerHTML=
-`
-<video
-class="preview"
-controls>
+    }
+  );
 
-<source
-src="${escapeHTML(url)}">
 
-</video>
-`;
+  $("postForm").onsubmit =
+    async event => {
 
-}
+      event.preventDefault();
 
-}
+      const saveBtn =
+        $("savePostBtn");
 
+      saveBtn.disabled = true;
 
-$("postMediaType")
-.addEventListener(
-"change",
-updatePostPreview
-);
+      saveBtn.textContent =
+        "جاري الحفظ...";
 
+      try{
 
-$("postMediaUrl")
-.addEventListener(
-"input",
-updatePostPreview
-);
+        const form =
+          new FormData(
+            event.currentTarget
+          );
 
+        const payload =
+          Object.fromEntries(
+            form.entries()
+          );
 
-updatePostPreview();
 
+        /*
+          If a new media file was selected,
+          upload it first.
+        */
 
-$("postForm").onsubmit=
-async event=>{
+        if(selectedMedia){
 
-event.preventDefault();
+          const media =
+            await uploadMedia();
 
+          payload.media_url =
+            media.media_url;
 
-const payload=
-Object.fromEntries(
-new FormData(
-event.currentTarget
-)
-);
+          payload.media_type =
+            media.media_type;
 
+        }else if(!post){
 
-if(
-payload.media_type==="none"
-){
+          payload.media_type =
+            "none";
 
-payload.media_url=null;
+          payload.media_url =
+            null;
 
-}
+        }
 
 
-try{
+        if(
+          payload.media_type ===
+          "none"
+        ){
 
-await managementApi(
-post
-?
-"?api=post&id="+
-encodeURIComponent(post.id)
-:
-"?api=post",
-{
-method:
-post
-?
-"PUT"
-:
-"POST",
-body:JSON.stringify(payload)
-}
-);
+          payload.media_url =
+            null;
 
+        }
 
-closeModal();
 
+        await managementApi(
+          post
+          ?
+          "?api=post&id=" +
+          encodeURIComponent(
+            post.id
+          )
+          :
+          "?api=post",
+          {
+            method:
+              post
+              ?
+              "PUT"
+              :
+              "POST",
 
-await loadManagement();
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
 
 
-renderPosts();
+        closeModal();
 
+        await loadManagement();
 
-showToast(
-"تم حفظ المنشور بنجاح."
-);
+        renderPosts();
 
+        showToast(
+          post
+          ?
+          "تم تحديث المنشور."
+          :
+          "تم إنشاء المنشور بنجاح."
+        );
 
-}catch(e){
+      }catch(e){
 
-showToast(e.message);
+        showToast(e.message);
 
-}
+        saveBtn.disabled = false;
 
-};
+        saveBtn.textContent =
+          post
+          ?
+          "حفظ التعديلات"
+          :
+          "حفظ المنشور";
 
+      }
 
-openModal();
+    };
+
+
+  openModal();
 
 }
 
 
 async function togglePostStatus(id){
 
-const post=
-managementData.posts.find(
-p=>String(p.id)===String(id)
-);
+  const post =
+    managementData.posts.find(
+      p => p.id === id
+    );
 
+  if(!post)
+    return;
 
-if(!post)
-return;
+  const status =
+    post.status === "published"
+    ?
+    "draft"
+    :
+    "published";
 
+  try{
 
-const status=
-post.status==="published"
-?
-"draft"
-:
-"published";
+    await managementApi(
+      "?api=post&id=" +
+      encodeURIComponent(id),
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          status
+        })
+      }
+    );
 
+    await loadManagement();
 
-try{
+    renderPosts();
 
-await managementApi(
-"?api=post&id="+
-encodeURIComponent(id),
-{
-method:"PATCH",
-body:JSON.stringify({
-status
-})
-}
-);
+    showToast(
+      status === "published"
+      ?
+      "تم نشر المنشور."
+      :
+      "تم تحويل المنشور إلى مسودة."
+    );
 
+  }catch(e){
 
-await loadManagement();
+    showToast(e.message);
 
-
-renderPosts();
-
-
-showToast(
-status==="published"
-?
-"تم نشر المنشور."
-:
-"تم تحويل المنشور إلى مسودة."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
+  }
 
 }
 
 
 async function deletePost(id){
 
-if(!confirm(
-"هل تريد حذف هذا المنشور نهائيًا؟"
-))
-return;
+  if(!confirm(
+    "هل تريد حذف هذا المنشور نهائيًا؟"
+  ))
+    return;
 
+  try{
 
-try{
+    await managementApi(
+      "?api=post&id=" +
+      encodeURIComponent(id),
+      {
+        method:"DELETE"
+      }
+    );
 
-await managementApi(
-"?api=post&id="+
-encodeURIComponent(id),
-{
-method:"DELETE"
-}
-);
+    await loadManagement();
 
+    renderPosts();
 
-await loadManagement();
+    showToast(
+      "تم حذف المنشور."
+    );
 
+  }catch(e){
 
-renderPosts();
+    showToast(e.message);
 
-
-showToast(
-"تم حذف المنشور."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
+  }
 
 }
 
 
-/* =========================================================
-   HOLIDAYS
-========================================================= */
-
+/* HOLIDAYS */
 
 function renderHolidays(){
 
-const box=
-$("holidaysList");
+  const box =
+    $("holidaysList");
+
+  const holidays =
+    managementData.holidays || [];
+
+  if(!holidays.length){
+
+    box.innerHTML =
+      '<div class="empty">لا توجد عطلات أو إغلاقات مضافة.</div>';
+
+    return;
+
+  }
 
 
-const holidays=
-managementData.holidays||[];
+  box.innerHTML =
+    holidays.map(h => `
 
+      <div class="item">
 
-if(!holidays.length){
+        <div>
 
-box.innerHTML=`
-<div class="empty">
-لا توجد عطلات أو إغلاقات مضافة.
-</div>
-`;
+          <strong>
+            ${escapeHTML(
+              h.name || "إغلاق"
+            )}
+          </strong>
 
-return;
+          <div class="muted">
 
-}
+            ${escapeHTML(
+              h.start_date || ""
+            )}
 
+            ${
+              h.end_date &&
+              h.end_date !==
+              h.start_date
+              ?
+              " → " +
+              escapeHTML(
+                h.end_date
+              )
+              :
+              ""
+            }
 
-box.innerHTML=
-holidays.map(h=>`
+          </div>
 
-<div class="item">
+          <div class="muted">
 
-<div>
+            ${
+              h.doctor_id
+              ?
+              "خاص بالطبيب: " +
+              escapeHTML(
+                doctorName(
+                  h.doctor_id
+                )
+              )
+              :
+              "إغلاق عام للعيادة"
+            }
 
-<strong>
-${escapeHTML(
-h.name||"إغلاق"
-)}
-</strong>
+          </div>
 
+        </div>
 
-<div class="muted">
+        <div class="item-actions">
 
-${escapeHTML(
-h.start_date||""
-)}
+          <button
+            class="btn btn-secondary"
+            onclick="editHoliday('${h.id}')">
+            تعديل
+          </button>
 
-${
-h.end_date &&
-h.end_date!==h.start_date
-?
-" → "+
-escapeHTML(h.end_date)
-:
-""
-}
+          <button
+            class="btn btn-danger"
+            onclick="deleteHoliday('${h.id}')">
+            حذف
+          </button>
 
-</div>
+        </div>
 
+      </div>
 
-<div class="muted">
-
-${
-h.doctor_id
-?
-"خاص بالطبيب: "+
-escapeHTML(
-doctorName(h.doctor_id)
-)
-:
-"إغلاق عام للعيادة"
-}
-
-</div>
-
-
-${
-h.notes
-?
-`
-<div
-class="small-note"
-style="margin-top:5px">
-${escapeHTML(h.notes)}
-</div>
-`
-:
-""
-}
-
-</div>
-
-
-<div class="item-actions">
-
-<button
-class="btn btn-secondary"
-onclick="editHoliday('${escapeHTML(h.id)}')">
-تعديل
-</button>
-
-
-<button
-class="btn btn-danger"
-onclick="deleteHoliday('${escapeHTML(h.id)}')">
-حذف
-</button>
-
-</div>
-
-</div>
-
-`).join("");
+    `).join("");
 
 }
 
 
-$("addHolidayBtn").onclick=
-()=>editHoliday(null);
+$("addHolidayBtn").onclick =
+  () => editHoliday(null);
 
 
 function editHoliday(id){
 
-const h=
-id
-?
-managementData.holidays.find(
-x=>String(x.id)===String(id)
-)
-:
-null;
+  const h =
+    id
+    ?
+    managementData.holidays.find(
+      x => x.id === id
+    )
+    :
+    null;
+
+  $("modalTitle").textContent =
+    h
+    ?
+    "تعديل العطلة"
+    :
+    "إضافة عطلة / إغلاق";
+
+
+  $("modalContent").innerHTML = `
+
+    <form id="holidayForm">
+
+      <div class="grid">
+
+        <label>
+
+          اسم العطلة / سبب الإغلاق
+
+          <input
+            name="name"
+            required
+            value="${escapeHTML(
+              h?.name || ""
+            )}">
+
+        </label>
+
+        <label>
+
+          نوع الإغلاق
+
+          <select
+            name="scope"
+            id="holidayScope">
+
+            <option
+              value="clinic"
+              ${
+                !h?.doctor_id
+                ?
+                "selected"
+                :
+                ""
+              }>
+              العيادة بالكامل
+            </option>
+
+            <option
+              value="doctor"
+              ${
+                h?.doctor_id
+                ?
+                "selected"
+                :
+                ""
+              }>
+              طبيب محدد
+            </option>
 
+          </select>
 
-$("modalTitle").textContent=
-h
-?
-"تعديل العطلة"
-:
-"إضافة عطلة / إغلاق";
+        </label>
 
+        <label>
 
-$("modalContent").innerHTML=`
+          الطبيب
 
-<form id="holidayForm">
+          <select
+            name="doctor_id"
+            id="holidayDoctor">
 
-<div class="grid">
+            <option value="">
+              كل الأطباء
+            </option>
 
-<label>
+            ${
+              (clinicData.doctors || [])
+                .map(
+                  d =>
+                  `<option
+                    value="${escapeHTML(d.id)}"
+                    ${
+                      h?.doctor_id ===
+                      d.id
+                      ?
+                      "selected"
+                      :
+                      ""
+                    }>
+                    ${escapeHTML(d.name)}
+                  </option>`
+                )
+                .join("")
+            }
 
-اسم العطلة / سبب الإغلاق
+          </select>
 
-<input
-name="name"
-required
-value="${escapeHTML(
-h?.name||""
-)}">
+        </label>
 
-</label>
+        <label>
 
+          تاريخ البداية
 
-<label>
+          <input
+            name="start_date"
+            type="date"
+            required
+            value="${escapeHTML(
+              h?.start_date || ""
+            )}">
 
-نوع الإغلاق
+        </label>
 
-<select
-name="scope"
-id="holidayScope">
+        <label>
 
-<option
-value="clinic"
-${!h?.doctor_id?
-"selected":
-""}>
-العيادة بالكامل
-</option>
+          تاريخ النهاية
 
-<option
-value="doctor"
-${h?.doctor_id?
-"selected":
-""}>
-طبيب محدد
-</option>
+          <input
+            name="end_date"
+            type="date"
+            required
+            value="${escapeHTML(
+              h?.end_date ||
+              h?.start_date ||
+              ""
+            )}">
 
-</select>
+        </label>
 
-</label>
+        <label class="full">
 
+          ملاحظة
 
-<label>
+          <textarea
+            name="notes">${escapeHTML(
+              h?.notes || ""
+            )}</textarea>
 
-الطبيب
+        </label>
 
-<select
-name="doctor_id"
-id="holidayDoctor">
+      </div>
 
-<option value="">
-كل الأطباء
-</option>
+      <div class="modal-actions">
 
-${(clinicData.doctors||[])
-.map(d=>`
+        <button
+          class="btn btn-primary"
+          type="submit">
+          حفظ
+        </button>
 
-<option
-value="${escapeHTML(d.id)}"
-${String(h?.doctor_id||"")===
-String(d.id)?
-"selected":
-""}>
+      </div>
 
-${escapeHTML(d.name)}
+    </form>
+  `;
 
-</option>
 
-`).join("")}
+  function updateHolidayDoctor(){
 
-</select>
+    const scope =
+      $("holidayScope").value;
 
-</label>
+    $("holidayDoctor").disabled =
+      scope !== "doctor";
 
+    if(scope !== "doctor")
+      $("holidayDoctor").value = "";
 
-<label>
+  }
 
-تاريخ البداية
 
-<input
-name="start_date"
-type="date"
-required
-value="${escapeHTML(
-h?.start_date||""
-)}">
+  $("holidayScope").addEventListener(
+    "change",
+    updateHolidayDoctor
+  );
 
-</label>
+  updateHolidayDoctor();
 
 
-<label>
+  $("holidayForm").onsubmit =
+    async event => {
 
-تاريخ النهاية
+      event.preventDefault();
 
-<input
-name="end_date"
-type="date"
-required
-value="${escapeHTML(
-h?.end_date||
-h?.start_date||
-""
-)}">
+      const payload =
+        Object.fromEntries(
+          new FormData(
+            event.currentTarget
+          )
+        );
 
-</label>
+      if(
+        payload.scope ===
+        "clinic"
+      )
+        payload.doctor_id = null;
 
+      try{
 
-<label class="full">
+        await managementApi(
+          h
+          ?
+          "?api=holiday&id=" +
+          encodeURIComponent(h.id)
+          :
+          "?api=holiday",
+          {
+            method:
+              h
+              ?
+              "PUT"
+              :
+              "POST",
 
-ملاحظة
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
 
-<textarea
-name="notes">${escapeHTML(
-h?.notes||""
-)}</textarea>
+        closeModal();
 
-</label>
+        await loadManagement();
 
-</div>
+        renderHolidays();
 
+        showToast(
+          "تم حفظ العطلة."
+        );
 
-<div class="modal-actions">
+      }catch(e){
 
-<button
-class="btn btn-primary"
-type="submit">
-حفظ
-</button>
+        showToast(e.message);
 
-</div>
+      }
 
-</form>
-`;
+    };
 
 
-function updateHolidayDoctor(){
-
-const scope=
-$("holidayScope").value;
-
-
-$("holidayDoctor").disabled=
-scope!=="doctor";
-
-
-if(scope!=="doctor"){
-
-$("holidayDoctor").value="";
-
-}
-
-}
-
-
-$("holidayScope")
-.addEventListener(
-"change",
-updateHolidayDoctor
-);
-
-
-updateHolidayDoctor();
-
-
-$("holidayForm").onsubmit=
-async event=>{
-
-event.preventDefault();
-
-
-const payload=
-Object.fromEntries(
-new FormData(
-event.currentTarget
-)
-);
-
-
-if(payload.scope==="clinic"){
-
-payload.doctor_id=null;
-
-}
-
-
-delete payload.scope;
-
-
-try{
-
-await managementApi(
-h
-?
-"?api=holiday&id="+
-encodeURIComponent(h.id)
-:
-"?api=holiday",
-{
-method:
-h
-?
-"PUT"
-:
-"POST",
-body:JSON.stringify(payload)
-}
-);
-
-
-closeModal();
-
-
-await loadManagement();
-
-
-renderHolidays();
-
-
-showToast(
-"تم حفظ العطلة بنجاح."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
-
-};
-
-
-openModal();
+  openModal();
 
 }
 
 
 async function deleteHoliday(id){
 
-if(!confirm(
-"هل تريد حذف هذا الإغلاق؟"
-))
-return;
+  if(!confirm(
+    "هل تريد حذف هذا الإغلاق؟"
+  ))
+    return;
 
+  try{
 
-try{
+    await managementApi(
+      "?api=holiday&id=" +
+      encodeURIComponent(id),
+      {
+        method:"DELETE"
+      }
+    );
 
-await managementApi(
-"?api=holiday&id="+
-encodeURIComponent(id),
-{
-method:"DELETE"
-}
-);
+    await loadManagement();
 
+    renderHolidays();
 
-await loadManagement();
+    showToast(
+      "تم حذف الإغلاق."
+    );
 
+  }catch(e){
 
-renderHolidays();
+    showToast(e.message);
 
-
-showToast(
-"تم حذف الإغلاق."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
+  }
 
 }
 
 
-/* =========================================================
-   GENERAL HOURS
-========================================================= */
+/* HOURS */
 
-
-const dayNames=[
-"الأحد",
-"الاثنين",
-"الثلاثاء",
-"الأربعاء",
-"الخميس",
-"الجمعة",
-"السبت"
+const dayNames = [
+  "الأحد",
+  "الاثنين",
+  "الثلاثاء",
+  "الأربعاء",
+  "الخميس",
+  "الجمعة",
+  "السبت"
 ];
 
 
 function renderHours(){
 
-const box=
-$("hoursList");
+  const box =
+    $("hoursList");
+
+  const hours =
+    clinicData.working_hours || [];
+
+  if(!hours.length){
+
+    box.innerHTML =
+      '<div class="empty">لا توجد بيانات لساعات العمل.</div>';
+
+    return;
+
+  }
 
 
-const hours=
-clinicData.working_hours||[];
+  box.innerHTML =
+    hours.map(hour => `
 
+      <div
+        class="card"
+        data-hour-id="${escapeHTML(
+          hour.id
+        )}">
 
-if(!hours.length){
+        <h3>
+          ${dayNames[hour.weekday] || ""}
+        </h3>
 
-box.innerHTML=
-`
-<div class="empty">
-لا توجد بيانات لساعات العمل.
-</div>
-`;
+        <label class="switch">
 
-return;
+          <input
+            class="hour-enabled"
+            type="checkbox"
+            ${hour.enabled
+              ?
+              "checked"
+              :
+              ""}>
 
-}
+          يوم عمل
 
+        </label>
 
-box.innerHTML=
-hours.map(hour=>`
+        <div class="grid">
 
-<div
-class="card"
-data-hour-id="${escapeHTML(hour.id)}">
+          <label>
+            من
+            <input
+              class="hour-start"
+              type="time"
+              value="${escapeHTML(
+                String(
+                  hour.start_time || ""
+                ).slice(0,5)
+              )}">
+          </label>
 
-<h3>
-${dayNames[hour.weekday]||""}
-</h3>
+          <label>
+            إلى
+            <input
+              class="hour-end"
+              type="time"
+              value="${escapeHTML(
+                String(
+                  hour.end_time || ""
+                ).slice(0,5)
+              )}">
+          </label>
 
+          <label>
+            بداية الراحة
+            <input
+              class="break-start"
+              type="time"
+              value="${escapeHTML(
+                String(
+                  hour.break_start || ""
+                ).slice(0,5)
+              )}">
+          </label>
 
-<label class="switch">
+          <label>
+            نهاية الراحة
+            <input
+              class="break-end"
+              type="time"
+              value="${escapeHTML(
+                String(
+                  hour.break_end || ""
+                ).slice(0,5)
+              )}">
+          </label>
 
-<input
-class="hour-enabled"
-type="checkbox"
-${hour.enabled?"checked":""}>
+        </div>
 
-يوم عمل
+      </div>
 
-</label>
-
-
-<div class="grid">
-
-<label>
-
-من
-
-<input
-class="hour-start"
-type="time"
-value="${escapeHTML(
-String(
-hour.start_time||""
-).slice(0,5)
-)}">
-
-</label>
-
-
-<label>
-
-إلى
-
-<input
-class="hour-end"
-type="time"
-value="${escapeHTML(
-String(
-hour.end_time||""
-).slice(0,5)
-)}">
-
-</label>
-
-
-<label>
-
-بداية الراحة
-
-<input
-class="break-start"
-type="time"
-value="${escapeHTML(
-String(
-hour.break_start||""
-).slice(0,5)
-)}">
-
-</label>
-
-
-<label>
-
-نهاية الراحة
-
-<input
-class="break-end"
-type="time"
-value="${escapeHTML(
-String(
-hour.break_end||""
-).slice(0,5)
-)}">
-
-</label>
-
-</div>
-
-</div>
-
-`).join("");
+    `).join("");
 
 }
 
 
-$("saveHoursBtn").onclick=
-async()=>{
+$("saveHoursBtn").onclick =
+  async () => {
 
-const hours=[
-...document.querySelectorAll(
-"[data-hour-id]"
-)
-].map(card=>({
+    const hours =
+      [
+        ...document.querySelectorAll(
+          "[data-hour-id]"
+        )
+      ].map(card => ({
 
-id:
-card.dataset.hourId,
+        id:card.dataset.hourId,
 
-enabled:
-card.querySelector(
-".hour-enabled"
-).checked,
+        enabled:
+          card.querySelector(
+            ".hour-enabled"
+          ).checked,
 
-start_time:
-card.querySelector(
-".hour-start"
-).value,
+        start_time:
+          card.querySelector(
+            ".hour-start"
+          ).value,
 
-end_time:
-card.querySelector(
-".hour-end"
-).value,
+        end_time:
+          card.querySelector(
+            ".hour-end"
+          ).value,
 
-break_start:
-card.querySelector(
-".break-start"
-).value||null,
+        break_start:
+          card.querySelector(
+            ".break-start"
+          ).value || null,
 
-break_end:
-card.querySelector(
-".break-end"
-).value||null
+        break_end:
+          card.querySelector(
+            ".break-end"
+          ).value || null
 
-}));
+      }));
 
+    try{
 
-try{
+      await api(
+        "?api=hours",
+        {
+          method:"PUT",
+          body:JSON.stringify({
+            hours
+          })
+        }
+      );
 
-await api(
-"?api=hours",
-{
-method:"PUT",
-body:JSON.stringify({
-hours
-})
-}
-);
+      await loadAll();
 
+      showToast(
+        "تم حفظ ساعات العمل."
+      );
 
-await loadAll();
+    }catch(e){
 
+      showToast(e.message);
 
-showToast(
-"تم حفظ ساعات العمل."
-);
+    }
 
-
-}catch(e){
-
-showToast(e.message);
-
-}
-
-};
+  };
 
 
-/* =========================================================
-   SETTINGS
-========================================================= */
-
+/* SETTINGS */
 
 function renderSettings(){
 
-const s=
-clinicData.settings||{};
+  const s =
+    clinicData.settings || {};
+
+  const fields = [
+
+    ["clinic_name","اسم العيادة"],
+    ["tagline","الشعار"],
+    ["phone","الهاتف"],
+    ["landline","الهاتف الأرضي"],
+    ["email","البريد الإلكتروني"],
+    ["address","العنوان"],
+    ["whatsapp","واتساب"],
+    ["facebook_url","Facebook"],
+    ["linkedin_url","LinkedIn"],
+    ["instagram_url","Instagram"],
+    ["tiktok_url","TikTok"],
+    ["logo_url","رابط الشعار"],
+    ["hero_image_url","رابط صورة الواجهة"],
+    ["slot_minutes","الفاصل بين المواعيد بالدقائق"],
+    ["booking_notice","ملاحظة الحجز"]
+
+  ];
 
 
-const fields=[
+  $("settingsForm").innerHTML = `
 
-["clinic_name","اسم العيادة"],
+    <form id="settingsEditForm">
 
-["tagline","الشعار"],
+      <div class="grid">
 
-["phone","الهاتف"],
+        ${fields.map(
+          ([key,label]) => {
 
-["landline","الهاتف الأرضي"],
+            const big =
+              key === "address" ||
+              key === "booking_notice";
 
-["email","البريد الإلكتروني"],
+            return `
 
-["address","العنوان"],
+              <label
+                class="${big ? "full" : ""}">
 
-["whatsapp","واتساب"],
+                ${label}
 
-["facebook_url","Facebook"],
+                ${
+                  big
+                  ?
+                  `<textarea
+                    name="${key}">${escapeHTML(
+                      s[key] || ""
+                    )}</textarea>`
+                  :
+                  `<input
+                    name="${key}"
+                    value="${escapeHTML(
+                      s[key] ?? ""
+                    )}">`
+                }
 
-["linkedin_url","LinkedIn"],
+              </label>
 
-["instagram_url","Instagram"],
+            `;
 
-["tiktok_url","TikTok"],
+          }
+        ).join("")}
 
-["logo_url","رابط الشعار"],
+      </div>
 
-["hero_image_url","رابط صورة الواجهة"],
+    </form>
 
-["slot_minutes","الفاصل بين المواعيد بالدقائق"],
-
-["booking_notice","ملاحظة الحجز"]
-
-];
-
-
-$("settingsForm").innerHTML=`
-
-<form id="settingsEditForm">
-
-<div class="grid">
-
-${fields.map(
-([key,label])=>{
-
-const big=
-key==="address"||
-key==="booking_notice";
-
-
-return`
-
-<label
-class="${big?"full":""}">
-
-${label}
-
-${
-big
-?
-`
-<textarea
-name="${key}">${escapeHTML(
-s[key]||""
-)}</textarea>
-`
-:
-`
-<input
-name="${key}"
-value="${escapeHTML(
-s[key]??""
-)}">
-`
-}
-
-</label>
-
-`;
-
-}
-).join("")}
-
-</div>
-
-</form>
-`;
+  `;
 
 }
 
 
-$("saveSettingsBtn").onclick=
-async()=>{
+$("saveSettingsBtn").onclick =
+  async () => {
 
-const form=
-$("settingsEditForm");
+    const form =
+      $("settingsEditForm");
 
+    if(!form)
+      return;
 
-if(!form)
-return;
+    const payload =
+      Object.fromEntries(
+        new FormData(form)
+      );
 
+    try{
 
-const payload=
-Object.fromEntries(
-new FormData(form)
-);
+      await api(
+        "?api=settings",
+        {
+          method:"PUT",
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
 
+      await loadAll();
 
-try{
+      showToast(
+        "تم حفظ إعدادات العيادة."
+      );
 
-await api(
-"?api=settings",
-{
-method:"PUT",
-body:JSON.stringify(payload)
-}
-);
+    }catch(e){
 
+      showToast(e.message);
 
-await loadAll();
+    }
 
-
-showToast(
-"تم حفظ إعدادات العيادة."
-);
-
-
-}catch(e){
-
-showToast(e.message);
-
-}
-
-};
+  };
 
 
-/* =========================================================
-   MODAL
-========================================================= */
-
+/* MODAL */
 
 function openModal(){
 
-$("modal")
-.classList.add("show");
+  $("modal")
+    .classList
+    .add("show");
 
 }
 
 
 function closeModal(){
 
-$("modal")
-.classList.remove("show");
-
-$("modalContent").innerHTML="";
+  $("modal")
+    .classList
+    .remove("show");
 
 }
 
 
-$("closeModal").onclick=
-closeModal;
+$("closeModal").onclick =
+  closeModal;
 
 
 $("modal").addEventListener(
-"click",
-event=>{
+  "click",
+  event => {
 
-if(
-event.target===
-$("modal")
-){
+    if(
+      event.target ===
+      $("modal")
+    )
+      closeModal();
 
-closeModal();
-
-}
-
-}
+  }
 );
 
 
-document.addEventListener(
-"keydown",
-event=>{
-
-if(event.key==="Escape"){
-
-closeModal();
-
-}
-
-}
-);
-
-
-/* =========================================================
-   SESSION START
-========================================================= */
-
+/* START */
 
 if(adminToken){
 
-loadAll();
+  loadAll();
 
 }else{
 
-$("loginPage")
-.classList.remove("hidden");
+  $("loginPage")
+    .classList
+    .remove("hidden");
 
-$("adminPage")
-.classList.add("hidden");
+  $("adminPage")
+    .classList
+    .add("hidden");
 
 }
 
