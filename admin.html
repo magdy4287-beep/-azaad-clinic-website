@@ -2,582 +2,4806 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>Azaad Clinic | لوحة الإدارة</title>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#f5f7fb;color:#18213d;font-family:Arial,Tahoma,sans-serif}
+html,body{margin:0;padding:0}
+body{
+background:#f5f7fb;
+color:#18213d;
+font-family:Arial,Tahoma,sans-serif;
+-webkit-font-smoothing:antialiased
+}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .hidden{display:none!important}
-.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.login-card{width:100%;max-width:430px;background:#fff;border-radius:18px;padding:30px;box-shadow:0 15px 50px rgba(0,0,0,.08)}
-.logo{font-size:25px;font-weight:900;color:#17214f;letter-spacing:2px}
-.logo span{color:#b38a42;font-size:12px;display:block;letter-spacing:3px;margin-top:4px}
+
+.login-page{
+min-height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px
+}
+.login-card{
+width:100%;
+max-width:440px;
+background:#fff;
+border-radius:20px;
+padding:30px;
+box-shadow:0 15px 55px rgba(0,0,0,.09)
+}
+
+.logo{
+font-size:25px;
+font-weight:900;
+color:#17214f;
+letter-spacing:2px
+}
+.logo span{
+color:#b38a42;
+font-size:11px;
+display:block;
+letter-spacing:3px;
+margin-top:4px
+}
+
 h1,h2,h3{margin-top:0}
-label{display:block;margin-bottom:14px;font-weight:700}
-input,select,textarea{width:100%;margin-top:7px;padding:12px;border:1px solid #d9deea;border-radius:10px;background:#fff;outline:none}
-input:focus,select:focus,textarea:focus{border-color:#17214f}
-textarea{min-height:100px;resize:vertical}
-.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700}
+label{
+display:block;
+margin-bottom:14px;
+font-weight:700
+}
+input,select,textarea{
+width:100%;
+margin-top:7px;
+padding:12px;
+border:1px solid #d9deea;
+border-radius:10px;
+background:#fff;
+outline:none
+}
+input:focus,select:focus,textarea:focus{
+border-color:#17214f
+}
+textarea{
+min-height:100px;
+resize:vertical
+}
+
+.btn{
+border:0;
+border-radius:10px;
+padding:11px 16px;
+font-weight:700
+}
 .btn-primary{background:#17214f;color:#fff}
 .btn-secondary{background:#fff;color:#17214f;border:1px solid #d9deea}
 .btn-danger{background:#fff0f2;color:#a32939;border:1px solid #ffd2d8}
 .btn-success{background:#e7f7ed;color:#167345}
 .btn-gold{background:#b38a42;color:#fff}
-.error{background:#fff0f2;color:#a32939;padding:11px;border-radius:10px;margin-top:12px}
-.success{background:#e7f7ed;color:#167345;padding:11px;border-radius:10px;margin-top:12px}
+
+.error{
+background:#fff0f2;
+color:#a32939;
+padding:11px;
+border-radius:10px;
+margin-top:12px
+}
+.success{
+background:#e7f7ed;
+color:#167345;
+padding:11px;
+border-radius:10px;
+margin-top:12px
+}
 .muted{color:#6c758c}
-.admin{max-width:1400px;margin:auto;padding:18px}
-.topbar{background:#fff;border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;box-shadow:0 7px 25px rgba(0,0,0,.05)}
-.top-actions,.item-actions{display:flex;gap:8px;flex-wrap:wrap}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
-.stat{background:#fff;padding:20px;border-radius:15px;box-shadow:0 7px 25px rgba(0,0,0,.04)}
-.stat-number{font-size:30px;font-weight:900;margin-bottom:5px}
-.tabs{display:flex;gap:8px;overflow-x:auto;margin:16px 0;padding-bottom:3px}
-.tab{white-space:nowrap;border:1px solid #d9deea;background:#fff;color:#17214f;border-radius:22px;padding:10px 16px}
-.tab.active{background:#17214f;color:#fff}
-.panel{display:none}.panel.active{display:block}
-.card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 7px 25px rgba(0,0,0,.04);margin-bottom:15px}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.filters{display:grid;grid-template-columns:1fr 220px;gap:10px;margin:15px 0}
-.table-wrap{overflow-x:auto;border:1px solid #e3e6ed;border-radius:12px}
-table{width:100%;border-collapse:collapse;min-width:950px}
-th,td{padding:11px;text-align:right;border-bottom:1px solid #eee;font-size:13px;vertical-align:middle}
-th{background:#fafbfe;color:#17214f}
-.badge{display:inline-block;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700}
+
+.admin{
+max-width:1400px;
+margin:auto;
+padding:18px
+}
+
+.topbar{
+background:#fff;
+border-radius:16px;
+padding:18px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:15px;
+flex-wrap:wrap;
+box-shadow:0 7px 25px rgba(0,0,0,.05)
+}
+
+.top-actions,.item-actions{
+display:flex;
+gap:8px;
+flex-wrap:wrap
+}
+
+.stats{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:12px;
+margin:16px 0
+}
+.stat{
+background:#fff;
+padding:20px;
+border-radius:15px;
+box-shadow:0 7px 25px rgba(0,0,0,.04)
+}
+.stat-number{
+font-size:30px;
+font-weight:900;
+margin-bottom:5px
+}
+
+.tabs{
+display:flex;
+gap:8px;
+overflow-x:auto;
+margin:16px 0;
+padding-bottom:3px
+}
+.tab{
+white-space:nowrap;
+border:1px solid #d9deea;
+background:#fff;
+color:#17214f;
+border-radius:22px;
+padding:10px 16px
+}
+.tab.active{
+background:#17214f;
+color:#fff
+}
+
+.panel{display:none}
+.panel.active{display:block}
+
+.card{
+background:#fff;
+border-radius:16px;
+padding:18px;
+box-shadow:0 7px 25px rgba(0,0,0,.04);
+margin-bottom:15px
+}
+
+.panel-head{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:10px;
+flex-wrap:wrap
+}
+
+.filters{
+display:grid;
+grid-template-columns:1fr 220px;
+gap:10px;
+margin:15px 0
+}
+
+.table-wrap{
+overflow-x:auto;
+border:1px solid #e3e6ed;
+border-radius:12px
+}
+table{
+width:100%;
+border-collapse:collapse;
+min-width:950px
+}
+th,td{
+padding:11px;
+text-align:right;
+border-bottom:1px solid #eee;
+font-size:13px;
+vertical-align:middle
+}
+th{
+background:#fafbfe;
+color:#17214f
+}
+
+.badge{
+display:inline-block;
+padding:5px 10px;
+border-radius:20px;
+font-size:11px;
+font-weight:700
+}
 .badge-pending{background:#fff4cc;color:#755c00}
 .badge-confirmed{background:#e5f7eb;color:#167345}
 .badge-cancelled{background:#ffecef;color:#a32939}
 .badge-completed{background:#e8edf8;color:#273a70}
 .badge-draft{background:#eee;color:#555}
 .badge-published{background:#e5f7eb;color:#167345}
-.items{display:grid;gap:10px}
-.item{border:1px solid #e2e6ef;border-radius:12px;padding:15px;display:flex;justify-content:space-between;gap:15px;align-items:center;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.items{
+display:grid;
+gap:10px
+}
+.item{
+border:1px solid #e2e6ef;
+border-radius:12px;
+padding:15px;
+display:flex;
+justify-content:space-between;
+gap:15px;
+align-items:center;
+flex-wrap:wrap
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px
+}
 .full{grid-column:1/-1}
-.modal{position:fixed;inset:0;background:rgba(15,25,70,.55);display:none;align-items:center;justify-content:center;padding:15px;z-index:100}
+
+.modal{
+position:fixed;
+inset:0;
+background:rgba(15,25,70,.55);
+display:none;
+align-items:center;
+justify-content:center;
+padding:15px;
+z-index:100
+}
 .modal.show{display:flex}
-.modal-box{width:100%;max-width:850px;max-height:92vh;overflow-y:auto;background:#fff;border-radius:17px;padding:20px}
-.modal-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:15px;flex-wrap:wrap}
-.toast{position:fixed;bottom:20px;left:20px;right:20px;max-width:550px;margin:auto;background:#17214f;color:#fff;padding:13px 17px;border-radius:10px;display:none;z-index:200;text-align:center}
+
+.modal-box{
+width:100%;
+max-width:850px;
+max-height:92vh;
+overflow-y:auto;
+background:#fff;
+border-radius:17px;
+padding:20px
+}
+
+.modal-actions{
+display:flex;
+gap:8px;
+justify-content:flex-start;
+margin-top:15px;
+flex-wrap:wrap
+}
+
+.toast{
+position:fixed;
+bottom:20px;
+left:20px;
+right:20px;
+max-width:550px;
+margin:auto;
+background:#17214f;
+color:#fff;
+padding:13px 17px;
+border-radius:10px;
+display:none;
+z-index:200;
+text-align:center
+}
 .toast.show{display:block}
-.preview{width:100%;max-height:280px;object-fit:contain;border-radius:12px;margin-top:8px;border:1px solid #ddd;background:#fafafa}
-.progress{height:10px;background:#e9edf4;border-radius:20px;overflow:hidden;margin-top:8px}
-.progress-bar{height:100%;width:0;background:#17214f;transition:width .15s}
-.upload-box{border:2px dashed #ccd3e1;border-radius:14px;padding:18px;text-align:center;background:#fafbfe}
-.upload-box.drag{border-color:#17214f;background:#f1f4fb}
-.upload-info{font-size:12px;color:#6c758c;margin-top:7px}
-.post-card{border:1px solid #e2e6ef;border-radius:14px;overflow:hidden;background:#fff}
-.post-media{width:100%;max-height:300px;object-fit:cover;display:block}
+
+.preview{
+width:100%;
+max-height:260px;
+object-fit:cover;
+border-radius:12px;
+margin-top:8px;
+border:1px solid #ddd
+}
+
+.post-card{
+border:1px solid #e2e6ef;
+border-radius:14px;
+overflow:hidden;
+background:#fff
+}
+.post-media{
+width:100%;
+max-height:300px;
+object-fit:cover;
+display:block
+}
 .post-body{padding:15px}
-.schedule-day{border:1px solid #e1e5ed;border-radius:13px;padding:15px;margin-bottom:10px;background:#fff}
-.schedule-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.time-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
-.switch{display:flex;align-items:center;gap:8px}
-.switch input{width:auto;margin:0}
-.empty{text-align:center;padding:30px;color:#7a8294}
-.doctor-photo{width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid #eee}
-.doctor-row{display:flex;align-items:center;gap:14px}
-.small-note{font-size:12px;color:#70798e}
+
+.schedule-day{
+border:1px solid #e1e5ed;
+border-radius:13px;
+padding:15px;
+margin-bottom:10px;
+background:#fff
+}
+.schedule-head{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+flex-wrap:wrap
+}
+.time-row{
+display:grid;
+grid-template-columns:1fr 1fr 1fr 1fr;
+gap:8px;
+align-items:end;
+margin-top:10px
+}
+
+.small-note{
+font-size:12px;
+color:#70798e
+}
+
+.switch{
+display:flex;
+align-items:center;
+gap:8px
+}
+.switch input{
+width:auto;
+margin:0
+}
+
+.empty{
+text-align:center;
+padding:30px;
+color:#7a8294
+}
+
+.doctor-photo{
+width:70px;
+height:70px;
+border-radius:50%;
+object-fit:cover;
+border:2px solid #eee
+}
+.doctor-row{
+display:flex;
+align-items:center;
+gap:14px
+}
+
+.upload-box{
+border:2px dashed #cfd5e3;
+border-radius:14px;
+padding:18px;
+text-align:center;
+background:#fafbfe;
+margin-top:8px
+}
+.upload-box.drag{
+border-color:#17214f;
+background:#f0f3fa
+}
+.file-input{
+display:none
+}
+.upload-label{
+display:inline-flex;
+align-items:center;
+justify-content:center;
+gap:8px;
+background:#17214f;
+color:#fff;
+padding:11px 16px;
+border-radius:10px;
+cursor:pointer;
+margin:0
+}
+
+.progress-wrap{
+display:none;
+margin-top:12px
+}
+.progress-wrap.show{display:block}
+.progress-bar{
+height:9px;
+background:#e7eaf1;
+border-radius:20px;
+overflow:hidden
+}
+.progress-fill{
+height:100%;
+width:0%;
+background:#17214f;
+transition:width .15s linear
+}
+.progress-text{
+font-size:12px;
+margin-top:6px;
+color:#6c758c
+}
+
+.file-info{
+font-size:12px;
+color:#6c758c;
+margin-top:8px;
+word-break:break-word
+}
+
+.publish-row{
+display:flex;
+gap:8px;
+align-items:center;
+flex-wrap:wrap;
+margin-top:12px
+}
+
+.danger-note{
+background:#fff7f7;
+border:1px solid #ffd7d7;
+color:#8d2632;
+padding:12px;
+border-radius:10px;
+font-size:13px
+}
+
+.account-box{
+background:#f9fafc;
+border:1px solid #e4e7ee;
+padding:15px;
+border-radius:13px
+}
+
 @media(max-width:800px){
 .stats{grid-template-columns:1fr 1fr}
-.filters,.grid,.time-row{grid-template-columns:1fr}
+.filters,.grid{grid-template-columns:1fr}
 .full{grid-column:auto}
+.time-row{grid-template-columns:1fr}
+}
+
+@media(max-width:500px){
+.admin{padding:10px}
+.login-card{padding:22px}
+.stats{grid-template-columns:1fr 1fr}
+.btn{padding:10px 12px}
 }
 </style>
 </head>
+
 <body>
+
+<!-- LOGIN -->
+
 <div id="loginPage" class="login-page">
+
 <div class="login-card">
-<div class="logo">AZAAD<span>CLINIC FOR MENTAL HEALTH</span></div>
-<h2 style="margin-top:25px">لوحة إدارة العيادة</h2>
-<p class="muted">تسجيل الدخول إلى لوحة الإدارة</p>
+
+<div class="logo">
+AZAAD
+<span>CLINIC FOR MENTAL HEALTH</span>
+</div>
+
+<h2 style="margin-top:25px">
+لوحة إدارة العيادة
+</h2>
+
+<p class="muted">
+تسجيل الدخول إلى لوحة الإدارة
+</p>
+
 <form id="loginForm">
-<label>اسم المستخدم
-<input id="username" autocomplete="username" value="azaadadmin" required>
+
+<label>
+اسم المستخدم أو البريد الإلكتروني
+<input
+id="username"
+type="text"
+autocomplete="username"
+value="azaadadmin"
+required>
 </label>
-<label>كلمة المرور
-<input id="password" type="password" autocomplete="current-password" required>
+
+<label>
+كلمة المرور
+<input
+id="password"
+type="password"
+autocomplete="current-password"
+required>
 </label>
-<button class="btn btn-primary" style="width:100%">تسجيل الدخول</button>
+
+<button
+type="submit"
+class="btn btn-primary"
+style="width:100%">
+تسجيل الدخول
+</button>
+
 <div id="loginError" class="error hidden"></div>
+
 </form>
+
 </div>
 </div>
+
+
+<!-- ADMIN -->
+
 <div id="adminPage" class="admin hidden">
+
 <div class="topbar">
+
 <div>
-<div class="logo">AZAAD<span>ADMIN PANEL</span></div>
-<div class="muted">لوحة إدارة عيادة آزاد للصحة النفسية</div>
+<div class="logo">
+AZAAD
+<span>ADMIN PANEL</span>
 </div>
+
+<div class="muted" style="margin-top:5px">
+لوحة إدارة عيادة آزاد للصحة النفسية
+</div>
+</div>
+
 <div class="top-actions">
-<button id="refreshBtn" class="btn btn-secondary">تحديث</button>
-<button id="patientPageBtn" class="btn btn-secondary">صفحة المرضى</button>
-<button id="logoutBtn" class="btn btn-danger">تسجيل الخروج</button>
+
+<button id="refreshBtn" class="btn btn-secondary">
+تحديث
+</button>
+
+<button id="patientPageBtn" class="btn btn-secondary">
+صفحة المرضى
+</button>
+
+<button id="logoutBtn" class="btn btn-danger">
+تسجيل الخروج
+</button>
+
 </div>
+
 </div>
+
+
+<!-- STATS -->
+
 <div class="stats">
-<div class="stat"><div id="totalCount" class="stat-number">0</div><div class="muted">إجمالي الحجوزات</div></div>
-<div class="stat"><div id="pendingCount" class="stat-number">0</div><div class="muted">قيد المراجعة</div></div>
-<div class="stat"><div id="confirmedCount" class="stat-number">0</div><div class="muted">الحجوزات المؤكدة</div></div>
-<div class="stat"><div id="todayCount" class="stat-number">0</div><div class="muted">حجوزات اليوم</div></div>
+
+<div class="stat">
+<div id="totalCount" class="stat-number">0</div>
+<div class="muted">إجمالي الحجوزات</div>
 </div>
+
+<div class="stat">
+<div id="pendingCount" class="stat-number">0</div>
+<div class="muted">قيد المراجعة</div>
+</div>
+
+<div class="stat">
+<div id="confirmedCount" class="stat-number">0</div>
+<div class="muted">الحجوزات المؤكدة</div>
+</div>
+
+<div class="stat">
+<div id="todayCount" class="stat-number">0</div>
+<div class="muted">حجوزات اليوم</div>
+</div>
+
+</div>
+
+
+<!-- TABS -->
+
 <div class="tabs">
-<button class="tab active" data-panel="bookingsPanel">الحجوزات</button>
-<button class="tab" data-panel="doctorsPanel">الأطباء</button>
-<button class="tab" data-panel="servicesPanel">الخدمات</button>
-<button class="tab" data-panel="schedulePanel">جداول الأطباء</button>
-<button class="tab" data-panel="postsPanel">المنشورات والعروض</button>
-<button class="tab" data-panel="holidaysPanel">العطلات والإغلاقات</button>
-<button class="tab" data-panel="hoursPanel">ساعات العمل</button>
-<button class="tab" data-panel="settingsPanel">إعدادات العيادة</button>
+
+<button class="tab active" data-panel="bookingsPanel">
+الحجوزات
+</button>
+
+<button class="tab" data-panel="doctorsPanel">
+الأطباء
+</button>
+
+<button class="tab" data-panel="servicesPanel">
+الخدمات
+</button>
+
+<button class="tab" data-panel="schedulePanel">
+جداول الأطباء
+</button>
+
+<button class="tab" data-panel="postsPanel">
+المنشورات والعروض
+</button>
+
+<button class="tab" data-panel="holidaysPanel">
+العطلات والإغلاقات
+</button>
+
+<button class="tab" data-panel="hoursPanel">
+ساعات العمل
+</button>
+
+<button class="tab" data-panel="settingsPanel">
+إعدادات العيادة
+</button>
+
+<button class="tab" data-panel="accountPanel">
+حساب الإدارة
+</button>
+
 </div>
+
+
+<!-- BOOKINGS -->
+
 <section id="bookingsPanel" class="panel active">
+
 <div class="card">
-<div class="panel-head"><h2>الحجوزات</h2><button id="refreshBookings" class="btn btn-secondary">تحديث الحجوزات</button></div>
+
+<div class="panel-head">
+
+<h2>الحجوزات</h2>
+
+<button
+id="refreshBookings"
+class="btn btn-secondary">
+تحديث الحجوزات
+</button>
+
+</div>
+
 <div class="filters">
-<input id="bookingSearch" placeholder="بحث بالاسم أو الهاتف أو رقم الحجز">
+
+<input
+id="bookingSearch"
+placeholder="بحث بالاسم أو الهاتف أو رقم الحجز">
+
 <select id="bookingStatus">
-<option value="">كل الحالات</option>
-<option value="pending">قيد المراجعة</option>
-<option value="confirmed">مؤكد</option>
-<option value="cancelled">ملغي</option>
-<option value="completed">مكتمل</option>
+
+<option value="">
+كل الحالات
+</option>
+
+<option value="pending">
+قيد المراجعة
+</option>
+
+<option value="confirmed">
+مؤكد
+</option>
+
+<option value="cancelled">
+ملغي
+</option>
+
+<option value="completed">
+مكتمل
+</option>
+
 </select>
+
 </div>
-<div id="bookingsTable">جاري تحميل الحجوزات...</div>
+
+<div id="bookingsTable">
+جاري تحميل الحجوزات...
+</div>
+
 </div>
 </section>
+
+
+<!-- DOCTORS -->
+
 <section id="doctorsPanel" class="panel">
+
 <div class="card">
-<div class="panel-head"><h2>الأطباء</h2><button id="addDoctorBtn" class="btn btn-primary">+ إضافة طبيب</button></div>
-<div id="doctorsList" class="items">جاري التحميل...</div>
+
+<div class="panel-head">
+
+<h2>الأطباء</h2>
+
+<button
+id="addDoctorBtn"
+class="btn btn-primary">
++ إضافة طبيب
+</button>
+
+</div>
+
+<div id="doctorsList" class="items">
+جاري التحميل...
+</div>
+
 </div>
 </section>
+
+
+<!-- SERVICES -->
+
 <section id="servicesPanel" class="panel">
+
 <div class="card">
-<div class="panel-head"><h2>الخدمات</h2><button id="addServiceBtn" class="btn btn-primary">+ إضافة خدمة</button></div>
-<div id="servicesList" class="items">جاري التحميل...</div>
+
+<div class="panel-head">
+
+<h2>الخدمات</h2>
+
+<button
+id="addServiceBtn"
+class="btn btn-primary">
++ إضافة خدمة
+</button>
+
+</div>
+
+<div id="servicesList" class="items">
+جاري التحميل...
+</div>
+
 </div>
 </section>
+
+
+<!-- SCHEDULE -->
+
 <section id="schedulePanel" class="panel">
+
 <div class="card">
+
 <div class="panel-head">
-<div><h2>جداول مواعيد الأطباء</h2><div class="muted">تحديد أوقات العمل والبريك ومدة الموعد والسعة اليومية.</div></div>
-<select id="scheduleDoctor" style="max-width:320px"><option value="">اختر الطبيب</option></select>
+
+<div>
+<h2>جداول مواعيد الأطباء</h2>
+
+<div class="muted">
+تحديد أوقات العمل والبريك ومدة الموعد والسعة اليومية.
 </div>
-<div id="scheduleEditor" style="margin-top:20px"><div class="empty">اختر طبيبًا.</div></div>
+</div>
+
+<select
+id="scheduleDoctor"
+style="max-width:320px">
+
+<option value="">
+اختر الطبيب
+</option>
+
+</select>
+
+</div>
+
+<div id="scheduleEditor" style="margin-top:20px">
+
+<div class="empty">
+اختر طبيبًا لعرض جدول مواعيده.
+</div>
+
+</div>
+
 </div>
 </section>
+
+
+<!-- POSTS -->
+
 <section id="postsPanel" class="panel">
+
 <div class="card">
+
 <div class="panel-head">
-<div><h2>المنشورات والعروض</h2><div class="muted">رفع صور وفيديوهات مباشرة من الهاتف أو الكمبيوتر.</div></div>
-<button id="addPostBtn" class="btn btn-primary">+ إضافة منشور</button>
+
+<div>
+
+<h2>
+المنشورات والعروض
+</h2>
+
+<div class="muted">
+يمكنك إضافة نص أو صورة أو فيديو ونشره مباشرة.
 </div>
-<div id="postsList" class="items" style="margin-top:15px">جاري التحميل...</div>
+
+</div>
+
+<button
+id="addPostBtn"
+class="btn btn-primary">
++ إضافة منشور
+</button>
+
+</div>
+
+<div
+id="postsList"
+class="items"
+style="margin-top:15px">
+
+جاري تحميل المنشورات...
+
+</div>
+
 </div>
 </section>
+
+
+<!-- HOLIDAYS -->
+
 <section id="holidaysPanel" class="panel">
+
 <div class="card">
-<div class="panel-head"><div><h2>العطلات والإغلاقات</h2><div class="muted">إغلاق العيادة أو طبيب محدد.</div></div><button id="addHolidayBtn" class="btn btn-primary">+ إضافة</button></div>
-<div id="holidaysList" class="items"></div>
+
+<div class="panel-head">
+
+<div>
+
+<h2>
+العطلات والإغلاقات
+</h2>
+
+<div class="muted">
+إغلاق العيادة أو طبيب معين في تاريخ محدد.
+</div>
+
+</div>
+
+<button
+id="addHolidayBtn"
+class="btn btn-primary">
++ إضافة عطلة / إغلاق
+</button>
+
+</div>
+
+<div
+id="holidaysList"
+class="items"
+style="margin-top:15px">
+</div>
+
 </div>
 </section>
+
+
+<!-- HOURS -->
+
 <section id="hoursPanel" class="panel">
+
 <div class="card">
-<div class="panel-head"><h2>ساعات العمل العامة</h2><button id="saveHoursBtn" class="btn btn-primary">حفظ</button></div>
-<div id="hoursList">جاري التحميل...</div>
+
+<div class="panel-head">
+
+<h2>
+ساعات العمل العامة
+</h2>
+
+<button
+id="saveHoursBtn"
+class="btn btn-primary">
+حفظ
+</button>
+
+</div>
+
+<div id="hoursList">
+جاري التحميل...
+</div>
+
 </div>
 </section>
+
+
+<!-- SETTINGS -->
+
 <section id="settingsPanel" class="panel">
+
 <div class="card">
-<div class="panel-head"><h2>إعدادات العيادة</h2><button id="saveSettingsBtn" class="btn btn-primary">حفظ</button></div>
-<div id="settingsForm">جاري التحميل...</div>
+
+<div class="panel-head">
+
+<h2>
+إعدادات العيادة
+</h2>
+
+<button
+id="saveSettingsBtn"
+class="btn btn-primary">
+حفظ
+</button>
+
+</div>
+
+<div id="settingsForm">
+جاري التحميل...
+</div>
+
 </div>
 </section>
+
+
+<!-- ACCOUNT -->
+
+<section id="accountPanel" class="panel">
+
+<div class="card">
+
+<h2>
+حساب الإدارة والأمان
+</h2>
+
+<div class="muted" style="margin-bottom:18px">
+تعديل بيانات التواصل الخاصة بحساب الإدارة وتغيير كلمة المرور.
 </div>
+
+<div id="accountForm">
+جاري تحميل بيانات الحساب...
+</div>
+
+<hr style="border:0;border-top:1px solid #eee;margin:25px 0">
+
+<h3>
+تغيير كلمة المرور
+</h3>
+
+<form id="passwordForm">
+
+<div class="grid">
+
+<label>
+كلمة المرور الحالية
+<input
+name="current_password"
+type="password"
+autocomplete="current-password"
+required>
+</label>
+
+<label>
+كلمة المرور الجديدة
+<input
+name="new_password"
+type="password"
+autocomplete="new-password"
+minlength="10"
+required>
+</label>
+
+<label>
+تأكيد كلمة المرور الجديدة
+<input
+name="confirm_password"
+type="password"
+autocomplete="new-password"
+minlength="10"
+required>
+</label>
+
+</div>
+
+<div class="danger-note">
+لأمان لوحة الإدارة، كلمة المرور الجديدة يجب أن تكون 10 أحرف على الأقل.
+</div>
+
+<div class="modal-actions">
+
+<button
+class="btn btn-primary"
+type="submit">
+تغيير كلمة المرور
+</button>
+
+</div>
+
+</form>
+
+<div
+id="passwordMessage"
+style="margin-top:12px">
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+
+<!-- MODAL -->
+
 <div id="modal" class="modal">
+
 <div class="modal-box">
-<div class="panel-head"><h2 id="modalTitle">تعديل</h2><button id="closeModal" class="btn btn-secondary">إغلاق</button></div>
+
+<div class="panel-head">
+
+<h2 id="modalTitle">
+تعديل
+</h2>
+
+<button
+id="closeModal"
+class="btn btn-secondary">
+إغلاق
+</button>
+
+</div>
+
 <div id="modalContent"></div>
+
 </div>
 </div>
+
+
 <div id="toast" class="toast"></div>
+
+
 <script>
-const API="https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin";
-const MANAGEMENT_API="https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-management";
-const SUPABASE_URL="https://derofsthjivlkcdnojww.supabase.co";
-const BUCKET="clinic-media";
-let adminToken=sessionStorage.getItem("azaad_admin_token")||"";
-let clinicData={bookings:[],doctors:[],services:[],settings:{},working_hours:[]};
-let managementData={posts:[],holidays:[],schedules:[]};
+
+const API =
+"https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin";
+
+const MANAGEMENT_API =
+"https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-management";
+
+const STORAGE_BASE =
+"https://derofsthjivlkcdnojww.supabase.co/storage/v1/object/upload/sign/";
+
+let adminToken =
+sessionStorage.getItem("azaad_admin_token") || "";
+
+let clinicData={
+bookings:[],
+doctors:[],
+services:[],
+settings:{},
+working_hours:[],
+posts:[],
+holidays:[]
+};
+
+let managementData={
+posts:[],
+holidays:[],
+schedules:[]
+};
+
 const $=id=>document.getElementById(id);
-function escapeHTML(v){
-return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+
+
+function escapeHTML(value){
+
+return String(value??"").replace(
+/[&<>"']/g,
+c=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#039;"
+}[c])
+);
+
 }
-function toast(msg){
-const t=$("toast");t.textContent=msg;t.classList.add("show");
-clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove("show"),3500);
+
+
+function showToast(message){
+
+const toast=$("toast");
+
+toast.textContent=message;
+
+toast.classList.add("show");
+
+clearTimeout(window.__toastTimer);
+
+window.__toastTimer=setTimeout(
+()=>toast.classList.remove("show"),
+3500
+);
+
 }
-async function request(base,query,options={}){
-const headers={"Content-Type":"application/json"};
-if(adminToken)headers.Authorization="Bearer "+adminToken;
-const r=await fetch(base+query,{...options,headers,cache:"no-store"});
-let d={};try{d=await r.json()}catch(_){}
-if(!r.ok)throw new Error(d.error||d.message||"حدث خطأ في الخادم.");
-return d;
+
+
+async function api(query,options={}){
+
+const headers={
+"Content-Type":"application/json"
+};
+
+if(adminToken){
+headers.Authorization="Bearer "+adminToken;
 }
-const api=(q,o={})=>request(API,q,o);
-const managementApi=(q,o={})=>request(MANAGEMENT_API,q,o);
-$("loginForm").onsubmit=async e=>{
-e.preventDefault();
-$("loginError").classList.add("hidden");
+
+const response=await fetch(
+API+query,
+{
+...options,
+headers,
+cache:"no-store"
+}
+);
+
+let data={};
+
 try{
-const r=await api("?api=login",{method:"POST",body:JSON.stringify({
-username:$("username").value.trim(),password:$("password").value
-})});
-if(!r.token)throw Error("لم يتم إنشاء جلسة الإدارة.");
-adminToken=r.token;
-sessionStorage.setItem("azaad_admin_token",adminToken);
+data=await response.json();
+}catch(_){}
+
+if(!response.ok){
+
+throw new Error(
+data.error||
+data.message||
+"حدث خطأ في الاتصال بالخادم."
+);
+
+}
+
+return data;
+
+}
+
+
+async function managementApi(query,options={}){
+
+const headers={
+"Content-Type":"application/json"
+};
+
+if(adminToken){
+headers.Authorization="Bearer "+adminToken;
+}
+
+const response=await fetch(
+MANAGEMENT_API+query,
+{
+...options,
+headers,
+cache:"no-store"
+}
+);
+
+let data={};
+
+try{
+data=await response.json();
+}catch(_){}
+
+if(!response.ok){
+
+throw new Error(
+data.error||
+data.message||
+"تعذر تنفيذ العملية."
+);
+
+}
+
+return data;
+
+}
+
+
+/* LOGIN */
+
+$("loginForm").addEventListener(
+"submit",
+async event=>{
+
+event.preventDefault();
+
+const identifier=
+$("username").value.trim();
+
+const password=
+$("password").value;
+
+$("loginError").classList.add("hidden");
+
+try{
+
+const result=await api(
+"?api=login",
+{
+method:"POST",
+body:JSON.stringify({
+identifier,
+username:identifier,
+password
+})
+}
+);
+
+if(!result.token){
+throw new Error(
+"لم يتم إنشاء جلسة الإدارة."
+);
+}
+
+adminToken=result.token;
+
+sessionStorage.setItem(
+"azaad_admin_token",
+adminToken
+);
+
 await loadAll();
-}catch(e){$("loginError").textContent=e.message;$("loginError").classList.remove("hidden")}
+
+}catch(e){
+
+$("loginError").textContent=e.message;
+$("loginError").classList.remove("hidden");
+
+}
+
+});
+
+
+/* LOGOUT */
+
+$("logoutBtn").onclick=async()=>{
+
+try{
+
+if(adminToken){
+
+await api(
+"?api=logout",
+{method:"POST"}
+);
+
+}
+
+}catch(_){}
+
+sessionStorage.removeItem(
+"azaad_admin_token"
+);
+
+adminToken="";
+
+location.reload();
+
 };
-$("logoutBtn").onclick=()=>{
-sessionStorage.removeItem("azaad_admin_token");adminToken="";location.reload();
-};
+
+
 $("refreshBtn").onclick=loadAll;
 $("refreshBookings").onclick=loadAll;
-$("patientPageBtn").onclick=()=>window.open("./","_blank");
+
+
+$("patientPageBtn").onclick=()=>{
+
+window.open("./","_blank");
+
+};
+
+
+/* LOAD */
+
 async function loadAll(){
+
 try{
-clinicData=await api("?api=data");
+
+const result=await api("?api=data");
+
+clinicData={
+bookings:result.bookings||[],
+doctors:result.doctors||[],
+services:result.services||[],
+settings:result.settings||{},
+working_hours:result.working_hours||[],
+posts:result.posts||[],
+holidays:result.holidays||[]
+};
+
 await loadManagement();
+
 renderAdmin();
+
 $("loginPage").classList.add("hidden");
 $("adminPage").classList.remove("hidden");
+
 }catch(e){
-sessionStorage.removeItem("azaad_admin_token");adminToken="";
-$("loginPage").classList.remove("hidden");$("adminPage").classList.add("hidden");
-$("loginError").textContent=e.message;$("loginError").classList.remove("hidden");
+
+if(
+e.message.includes("جلسة")||
+e.message.includes("غير صالحة")||
+e.message.includes("منتهية")
+){
+
+sessionStorage.removeItem(
+"azaad_admin_token"
+);
+
+adminToken="";
+
+$("loginPage").classList.remove("hidden");
+$("adminPage").classList.add("hidden");
+
+$("loginError").textContent=e.message;
+$("loginError").classList.remove("hidden");
+
+}else{
+
+showToast(e.message);
+
 }
+
 }
+
+}
+
+
 async function loadManagement(){
+
 try{
-const r=await managementApi("?api=data");
-managementData={posts:r.posts||[],holidays:r.holidays||[],schedules:r.schedules||[]};
-}catch(e){console.warn(e);managementData={posts:[],holidays:[],schedules:[]}}
+
+const result=
+await managementApi("?api=data");
+
+managementData={
+posts:result.posts||[],
+holidays:result.holidays||[],
+schedules:result.schedules||[]
+};
+
+}catch(e){
+
+console.warn(e);
+
+managementData={
+posts:clinicData.posts||[],
+holidays:clinicData.holidays||[],
+schedules:[]
+};
+
 }
+
+}
+
+
+/* RENDER */
+
 function renderAdmin(){
-const b=clinicData.bookings||[];
-$("totalCount").textContent=b.length;
-$("pendingCount").textContent=b.filter(x=>x.status==="pending").length;
-$("confirmedCount").textContent=b.filter(x=>x.status==="confirmed").length;
-const today=new Date().toISOString().slice(0,10);
-$("todayCount").textContent=b.filter(x=>x.appointment_date===today&&x.status!=="cancelled").length;
-renderBookings();renderDoctors();renderServices();renderScheduleDoctors();renderPosts();renderHolidays();renderHours();renderSettings();
+
+const bookings=
+clinicData.bookings||[];
+
+$("totalCount").textContent=
+bookings.length;
+
+$("pendingCount").textContent=
+bookings.filter(
+b=>b.status==="pending"
+).length;
+
+$("confirmedCount").textContent=
+bookings.filter(
+b=>b.status==="confirmed"
+).length;
+
+const today=
+new Date().toISOString().slice(0,10);
+
+$("todayCount").textContent=
+bookings.filter(
+b=>
+b.appointment_date===today &&
+b.status!=="cancelled"
+).length;
+
+renderBookings();
+renderDoctors();
+renderServices();
+renderScheduleDoctorList();
+renderPosts();
+renderHolidays();
+renderHours();
+renderSettings();
+loadAccount();
+
 }
-document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
-document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
-t.classList.add("active");$(t.dataset.panel).classList.add("active");
+
+
+/* TABS */
+
+document.querySelectorAll(".tab")
+.forEach(tab=>{
+
+tab.onclick=()=>{
+
+document.querySelectorAll(".tab")
+.forEach(
+x=>x.classList.remove("active")
+);
+
+document.querySelectorAll(".panel")
+.forEach(
+x=>x.classList.remove("active")
+);
+
+tab.classList.add("active");
+
+$(tab.dataset.panel)
+.classList.add("active");
+
+};
+
 });
+
+
+/* BOOKINGS */
+
 function doctorName(id){
-const d=(clinicData.doctors||[]).find(x=>x.id===id);return d?d.name:"—";
+
+const doctor=
+(clinicData.doctors||[])
+.find(d=>d.id===id);
+
+return doctor?
+doctor.name:
+"—";
+
 }
+
+
 function serviceName(id){
-const s=(clinicData.services||[]).find(x=>x.id===id);return s?s.name:"—";
+
+const service=
+(clinicData.services||[])
+.find(s=>s.id===id);
+
+return service?
+service.name:
+"—";
+
 }
-function statusText(s){return{pending:"قيد المراجعة",confirmed:"مؤكد",cancelled:"ملغي",completed:"مكتمل"}[s]||s}
-function statusClass(s){return{pending:"badge-pending",confirmed:"badge-confirmed",cancelled:"badge-cancelled",completed:"badge-completed"}[s]||""}
+
+
+function statusText(status){
+
+return {
+pending:"قيد المراجعة",
+confirmed:"مؤكد",
+cancelled:"ملغي",
+completed:"مكتمل"
+}[status]||status;
+
+}
+
+
+function statusClass(status){
+
+return {
+pending:"badge-pending",
+confirmed:"badge-confirmed",
+cancelled:"badge-cancelled",
+completed:"badge-completed"
+}[status]||"";
+
+}
+
+
 function renderBookings(){
-const search=($("bookingSearch").value||"").toLowerCase(),status=$("bookingStatus").value;
-const rows=(clinicData.bookings||[]).filter(b=>{
-const txt=[b.booking_code,b.patient_name,b.patient_phone].join(" ").toLowerCase();
-return(!search||txt.includes(search))&&(!status||b.status===status)
+
+const container=
+$("bookingsTable");
+
+const search=
+($("bookingSearch")?.value||"")
+.toLowerCase();
+
+const status=
+$("bookingStatus")?.value||"";
+
+const rows=
+(clinicData.bookings||[])
+.filter(b=>{
+
+const text=[
+b.booking_code,
+b.patient_name,
+b.patient_phone
+].join(" ")
+.toLowerCase();
+
+return(
+(!search||text.includes(search))&&
+(!status||b.status===status)
+);
+
 });
-if(!rows.length){$("bookingsTable").innerHTML='<div class="empty">لا توجد حجوزات مطابقة.</div>';return}
-$("bookingsTable").innerHTML=`<div class="table-wrap"><table><thead><tr>
-<th>رقم الحجز</th><th>المريض</th><th>الطبيب</th><th>الخدمة</th><th>التاريخ</th><th>الوقت</th><th>الحالة</th><th>تحديث</th>
-</tr></thead><tbody>${rows.map(b=>`<tr>
-<td><strong>${escapeHTML(b.booking_code)}</strong></td>
-<td>${escapeHTML(b.patient_name)}<br><span class="muted">${escapeHTML(b.patient_phone)}</span></td>
-<td>${escapeHTML(doctorName(b.doctor_id))}</td><td>${escapeHTML(serviceName(b.service_id))}</td>
-<td>${escapeHTML(b.appointment_date)}</td><td>${escapeHTML(String(b.appointment_time||"").slice(0,5))}</td>
-<td><span class="badge ${statusClass(b.status)}">${escapeHTML(statusText(b.status))}</span></td>
-<td><select data-booking="${escapeHTML(b.id)}">
-<option value="pending" ${b.status==="pending"?"selected":""}>قيد المراجعة</option>
-<option value="confirmed" ${b.status==="confirmed"?"selected":""}>مؤكد</option>
-<option value="cancelled" ${b.status==="cancelled"?"selected":""}>ملغي</option>
-<option value="completed" ${b.status==="completed"?"selected":""}>مكتمل</option>
-</select></td></tr>`).join("")}</tbody></table></div>`;
-document.querySelectorAll("[data-booking]").forEach(s=>s.onchange=async()=>{
-try{await api("?api=booking&id="+encodeURIComponent(s.dataset.booking),{method:"PATCH",body:JSON.stringify({status:s.value})});await loadAll();toast("تم تحديث الحجز")}catch(e){toast(e.message)}
-});
-}
-$("bookingSearch").oninput=renderBookings;$("bookingStatus").onchange=renderBookings;
-function renderDoctors(){
-const box=$("doctorsList"),ds=clinicData.doctors||[];
-if(!ds.length){box.innerHTML='<div class="empty">لا يوجد أطباء.</div>';return}
-box.innerHTML=ds.map(d=>`<div class="item"><div class="doctor-row">
-${d.image_url?`<img class="doctor-photo" src="${escapeHTML(d.image_url)}" onerror="this.style.display='none'">`:`<div class="doctor-photo"></div>`}
-<div><strong>${escapeHTML(d.name)}</strong><div class="muted">${escapeHTML(d.title||"")}</div><div class="muted">${d.active?"نشط":"غير نشط"}</div></div>
-</div><div class="item-actions"><button class="btn btn-secondary" onclick="editDoctor('${d.id}')">تعديل / صورة</button>
-<button class="btn btn-gold" onclick="openDoctorSchedule('${d.id}')">جدول المواعيد</button>
-${d.active?`<button class="btn btn-danger" onclick="disableDoctor('${d.id}')">تعطيل</button>`:""}</div></div>`).join("");
-}
-$("addDoctorBtn").onclick=()=>editDoctor(null);
-async function disableDoctor(id){
-if(!confirm("هل تريد تعطيل هذا الطبيب؟"))return;
-try{await api("?api=doctor&id="+encodeURIComponent(id),{method:"DELETE"});await loadAll();toast("تم تعطيل الطبيب")}catch(e){toast(e.message)}
-}
-/* رفع ملف بصورة مباشرة عبر Signed Upload URL */
-async function uploadFile(file,kind,onProgress){
-const isVideo=file.type.startsWith("video/");
-const max=isVideo?150*1024*1024:50*1024*1024;
-if(file.size>max)throw Error(isVideo?"الفيديو أكبر من 150 MB.":"الصورة أكبر من 50 MB.");
-if(kind==="doctor"&&!file.type.startsWith("image/"))throw Error("صورة الطبيب يجب أن تكون صورة.");
-const sign=await managementApi("?api=media-sign",{method:"POST",body:JSON.stringify({
-file_name:file.name,file_size:file.size,mime_type:file.type,kind
-})});
-const xhr=new XMLHttpRequest();
-await new Promise((resolve,reject)=>{
-xhr.open("POST",`${SUPABASE_URL}/storage/v1/object/upload/sign/${sign.path}`);
-xhr.setRequestHeader("x-signature",sign.token);
-xhr.setRequestHeader("content-type",file.type);
-xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress(Math.round(e.loaded/e.total*100))}
-xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve():reject(Error("فشل رفع الملف."));
-xhr.onerror=()=>reject(Error("انقطع الاتصال أثناء الرفع."));
-xhr.send(file);
-});
-await managementApi("?api=media-record",{method:"POST",body:JSON.stringify({
-path:sign.path,file_name:file.name,mime_type:file.type,file_size:file.size,
-media_type:sign.media_type
-})});
-onProgress(100);
-return sign.publicUrl;
-}
-function uploadUI(){
-return `<div class="upload-box" id="uploadBox">
-<strong>اختر ملفًا من الجهاز</strong>
-<div class="upload-info">الصورة: حتى 50 MB — الفيديو: حتى 150 MB</div>
-<input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" style="margin-top:12px">
-<div id="uploadStatus" class="small-note"></div>
-<div class="progress"><div id="uploadProgress" class="progress-bar"></div></div>
-</div>`;
-}
-function editDoctor(id){
-const d=id?clinicData.doctors.find(x=>x.id===id):null;
-$("modalTitle").textContent=d?"تعديل الطبيب":"إضافة طبيب";
-$("modalContent").innerHTML=`<form id="doctorForm"><div class="grid">
-<label>اسم الطبيب<input name="name" required value="${escapeHTML(d?.name||"")}"></label>
-<label>المسمى الوظيفي<input name="title" value="${escapeHTML(d?.title||"")}"></label>
-<label class="full">نبذة<textarea name="bio">${escapeHTML(d?.bio||"")}</textarea></label>
 
-صورة الطبيب
-${uploadUI()}
-<input id=“doctorImageUrl” name=“image_url” placeholder=“أو أدخل رابط صورة مباشر” value=”${escapeHTML(d?.image_url||””)}”>
+if(!rows.length){
 
-<div id="doctorPreviewBox">${d?.image_url?`<img class="preview" src="${escapeHTML(d.image_url)}">`:""}</div>
-</label>
-<label>الترتيب<input name="sort_order" type="number" value="${Number(d?.sort_order||0)}"></label>
-<label class="switch"><input id="doctorActive" type="checkbox" ${d?.active!==false?"checked":""}> الطبيب نشط</label>
-</div><div class="modal-actions"><button class="btn btn-primary">حفظ الطبيب</button></div></form>`;
-openModal();
-$("fileInput").onchange=async()=>{
-const f=$("fileInput").files[0];if(!f)return;
-try{
-$("uploadStatus").textContent="جاري رفع الصورة...";$("uploadProgress").style.width="0%";
-const url=await uploadFile(f,"doctor",p=>{$("uploadProgress").style.width=p+"%";$("uploadStatus").textContent="تم رفع "+p+"%";});
-$("doctorImageUrl").value=url;$("doctorPreviewBox").innerHTML=`<img class="preview" src="${escapeHTML(url)}">`;
-$("uploadStatus").textContent="تم رفع الصورة بنجاح.";
-}catch(e){$("uploadStatus").textContent=e.message;toast(e.message)}
-};
-$("doctorForm").onsubmit=async e=>{
-e.preventDefault();const p=Object.fromEntries(new FormData(e.currentTarget));p.active=$("doctorActive").checked;
-try{await api(d?"?api=doctor&id="+encodeURIComponent(d.id):"?api=doctor",{method:d?"PUT":"POST",body:JSON.stringify(p)});closeModal();await loadAll();toast("تم حفظ الطبيب")}catch(e){toast(e.message)}
-};
+container.innerHTML=
+'<div class="empty">لا توجد حجوزات مطابقة.</div>';
+
+return;
+
 }
 
-function renderServices(){
-const box=$(“servicesList”),ss=clinicData.services||[];
-if(!ss.length){box.innerHTML=’لا توجد خدمات.’;return}
-box.innerHTML=ss.map(s=><div class="item"><div><strong>${escapeHTML(s.name)}</strong><div class="muted">${Number(s.duration_minutes||30)} دقيقة</div><div class="muted">${s.active?"نشطة":"غير نشطة"}</div></div><div class="item-actions"><button class="btn btn-secondary" onclick="editService('${s.id}')">تعديل</button>${s.active?تعطيل:""}</div></div>).join(””);
-}
-$(“addServiceBtn”).onclick=()=>editService(null);
-async function disableService(id){if(!confirm(“تعطيل الخدمة؟”))return;try{await api(”?api=service&id=”+encodeURIComponent(id),{method:“DELETE”});await loadAll();toast(“تم التعطيل”)}catch(e){toast(e.message)}}
-function editService(id){
-const s=id?clinicData.services.find(x=>x.id===id):null;
-$(“modalTitle”).textContent=s?“تعديل الخدمة”:“إضافة خدمة”;
-$(“modalContent”).innerHTML=`
-اسم الخدمة<input name=“name” required value=”${escapeHTML(s?.name||””)}”>
-الوصف${escapeHTML(s?.description||””)}
-المدة
-السعر<input name=“price” type=“number” min=“0” value=”${s?.price??””}”>
-الترتيب
-<input id=“serviceActive” type=“checkbox” ${s?.active!==false?“checked”:””}> الخدمة نشطة
+container.innerHTML=`
 
-</div><div class="modal-actions"><button class="btn btn-primary">حفظ</button></div></form>`;
-openModal();
-$("serviceForm").onsubmit=async e=>{e.preventDefault();const p=Object.fromEntries(new FormData(e.currentTarget));p.active=$("serviceActive").checked;try{await api(s?"?api=service&id="+encodeURIComponent(s.id):"?api=service",{method:s?"PUT":"POST",body:JSON.stringify(p)});closeModal();await loadAll();toast("تم الحفظ")}catch(e){toast(e.message)}}
-}
+<div class="table-wrap">
 
-function renderScheduleDoctors(){
-const s=$(“scheduleDoctor”),cur=s.value;
-s.innerHTML=’اختر الطبيب’+(clinicData.doctors||[]).filter(d=>d.active!==false).map(d=><option value="${escapeHTML(d.id)}">${escapeHTML(d.name)}</option>).join(””);
-if(cur)s.value=cur;
-}
-$(“scheduleDoctor”).onchange=()=>{if($(“scheduleDoctor”).value)loadSchedule($(“scheduleDoctor”).value)};
+<table>
 
-function openDoctorSchedule(id){document.querySelector(’[data-panel=“schedulePanel”]’).click();$(“scheduleDoctor”).value=id;loadSchedule(id)}
+<thead>
 
-const days=[“الأحد”,“الاثنين”,“الثلاثاء”,“الأربعاء”,“الخميس”,“الجمعة”,“السبت”];
-async function loadSchedule(id){
-$(“scheduleEditor”).innerHTML=’جاري التحميل…’;
-try{
-const r=await managementApi(”?api=schedule&doctor_id=”+encodeURIComponent(id));
-const rows=r.schedule||[],set=r.settings||{};
-$(“scheduleEditor”).innerHTML=`إعدادات المواعيد
-مدة الموعد1520304560
-Buffer051015
-الحد اليومي<input id=“maxDaily” type=“number” value=”${escapeHTML(set.max_daily_bookings||””)}”>
+<tr>
 
-</div></div>
-<div>${days.map((n,i)=>{const d=rows.find(x=>Number(x.weekday)===i)||{};return `<div class="schedule-day" data-day="${i}">
-<div class="schedule-head"><h3>${n}</h3><label class="switch"><input class="en" type="checkbox" ${d.enabled?"checked":""}> يعمل</label></div>
-<div class="time-row"><label>من<input class="st" type="time" value="${escapeHTML(String(d.start_time||"09:00").slice(0,5))}"></label>
-<label>إلى<input class="et" type="time" value="${escapeHTML(String(d.end_time||"17:00").slice(0,5))}"></label>
-<label>بداية البريك<input class="bs" type="time" value="${escapeHTML(String(d.break_start||"").slice(0,5))}"></label>
-<label>نهاية البريك<input class="be" type="time" value="${escapeHTML(String(d.break_end||"").slice(0,5))}"></label></div></div>`}).join("")}</div>
-<button id="saveSchedule" class="btn btn-primary">حفظ جدول الطبيب</button>`;
-$("slot").value=set.appointment_minutes||30;$("buffer").value=set.buffer_minutes||0;
-$("saveSchedule").onclick=async()=>{
-const schedule=[...document.querySelectorAll("[data-day]")].map(c=>({weekday:+c.dataset.day,enabled:c.querySelector(".en").checked,start_time:c.querySelector(".st").value||null,end_time:c.querySelector(".et").value||null,break_start:c.querySelector(".bs").value||null,break_end:c.querySelector(".be").value||null}));
-try{await managementApi("?api=schedule&doctor_id="+encodeURIComponent(id),{method:"PUT",body:JSON.stringify({doctor_id:id,schedule,appointment_minutes:+$("slot").value,buffer_minutes:+$("buffer").value,max_daily_bookings:$("maxDaily").value?+$("maxDaily").value:null})});toast("تم حفظ جدول الطبيب")}catch(e){toast(e.message)}
-}
-}catch(e){$("scheduleEditor").innerHTML=`<div class="error">${escapeHTML(e.message)}</div>`}
-}
+<th>رقم الحجز</th>
+<th>المريض</th>
+<th>الطبيب</th>
+<th>الخدمة</th>
+<th>التاريخ</th>
+<th>الوقت</th>
+<th>الحالة</th>
+<th>تحديث</th>
 
-function renderPosts(){
-const box=$(“postsList”),ps=managementData.posts||[];
-if(!ps.length){box.innerHTML=’لا توجد منشورات.’;return}
-box.innerHTML=ps.map(p=><div class="post-card"> ${p.media_type==="image"&&p.media_url?:""} ${p.media_type==="video"&&p.media_url?`:””}
+</tr>
 
-<div class="post-body"><div class="panel-head"><h3>${escapeHTML(p.title||"بدون عنوان")}</h3><span class="badge ${p.status==="published"?"badge-published":"badge-draft"}">${p.status==="published"?"منشور":"مسودة"}</span></div>
-<p class="muted">${escapeHTML(p.content||"")}</p>
-<div class="item-actions"><button class="btn btn-secondary" onclick="editPost('${p.id}')">تعديل</button>
-${p.status==="published"?`<button class="btn btn-danger" onclick="postStatus('${p.id}','draft')">إخفاء</button>`:`<button class="btn btn-success" onclick="postStatus('${p.id}','published')">نشر</button>`}
-<button class="btn btn-danger" onclick="deletePost('${p.id}')">حذف</button></div></div></div>`).join("");
-}
+</thead>
 
-$(“addPostBtn”).onclick=()=>editPost(null);
+<tbody>
 
-function editPost(id){
-const p=id?managementData.posts.find(x=>x.id===id):null;
-$(“modalTitle”).textContent=p?“تعديل المنشور”:“إضافة منشور”;
-$(“modalContent”).innerHTML=`
-عنوان المنشور<input name=“title” value=”${escapeHTML(p?.title||””)}”>
-نوع الوسائطبدونصورةفيديو
-النص${escapeHTML(p?.content||””)}
-${uploadUI()}<input id=“mediaUrl” name=“media_url” placeholder=“أو رابط مباشر” value=”${escapeHTML(p?.media_url||””)}”>
-رابط خارجي<input name=“external_url” value=”${escapeHTML(p?.external_url||””)}” placeholder=“Instagram / Facebook / WhatsApp / Website”>
-ترتيب الظهور
+${rows.map(b=>`
+
+<tr>
+
+<td>
+<strong>
+${escapeHTML(b.booking_code)}
+</strong>
+</td>
+
+<td>
+${escapeHTML(b.patient_name)}
+<br>
+<span class="muted">
+${escapeHTML(b.patient_phone)}
+</span>
+</td>
+
+<td>
+${escapeHTML(
+doctorName(b.doctor_id)
+)}
+</td>
+
+<td>
+${escapeHTML(
+serviceName(b.service_id)
+)}
+</td>
+
+<td>
+${escapeHTML(
+b.appointment_date
+)}
+</td>
+
+<td>
+${escapeHTML(
+String(
+b.appointment_time||""
+).slice(0,5)
+)}
+</td>
+
+<td>
+<span class="badge ${statusClass(b.status)}">
+${escapeHTML(
+statusText(b.status)
+)}
+</span>
+</td>
+
+<td>
+
+<select
+data-booking-id="${escapeHTML(b.id)}">
+
+<option
+value="pending"
+${b.status==="pending"?"selected":""}>
+قيد المراجعة
+</option>
+
+<option
+value="confirmed"
+${b.status==="confirmed"?"selected":""}>
+مؤكد
+</option>
+
+<option
+value="cancelled"
+${b.status==="cancelled"?"selected":""}>
+ملغي
+</option>
+
+<option
+value="completed"
+${b.status==="completed"?"selected":""}>
+مكتمل
+</option>
+
+</select>
+
+</td>
+
+</tr>
+
+`).join("")}
+
+</tbody>
+
+</table>
 
 </div>
-<div class="modal-actions">
-<button id="saveDraft" type="submit" class="btn btn-secondary">حفظ كمسودة</button>
-<button id="publishNow" type="button" class="btn btn-primary">نشر الآن</button>
-</div></form>`;
-openModal();
-if(p?.media_type)$("mediaType").value=p.media_type;
-function preview(){const u=$("mediaUrl").value;if(!u){$("mediaPreview").innerHTML="";return}$("mediaPreview").innerHTML=$("mediaType").value==="video"?`<video class="preview" controls src="${escapeHTML(u)}"></video>`:`<img class="preview" src="${escapeHTML(u)}">`}
-preview();$("mediaUrl").oninput=preview;$("mediaType").onchange=preview;
-$("fileInput").onchange=async()=>{
-const f=$("fileInput").files[0];if(!f)return;
+`;
+
+container
+.querySelectorAll("[data-booking-id]")
+.forEach(select=>{
+
+select.onchange=async()=>{
+
 try{
-$("uploadStatus").textContent="جاري رفع الملف...";$("uploadProgress").style.width="0%";
-const kind=f.type.startsWith("video/")?"video":"image";
-$("mediaType").value=kind;
-const url=await uploadFile(f,kind,x=>{$("uploadProgress").style.width=x+"%";$("uploadStatus").textContent="تم رفع "+x+"%"});
-$("mediaUrl").value=url;preview();$("uploadStatus").textContent="تم رفع الملف بنجاح.";
-}catch(e){toast(e.message);$("uploadStatus").textContent=e.message}
-};
-async function save(status){
-const data=Object.fromEntries(new FormData($("postForm")));
-data.status=status;
-if(data.media_type==="none")data.media_url=null;
-try{
-await managementApi(p?"?api=post&id="+encodeURIComponent(p.id):"?api=post",{method:p?"PUT":"POST",body:JSON.stringify(data)});
-closeModal();await loadManagement();renderPosts();toast(status==="published"?"تم نشر المنشور بنجاح":"تم حفظ المسودة");
-}catch(e){toast(e.message)}
+
+await api(
+"?api=booking&id="+
+encodeURIComponent(
+select.dataset.bookingId
+),
+{
+method:"PATCH",
+body:JSON.stringify({
+status:select.value
+})
 }
-$("postForm").onsubmit=e=>{e.preventDefault();save("draft")};
-$("publishNow").onclick=()=>save("published");
+);
+
+await loadAll();
+
+showToast(
+"تم تحديث حالة الحجز."
+);
+
+}catch(e){
+
+showToast(e.message);
+
 }
 
-async function postStatus(id,status){
-try{await managementApi(”?api=post&id=”+encodeURIComponent(id),{method:“PATCH”,body:JSON.stringify({status})});await loadManagement();renderPosts();toast(status===“published”?“تم النشر”:“تم إخفاء المنشور”)}catch(e){toast(e.message)}
+};
+
+});
+
 }
+
+
+$("bookingSearch").addEventListener(
+"input",
+renderBookings
+);
+
+$("bookingStatus").addEventListener(
+"change",
+renderBookings
+);
+
+
+/* MEDIA UPLOAD */
+
+function formatSize(bytes){
+
+if(bytes<1024)
+return bytes+" B";
+
+if(bytes<1024*1024)
+return (bytes/1024).toFixed(1)+" KB";
+
+if(bytes<1024*1024*1024)
+return (bytes/1024/1024).toFixed(1)+" MB";
+
+return (bytes/1024/1024/1024).toFixed(2)+" GB";
+
+}
+
+
+function allowedFile(file,kind){
+
+const imageTypes=[
+"image/jpeg",
+"image/png",
+"image/webp",
+"image/gif",
+"image/avif"
+];
+
+const videoTypes=[
+"video/mp4",
+"video/webm",
+"video/quicktime"
+];
+
+if(kind==="doctor"){
+
+return imageTypes.includes(
+file.type.toLowerCase()
+);
+
+}
+
+return[
+...imageTypes,
+...videoTypes
+].includes(
+file.type.toLowerCase()
+);
+
+}
+
+
+function validateFile(file,kind){
+
+if(!file){
+throw new Error(
+"لم يتم اختيار ملف."
+);
+}
+
+if(!allowedFile(file,kind)){
+
+throw new Error(
+"نوع الملف غير مسموح. الصور: JPG/PNG/WebP/GIF/AVIF، والفيديو: MP4/WebM/MOV."
+);
+
+}
+
+const isVideo=
+file.type.toLowerCase()
+.startsWith("video/");
+
+const max=
+isVideo
+?
+150*1024*1024
+:
+50*1024*1024;
+
+if(file.size>max){
+
+throw new Error(
+isVideo
+?
+"الحد الأقصى للفيديو هو 150 MB."
+:
+"الحد الأقصى للصورة هو 50 MB."
+);
+
+}
+
+}
+
+
+async function requestSignedUpload(
+file,
+kind
+){
+
+const result=
+await managementApi(
+"?api=media-sign",
+{
+method:"POST",
+body:JSON.stringify({
+file_name:file.name,
+mime_type:file.type,
+file_size:file.size,
+kind
+})
+}
+);
+
+return result;
+
+}
+
+
+function uploadSignedFile(
+signed,
+file,
+progressFill,
+progressText
+){
+
+return new Promise(
+(resolve,reject)=>{
+
+const url=
+STORAGE_BASE+
+encodeURIComponent(
+signed.path
+)+
+"?token="+
+encodeURIComponent(
+signed.token
+);
+
+const xhr=
+new XMLHttpRequest();
+
+xhr.open(
+"PUT",
+url,
+true
+);
+
+xhr.setRequestHeader(
+"x-upsert",
+"false"
+);
+
+xhr.upload.onprogress=
+event=>{
+
+if(event.lengthComputable){
+
+const percent=
+Math.round(
+event.loaded/
+event.total*
+100
+);
+
+progressFill.style.width=
+percent+"%";
+
+progressText.textContent=
+"جاري الرفع: "+
+percent+"% — "+
+formatSize(event.loaded)+
+" / "+
+formatSize(event.total);
+
+}
+
+};
+
+xhr.onload=()=>{
+
+if(xhr.status>=200&&xhr.status<300){
+
+progressFill.style.width="100%";
+
+progressText.textContent=
+"تم رفع الملف بنجاح.";
+
+resolve(
+signed.publicUrl
+);
+
+}else{
+
+let message=
+"فشل رفع الملف.";
+
+try{
+
+const d=
+JSON.parse(xhr.responseText);
+
+message=
+d.message||
+d.error||
+message;
+
+}catch(_){}
+
+reject(
+new Error(message)
+);
+
+}
+
+};
+
+xhr.onerror=()=>{
+
+reject(
+new Error(
+"انقطع الاتصال أثناء رفع الملف."
+)
+);
+
+};
+
+xhr.onabort=()=>{
+
+reject(
+new Error(
+"تم إلغاء رفع الملف."
+)
+);
+
+};
+
+xhr.send(file);
+
+});
+
+}
+
+
+async function uploadMediaFile(
+file,
+kind,
+ui
+){
+
+validateFile(file,kind);
+
+ui.progressWrap.classList.add("show");
+
+ui.progressFill.style.width="0%";
+
+ui.progressText.textContent=
+"جاري تجهيز الرفع...";
+
+try{
+
+const signed=
+await requestSignedUpload(
+file,
+kind
+);
+
+const url=
+await uploadSignedFile(
+signed,
+file,
+ui.progressFill,
+ui.progressText
+);
+
+ui.fileInfo.textContent=
+"تم الرفع: "+
+file.name+
+" ("+
+formatSize(file.size)+
+")";
+
+return{
+url,
+media_type:
+signed.media_type||
+(
+file.type.startsWith("video/")
+?
+"video":
+"image"
+),
+path:signed.path
+};
+
+}catch(e){
+
+ui.progressText.textContent=
+e.message;
+
+throw e;
+
+}
+
+}
+
+
+/* DOCTORS */
+
+function renderDoctors(){
+
+const box=$("doctorsList");
+
+if(!(clinicData.doctors||[]).length){
+
+box.innerHTML=
+'<div class="empty">لا يوجد أطباء.</div>';
+
+return;
+
+}
+
+box.innerHTML=
+clinicData.doctors.map(d=>`
+
+<div class="item">
+
+<div class="doctor-row">
+
+${
+d.image_url
+?
+`<img
+class="doctor-photo"
+src="${escapeHTML(d.image_url)}"
+alt=""
+onerror="this.style.display='none'">`
+:
+`<div
+class="doctor-photo"
+style="display:flex;align-items:center;justify-content:center;background:#f1f3f8">
+👨‍⚕️
+</div>`
+}
+
+<div>
+
+<strong>
+${escapeHTML(d.name)}
+</strong>
+
+<div class="muted">
+${escapeHTML(d.title||"")}
+</div>
+
+<div class="muted" style="margin-top:5px">
+${d.active?"نشط":"غير نشط"}
+</div>
+
+</div>
+
+</div>
+
+<div class="item-actions">
+
+<button
+class="btn btn-secondary"
+onclick="editDoctor('${d.id}')">
+تعديل / صورة
+</button>
+
+<button
+class="btn btn-gold"
+onclick="openDoctorSchedule('${d.id}')">
+جدول المواعيد
+</button>
+
+${
+d.active
+?
+`<button
+class="btn btn-danger"
+onclick="disableDoctor('${d.id}')">
+تعطيل
+</button>`
+:
+""
+}
+
+</div>
+
+</div>
+
+`).join("");
+
+}
+
+
+$("addDoctorBtn").onclick=
+()=>editDoctor(null);
+
+
+async function disableDoctor(id){
+
+if(!confirm(
+"هل تريد تعطيل هذا الطبيب؟"
+))
+return;
+
+try{
+
+await api(
+"?api=doctor&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
+);
+
+await loadAll();
+
+showToast(
+"تم تعطيل الطبيب."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+
+function editDoctor(id){
+
+const doctor=
+id?
+clinicData.doctors.find(
+d=>d.id===id
+):
+null;
+
+$("modalTitle").textContent=
+doctor?
+"تعديل الطبيب":
+"إضافة طبيب";
+
+$("modalContent").innerHTML=`
+
+<form id="doctorForm">
+
+<div class="grid">
+
+<label>
+اسم الطبيب
+<input
+name="name"
+required
+value="${escapeHTML(
+doctor?.name||""
+)}">
+</label>
+
+<label>
+المسمى الوظيفي
+<input
+name="title"
+value="${escapeHTML(
+doctor?.title||""
+)}">
+</label>
+
+<label class="full">
+نبذة
+<textarea name="bio">${escapeHTML(
+doctor?.bio||""
+)}</textarea>
+</label>
+
+<label class="full">
+
+صورة الطبيب
+
+<div class="upload-box"
+id="doctorUploadBox">
+
+<label
+class="upload-label"
+for="doctorFile">
+اختيار صورة من الجهاز
+</label>
+
+<input
+id="doctorFile"
+class="file-input"
+type="file"
+accept="image/jpeg,image/png,image/webp,image/gif,image/avif">
+
+<div
+id="doctorFileInfo"
+class="file-info">
+${
+doctor?.image_url
+?
+"الصورة الحالية موجودة. يمكنك استبدالها."
+:
+"لم يتم اختيار صورة."
+}
+</div>
+
+<div
+id="doctorProgress"
+class="progress-wrap">
+
+<div class="progress-bar">
+
+<div
+id="doctorProgressFill"
+class="progress-fill">
+</div>
+
+</div>
+
+<div
+id="doctorProgressText"
+class="progress-text">
+</div>
+
+</div>
+
+</div>
+
+<input
+id="doctorImageUrl"
+name="image_url"
+type="hidden"
+value="${escapeHTML(
+doctor?.image_url||""
+)}">
+
+${
+doctor?.image_url
+?
+`<img
+id="doctorPreview"
+class="preview"
+src="${escapeHTML(
+doctor.image_url
+)}"
+alt="صورة الطبيب"
+onerror="this.style.display='none'">`
+:
+`<img
+id="doctorPreview"
+class="preview hidden"
+alt="معاينة">`
+}
+
+</label>
+
+<label>
+الترتيب
+<input
+name="sort_order"
+type="number"
+value="${Number(
+doctor?.sort_order||0
+)}">
+</label>
+
+<label class="switch">
+
+<input
+id="doctorActive"
+type="checkbox"
+${doctor?.active!==false?"checked":""}>
+
+الطبيب نشط
+
+</label>
+
+</div>
+
+<div class="modal-actions">
+
+<button
+class="btn btn-primary"
+type="submit">
+حفظ الطبيب
+</button>
+
+<button
+type="button"
+class="btn btn-gold"
+onclick="${
+doctor
+?
+`openDoctorSchedule('${doctor.id}')`
+:
+"void(0)"
+}">
+جدول المواعيد
+</button>
+
+</div>
+
+</form>
+`;
+
+const fileInput=
+$("doctorFile");
+
+fileInput.addEventListener(
+"change",
+async()=>{
+
+const file=
+fileInput.files[0];
+
+if(!file)return;
+
+const ui={
+progressWrap:$("doctorProgress"),
+progressFill:$("doctorProgressFill"),
+progressText:$("doctorProgressText"),
+fileInfo:$("doctorFileInfo")
+};
+
+try{
+
+const uploaded=
+await uploadMediaFile(
+file,
+"doctor",
+ui
+);
+
+$("doctorImageUrl").value=
+uploaded.url;
+
+const img=
+$("doctorPreview");
+
+img.src=
+uploaded.url;
+
+img.classList.remove(
+"hidden"
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+});
+
+
+$("doctorForm").onsubmit=
+async event=>{
+
+event.preventDefault();
+
+const form=
+new FormData(
+event.currentTarget
+);
+
+const payload=
+Object.fromEntries(
+form.entries()
+);
+
+payload.active=
+$("doctorActive").checked;
+
+if(!payload.image_url&&doctor?.image_url){
+
+payload.image_url=
+doctor.image_url;
+
+}
+
+try{
+
+await api(
+doctor
+?
+"?api=doctor&id="+
+encodeURIComponent(
+doctor.id
+)
+:
+"?api=doctor",
+{
+method:
+doctor?
+"PUT":
+"POST",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+closeModal();
+
+await loadAll();
+
+showToast(
+"تم حفظ الطبيب بنجاح."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+};
+
+openModal();
+
+}
+
+
+/* SERVICES */
+
+function renderServices(){
+
+const box=
+$("servicesList");
+
+if(!(clinicData.services||[]).length){
+
+box.innerHTML=
+'<div class="empty">لا توجد خدمات.</div>';
+
+return;
+
+}
+
+box.innerHTML=
+clinicData.services.map(s=>`
+
+<div class="item">
+
+<div>
+
+<strong>
+${escapeHTML(s.name)}
+</strong>
+
+<div class="muted">
+المدة:
+${Number(
+s.duration_minutes||30
+)}
+دقيقة
+</div>
+
+<div class="muted">
+${s.active?"نشطة":"غير نشطة"}
+</div>
+
+</div>
+
+<div class="item-actions">
+
+<button
+class="btn btn-secondary"
+onclick="editService('${s.id}')">
+تعديل
+</button>
+
+${
+s.active
+?
+`<button
+class="btn btn-danger"
+onclick="disableService('${s.id}')">
+تعطيل
+</button>`
+:
+""
+}
+
+</div>
+
+</div>
+
+`).join("");
+
+}
+
+
+$("addServiceBtn").onclick=
+()=>editService(null);
+
+
+async function disableService(id){
+
+if(!confirm(
+"هل تريد تعطيل هذه الخدمة؟"
+))
+return;
+
+try{
+
+await api(
+"?api=service&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
+);
+
+await loadAll();
+
+showToast(
+"تم تعطيل الخدمة."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+
+function editService(id){
+
+const service=
+id?
+clinicData.services.find(
+s=>s.id===id
+):
+null;
+
+$("modalTitle").textContent=
+service?
+"تعديل الخدمة":
+"إضافة خدمة";
+
+$("modalContent").innerHTML=`
+
+<form id="serviceForm">
+
+<div class="grid">
+
+<label class="full">
+اسم الخدمة
+<input
+name="name"
+required
+value="${escapeHTML(
+service?.name||""
+)}">
+</label>
+
+<label class="full">
+الوصف
+<textarea
+name="description">${escapeHTML(
+service?.description||""
+)}</textarea>
+</label>
+
+<label>
+مدة الخدمة بالدقائق
+<input
+name="duration_minutes"
+type="number"
+min="1"
+value="${Number(
+service?.duration_minutes||30
+)}">
+</label>
+
+<label>
+السعر
+<input
+name="price"
+type="number"
+min="0"
+value="${service?.price??""}">
+</label>
+
+<label>
+الترتيب
+<input
+name="sort_order"
+type="number"
+value="${Number(
+service?.sort_order||0
+)}">
+</label>
+
+<label class="switch">
+
+<input
+id="serviceActive"
+type="checkbox"
+${service?.active!==false?"checked":""}>
+
+الخدمة نشطة
+
+</label>
+
+</div>
+
+<div class="modal-actions">
+
+<button
+class="btn btn-primary"
+type="submit">
+حفظ
+</button>
+
+</div>
+
+</form>
+`;
+
+$("serviceForm").onsubmit=
+async event=>{
+
+event.preventDefault();
+
+const payload=
+Object.fromEntries(
+new FormData(
+event.currentTarget
+).entries()
+);
+
+payload.active=
+$("serviceActive").checked;
+
+try{
+
+await api(
+service
+?
+"?api=service&id="+
+encodeURIComponent(
+service.id
+)
+:
+"?api=service",
+{
+method:
+service?
+"PUT":
+"POST",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+closeModal();
+
+await loadAll();
+
+showToast(
+"تم حفظ الخدمة."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+};
+
+openModal();
+
+}
+
+
+/* SCHEDULE */
+
+function renderScheduleDoctorList(){
+
+const select=
+$("scheduleDoctor");
+
+const current=
+select.value;
+
+select.innerHTML=
+'<option value="">اختر الطبيب</option>'+
+(clinicData.doctors||[])
+.filter(
+d=>d.active!==false
+)
+.map(d=>
+`<option value="${escapeHTML(d.id)}">
+${escapeHTML(d.name)}
+</option>`
+)
+.join("");
+
+if(current)
+select.value=current;
+
+}
+
+
+$("scheduleDoctor").addEventListener(
+"change",
+()=>{
+
+const id=
+$("scheduleDoctor").value;
+
+if(id)
+loadDoctorSchedule(id);
+else
+$("scheduleEditor").innerHTML=
+'<div class="empty">اختر طبيبًا لعرض جدول مواعيده.</div>';
+
+}
+);
+
+
+function openDoctorSchedule(id){
+
+document.querySelectorAll(".tab")
+.forEach(x=>{
+
+if(
+x.dataset.panel===
+"schedulePanel"
+){
+x.click();
+}
+
+});
+
+$("scheduleDoctor").value=id;
+
+loadDoctorSchedule(id);
+
+}
+
+
+async function loadDoctorSchedule(id){
+
+$("scheduleEditor").innerHTML=
+'<div class="empty">جاري تحميل جدول الطبيب...</div>';
+
+try{
+
+const result=
+await api(
+"?api=schedule&doctor_id="+
+encodeURIComponent(id)
+);
+
+renderDoctorSchedule(
+id,
+result.schedule||[]
+);
+
+}catch(e){
+
+$("scheduleEditor").innerHTML=
+`
+<div class="error">
+${escapeHTML(e.message)}
+</div>
+`;
+
+}
+
+}
+
+
+const weekDays=[
+"الأحد",
+"الاثنين",
+"الثلاثاء",
+"الأربعاء",
+"الخميس",
+"الجمعة",
+"السبت"
+];
+
+
+function getDaySchedule(
+schedule,
+weekday
+){
+
+return schedule.find(
+x=>Number(x.weekday)===weekday
+)||{
+weekday,
+enabled:false,
+start_time:"09:00",
+end_time:"17:00",
+break_start:"",
+break_end:"",
+slot_minutes:30,
+buffer_minutes:0,
+max_daily_bookings:""
+};
+
+}
+
+
+function renderDoctorSchedule(
+doctorId,
+schedule
+){
+
+const doctor=
+clinicData.doctors.find(
+d=>d.id===doctorId
+);
+
+const first=
+schedule[0]||{};
+
+$("scheduleEditor").innerHTML=`
+
+<div class="card"
+style="background:#f9fafc">
+
+<h3>
+جدول ${escapeHTML(
+doctor?.name||"الطبيب"
+)}
+</h3>
+
+<div class="grid">
+
+<label>
+مدة الموعد بالدقائق
+
+<select id="doctorAppointmentMinutes">
+
+<option value="15">15 دقيقة</option>
+<option value="20">20 دقيقة</option>
+<option value="30">30 دقيقة</option>
+<option value="45">45 دقيقة</option>
+<option value="60">60 دقيقة</option>
+
+</select>
+
+</label>
+
+<label>
+Buffer بين المواعيد
+
+<select id="doctorBufferMinutes">
+
+<option value="0">بدون</option>
+<option value="5">5 دقائق</option>
+<option value="10">10 دقائق</option>
+<option value="15">15 دقيقة</option>
+<option value="20">20 دقيقة</option>
+
+</select>
+
+</label>
+
+<label>
+الحد الأقصى للحجوزات يوميًا
+
+<input
+id="doctorMaxBookings"
+type="number"
+min="0"
+placeholder="بدون حد"
+value="${escapeHTML(
+first.max_daily_bookings??""
+)}">
+
+</label>
+
+</div>
+
+</div>
+
+<div id="doctorWeekSchedule">
+
+${weekDays.map(
+(name,i)=>{
+
+const d=
+getDaySchedule(
+schedule,
+i
+);
+
+return`
+
+<div
+class="schedule-day"
+data-weekday="${i}">
+
+<div class="schedule-head">
+
+<h3 style="margin:0">
+${name}
+</h3>
+
+<label
+class="switch"
+style="margin:0">
+
+<input
+class="schedule-enabled"
+type="checkbox"
+${d.enabled?"checked":""}>
+
+يعمل هذا اليوم
+
+</label>
+
+</div>
+
+<div class="time-row">
+
+<label>
+من
+<input
+class="schedule-start"
+type="time"
+value="${escapeHTML(
+String(
+d.start_time||""
+).slice(0,5)
+)}">
+</label>
+
+<label>
+إلى
+<input
+class="schedule-end"
+type="time"
+value="${escapeHTML(
+String(
+d.end_time||""
+).slice(0,5)
+)}">
+</label>
+
+<label>
+بداية البريك
+<input
+class="schedule-break-start"
+type="time"
+value="${escapeHTML(
+String(
+d.break_start||""
+).slice(0,5)
+)}">
+</label>
+
+<label>
+نهاية البريك
+<input
+class="schedule-break-end"
+type="time"
+value="${escapeHTML(
+String(
+d.break_end||""
+).slice(0,5)
+)}">
+</label>
+
+</div>
+
+</div>
+
+`;
+
+}
+).join("")}
+
+</div>
+
+<div class="modal-actions">
+
+<button
+id="saveDoctorScheduleBtn"
+class="btn btn-primary">
+حفظ جدول الطبيب
+</button>
+
+<button
+id="copyScheduleBtn"
+class="btn btn-secondary">
+نسخ يوم الأحد لباقي الأيام
+</button>
+
+</div>
+`;
+
+if(first.slot_minutes){
+
+$("doctorAppointmentMinutes").value=
+first.slot_minutes;
+
+}
+
+if(first.buffer_minutes!==undefined){
+
+$("doctorBufferMinutes").value=
+first.buffer_minutes;
+
+}
+
+$("saveDoctorScheduleBtn").onclick=
+()=>saveDoctorSchedule(doctorId);
+
+
+$("copyScheduleBtn").onclick=()=>{
+
+const cards=
+[
+...document.querySelectorAll(
+"[data-weekday]"
+)
+];
+
+if(!cards.length)
+return;
+
+const source=cards[0];
+
+if(!confirm(
+"سيتم نسخ إعدادات يوم الأحد إلى باقي الأيام. هل تريد المتابعة؟"
+))
+return;
+
+cards.forEach(
+(card,index)=>{
+
+if(index===0)return;
+
+[
+".schedule-start",
+".schedule-end",
+".schedule-break-start",
+".schedule-break-end"
+].forEach(selector=>{
+
+card.querySelector(
+selector
+).value=
+source.querySelector(
+selector
+).value;
+
+});
+
+card.querySelector(
+".schedule-enabled"
+).checked=
+source.querySelector(
+".schedule-enabled"
+).checked;
+
+});
+
+showToast(
+"تم نسخ الجدول."
+);
+
+};
+
+}
+
+
+async function saveDoctorSchedule(
+doctorId
+){
+
+const cards=
+[
+...document.querySelectorAll(
+"[data-weekday]"
+)
+];
+
+const schedule=
+cards.map(card=>({
+
+weekday:Number(
+card.dataset.weekday
+),
+
+enabled:
+card.querySelector(
+".schedule-enabled"
+).checked,
+
+start_time:
+card.querySelector(
+".schedule-start"
+).value||null,
+
+end_time:
+card.querySelector(
+".schedule-end"
+).value||null,
+
+break_start:
+card.querySelector(
+".schedule-break-start"
+).value||null,
+
+break_end:
+card.querySelector(
+".schedule-break-end"
+).value||null
+
+}));
+
+try{
+
+await api(
+"?api=schedule&doctor_id="+
+encodeURIComponent(
+doctorId
+),
+{
+method:"PUT",
+body:JSON.stringify({
+
+doctor_id:doctorId,
+
+schedule,
+
+slot_minutes:
+Number(
+$("doctorAppointmentMinutes")
+.value||30
+),
+
+buffer_minutes:
+Number(
+$("doctorBufferMinutes")
+.value||0
+),
+
+max_daily_bookings:
+$("doctorMaxBookings")
+.value
+?
+Number(
+$("doctorMaxBookings")
+.value
+)
+:null
+
+})
+}
+);
+
+showToast(
+"تم حفظ جدول الطبيب بنجاح."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+
+/* POSTS */
+
+function renderPosts(){
+
+const box=
+$("postsList");
+
+const posts=
+managementData.posts?.length
+?
+managementData.posts
+:
+clinicData.posts||[];
+
+if(!posts.length){
+
+box.innerHTML=`
+
+<div class="empty">
+
+لا توجد منشورات حاليًا.
+
+<br>
+
+اضغط «إضافة منشور» لإنشاء أول منشور.
+
+</div>
+
+`;
+
+return;
+
+}
+
+box.innerHTML=
+posts.map(post=>`
+
+<div class="post-card">
+
+${
+post.media_type==="image"&&
+post.media_url
+?
+`<img
+class="post-media"
+src="${escapeHTML(
+post.media_url
+)}"
+alt=""
+onerror="this.style.display='none'">`
+:""
+}
+
+${
+post.media_type==="video"&&
+post.media_url
+?
+`<video
+class="post-media"
+controls
+preload="metadata">
+
+<source
+src="${escapeHTML(
+post.media_url
+)}">
+
+</video>`
+:""
+}
+
+<div class="post-body">
+
+<div style="
+display:flex;
+justify-content:space-between;
+gap:10px;
+flex-wrap:wrap">
+
+<h3>
+${escapeHTML(
+post.title||
+"منشور بدون عنوان"
+)}
+</h3>
+
+<span
+class="badge ${
+post.status==="published"
+?
+"badge-published"
+:
+"badge-draft"
+}">
+
+${
+post.status==="published"
+?
+"منشور"
+:
+"مسودة"
+}
+
+</span>
+
+</div>
+
+<p class="muted">
+${escapeHTML(
+post.content||""
+)}
+</p>
+
+${
+post.external_url
+?
+`<a
+href="${escapeHTML(
+post.external_url
+)}"
+target="_blank"
+rel="noopener noreferrer">
+فتح الرابط الخارجي
+</a>`
+:""
+}
+
+<div
+class="publish-row">
+
+<button
+class="btn btn-secondary"
+onclick="editPost('${post.id}')">
+تعديل
+</button>
+
+${
+post.status==="published"
+?
+`<button
+class="btn btn-danger"
+onclick="togglePostStatus('${post.id}')">
+إخفاء
+</button>`
+:
+`<button
+class="btn btn-success"
+onclick="togglePostStatus('${post.id}')">
+نشر الآن
+</button>`
+}
+
+<button
+class="btn btn-danger"
+onclick="deletePost('${post.id}')">
+حذف
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+`).join("");
+
+}
+
+
+$("addPostBtn").onclick=
+()=>editPost(null);
+
+
+function editPost(id){
+
+const post=
+id?
+(
+managementData.posts.find(
+p=>p.id===id
+)||
+clinicData.posts.find(
+p=>p.id===id
+)
+):
+null;
+
+$("modalTitle").textContent=
+post?
+"تعديل المنشور":
+"إضافة منشور";
+
+$("modalContent").innerHTML=`
+
+<form id="postForm">
+
+<div class="grid">
+
+<label>
+
+عنوان المنشور
+
+<input
+name="title"
+value="${escapeHTML(
+post?.title||""
+)}">
+
+</label>
+
+<label>
+
+الحالة
+
+<select
+name="status"
+id="postStatus">
+
+<option
+value="draft"
+${post?.status!=="published"
+?"selected":
+""}>
+مسودة
+</option>
+
+<option
+value="published"
+${post?.status==="published"
+?"selected":
+""}>
+منشور
+</option>
+
+</select>
+
+</label>
+
+<label class="full">
+
+نص المنشور
+
+<textarea
+name="content"
+placeholder="اكتب محتوى المنشور أو العرض هنا..."
+>${escapeHTML(
+post?.content||""
+)}</textarea>
+
+</label>
+
+<label>
+
+نوع الوسائط
+
+<select
+id="postMediaType"
+name="media_type">
+
+<option
+value="none"
+${!post?.media_type||
+post?.media_type==="none"
+?
+"selected":
+""}>
+بدون وسائط
+</option>
+
+<option
+value="image"
+${post?.media_type==="image"
+?
+"selected":
+""}>
+صورة
+</option>
+
+<option
+value="video"
+${post?.media_type==="video"
+?
+"selected":
+""}>
+فيديو
+</option>
+
+</select>
+
+</label>
+
+<label>
+
+رابط خارجي
+
+<input
+name="external_url"
+placeholder="Instagram / Facebook / WhatsApp / Website"
+value="${escapeHTML(
+post?.external_url||""
+)}">
+
+</label>
+
+<label class="full">
+
+رفع صورة أو فيديو
+
+<div
+class="upload-box"
+id="postUploadBox">
+
+<label
+class="upload-label"
+for="postFile">
+
+اختيار ملف من الجهاز
+
+</label>
+
+<input
+id="postFile"
+class="file-input"
+type="file"
+accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime">
+
+<div
+id="postFileInfo"
+class="file-info">
+
+${
+post?.media_url
+?
+"يوجد ملف حالي. يمكنك استبداله."
+:
+"لم يتم اختيار ملف."
+}
+
+</div>
+
+<div
+id="postProgress"
+class="progress-wrap">
+
+<div class="progress-bar">
+
+<div
+id="postProgressFill"
+class="progress-fill">
+</div>
+
+</div>
+
+<div
+id="postProgressText"
+class="progress-text">
+</div>
+
+</div>
+
+</div>
+
+<input
+id="postMediaUrl"
+name="media_url"
+type="hidden"
+value="${escapeHTML(
+post?.media_url||""
+)}">
+
+</label>
+
+<label>
+
+ترتيب الظهور
+
+<input
+name="sort_order"
+type="number"
+value="${Number(
+post?.sort_order||0
+)}">
+
+</label>
+
+</div>
+
+<div id="postPreviewBox"></div>
+
+<div class="modal-actions">
+
+<button
+class="btn btn-primary"
+type="submit">
+حفظ المنشور
+</button>
+
+<button
+id="publishFromModal"
+type="button"
+class="btn btn-success">
+
+${
+post?.status==="published"
+?
+"المنشور منشور بالفعل":
+"حفظ ونشر الآن"
+}
+
+</button>
+
+</div>
+
+</form>
+`;
+
+function updatePreview(){
+
+const type=
+$("postMediaType").value;
+
+const url=
+$("postMediaUrl").value.trim();
+
+const box=
+$("postPreviewBox");
+
+if(!url||type==="none"){
+
+box.innerHTML="";
+
+return;
+
+}
+
+if(type==="image"){
+
+box.innerHTML=
+`<img
+class="preview"
+src="${escapeHTML(url)}"
+alt=""
+onerror="this.style.display='none'">`;
+
+}else{
+
+box.innerHTML=
+`<video
+class="preview"
+controls>
+<source
+src="${escapeHTML(url)}">
+</video>`;
+
+}
+
+}
+
+$("postMediaType").addEventListener(
+"change",
+updatePreview
+);
+
+$("postFile").addEventListener(
+"change",
+async()=>{
+
+const file=
+$("postFile").files[0];
+
+if(!file)return;
+
+let kind=
+file.type.startsWith("video/")
+?
+"video":
+"image";
+
+const ui={
+progressWrap:$("postProgress"),
+progressFill:$("postProgressFill"),
+progressText:$("postProgressText"),
+fileInfo:$("postFileInfo")
+};
+
+try{
+
+const uploaded=
+await uploadMediaFile(
+file,
+kind,
+ui
+);
+
+$("postMediaUrl").value=
+uploaded.url;
+
+$("postMediaType").value=
+uploaded.media_type;
+
+updatePreview();
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+});
+
+updatePreview();
+
+
+$("publishFromModal").onclick=
+async()=>{
+
+$("postStatus").value=
+"published";
+
+await savePostForm(
+true
+);
+
+};
+
+
+$("postForm").onsubmit=
+async event=>{
+
+event.preventDefault();
+
+await savePostForm(false);
+
+};
+
+
+async function savePostForm(
+forcePublish
+){
+
+const payload=
+Object.fromEntries(
+new FormData(
+$("postForm")
+)
+);
+
+if(forcePublish)
+payload.status="published";
+
+if(payload.media_type==="none")
+payload.media_url=null;
+
+try{
+
+await managementApi(
+post
+?
+"?api=post&id="+
+encodeURIComponent(
+post.id
+)
+:
+"?api=post",
+{
+method:
+post?
+"PUT":
+"POST",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+closeModal();
+
+await loadManagement();
+
+renderPosts();
+
+showToast(
+payload.status==="published"
+?
+"تم نشر المنشور بنجاح."
+:
+"تم حفظ المنشور كمسودة."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+openModal();
+
+}
+
+
+async function togglePostStatus(id){
+
+const post=
+managementData.posts.find(
+p=>p.id===id
+);
+
+if(!post)return;
+
+const status=
+post.status==="published"
+?
+"draft":
+"published";
+
+try{
+
+await managementApi(
+"?api=post&id="+
+encodeURIComponent(id),
+{
+method:"PATCH",
+body:JSON.stringify({
+status
+})
+}
+);
+
+await loadManagement();
+
+renderPosts();
+
+showToast(
+status==="published"
+?
+"تم نشر المنشور بنجاح."
+:
+"تم إخفاء المنشور."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+
 async function deletePost(id){
-if(!confirm(“حذف المنشور نهائيًا؟”))return;
-try{await managementApi(”?api=post&id=”+encodeURIComponent(id),{method:“DELETE”});await loadManagement();renderPosts();toast(“تم الحذف”)}catch(e){toast(e.message)}
+
+if(!confirm(
+"هل تريد حذف هذا المنشور نهائيًا؟"
+))
+return;
+
+try{
+
+await managementApi(
+"?api=post&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
 }
+);
+
+await loadManagement();
+
+renderPosts();
+
+showToast(
+"تم حذف المنشور."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+
+/* HOLIDAYS */
 
 function renderHolidays(){
-const b=$(“holidaysList”),hs=managementData.holidays||[];
-if(!hs.length){b.innerHTML=’لا توجد عطلات.’;return}
-b.innerHTML=hs.map(h=><div class="item"><div><strong>${escapeHTML(h.name||"إغلاق")}</strong><div class="muted">${escapeHTML(h.start_date||"")} → ${escapeHTML(h.end_date||h.start_date||"")}</div><div class="muted">${h.doctor_id?"خاص بالطبيب: "+escapeHTML(doctorName(h.doctor_id)):"إغلاق عام"}</div></div><button class="btn btn-danger" onclick="deleteHoliday('${h.id}')">حذف</button></div>).join(””);
+
+const box=
+$("holidaysList");
+
+const holidays=
+managementData.holidays?.length
+?
+managementData.holidays
+:
+clinicData.holidays||[];
+
+if(!holidays.length){
+
+box.innerHTML=
+`
+<div class="empty">
+لا توجد عطلات أو إغلاقات مضافة.
+</div>
+`;
+
+return;
+
 }
-$(“addHolidayBtn”).onclick=()=>editHoliday(null);
+
+box.innerHTML=
+holidays.map(h=>`
+
+<div class="item">
+
+<div>
+
+<strong>
+${escapeHTML(
+h.name||"إغلاق"
+)}
+</strong>
+
+<div class="muted">
+${escapeHTML(
+h.start_date||""
+)}
+
+${
+h.end_date&&
+h.end_date!==h.start_date
+?
+" → "+
+escapeHTML(
+h.end_date
+):
+""
+}
+
+</div>
+
+<div class="muted">
+
+${
+h.doctor_id
+?
+"خاص بالطبيب: "+
+escapeHTML(
+doctorName(
+h.doctor_id
+)
+)
+:
+"إغلاق عام للعيادة"
+}
+
+</div>
+
+</div>
+
+<div class="item-actions">
+
+<button
+class="btn btn-secondary"
+onclick="editHoliday('${h.id}')">
+تعديل
+</button>
+
+<button
+class="btn btn-danger"
+onclick="deleteHoliday('${h.id}')">
+حذف
+</button>
+
+</div>
+
+</div>
+
+`).join("");
+
+}
+
+
+$("addHolidayBtn").onclick=
+()=>editHoliday(null);
+
 
 function editHoliday(id){
-const h=id?managementData.holidays.find(x=>x.id===id):null;
-$(“modalTitle”).textContent=h?“تعديل العطلة”:“إضافة عطلة”;
-$(“modalContent”).innerHTML=<form id="holidayForm"><div class="grid"> <label>الاسم<input name="name" required value="${escapeHTML(h?.name||"")}"></label> <label>النطاق<select name="scope" id="hs"><option value="clinic">العيادة بالكامل</option><option value="doctor">طبيب محدد</option></select></label> <label>الطبيب<select name="doctor_id" id="hd"><option value="">كل الأطباء</option>${(clinicData.doctors||[]).map(d=>${escapeHTML(d.name)}`).join(””)}
-البداية<input name=“start_date” type=“date” required value=”${escapeHTML(h?.start_date||””)}”>
-النهاية<input name=“end_date” type=“date” required value=”${escapeHTML(h?.end_date||h?.start_date||””)}”>
-ملاحظة${escapeHTML(h?.notes||””)}
 
-</div><button class="btn btn-primary">حفظ</button></form>`;
-openModal();
-if(h?.doctor_id){$("hs").value="doctor";$("hd").value=h.doctor_id}
-$("hd").disabled=$("hs").value!=="doctor";$("hs").onchange=()=>{$("hd").disabled=$("hs").value!=="doctor";if($("hd").disabled)$("hd").value=""};
-$("holidayForm").onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));if(d.scope==="clinic")d.doctor_id=null;delete d.scope;try{await managementApi(h?"?api=holiday&id="+encodeURIComponent(h.id):"?api=holiday",{method:h?"PUT":"POST",body:JSON.stringify(d)});closeModal();await loadManagement();renderHolidays();toast("تم الحفظ")}catch(e){toast(e.message)}}
+const h=
+id?
+(
+managementData.holidays.find(
+x=>x.id===id
+)||
+clinicData.holidays.find(
+x=>x.id===id
+)
+):
+null;
+
+$("modalTitle").textContent=
+h?
+"تعديل العطلة":
+"إضافة عطلة / إغلاق";
+
+$("modalContent").innerHTML=`
+
+<form id="holidayForm">
+
+<div class="grid">
+
+<label>
+
+اسم العطلة / سبب الإغلاق
+
+<input
+name="name"
+required
+value="${escapeHTML(
+h?.name||""
+)}">
+
+</label>
+
+<label>
+
+نوع الإغلاق
+
+<select
+name="applies_to"
+id="holidayScope">
+
+<option
+value="clinic"
+${!h?.doctor_id
+?
+"selected":
+""}>
+العيادة بالكامل
+</option>
+
+<option
+value="doctor"
+${h?.doctor_id
+?
+"selected":
+""}>
+طبيب محدد
+</option>
+
+</select>
+
+</label>
+
+<label>
+
+الطبيب
+
+<select
+name="doctor_id"
+id="holidayDoctor">
+
+<option value="">
+كل الأطباء
+</option>
+
+${
+(clinicData.doctors||[])
+.map(d=>`
+
+<option
+value="${escapeHTML(d.id)}"
+${h?.doctor_id===d.id
+?
+"selected":
+""}>
+${escapeHTML(d.name)}
+</option>
+
+`).join("")
 }
-async function deleteHoliday(id){if(!confirm("حذف الإغلاق؟"))return;try{await managementApi("?api=holiday&id="+encodeURIComponent(id),{method:"DELETE"});await loadManagement();renderHolidays();toast("تم الحذف")}catch(e){toast(e.message)}}
+
+</select>
+
+</label>
+
+<label>
+
+تاريخ البداية
+
+<input
+name="start_date"
+type="date"
+required
+value="${escapeHTML(
+h?.start_date||""
+)}">
+
+</label>
+
+<label>
+
+تاريخ النهاية
+
+<input
+name="end_date"
+type="date"
+required
+value="${escapeHTML(
+h?.end_date||
+h?.start_date||
+""
+)}">
+
+</label>
+
+<label class="full">
+
+ملاحظة
+
+<textarea
+name="notes">${escapeHTML(
+h?.notes||""
+)}</textarea>
+
+</label>
+
+</div>
+
+<div class="modal-actions">
+
+<button
+class="btn btn-primary"
+type="submit">
+حفظ
+</button>
+
+</div>
+
+</form>
+`;
+
+function updateHolidayDoctor(){
+
+const scope=
+$("holidayScope").value;
+
+$("holidayDoctor").disabled=
+scope!=="doctor";
+
+if(scope!=="doctor")
+$("holidayDoctor").value="";
+
+}
+
+$("holidayScope").addEventListener(
+"change",
+updateHolidayDoctor
+);
+
+updateHolidayDoctor();
+
+
+$("holidayForm").onsubmit=
+async event=>{
+
+event.preventDefault();
+
+const payload=
+Object.fromEntries(
+new FormData(
+event.currentTarget
+)
+);
+
+if(payload.applies_to==="clinic")
+payload.doctor_id=null;
+
+try{
+
+await managementApi(
+h
+?
+"?api=holiday&id="+
+encodeURIComponent(h.id)
+:
+"?api=holiday",
+{
+method:
+h?
+"PUT":
+"POST",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+closeModal();
+
+await loadManagement();
+
+renderHolidays();
+
+showToast(
+"تم حفظ العطلة."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+};
+
+openModal();
+
+}
+
+
+async function deleteHoliday(id){
+
+if(!confirm(
+"هل تريد حذف هذا الإغلاق؟"
+))
+return;
+
+try{
+
+await managementApi(
+"?api=holiday&id="+
+encodeURIComponent(id),
+{
+method:"DELETE"
+}
+);
+
+await loadManagement();
+
+renderHolidays();
+
+showToast(
+"تم حذف الإغلاق."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
+}
+
+
+/* HOURS */
+
+const dayNames=[
+"الأحد",
+"الاثنين",
+"الثلاثاء",
+"الأربعاء",
+"الخميس",
+"الجمعة",
+"السبت"
+];
+
 
 function renderHours(){
-const hs=clinicData.working_hours||[];
-$(“hoursList”).innerHTML=hs.map(h=>`${days[h.weekday]||””}<input class=“he” type=“checkbox” ${h.enabled?“checked”:””}> يوم عمل
-من<input class=“hst” type=“time” value=”${String(h.start_time||””).slice(0,5)}”>
-إلى<input class=“het” type=“time” value=”${String(h.end_time||””).slice(0,5)}”>
-بداية الراحة<input class=“hbs” type=“time” value=”${String(h.break_start||””).slice(0,5)}”>
-نهاية الراحة<input class=“hbe” type=“time” value=”${String(h.break_end||””).slice(0,5)}”>
 
-</div></div>`).join("");
+const box=
+$("hoursList");
+
+const hours=
+clinicData.working_hours||[];
+
+if(!hours.length){
+
+box.innerHTML=
+'<div class="empty">لا توجد بيانات لساعات العمل.</div>';
+
+return;
+
 }
-$("saveHoursBtn").onclick=async()=>{
-const hours=[...document.querySelectorAll("[data-hour]")].map(c=>({id:c.dataset.hour,enabled:c.querySelector(".he").checked,start_time:c.querySelector(".hst").value,end_time:c.querySelector(".het").value,break_start:c.querySelector(".hbs").value||null,break_end:c.querySelector(".hbe").value||null}));
-try{await api("?api=hours",{method:"PUT",body:JSON.stringify({hours})});await loadAll();toast("تم حفظ ساعات العمل")}catch(e){toast(e.message)}
+
+box.innerHTML=
+hours.map(hour=>`
+
+<div
+class="card"
+data-hour-id="${escapeHTML(hour.id)}">
+
+<h3>
+${dayNames[hour.weekday]||""}
+</h3>
+
+<label class="switch">
+
+<input
+class="hour-enabled"
+type="checkbox"
+${hour.enabled?"checked":""}>
+
+يوم عمل
+
+</label>
+
+<div class="grid">
+
+<label>
+من
+<input
+class="hour-start"
+type="time"
+value="${escapeHTML(
+String(
+hour.start_time||""
+).slice(0,5)
+)}">
+</label>
+
+<label>
+إلى
+<input
+class="hour-end"
+type="time"
+value="${escapeHTML(
+String(
+hour.end_time||""
+).slice(0,5)
+)}">
+</label>
+
+<label>
+بداية الراحة
+<input
+class="break-start"
+type="time"
+value="${escapeHTML(
+String(
+hour.break_start||""
+).slice(0,5)
+)}">
+</label>
+
+<label>
+نهاية الراحة
+<input
+class="break-end"
+type="time"
+value="${escapeHTML(
+String(
+hour.break_end||""
+).slice(0,5)
+)}">
+</label>
+
+</div>
+
+</div>
+
+`).join("");
+
+}
+
+
+$("saveHoursBtn").onclick=
+async()=>{
+
+const hours=[
+...document.querySelectorAll(
+"[data-hour-id]"
+)
+].map(card=>({
+
+id:card.dataset.hourId,
+
+enabled:
+card.querySelector(
+".hour-enabled"
+).checked,
+
+start_time:
+card.querySelector(
+".hour-start"
+).value,
+
+end_time:
+card.querySelector(
+".hour-end"
+).value,
+
+break_start:
+card.querySelector(
+".break-start"
+).value||null,
+
+break_end:
+card.querySelector(
+".break-end"
+).value||null
+
+}));
+
+try{
+
+await api(
+"?api=hours",
+{
+method:"PUT",
+body:JSON.stringify({
+hours
+})
+}
+);
+
+await loadAll();
+
+showToast(
+"تم حفظ ساعات العمل."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
 };
+
+
+/* SETTINGS */
 
 function renderSettings(){
-const s=clinicData.settings||{},fields=[
-[“clinic_name”,“اسم العيادة”],[“tagline”,“الشعار”],[“phone”,“الهاتف”],[“landline”,“الهاتف الأرضي”],[“email”,“البريد الإلكتروني”],[“address”,“العنوان”],[“whatsapp”,“واتساب”],[“facebook_url”,“Facebook”],[“linkedin_url”,“LinkedIn”],[“instagram_url”,“Instagram”],[“tiktok_url”,“TikTok”],[“logo_url”,“رابط الشعار”],[“hero_image_url”,“رابط صورة الواجهة”],[“slot_minutes”,“الفاصل بالدقائق”],[“booking_notice”,“ملاحظة الحجز”]];
-$(“settingsForm”).innerHTML=<form id="settingsEditForm"><div class="grid">${fields.map(([k,l])=><label class=”${k===“address”||k===“booking_notice”?“full”:””}”>${l}${k===“address”||k===“booking_notice”?<textarea name="${k}">${escapeHTML(s[k]||"")}</textarea>:<input name="${k}" value="${escapeHTML(s[k]??"")}">}).join("")}</div></form>;
+
+const s=
+clinicData.settings||{};
+
+const fields=[
+["clinic_name","اسم العيادة"],
+["tagline","الشعار"],
+["phone","الهاتف"],
+["landline","الهاتف الأرضي"],
+["email","البريد الإلكتروني"],
+["address","العنوان"],
+["whatsapp","واتساب"],
+["facebook_url","Facebook"],
+["linkedin_url","LinkedIn"],
+["instagram_url","Instagram"],
+["tiktok_url","TikTok"],
+["logo_url","رابط الشعار"],
+["hero_image_url","رابط صورة الواجهة"],
+["slot_minutes","الفاصل بين المواعيد بالدقائق"],
+["booking_notice","ملاحظة الحجز"]
+];
+
+$("settingsForm").innerHTML=`
+
+<form id="settingsEditForm">
+
+<div class="grid">
+
+${fields.map(
+([key,label])=>{
+
+const big=
+key==="address"||
+key==="booking_notice";
+
+return`
+
+<label class="${
+big?
+"full":
+""
+}">
+
+${label}
+
+${
+big
+?
+`<textarea
+name="${key}">${escapeHTML(
+s[key]||""
+)}</textarea>`
+:
+`<input
+name="${key}"
+value="${escapeHTML(
+s[key]??""
+)}">`
 }
-$(“saveSettingsBtn”).onclick=async()=>{
-try{const p=Object.fromEntries(new FormData($(“settingsEditForm”)));await api(”?api=settings”,{method:“PUT”,body:JSON.stringify(p)});await loadAll();toast(“تم حفظ الإعدادات”)}catch(e){toast(e.message)}
+
+</label>
+`;
+
+}
+).join("")}
+
+</div>
+
+</form>
+`;
+
+}
+
+
+$("saveSettingsBtn").onclick=
+async()=>{
+
+const form=
+$("settingsEditForm");
+
+if(!form)return;
+
+const payload=
+Object.fromEntries(
+new FormData(form)
+);
+
+try{
+
+await api(
+"?api=settings",
+{
+method:"PUT",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+await loadAll();
+
+showToast(
+"تم حفظ إعدادات العيادة."
+);
+
+}catch(e){
+
+showToast(e.message);
+
+}
+
 };
 
-function openModal(){$(“modal”).classList.add(“show”)}
-function closeModal(){$(“modal”).classList.remove(“show”)}
-$(“closeModal”).onclick=closeModal;
-$(“modal”).onclick=e=>{if(e.target===$(“modal”))closeModal()};
 
-if(adminToken)loadAll();
-else{$(“loginPage”).classList.remove(“hidden”);$(“adminPage”).classList.add(“hidden”)}
+/* ACCOUNT */
+
+async function loadAccount(){
+
+const box=
+$("accountForm");
+
+if(!box)return;
+
+try{
+
+const result=
+await api("?api=account");
+
+const a=
+result.admin||{};
+
+box.innerHTML=`
+
+<form id="accountEditForm">
+
+<div class="account-box">
+
+<div class="grid">
+
+<label>
+اسم المستخدم
+<input
+value="${escapeHTML(
+a.username||""
+)}"
+disabled>
+</label>
+
+<label>
+البريد الإلكتروني
+<input
+name="email"
+type="email"
+value="${escapeHTML(
+a.email||""
+)}">
+</label>
+
+<label>
+رقم الموبايل
+<input
+name="phone"
+type="tel"
+value="${escapeHTML(
+a.phone||""
+)}">
+</label>
+
+</div>
+
+<button
+class="btn btn-primary"
+type="submit">
+حفظ بيانات الحساب
+</button>
+
+<div
+id="accountMessage"
+style="margin-top:10px">
+</div>
+
+</div>
+
+</form>
+`;
+
+$("accountEditForm").onsubmit=
+async event=>{
+
+event.preventDefault();
+
+const payload=
+Object.fromEntries(
+new FormData(
+event.currentTarget
+)
+);
+
+try{
+
+await api(
+"?api=account",
+{
+method:"PUT",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+$("accountMessage").innerHTML=
+`
+<div class="success">
+تم حفظ بيانات الحساب.
+</div>
+`;
+
+}catch(e){
+
+$("accountMessage").innerHTML=
+`
+<div class="error">
+${escapeHTML(e.message)}
+</div>
+`;
+
+}
+
+};
+
+}catch(e){
+
+box.innerHTML=
+`
+<div class="error">
+تعذر تحميل بيانات حساب الإدارة.
+<br>
+${escapeHTML(e.message)}
+</div>
+`;
+
+}
+
+}
+
+
+$("passwordForm").onsubmit=
+async event=>{
+
+event.preventDefault();
+
+const message=
+$("passwordMessage");
+
+message.innerHTML="";
+
+const payload=
+Object.fromEntries(
+new FormData(
+event.currentTarget
+)
+);
+
+if(
+payload.new_password!==
+payload.confirm_password
+){
+
+message.innerHTML=
+`
+<div class="error">
+كلمة المرور الجديدة وتأكيدها غير متطابقين.
+</div>
+`;
+
+return;
+
+}
+
+try{
+
+const result=
+await api(
+"?api=password",
+{
+method:"POST",
+body:JSON.stringify(
+payload
+)
+}
+);
+
+message.innerHTML=
+`
+<div class="success">
+${escapeHTML(
+result.message||
+"تم تغيير كلمة المرور."
+)}
+</div>
+`;
+
+setTimeout(
+()=>{
+
+sessionStorage.removeItem(
+"azaad_admin_token"
+);
+
+location.reload();
+
+},
+1200
+);
+
+}catch(e){
+
+message.innerHTML=
+`
+<div class="error">
+${escapeHTML(e.message)}
+</div>
+`;
+
+}
+
+};
+
+
+/* MODAL */
+
+function openModal(){
+
+$("modal").classList.add(
+"show"
+);
+
+}
+
+
+function closeModal(){
+
+$("modal").classList.remove(
+"show"
+);
+
+}
+
+
+$("closeModal").onclick=
+closeModal;
+
+
+$("modal").addEventListener(
+"click",
+event=>{
+
+if(
+event.target===
+$("modal")
+){
+
+closeModal();
+
+}
+
+}
+);
+
+
+/* START */
+
+if(adminToken){
+
+loadAll();
+
+}else{
+
+$("loginPage")
+.classList.remove(
+"hidden"
+);
+
+$("adminPage")
+.classList.add(
+"hidden"
+);
+
+}
+
+</script>
+
 </body>
 </html>
