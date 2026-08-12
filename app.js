@@ -6,7 +6,7 @@
 
   const WHATSAPP_NUMBER = '201000000000';
 
-  const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
 
   let selectedSlot = '';
 
@@ -19,13 +19,13 @@
   function escapeHtml(value) {
     return String(value ?? '').replace(
       /[&<>"']/g,
-      char => ({
+      (char) => ({
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#039;'
-      }[char])
+      })[char]
     );
   }
 
@@ -74,7 +74,9 @@
   function hideMessage() {
     const element = $('message');
 
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     element.textContent = '';
     element.style.display = 'none';
@@ -82,19 +84,23 @@
 
   function getDoctorName(id) {
     const doctor = (clinicData.doctors || []).find(
-      item => String(item.id) === String(id)
+      (item) => String(item.id) === String(id)
     );
 
-    if (!doctor) return id || 'غير محدد';
+    if (!doctor) {
+      return id || 'غير محدد';
+    }
 
-    return doctor.name ||
+    return (
+      doctor.name ||
       doctor.full_name ||
-      'غير محدد';
+      'غير محدد'
+    );
   }
 
   function getDoctorTitle(id) {
     const doctor = (clinicData.doctors || []).find(
-      item => String(item.id) === String(id)
+      (item) => String(item.id) === String(id)
     );
 
     return doctor?.title || '';
@@ -102,12 +108,14 @@
 
   function getServiceName(id) {
     const service = (clinicData.services || []).find(
-      item => String(item.id) === String(id)
+      (item) => String(item.id) === String(id)
     );
 
-    return service?.name ||
+    return (
+      service?.name ||
       service?.title ||
-      'غير محدد';
+      'غير محدد'
+    );
   }
 
   function getModeText(mode) {
@@ -124,7 +132,9 @@
   }
 
   function formatDate(date) {
-    if (!date) return 'غير محدد';
+    if (!date) {
+      return 'غير محدد';
+    }
 
     try {
       return new Date(`${date}T00:00:00`).toLocaleDateString(
@@ -186,8 +196,13 @@
     const notes =
       String(booking.notes || '').trim();
 
-    let message =
-`🏥 Azaad Clinic - طلب حجز جديد
+    const doctorDisplay =
+      doctorTitle
+        ? `${doctorName} - ${doctorTitle}`
+        : doctorName;
+
+    let message = `
+🏥 Azaad Clinic - طلب حجز جديد
 
 📌 رقم الحجز: ${bookingCode}
 
@@ -195,7 +210,7 @@
 
 📱 رقم الهاتف: ${booking.patient_phone || 'غير محدد'}
 
-👨‍⚕️ الطبيب: ${doctorName}${doctorTitle ? ` - ${doctorTitle}` : ''}
+👨‍⚕️ الطبيب: ${doctorDisplay}
 
 🩺 الخدمة: ${serviceName}
 
@@ -203,7 +218,8 @@
 
 ⏰ الوقت: ${time || 'غير محدد'}
 
-💻 نوع الجلسة: ${mode}`;
+💻 نوع الجلسة: ${mode}
+`.trim();
 
     if (booking.patient_email) {
       message +=
@@ -216,9 +232,7 @@
     }
 
     message +=
-`\n\n⚠️ يرجى مراجعة توفر الطبيب وتأكيد الموعد مع المريض.
-
-تم إرسال الطلب من موقع Azaad Clinic.`;
+      `\n\n⚠️ يرجى مراجعة توفر الطبيب وتأكيد الموعد مع المريض.\n\nتم إرسال الطلب من موقع Azaad Clinic.`;
 
     return message;
   }
@@ -278,9 +292,7 @@
         ">
           رقم الحجز:
           <strong>
-            ${escapeHtml(
-              booking.booking_code || ''
-            )}
+            ${escapeHtml(booking.booking_code || '')}
           </strong>
           <br>
           لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.
@@ -328,10 +340,15 @@
     const doctorSelect = $('doctor');
     const serviceSelect = $('service');
 
-    if (!doctorSelect || !serviceSelect) return;
+    if (!doctorSelect || !serviceSelect) {
+      return;
+    }
 
-    const oldDoctor = doctorSelect.value;
-    const oldService = serviceSelect.value;
+    const oldDoctor =
+      doctorSelect.value;
+
+    const oldService =
+      serviceSelect.value;
 
     const doctors =
       Array.isArray(clinicData.doctors)
@@ -349,20 +366,22 @@
           اختر الطبيب
         </option>
       ` +
-      doctors.map(doctor => `
-        <option value="${escapeHtml(doctor.id)}">
-          ${escapeHtml(
-            doctor.name ||
-            doctor.full_name ||
-            'طبيب'
-          )}
-          ${
-            doctor.title
-              ? ' — ' + escapeHtml(doctor.title)
-              : ''
-          }
-        </option>
-      `).join('');
+      doctors
+        .map((doctor) => `
+          <option value="${escapeHtml(doctor.id)}">
+            ${escapeHtml(
+              doctor.name ||
+              doctor.full_name ||
+              'طبيب'
+            )}
+            ${
+              doctor.title
+                ? ' — ' + escapeHtml(doctor.title)
+                : ''
+            }
+          </option>
+        `)
+        .join('');
 
     serviceSelect.innerHTML =
       `
@@ -370,28 +389,31 @@
           اختر الخدمة
         </option>
       ` +
-      services.map(service => `
-        <option value="${escapeHtml(service.id)}">
-          ${escapeHtml(
-            service.name ||
-            service.title ||
-            'خدمة'
-          )}
-          ${
-            service.duration_minutes
-              ? ' — ' +
-                escapeHtml(
-                  service.duration_minutes
-                ) +
-                ' دقيقة'
-              : ''
-          }
-        </option>
-      `).join('');
+      services
+        .map((service) => `
+          <option value="${escapeHtml(service.id)}">
+            ${escapeHtml(
+              service.name ||
+              service.title ||
+              'خدمة'
+            )}
+            ${
+              service.duration_minutes
+                ? ' — ' +
+                  escapeHtml(
+                    service.duration_minutes
+                  ) +
+                  ' دقيقة'
+                : ''
+            }
+          </option>
+        `)
+        .join('');
 
     if (
       [...doctorSelect.options].some(
-        option => option.value === oldDoctor
+        (option) =>
+          option.value === oldDoctor
       )
     ) {
       doctorSelect.value = oldDoctor;
@@ -399,7 +421,8 @@
 
     if (
       [...serviceSelect.options].some(
-        option => option.value === oldService
+        (option) =>
+          option.value === oldService
       )
     ) {
       serviceSelect.value = oldService;
@@ -409,7 +432,9 @@
   function setupDate() {
     const dateInput = $('date');
 
-    if (!dateInput) return;
+    if (!dateInput) {
+      return;
+    }
 
     const now = new Date();
 
@@ -453,7 +478,6 @@
       };
 
       populateSelectors();
-
       setupDate();
 
       await loadAvailableSlots();
@@ -471,7 +495,8 @@
   }
 
   async function loadAvailableSlots() {
-    const slotsContainer = $('slots');
+    const slotsContainer =
+      $('slots');
 
     const doctor =
       $('doctor')?.value || '';
@@ -484,9 +509,15 @@
 
     selectedSlot = '';
 
-    if (!slotsContainer) return;
+    if (!slotsContainer) {
+      return;
+    }
 
-    if (!doctor || !service || !date) {
+    if (
+      !doctor ||
+      !service ||
+      !date
+    ) {
       slotsContainer.innerHTML = `
         <div class="slots-empty">
           اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.
@@ -534,29 +565,31 @@
       }
 
       slotsContainer.innerHTML =
-        slots.map(time => `
-          <button
-            type="button"
-            class="slot"
-            data-slot="${escapeHtml(time)}"
-          >
-            ${escapeHtml(time)}
-          </button>
-        `).join('');
+        slots
+          .map((time) => `
+            <button
+              type="button"
+              class="slot"
+              data-slot="${escapeHtml(time)}"
+            >
+              ${escapeHtml(time)}
+            </button>
+          `)
+          .join('');
 
       slotsContainer
         .querySelectorAll('.slot')
-        .forEach(button => {
+        .forEach((button) => {
           button.addEventListener(
             'click',
             () => {
               slotsContainer
                 .querySelectorAll('.slot')
-                .forEach(item =>
+                .forEach((item) => {
                   item.classList.remove(
                     'selected'
-                  )
-                );
+                  );
+                });
 
               button.classList.add(
                 'selected'
@@ -804,7 +837,7 @@
         'تعذر إرسال طلب الحجز.';
 
       const lower =
-        message.toLowerCase();
+        String(message).toLowerCase();
 
       if (
         lower.includes('duplicate') ||
