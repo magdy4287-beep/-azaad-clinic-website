@@ -1,54 +1,663 @@
-const CLINIC_WEBSITE_URL =
-  'https://magdy4287-beep.github.io/-azaad-clinic-website/';
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 
-const CLINIC_SHARE_TEXT =
-  '🌐 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp\n\n' +
-  'عيادة أزاد للصحة النفسية 🏥\n' +
-  'مساحة آمنة لبداية التغيير.\n\n' +
-  'يمكنك زيارة الموقع الإلكتروني للعيادة من هنا:\n' +
-  CLINIC_WEBSITE_URL;
+<head>
 
+  <meta charset="UTF-8">
 
-function setupClinicWebsiteShare() {
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
 
-  const shareButton =
-    document.getElementById(
-      'shareClinicWhatsapp'
-    );
+  <meta
+    name="theme-color"
+    content="#101b56">
 
-  if (!shareButton) {
-    return;
-  }
+  <title>
+    مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp | Azaad Clinic
+  </title>
 
-  const whatsappShareUrl =
-    'https://wa.me/?text=' +
-    encodeURIComponent(
-      CLINIC_SHARE_TEXT
-    );
+  <meta
+    name="description"
+    content="مشاركة الموقع الإلكتروني لعيادة أزاد للصحة النفسية عبر WhatsApp">
 
-  shareButton.href =
-    whatsappShareUrl;
+  <style>
 
-  shareButton.removeAttribute(
-    'target'
-  );
-
-  shareButton.addEventListener(
-    'click',
-    function () {
-
-      shareButton.classList.add(
-        'is-opening'
-      );
-
-      /*
-       * ضغطة واحدة فقط:
-       * Mobile → WhatsApp
-       * Desktop → WhatsApp Web
-       */
-
-      window.location.href =
-        whatsappShareUrl;
+    * {
+      box-sizing: border-box;
     }
-  );
-}
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Tahoma,
+        Arial,
+        sans-serif;
+
+      background:
+        linear-gradient(
+          135deg,
+          #f5f7ff 0%,
+          #eef2ff 50%,
+          #ffffff 100%
+        );
+
+      color: #17214f;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+
+      direction: rtl;
+    }
+
+    .clinic-share-page {
+      width: 100%;
+      max-width: 620px;
+    }
+
+    .clinic-share-card {
+      background: #ffffff;
+
+      border-radius: 26px;
+
+      padding: 32px 24px;
+
+      box-shadow:
+        0 20px 60px rgba(16, 27, 86, 0.14);
+
+      border:
+        1px solid rgba(16, 27, 86, 0.08);
+
+      text-align: center;
+    }
+
+    .clinic-logo {
+      width: 76px;
+      height: 76px;
+
+      margin:
+        0 auto 18px;
+
+      border-radius: 50%;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      background:
+        linear-gradient(
+          135deg,
+          #101b56,
+          #263b98
+        );
+
+      color: #ffffff;
+
+      font-size: 22px;
+      font-weight: 900;
+
+      letter-spacing: 1px;
+
+      box-shadow:
+        0 12px 30px rgba(16, 27, 86, 0.22);
+    }
+
+    .clinic-share-card h1 {
+      margin:
+        0 0 10px;
+
+      font-size:
+        clamp(22px, 5vw, 30px);
+
+      line-height: 1.4;
+
+      color: #101b56;
+    }
+
+    .clinic-share-description {
+      margin:
+        0 auto 25px;
+
+      max-width: 500px;
+
+      color: #5b647a;
+
+      line-height: 1.9;
+
+      font-size: 15px;
+    }
+
+    .clinic-share-button {
+      width: 100%;
+
+      min-height: 58px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 10px;
+
+      padding:
+        14px 20px;
+
+      border-radius: 16px;
+
+      background:
+        #25D366;
+
+      color:
+        #ffffff;
+
+      text-decoration: none;
+
+      font-size: 17px;
+
+      font-weight: 800;
+
+      box-shadow:
+        0 10px 25px rgba(37, 211, 102, 0.25);
+
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        opacity 0.15s ease;
+    }
+
+    .clinic-share-button:hover {
+      transform:
+        translateY(-2px);
+
+      box-shadow:
+        0 14px 30px rgba(37, 211, 102, 0.30);
+    }
+
+    .clinic-share-button:active {
+      transform:
+        translateY(0);
+    }
+
+    .clinic-share-button:focus-visible {
+      outline:
+        4px solid rgba(37, 211, 102, 0.25);
+
+      outline-offset:
+        3px;
+    }
+
+    .copy-button {
+      width: 100%;
+
+      min-height: 52px;
+
+      margin-top: 12px;
+
+      padding:
+        12px 18px;
+
+      border:
+        1px solid #dce1ef;
+
+      border-radius: 15px;
+
+      background: #ffffff;
+
+      color: #17214f;
+
+      font-size: 15px;
+
+      font-weight: 800;
+
+      cursor: pointer;
+
+      transition:
+        background 0.15s ease,
+        transform 0.15s ease;
+    }
+
+    .copy-button:hover {
+      background: #f6f8fd;
+    }
+
+    .copy-button:active {
+      transform:
+        scale(0.99);
+    }
+
+    .clinic-link-box {
+      margin-top: 20px;
+
+      padding:
+        13px 15px;
+
+      border-radius: 14px;
+
+      background:
+        #f5f7fb;
+
+      color:
+        #5d6680;
+
+      font-size: 13px;
+
+      line-height: 1.7;
+
+      word-break: break-all;
+
+      direction: ltr;
+
+      text-align: center;
+    }
+
+    .clinic-note {
+      margin-top: 18px;
+
+      color:
+        #737b91;
+
+      font-size: 12px;
+
+      line-height: 1.8;
+    }
+
+    .success-message {
+      display: none;
+
+      margin-top: 12px;
+
+      padding:
+        10px 14px;
+
+      border-radius: 12px;
+
+      background:
+        #eaf9f0;
+
+      color:
+        #14734b;
+
+      font-size: 14px;
+
+      font-weight: 700;
+    }
+
+    @media (max-width: 480px) {
+
+      body {
+        padding: 14px;
+      }
+
+      .clinic-share-card {
+        padding:
+          26px 18px;
+
+        border-radius: 22px;
+      }
+
+      .clinic-logo {
+        width: 68px;
+        height: 68px;
+
+        font-size: 20px;
+      }
+
+      .clinic-share-button {
+        font-size: 16px;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+  <main
+    class="clinic-share-page"
+    aria-labelledby="pageTitle">
+
+
+    <section
+      class="clinic-share-card">
+
+
+      <div
+        class="clinic-logo"
+        aria-hidden="true">
+
+        AZAAD
+
+      </div>
+
+
+      <h1
+        id="pageTitle">
+
+        🌐 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp
+
+      </h1>
+
+
+      <p
+        class="clinic-share-description">
+
+        شارك الموقع الإلكتروني لعيادة أزاد للصحة النفسية
+        بسهولة مع المريض أو أحد أفراد العائلة أو أي شخص آخر.
+
+      </p>
+
+
+      <!-- =====================================================
+           WHATSAPP SHARE BUTTON
+           ===================================================== -->
+
+      <a
+        id="shareClinicWhatsapp"
+        class="clinic-share-button"
+        href="#"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+        title="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp">
+
+        📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp
+
+      </a>
+
+
+      <!-- =====================================================
+           COPY LINK BUTTON
+           ===================================================== -->
+
+      <button
+        id="copyClinicLink"
+        class="copy-button"
+        type="button">
+
+        🔗 نسخ رابط الموقع الإلكتروني
+
+      </button>
+
+
+      <div
+        id="copySuccess"
+        class="success-message"
+        role="status"
+        aria-live="polite">
+
+        ✅ تم نسخ رابط الموقع بنجاح
+
+      </div>
+
+
+      <div
+        id="clinicLinkBox"
+        class="clinic-link-box">
+
+        https://magdy4287-beep.github.io/-azaad-clinic-website/
+
+      </div>
+
+
+      <div
+        class="clinic-note">
+
+        🔒 لن يتم إرسال أي بيانات خاصة بالمريض.
+        سيتم مشاركة رابط الموقع الإلكتروني للعيادة فقط.
+
+      </div>
+
+
+    </section>
+
+
+  </main>
+
+
+  <script>
+
+    (function () {
+
+      "use strict";
+
+
+      /* ======================================================
+         AZAAD CLINIC WEBSITE
+         WHATSAPP SHARE
+         ====================================================== */
+
+      const CLINIC_URL =
+        "https://magdy4287-beep.github.io/-azaad-clinic-website/";
+
+
+      const SHARE_MESSAGE =
+        "🌐 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp\n\n" +
+        "يمكنك زيارة الموقع الإلكتروني لعيادة أزاد للصحة النفسية " +
+        "والتعرف على الخدمات وحجز موعد بسهولة:\n\n" +
+        CLINIC_URL;
+
+
+      const whatsappButton =
+        document.getElementById(
+          "shareClinicWhatsapp"
+        );
+
+
+      const copyButton =
+        document.getElementById(
+          "copyClinicLink"
+        );
+
+
+      const copySuccess =
+        document.getElementById(
+          "copySuccess"
+        );
+
+
+      /* ======================================================
+         BUILD WHATSAPP URL
+         ====================================================== */
+
+      function getWhatsAppUrl() {
+
+        const encodedMessage =
+          encodeURIComponent(
+            SHARE_MESSAGE
+          );
+
+
+        /*
+          whatsapp://send works well on devices
+          where the WhatsApp application is installed.
+
+          api.whatsapp.com/send is used as the
+          universal web-compatible fallback.
+        */
+
+        return (
+          "https://api.whatsapp.com/send?text=" +
+          encodedMessage
+        );
+
+      }
+
+
+      /* ======================================================
+         WHATSAPP BUTTON
+         ====================================================== */
+
+      if (whatsappButton) {
+
+        whatsappButton.href =
+          getWhatsAppUrl();
+
+
+        whatsappButton.addEventListener(
+          "click",
+          function () {
+
+            /*
+              Keep the browser's normal navigation.
+
+              On mobile:
+              → WhatsApp application opens when available.
+
+              On desktop:
+              → WhatsApp Web / WhatsApp handling opens.
+            */
+
+            whatsappButton.href =
+              getWhatsAppUrl();
+
+          }
+        );
+
+      }
+
+
+      /* ======================================================
+         COPY LINK
+         ====================================================== */
+
+      async function copyClinicUrl() {
+
+        try {
+
+          if (
+            navigator.clipboard &&
+            window.isSecureContext
+          ) {
+
+            await navigator.clipboard.writeText(
+              CLINIC_URL
+            );
+
+          } else {
+
+            const temporaryInput =
+              document.createElement(
+                "textarea"
+              );
+
+            temporaryInput.value =
+              CLINIC_URL;
+
+            temporaryInput.style.position =
+              "fixed";
+
+            temporaryInput.style.opacity =
+              "0";
+
+            temporaryInput.style.pointerEvents =
+              "none";
+
+            document.body.appendChild(
+              temporaryInput
+            );
+
+            temporaryInput.focus();
+
+            temporaryInput.select();
+
+            document.execCommand(
+              "copy"
+            );
+
+            temporaryInput.remove();
+
+          }
+
+
+          showCopySuccess();
+
+
+        } catch (error) {
+
+          console.error(
+            "Copy clinic URL error:",
+            error
+          );
+
+
+          /*
+            Final fallback:
+            allow the user to manually copy
+            the URL from a prompt.
+          */
+
+          window.prompt(
+            "انسخ رابط الموقع الإلكتروني للعيادة:",
+            CLINIC_URL
+          );
+
+        }
+
+      }
+
+
+      function showCopySuccess() {
+
+        if (!copySuccess) {
+          return;
+        }
+
+
+        copySuccess.style.display =
+          "block";
+
+
+        clearTimeout(
+          window.__azaadCopyTimer
+        );
+
+
+        window.__azaadCopyTimer =
+          setTimeout(
+            function () {
+
+              copySuccess.style.display =
+                "none";
+
+            },
+            3000
+          );
+
+      }
+
+
+      if (copyButton) {
+
+        copyButton.addEventListener(
+          "click",
+          copyClinicUrl
+        );
+
+      }
+
+
+    })();
+
+  </script>
+
+
+</body>
+
+</html>
