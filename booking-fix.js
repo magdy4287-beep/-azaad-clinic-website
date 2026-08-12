@@ -7,30 +7,75 @@
    * booking-fix.js
    * =========================================================
    *
+   * Compatibility guard for the public booking system.
+   *
    * IMPORTANT:
-   *
-   * The main booking system is handled by app.js.
-   *
-   * This file intentionally does NOT:
-   *
-   * ● attach another submit handler
-   * ● load clinic data
-   * ● load appointment slots
-   * ● create bookings
-   *
-   * It exists only as a compatibility guard for older
-   * index.html deployments that may still load this file.
-   *
-   * This prevents duplicate booking requests and
-   * duplicate event listeners.
-   *
+   * - app.js remains the ONLY booking submit/slot handler.
+   * - This file must NOT create duplicate booking requests.
+   * - It also bootstraps public-ui.js because older index.html
+   *   deployments may not include public-ui.js directly.
    * =========================================================
    */
 
   window.AzaadClinicBookingFix = {
-    version: '4.0.1',
+    version: '4.1.0',
     enabled: false,
-    handledBy: 'app.js'
+    handledBy: 'app.js',
+    publicUiBootstrapped: false
   };
+
+  function loadPublicUI() {
+    if (window.AzaadClinicPublicUILoaded) {
+      window.AzaadClinicBookingFix.publicUiBootstrapped = true;
+      return;
+    }
+
+    const existing = document.querySelector(
+      'script[data-azaad-public-ui="true"]'
+    );
+
+    if (existing) {
+      return;
+    }
+
+    const script = document.createElement('script');
+
+    script.src = 'public-ui.js?v=1';
+
+    script.async = false;
+
+    script.dataset.azaadPublicUi = 'true';
+
+    script.onload = () => {
+      window.AzaadClinicPublicUILoaded = true;
+
+      window.AzaadClinicBookingFix.publicUiBootstrapped = true;
+    };
+
+    script.onerror = (error) => {
+      console.error(
+        'Azaad Clinic public UI failed to load:',
+        error
+      );
+    };
+
+    document.head.appendChild(script);
+  }
+
+  if (document.readyState === 'loading') {
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      loadPublicUI,
+      {
+        once: true
+      }
+    );
+
+  } else {
+
+    loadPublicUI();
+
+  }
 
 })();
