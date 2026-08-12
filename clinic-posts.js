@@ -2,36 +2,723 @@
 
   "use strict";
 
-  const API =
+  /*
+   * =========================================================
+   * AZAAD CLINIC
+   * PUBLIC WEBSITE CONTENT
+   * clinic-posts.js
+   * =========================================================
+   *
+   * مسؤول عن:
+   *
+   * 🏥 عرض الخدمات
+   * 👨‍⚕️ عرض فريق العيادة
+   * 📣 عرض المنشورات
+   * 📲 مشاركة الموقع عبر WhatsApp
+   *
+   * IMPORTANT:
+   * - لا يحتوي على Service Role Key
+   * - لا يغير نظام الحجز الموجود في app.js
+   * - يستخدم الـ public Edge Functions فقط
+   * - لا يعرض أي بيانات مرضى
+   *
+   * =========================================================
+   */
+
+  const CLINIC_API =
+    "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic";
+
+  const POSTS_API =
     "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-content";
 
-  const esc = value =>
-    String(value ?? "").replace(
+  const WEBSITE_URL =
+    "https://magdy4287-beep.github.io/-azaad-clinic-website/";
+
+  const DEFAULT_WHATSAPP_NUMBER =
+    "201140526294";
+
+
+  /* =========================================================
+     HELPERS
+     ========================================================= */
+
+  function esc(value) {
+
+    return String(value ?? "").replace(
       /[&<>"']/g,
-      c => ({
+      character => ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#039;"
-      }[c])
+      }[character])
     );
 
+  }
 
-  function createSection() {
+
+  function normalizeWhatsAppNumber(number) {
+
+    return String(number || "")
+      .replace(/\D/g, "");
+
+  }
+
+
+  function getWhatsAppNumber(settings = {}) {
+
+    const configured =
+      normalizeWhatsAppNumber(
+        settings?.whatsapp
+      );
+
+    return (
+      configured ||
+      DEFAULT_WHATSAPP_NUMBER
+    );
+
+  }
+
+
+  function safeUrl(url) {
+
+    const value =
+      String(url || "").trim();
+
+    if (!value) {
+      return "";
+    }
+
+    try {
+
+      const parsed =
+        new URL(value);
+
+      if (
+        parsed.protocol === "https:" ||
+        parsed.protocol === "http:"
+      ) {
+        return parsed.href;
+      }
+
+    } catch (_) {}
+
+    return "";
+
+  }
+
+
+  /* =========================================================
+     GENERIC PUBLIC API REQUEST
+     ========================================================= */
+
+  async function request(
+    url
+  ) {
+
+    const controller =
+      new AbortController();
+
+    const timeout =
+      setTimeout(
+        () => controller.abort(),
+        20000
+      );
+
+    try {
+
+      const response =
+        await fetch(
+          url,
+          {
+            method: "GET",
+            cache: "no-store",
+            signal:
+              controller.signal,
+
+            headers: {
+              Accept:
+                "application/json"
+            }
+          }
+        );
+
+      let data = {};
+
+      try {
+
+        data =
+          await response.json();
+
+      } catch (_) {
+
+        data = {};
+
+      }
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          data?.error ||
+          data?.message ||
+          `HTTP ${response.status}`
+        );
+
+      }
+
+
+      return data;
+
+    } finally {
+
+      clearTimeout(timeout);
+
+    }
+
+  }
+
+
+  /* =========================================================
+     SERVICES
+     ========================================================= */
+
+  function getServiceName(service) {
+
+    return (
+      service?.name ||
+      service?.title ||
+      service?.service_name ||
+      "خدمة نفسية"
+    );
+
+  }
+
+
+  function getServiceDescription(service) {
+
+    return (
+      service?.description ||
+      service?.short_description ||
+      service?.details ||
+      "خدمة نفسية مصممة لتناسب احتياجاتك."
+    );
+
+  }
+
+
+  function getServiceDuration(service) {
+
+    const duration =
+      service?.duration_minutes ??
+      service?.duration ??
+      null;
+
+    if (!duration) {
+      return "";
+    }
+
+    return `
+      <div
+        class="small-note"
+        style="
+          margin-top:10px;
+          opacity:.8;
+        "
+      >
+        ⏱️ ${esc(duration)} دقيقة
+      </div>
+    `;
+
+  }
+
+
+  function renderServices(
+    services
+  ) {
+
+    const grid =
+      document.getElementById(
+        "servicesGrid"
+      );
+
+    if (!grid) {
+      return;
+    }
+
+
+    if (
+      !Array.isArray(services) ||
+      !services.length
+    ) {
+
+      grid.innerHTML = `
+        <div
+          class="empty"
+          style="
+            grid-column:1/-1;
+            text-align:center;
+          "
+        >
+          🩺 خدمات العيادة سيتم تحديثها قريبًا.
+        </div>
+      `;
+
+      return;
+
+    }
+
+
+    grid.innerHTML =
+      services
+        .map(
+          service => {
+
+            const name =
+              getServiceName(
+                service
+              );
+
+            const description =
+              getServiceDescription(
+                service
+              );
+
+            const duration =
+              getServiceDuration(
+                service
+              );
+
+
+            return `
+
+              <article
+                class="card clinic-service-card"
+                style="
+                  height:100%;
+                  box-sizing:border-box;
+                "
+              >
+
+                <div
+                  style="
+                    font-size:34px;
+                    margin-bottom:12px;
+                  "
+                >
+                  🩺
+                </div>
+
+
+                <h3>
+                  ${esc(name)}
+                </h3>
+
+
+                <p
+                  style="
+                    line-height:1.8;
+                    margin-bottom:0;
+                  "
+                >
+                  ${esc(description)}
+                </p>
+
+
+                ${duration}
+
+              </article>
+
+            `;
+
+          }
+        )
+        .join("");
+
+  }
+
+
+  /* =========================================================
+     DOCTORS / TEAM
+     ========================================================= */
+
+  function getDoctorName(
+    doctor
+  ) {
+
+    return (
+      doctor?.name ||
+      doctor?.full_name ||
+      doctor?.display_name ||
+      "طبيب"
+    );
+
+  }
+
+
+  function getDoctorTitle(
+    doctor
+  ) {
+
+    return (
+      doctor?.title ||
+      doctor?.specialty ||
+      doctor?.specialization ||
+      "متخصص في الصحة النفسية"
+    );
+
+  }
+
+
+  function getDoctorBio(
+    doctor
+  ) {
+
+    return (
+      doctor?.bio ||
+      doctor?.description ||
+      doctor?.short_bio ||
+      "متخصص يعمل معك للوصول إلى حياة أكثر توازنًا."
+    );
+
+  }
+
+
+  function getDoctorImage(
+    doctor
+  ) {
+
+    return (
+      doctor?.image_url ||
+      doctor?.photo_url ||
+      doctor?.avatar_url ||
+      doctor?.image ||
+      doctor?.photo ||
+      ""
+    );
+
+  }
+
+
+  function renderDoctors(
+    doctors
+  ) {
+
+    const grid =
+      document.getElementById(
+        "doctorsGrid"
+      );
+
+    if (!grid) {
+      return;
+    }
+
+
+    if (
+      !Array.isArray(doctors) ||
+      !doctors.length
+    ) {
+
+      grid.innerHTML = `
+        <div
+          class="empty"
+          style="
+            grid-column:1/-1;
+            text-align:center;
+          "
+        >
+          🧑‍⚕️ فريق العيادة سيتم تحديثه قريبًا.
+        </div>
+      `;
+
+      return;
+
+    }
+
+
+    grid.innerHTML =
+      doctors
+        .map(
+          doctor => {
+
+            const name =
+              getDoctorName(
+                doctor
+              );
+
+            const title =
+              getDoctorTitle(
+                doctor
+              );
+
+            const bio =
+              getDoctorBio(
+                doctor
+              );
+
+            const image =
+              safeUrl(
+                getDoctorImage(
+                  doctor
+                )
+              );
+
+
+            const photo =
+              image
+                ? `
+                  <div
+                    style="
+                      width:100%;
+                      aspect-ratio:1/1;
+                      overflow:hidden;
+                      border-radius:18px;
+                      margin-bottom:16px;
+                      background:#f3f5f9;
+                    "
+                  >
+
+                    <img
+                      src="${esc(image)}"
+                      alt="${esc(name)}"
+                      loading="lazy"
+                      decoding="async"
+                      style="
+                        display:block;
+                        width:100%;
+                        height:100%;
+                        object-fit:cover;
+                      "
+                      onerror="
+                        this.parentElement.innerHTML =
+                        '<div style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:70px;\\'>🧑‍⚕️</div>';
+                      "
+                    >
+
+                  </div>
+                `
+                : `
+                  <div
+                    style="
+                      width:100%;
+                      aspect-ratio:1/1;
+                      display:flex;
+                      align-items:center;
+                      justify-content:center;
+                      border-radius:18px;
+                      margin-bottom:16px;
+                      background:#f3f5f9;
+                      font-size:70px;
+                    "
+                  >
+                    🧑‍⚕️
+                  </div>
+                `;
+
+
+            return `
+
+              <article
+                class="card clinic-doctor-card"
+                style="
+                  height:100%;
+                  box-sizing:border-box;
+                  overflow:hidden;
+                "
+              >
+
+                ${photo}
+
+
+                <h3>
+                  ${esc(name)}
+                </h3>
+
+
+                <div
+                  style="
+                    font-weight:700;
+                    margin-top:6px;
+                    margin-bottom:10px;
+                  "
+                >
+                  🧑‍⚕️ ${esc(title)}
+                </div>
+
+
+                <p
+                  style="
+                    line-height:1.8;
+                    margin-bottom:0;
+                  "
+                >
+                  ${esc(bio)}
+                </p>
+
+              </article>
+
+            `;
+
+          }
+        )
+        .join("");
+
+  }
+
+
+  /* =========================================================
+     LOAD SERVICES + DOCTORS
+     ========================================================= */
+
+  async function loadClinicTeamAndServices() {
+
+    const servicesGrid =
+      document.getElementById(
+        "servicesGrid"
+      );
+
+    const doctorsGrid =
+      document.getElementById(
+        "doctorsGrid"
+      );
+
+
+    try {
+
+      const data =
+        await request(
+          CLINIC_API +
+          "?api=data&_=" +
+          Date.now()
+        );
+
+
+      const services =
+        Array.isArray(
+          data?.services
+        )
+          ? data.services
+          : [];
+
+
+      const doctors =
+        Array.isArray(
+          data?.doctors
+        )
+          ? data.doctors
+          : [];
+
+
+      /*
+       * Save a small public copy
+       * for the WhatsApp/share helpers.
+       */
+
+      window.AZAAD_PUBLIC_CLINIC_DATA = {
+        services,
+        doctors,
+        settings:
+          data?.settings || {}
+      };
+
+
+      renderServices(
+        services
+      );
+
+
+      renderDoctors(
+        doctors
+      );
+
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "Azaad Clinic public data:",
+        error
+      );
+
+
+      /*
+       * Do not leave the user staring
+       * at "جاري التحميل..." forever.
+       */
+
+      if (servicesGrid) {
+
+        servicesGrid.innerHTML = `
+          <div
+            class="empty"
+            style="
+              grid-column:1/-1;
+              text-align:center;
+            "
+          >
+            ⚠️ تعذر تحميل خدمات العيادة حاليًا.
+            <br>
+            يرجى تحديث الصفحة والمحاولة مرة أخرى.
+          </div>
+        `;
+
+      }
+
+
+      if (doctorsGrid) {
+
+        doctorsGrid.innerHTML = `
+          <div
+            class="empty"
+            style="
+              grid-column:1/-1;
+              text-align:center;
+            "
+          >
+            ⚠️ تعذر تحميل فريق العيادة حاليًا.
+            <br>
+            يرجى تحديث الصفحة والمحاولة مرة أخرى.
+          </div>
+        `;
+
+      }
+
+    }
+
+  }
+
+
+  /* =========================================================
+     POSTS SECTION
+     ========================================================= */
+
+  function createPostsSection() {
 
     let section =
-      document.getElementById("clinicPosts");
+      document.getElementById(
+        "clinicPosts"
+      );
 
-    if (section)
+
+    if (section) {
       return section;
+    }
 
 
     section =
-      document.createElement("section");
+      document.createElement(
+        "section"
+      );
 
-    section.id = "clinicPosts";
-    section.className = "section section-light";
+
+    section.id =
+      "clinicPosts";
+
+
+    section.className =
+      "section section-light";
 
 
     section.innerHTML = `
@@ -42,18 +729,22 @@
           AZAAD CLINIC
         </div>
 
+
         <h2>
           المنشورات والعروض
         </h2>
+
 
         <p class="section-intro">
           آخر الأخبار والعروض والمحتوى
           من عيادة آزاد للصحة النفسية.
         </p>
 
+
         <div
           id="clinicPostsGrid"
-          class="cards">
+          class="cards"
+        >
 
           <div class="loading">
             جاري تحميل المنشورات...
@@ -67,22 +758,27 @@
 
 
     const booking =
-      document.getElementById("booking");
+      document.getElementById(
+        "booking"
+      );
+
 
     const contact =
-      document.getElementById("contact");
+      document.getElementById(
+        "contact"
+      );
+
 
     const main =
-      document.querySelector("main");
+      document.querySelector(
+        "main"
+      );
 
 
-    /*
-      Put posts before booking.
-      This keeps the existing booking
-      system completely untouched.
-    */
-
-    if (booking && booking.parentNode) {
+    if (
+      booking &&
+      booking.parentNode
+    ) {
 
       booking.parentNode.insertBefore(
         section,
@@ -91,7 +787,10 @@
 
     }
 
-    else if (contact && contact.parentNode) {
+    else if (
+      contact &&
+      contact.parentNode
+    ) {
 
       contact.parentNode.insertBefore(
         section,
@@ -102,7 +801,9 @@
 
     else if (main) {
 
-      main.appendChild(section);
+      main.appendChild(
+        section
+      );
 
     }
 
@@ -118,13 +819,17 @@
   }
 
 
-  function renderPosts(posts) {
+  function renderPosts(
+    posts
+  ) {
 
     const section =
-      createSection();
+      createPostsSection();
 
-    if (!section)
+
+    if (!section) {
       return;
+    }
 
 
     const grid =
@@ -132,238 +837,283 @@
         "clinicPostsGrid"
       );
 
-    if (!grid)
+
+    if (!grid) {
       return;
+    }
 
 
     if (!posts.length) {
 
-      /*
-        Hide the section when there
-        are currently no published posts.
-      */
-
-      section.style.display = "none";
+      section.style.display =
+        "none";
 
       return;
 
     }
 
 
-    section.style.display = "";
+    section.style.display =
+      "";
 
 
     grid.innerHTML =
-      posts.map(post => {
+      posts
+        .map(
+          post => {
 
-        let media = "";
-
-
-        /*
-          IMAGE
-        */
-
-        if (
-          post.media_type === "image" &&
-          post.media_url
-        ) {
-
-          media = `
-
-            <div
-              class="clinic-post-media"
-              style="
-                width:100%;
-                overflow:hidden;
-                border-radius:14px;
-                margin-bottom:16px;
-              "
-            >
-
-              <img
-                src="${esc(post.media_url)}"
-                alt="${esc(post.title || "Azaad Clinic")}"
-                loading="lazy"
-                decoding="async"
-                style="
-                  display:block;
-                  width:100%;
-                  max-height:420px;
-                  object-fit:cover;
-                  border-radius:14px;
-                "
-                onerror="
-                  this.closest('.clinic-post-media')
-                    .style.display='none';
-                "
-              >
-
-            </div>
-
-          `;
-
-        }
+            let media = "";
 
 
-        /*
-          VIDEO
-        */
+            /*
+             * IMAGE
+             */
 
-        if (
-          post.media_type === "video" &&
-          post.media_url
-        ) {
+            if (
+              post.media_type === "image" &&
+              post.media_url
+            ) {
 
-          media = `
-
-            <div
-              class="clinic-post-media"
-              style="
-                width:100%;
-                overflow:hidden;
-                border-radius:14px;
-                margin-bottom:16px;
-              "
-            >
-
-              <video
-                controls
-                preload="metadata"
-                playsinline
-                style="
-                  display:block;
-                  width:100%;
-                  max-height:420px;
-                  border-radius:14px;
-                  background:#000;
-                "
-              >
-
-                <source
-                  src="${esc(post.media_url)}"
-                >
-
-                المتصفح لا يدعم تشغيل الفيديو.
-
-              </video>
-
-            </div>
-
-          `;
-
-        }
+              const imageUrl =
+                safeUrl(
+                  post.media_url
+                );
 
 
-        /*
-          EXTERNAL LINK
-        */
+              if (imageUrl) {
 
-        const external =
-          post.external_url
-            ? `
+                media = `
 
-              <a
-                href="${esc(post.external_url)}"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn"
-              >
-                عرض المزيد
-              </a>
+                  <div
+                    class="clinic-post-media"
+                    style="
+                      width:100%;
+                      overflow:hidden;
+                      border-radius:14px;
+                      margin-bottom:16px;
+                    "
+                  >
 
-            `
-            : "";
+                    <img
+                      src="${esc(imageUrl)}"
+                      alt="${esc(
+                        post.title ||
+                        "Azaad Clinic"
+                      )}"
+                      loading="lazy"
+                      decoding="async"
+                      style="
+                        display:block;
+                        width:100%;
+                        max-height:420px;
+                        object-fit:cover;
+                        border-radius:14px;
+                      "
+                      onerror="
+                        this.closest('.clinic-post-media')
+                          .style.display='none';
+                      "
+                    >
+
+                  </div>
+
+                `;
+
+              }
+
+            }
 
 
-        /*
-          DATE
-        */
+            /*
+             * VIDEO
+             */
 
-        let dateText = "";
+            if (
+              post.media_type === "video" &&
+              post.media_url
+            ) {
 
-        if (post.published_at) {
+              const videoUrl =
+                safeUrl(
+                  post.media_url
+                );
 
-          try {
 
-            const date =
-              new Date(post.published_at);
+              if (videoUrl) {
 
-            dateText =
-              date.toLocaleDateString(
-                "ar-EG",
-                {
-                  year:"numeric",
-                  month:"long",
-                  day:"numeric"
-                }
+                media = `
+
+                  <div
+                    class="clinic-post-media"
+                    style="
+                      width:100%;
+                      overflow:hidden;
+                      border-radius:14px;
+                      margin-bottom:16px;
+                    "
+                  >
+
+                    <video
+                      controls
+                      preload="metadata"
+                      playsinline
+                      style="
+                        display:block;
+                        width:100%;
+                        max-height:420px;
+                        border-radius:14px;
+                        background:#000;
+                      "
+                    >
+
+                      <source
+                        src="${esc(videoUrl)}"
+                      >
+
+                      المتصفح لا يدعم تشغيل الفيديو.
+
+                    </video>
+
+                  </div>
+
+                `;
+
+              }
+
+            }
+
+
+            const externalUrl =
+              safeUrl(
+                post.external_url
               );
 
-          }
 
-          catch (_) {}
+            const external =
+              externalUrl
+                ? `
 
-        }
+                  <a
+                    href="${esc(
+                      externalUrl
+                    )}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn"
+                  >
+                    عرض المزيد
+                  </a>
 
-
-        return `
-
-          <article
-            class="card clinic-post-card"
-            style="
-              overflow:hidden;
-            "
-          >
-
-            ${media}
-
-            <div>
-
-              ${
-                dateText
-                ?
                 `
-                <div
-                  class="small-note"
-                  style="margin-bottom:8px"
-                >
-                  ${esc(dateText)}
+                : "";
+
+
+            let dateText =
+              "";
+
+
+            if (
+              post.published_at
+            ) {
+
+              try {
+
+                const date =
+                  new Date(
+                    post.published_at
+                  );
+
+
+                if (
+                  !Number.isNaN(
+                    date.getTime()
+                  )
+                ) {
+
+                  dateText =
+                    date.toLocaleDateString(
+                      "ar-EG",
+                      {
+                        year:
+                          "numeric",
+                        month:
+                          "long",
+                        day:
+                          "numeric"
+                      }
+                    );
+
+                }
+
+              }
+
+              catch (_) {}
+
+            }
+
+
+            return `
+
+              <article
+                class="card clinic-post-card"
+                style="
+                  overflow:hidden;
+                "
+              >
+
+                ${media}
+
+
+                <div>
+
+                  ${
+                    dateText
+                      ? `
+                        <div
+                          class="small-note"
+                          style="
+                            margin-bottom:8px;
+                          "
+                        >
+                          ${esc(dateText)}
+                        </div>
+                      `
+                      : ""
+                  }
+
+
+                  <h3>
+                    ${esc(
+                      post.title ||
+                      "منشور من عيادة آزاد"
+                    )}
+                  </h3>
+
+
+                  ${
+                    post.content
+                      ? `
+                        <p>
+                          ${esc(
+                            post.content
+                          )}
+                        </p>
+                      `
+                      : ""
+                  }
+
+
+                  ${external}
+
                 </div>
-                `
-                :
-                ""
-              }
 
+              </article>
 
-              <h3>
-                ${esc(
-                  post.title ||
-                  "منشور من عيادة آزاد"
-                )}
-              </h3>
+            `;
 
-
-              ${
-                post.content
-                ?
-                `
-                <p>
-                  ${esc(post.content)}
-                </p>
-                `
-                :
-                ""
-              }
-
-
-              ${external}
-
-            </div>
-
-          </article>
-
-        `;
-
-      }).join("");
+          }
+        )
+        .join("");
 
   }
 
@@ -371,10 +1121,12 @@
   async function loadPosts() {
 
     const section =
-      createSection();
+      createPostsSection();
 
-    if (!section)
+
+    if (!section) {
       return;
+    }
 
 
     const grid =
@@ -399,58 +1151,27 @@
     try {
 
       const response =
-        await fetch(
-          API + "?t=" + Date.now(),
-          {
-            method:"GET",
-            cache:"no-store",
-            headers:{
-              "Accept":"application/json"
-            }
-          }
+        await request(
+          POSTS_API +
+          "?t=" +
+          Date.now()
         );
 
-
-      if (!response.ok) {
-
-        throw new Error(
-          "HTTP " + response.status
-        );
-
-      }
-
-
-      const data =
-        await response.json();
-
-
-      /*
-        The public API already returns
-        published posts only.
-
-        We keep this extra check as
-        protection in case the API
-        returns another record.
-      */
 
       const posts =
-        Array.isArray(data.posts)
-          ?
-          data.posts.filter(
-            post =>
-              post &&
-              post.published === true
-          )
-          :
-          [];
+        Array.isArray(
+          response?.posts
+        )
+          ? response.posts.filter(
+              post =>
+                post &&
+                post.published === true
+            )
+          : [];
 
-
-      /*
-        Sort newest published content first.
-      */
 
       posts.sort(
-        (a,b) =>
+        (a, b) =>
           new Date(
             b.published_at ||
             b.created_at ||
@@ -464,8 +1185,9 @@
       );
 
 
-      renderPosts(posts);
-
+      renderPosts(
+        posts
+      );
 
     }
 
@@ -478,30 +1200,396 @@
 
 
       /*
-        Do not break the rest of
-        the clinic website if posts
-        temporarily fail.
-      */
+       * Posts are optional.
+       * They must never break
+       * the rest of the website.
+       */
 
       if (grid) {
-
         grid.innerHTML = "";
-
       }
 
-      section.style.display = "none";
+
+      section.style.display =
+        "none";
 
     }
 
   }
 
 
-  function start() {
+  /* =========================================================
+     WHATSAPP WEBSITE SHARE
+     ========================================================= */
 
-    loadPosts();
+  function createWhatsAppShareUrl() {
+
+    const publicData =
+      window.AZAAD_PUBLIC_CLINIC_DATA ||
+      {};
+
+
+    const phone =
+      getWhatsAppNumber(
+        publicData.settings
+      );
+
+
+    /*
+     * IMPORTANT:
+     * No patient information is included.
+     */
+
+    const message =
+      `🏥 Azaad Clinic - عيادة آزاد للصحة النفسية
+
+🌐 مشاركة الموقع الإلكتروني للعيادة
+
+يمكنك زيارة الموقع الإلكتروني للعيادة والتعرف على خدماتنا وفريقنا وحجز موعد بسهولة:
+
+${WEBSITE_URL}`;
+
+
+    /*
+     * We intentionally use wa.me.
+     * This opens WhatsApp directly
+     * when WhatsApp is available.
+     *
+     * The clinic number is used when
+     * available, but the actual
+     * website link is always included.
+     */
+
+    if (phone) {
+
+      return (
+        `https://wa.me/${phone}` +
+        `?text=${encodeURIComponent(
+          message
+        )}`
+      );
+
+    }
+
+
+    return (
+      `https://wa.me/?text=` +
+      encodeURIComponent(
+        message
+      )
+    );
 
   }
 
+
+  function shareWebsiteViaWhatsApp() {
+
+    const url =
+      createWhatsAppShareUrl();
+
+
+    /*
+     * Direct navigation is more reliable
+     * than navigator.share for this button.
+     */
+
+    window.location.href =
+      url;
+
+  }
+
+
+  /* =========================================================
+     FIND / CREATE SHARE BUTTON
+     ========================================================= */
+
+  function setupWhatsAppShareButton() {
+
+    /*
+     * Support several possible IDs
+     * already used in previous versions.
+     */
+
+    const possibleIds = [
+
+      "shareClinicWhatsApp",
+
+      "shareClinicWebsiteWhatsApp",
+
+      "whatsappClinicShare",
+
+      "shareWebsiteWhatsApp",
+
+      "clinicWhatsAppShare"
+
+    ];
+
+
+    let button = null;
+
+
+    for (
+      const id of possibleIds
+    ) {
+
+      const candidate =
+        document.getElementById(
+          id
+        );
+
+
+      if (candidate) {
+
+        button =
+          candidate;
+
+        break;
+
+      }
+
+    }
+
+
+    /*
+     * Also support a data attribute
+     * so the HTML can identify the
+     * action without depending on ID.
+     */
+
+    if (!button) {
+
+      button =
+        document.querySelector(
+          '[data-action="share-clinic-whatsapp"]'
+        );
+
+    }
+
+
+    /*
+     * If an existing button is found,
+     * replace its click behavior.
+     */
+
+    if (button) {
+
+      button.textContent =
+        "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+
+
+      button.setAttribute(
+        "aria-label",
+        "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+      );
+
+
+      button.removeAttribute(
+        "href"
+      );
+
+
+      button.style.cursor =
+        "pointer";
+
+
+      /*
+       * Clone the element to remove
+       * previously attached click
+       * handlers safely.
+       */
+
+      const replacement =
+        button.cloneNode(true);
+
+
+      replacement.textContent =
+        "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+
+
+      replacement.setAttribute(
+        "type",
+        "button"
+      );
+
+
+      replacement.setAttribute(
+        "aria-label",
+        "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+      );
+
+
+      replacement.addEventListener(
+        "click",
+        event => {
+
+          event.preventDefault();
+
+          shareWebsiteViaWhatsApp();
+
+        }
+      );
+
+
+      button.replaceWith(
+        replacement
+      );
+
+
+      return;
+
+    }
+
+
+    /*
+     * If the old button does not exist,
+     * create a safe fallback button
+     * near the contact section.
+     */
+
+    const contact =
+      document.getElementById(
+        "contact"
+      );
+
+
+    if (!contact) {
+      return;
+    }
+
+
+    /*
+     * Do not create duplicates.
+     */
+
+    if (
+      document.getElementById(
+        "shareClinicWhatsApp"
+      )
+    ) {
+      return;
+    }
+
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+
+    wrapper.style.cssText = `
+      margin-top:20px;
+      text-align:center;
+    `;
+
+
+    const newButton =
+      document.createElement(
+        "button"
+      );
+
+
+    newButton.id =
+      "shareClinicWhatsApp";
+
+
+    newButton.type =
+      "button";
+
+
+    newButton.className =
+      "btn";
+
+
+    newButton.textContent =
+      "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+
+
+    newButton.setAttribute(
+      "aria-label",
+      "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+    );
+
+
+    newButton.addEventListener(
+      "click",
+      shareWebsiteViaWhatsApp
+    );
+
+
+    wrapper.appendChild(
+      newButton
+    );
+
+
+    const container =
+      contact.querySelector(
+        ".container"
+      );
+
+
+    if (container) {
+
+      container.appendChild(
+        wrapper
+      );
+
+    }
+
+    else {
+
+      contact.appendChild(
+        wrapper
+      );
+
+    }
+
+  }
+
+
+  /* =========================================================
+     INITIALIZATION
+     ========================================================= */
+
+  async function start() {
+
+    /*
+     * Load independent public content.
+     *
+     * We intentionally do not wait
+     * for app.js because this file
+     * has its own public API request.
+     */
+
+    setupWhatsAppShareButton();
+
+
+    /*
+     * Services + Team
+     */
+
+    await loadClinicTeamAndServices();
+
+
+    /*
+     * Posts
+     */
+
+    await loadPosts();
+
+
+    /*
+     * Re-run the share setup after
+     * dynamic sections are available.
+     */
+
+    setupWhatsAppShareButton();
+
+  }
+
+
+  /* =========================================================
+     START
+     * ========================================================= */
 
   if (
     document.readyState ===
@@ -512,7 +1600,7 @@
       "DOMContentLoaded",
       start,
       {
-        once:true
+        once: true
       }
     );
 
