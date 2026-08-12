@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "buildCommand": "echo 'Azaad Clinic static site - no build required'",
+  "outputDirectory": ".",
+  "cleanUrls": false,
+  "trailingSlash": false
+}
