@@ -1,22 +1,54 @@
-<!-- =========================================
-     CLINIC WEBSITE WHATSAPP SHARE
-========================================== -->
+const CLINIC_WEBSITE_URL =
+  'https://magdy4287-beep.github.io/-azaad-clinic-website/';
 
-<div class="clinic-share-box">
+const CLINIC_SHARE_TEXT =
+  '🌐 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp\n\n' +
+  'عيادة أزاد للصحة النفسية 🏥\n' +
+  'مساحة آمنة لبداية التغيير.\n\n' +
+  'يمكنك زيارة الموقع الإلكتروني للعيادة من هنا:\n' +
+  CLINIC_WEBSITE_URL;
 
-  <p>
-    🌐 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp
-  </p>
 
-  <a
-    id="shareClinicWhatsapp"
-    class="clinic-share-button"
-    href="#"
-    aria-label="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
-    title="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp">
+function setupClinicWebsiteShare() {
 
-    📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp
+  const shareButton =
+    document.getElementById(
+      'shareClinicWhatsapp'
+    );
 
-  </a>
+  if (!shareButton) {
+    return;
+  }
 
-</div>
+  const whatsappShareUrl =
+    'https://wa.me/?text=' +
+    encodeURIComponent(
+      CLINIC_SHARE_TEXT
+    );
+
+  shareButton.href =
+    whatsappShareUrl;
+
+  shareButton.removeAttribute(
+    'target'
+  );
+
+  shareButton.addEventListener(
+    'click',
+    function () {
+
+      shareButton.classList.add(
+        'is-opening'
+      );
+
+      /*
+       * ضغطة واحدة فقط:
+       * Mobile → WhatsApp
+       * Desktop → WhatsApp Web
+       */
+
+      window.location.href =
+        whatsappShareUrl;
+    }
+  );
+}
