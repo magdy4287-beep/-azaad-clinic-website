@@ -5,40 +5,94 @@
      AZAAD CLINIC - PATIENT CENTER
      File: patients-center.js
 
-     Purpose:
-     - Permanent MRN display
-     - Patient search
-     - Patient name/mobile editing
-     - Booking count + last appointment
-     - Audit-backed secure update through azaad-patients Edge Function
+     Production Patient Management Center
 
-     Compatible with the currently deployed admin.html legacy session.
+     FEATURES:
+     - 🆔 Permanent MRN display
+     - 🔎 Patient search
+     - ✍️ Patient name editing
+     - 📲 Patient mobile editing
+     - 🔐 MRN cannot be edited
+     - 📅 Booking count
+     - 🕒 Last appointment
+     - 📝 Secure audit-backed update
+     - 🔒 Uses current Supabase Auth session
+     - 🔐 No Service Role Key in browser
+     - 🛡️ Compatible with admin.js
+     - 🚫 Prevents duplicate active patient phone numbers
+
+     SECURITY:
+     - Browser only uses Supabase publishable key/session.
+     - Sensitive patient updates are performed by:
+       azaad-patients Edge Function.
+     - MRN is never sent as an editable field.
+     - Authorization is determined server-side.
      ============================================================ */
 
+
+  /* ------------------------------------------------------------
+     CONFIGURATION
+     ------------------------------------------------------------ */
+
+  const SUPABASE_URL =
+    'https://derofsthjivlkcdnojww.supabase.co';
+
   const PATIENTS_API =
-    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-patients';
+    `${SUPABASE_URL}/functions/v1/azaad-patients`;
 
-  const $ = (id) => document.getElementById(id);
 
-  const escapeHTML = (value) => String(value ?? '').replace(
-    /[&<>"']/g,
-    (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    }[char])
-  );
+  /* ------------------------------------------------------------
+     STATE
+     ------------------------------------------------------------ */
 
-  const formatDate = (value) => {
-    if (!value) return '—';
+  const state = {
+    patients: [],
+    search: '',
+    loading: false,
+    initialized: false
+  };
 
-    const date = new Date(
-      `${String(value).slice(0, 10)}T00:00:00`
+
+  /* ------------------------------------------------------------
+     HELPERS
+     ------------------------------------------------------------ */
+
+  const $ = (id) =>
+    document.getElementById(id);
+
+
+  const escapeHTML = (value) =>
+    String(value ?? '').replace(
+      /[&<>"']/g,
+      (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char])
     );
 
-    if (Number.isNaN(date.getTime())) {
+
+  const formatDate = (value) => {
+
+    if (!value) {
+      return '—';
+    }
+
+    const raw =
+      String(value).slice(0, 10);
+
+    const date =
+      new Date(
+        `${raw}T00:00:00`
+      );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
       return String(value);
     }
 
@@ -52,41 +106,69 @@
     );
   };
 
-  const formatLastAppointment = (value) => {
+
+  const formatLastAppointment = (
+    value
+  ) => {
+
     if (!value) {
       return 'لا يوجد موعد مسجل';
     }
 
-    const [
-      date,
-      time = ''
-    ] = String(value).split('T');
+    const parts =
+      String(value).split('T');
 
-    return (
-      `${formatDate(date)}` +
-      (
+    const date =
+      parts[0] || '';
+
+    const time =
+      parts[1] || '';
+
+    return `
+      ${escapeHTML(
+        formatDate(date)
+      )}
+      ${
         time
-          ? ` — ⏰ ${escapeHTML(time.slice(0, 5))}`
+          ? ` — ⏰ ${escapeHTML(
+              time.slice(0, 5)
+            )}`
           : ''
-      )
-    );
+      }
+    `;
   };
+
+
+  /* ------------------------------------------------------------
+     TOAST
+     ------------------------------------------------------------ */
 
   const showToast = (
     message,
     type = 'info'
   ) => {
 
+    /*
+     * Use the main admin toast if available.
+     */
+
     if (
       typeof window.showToast ===
       'function'
     ) {
-      window.showToast(message);
+
+      window.showToast(
+        message,
+        type
+      );
+
       return;
     }
 
+
     let toast =
       $('patientsToast');
+
 
     if (!toast) {
 
@@ -106,8 +188,10 @@
       );
     }
 
+
     toast.textContent =
       message;
+
 
     toast.style.background =
       type === 'error'
@@ -116,42 +200,172 @@
         ? '#167345'
         : '#17214f';
 
+
     toast.classList.add(
       'show'
     );
+
 
     clearTimeout(
       window.__patientsToastTimer
     );
 
+
     window.__patientsToastTimer =
       setTimeout(
-        () =>
+        () => {
+
           toast.classList.remove(
             'show'
-          ),
+          );
+
+        },
         3500
       );
   };
 
-  const getToken = () =>
-    sessionStorage.getItem(
-      'azaad_admin_token'
-    ) || '';
 
-  const api = async (
+  /* ------------------------------------------------------------
+     GET CURRENT SUPABASE SESSION TOKEN
+     ------------------------------------------------------------ */
+
+  async function getAccessToken() {
+
+    /*
+     * Primary source:
+     * the Supabase client exposed by admin.js.
+     */
+
+    const supabase =
+      window.AZAAD?.supabase;
+
+
+    if (
+      supabase?.auth
+    ) {
+
+      try {
+
+        const {
+          data,
+          error
+        } =
+          await supabase.auth.getSession();
+
+
+        if (
+          !error &&
+          data?.session?.access_token
+        ) {
+
+          return (
+            data.session
+              .access_token
+          );
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Patient Center session error:',
+          error
+        );
+
+      }
+    }
+
+
+    /*
+     * Fallback:
+     * if another compatible module exposes the token.
+     */
+
+    try {
+
+      const legacy =
+        sessionStorage.getItem(
+          'azaad_admin_token'
+        );
+
+      if (legacy) {
+        return legacy;
+      }
+
+    } catch (_) {
+      /* Ignore storage errors */
+    }
+
+
+    return '';
+  }
+
+
+  /* ------------------------------------------------------------
+     API
+     ------------------------------------------------------------ */
+
+  async function api(
     query,
     options = {}
-  ) => {
+  ) {
 
     const token =
-      getToken();
+      await getAccessToken();
+
 
     if (!token) {
+
       throw new Error(
-        'جلسة الإدارة غير موجودة.'
+        'جلسة الإدارة غير موجودة أو منتهية. يرجى تسجيل الدخول مرة أخرى.'
       );
     }
+
+
+    const headers = {
+
+      Accept:
+        'application/json',
+
+      Authorization:
+        `Bearer ${token}`,
+
+      apikey:
+        window.AZAAD?.supabase
+          ? undefined
+          : undefined,
+
+      ...(options.body
+        ? {
+            'Content-Type':
+              'application/json'
+          }
+        : {}),
+
+      ...(options.headers || {})
+    };
+
+
+    /*
+     * Remove undefined header values.
+     */
+
+    Object.keys(
+      headers
+    ).forEach(
+      (key) => {
+
+        if (
+          headers[key] ===
+          undefined
+        ) {
+
+          delete headers[key];
+
+        }
+
+      }
+    );
+
 
     const response =
       await fetch(
@@ -162,33 +376,29 @@
           cache:
             'no-store',
 
-          headers: {
-            Accept:
-              'application/json',
-
-            ...(options.body
-              ? {
-                  'Content-Type':
-                    'application/json'
-                }
-              : {}),
-
-            Authorization:
-              `Bearer ${token}`,
-
-            ...(options.headers || {})
-          }
+          headers
         }
       );
 
+
     let body = {};
 
+
     try {
+
       body =
         await response.json();
-    } catch (_) {}
 
-    if (!response.ok) {
+    } catch (_) {
+
+      body = {};
+
+    }
+
+
+    if (
+      !response.ok
+    ) {
 
       throw new Error(
         body?.error ||
@@ -197,252 +407,202 @@
       );
     }
 
+
     return body;
-  };
+  }
 
-  const state = {
 
-    patients: [],
-
-    search: ''
-
-  };
+  /* ------------------------------------------------------------
+     STYLES
+     ------------------------------------------------------------ */
 
   function injectStyles() {
 
     if (
       $('patientsCenterStyles')
     ) {
+
       return;
     }
+
 
     const style =
       document.createElement(
         'style'
       );
 
+
     style.id =
       'patientsCenterStyles';
 
+
     style.textContent = `
 
+      #patientsPanel {
+        width:100%;
+      }
+
       #patientsPanel .patient-tools {
-
         display:grid;
-
-        grid-template-columns:
-          minmax(0,1fr) auto;
-
+        grid-template-columns:minmax(0,1fr) auto;
         gap:10px;
-
         margin:15px 0;
       }
 
       #patientsPanel .patient-card {
-
-        border:
-          1px solid #e2e6ef;
-
-        border-radius:
-          14px;
-
-        padding:
-          15px;
-
-        background:
-          #fff;
+        border:1px solid #e2e6ef;
+        border-radius:14px;
+        padding:15px;
+        background:#fff;
+        transition:
+          box-shadow .2s ease,
+          transform .2s ease;
       }
 
-      #patientsPanel
-      .patient-card
-      + .patient-card {
-
-        margin-top:
-          10px;
+      #patientsPanel .patient-card:hover {
+        box-shadow:0 8px 25px rgba(23,33,79,.08);
       }
 
-      #patientsPanel
-      .patient-main {
+      #patientsPanel .patient-card + .patient-card {
+        margin-top:10px;
+      }
 
+      #patientsPanel .patient-main {
         display:grid;
-
-        grid-template-columns:
-          minmax(0,1fr) auto;
-
-        gap:
-          15px;
-
-        align-items:
-          center;
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:15px;
+        align-items:center;
       }
 
-      #patientsPanel
-      .patient-mrn {
-
-        display:
-          inline-flex;
-
-        align-items:
-          center;
-
-        gap:
-          6px;
-
-        background:
-          #eef1f8;
-
-        color:
-          #17214f;
-
-        border-radius:
-          999px;
-
-        padding:
-          5px 10px;
-
-        font-weight:
-          900;
-
-        font-size:
-          12px;
+      #patientsPanel .patient-mrn {
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        background:#eef1f8;
+        color:#17214f;
+        border-radius:999px;
+        padding:5px 10px;
+        font-weight:900;
+        font-size:12px;
+        direction:ltr;
       }
 
-      #patientsPanel
-      .patient-name {
-
-        font-size:
-          17px;
-
-        font-weight:
-          900;
-
-        color:
-          #17214f;
-
-        margin:
-          7px 0 4px;
+      #patientsPanel .patient-name {
+        font-size:17px;
+        font-weight:900;
+        color:#17214f;
+        margin:7px 0 4px;
       }
 
-      #patientsPanel
-      .patient-meta {
-
-        color:
-          #6c758c;
-
-        font-size:
-          12px;
-
-        line-height:
-          1.9;
+      #patientsPanel .patient-meta {
+        color:#6c758c;
+        font-size:12px;
+        line-height:1.9;
       }
 
-      #patientsPanel
-      .patient-actions {
-
-        display:
-          flex;
-
-        gap:
-          8px;
-
-        flex-wrap:
-          wrap;
-
-        justify-content:
-          flex-start;
+      #patientsPanel .patient-actions {
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        justify-content:flex-start;
       }
 
-      #patientsPanel
-      .patient-stats {
-
-        display:
-          flex;
-
-        flex-wrap:
-          wrap;
-
-        gap:
-          8px;
-
-        margin-top:
-          10px;
+      #patientsPanel .patient-stats {
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        margin-top:10px;
       }
 
-      #patientsPanel
-      .patient-stat {
-
-        background:
-          #f7f8fb;
-
-        border:
-          1px solid #e8eaf0;
-
-        border-radius:
-          10px;
-
-        padding:
-          7px 10px;
-
-        font-size:
-          12px;
-
-        color:
-          #5f6880;
+      #patientsPanel .patient-stat {
+        background:#f7f8fb;
+        border:1px solid #e8eaf0;
+        border-radius:10px;
+        padding:7px 10px;
+        font-size:12px;
+        color:#5f6880;
       }
 
-      #patientsPanel
-      .mrn-warning {
+      #patientsPanel .mrn-warning {
+        background:#fff8e6;
+        color:#755c00;
+        border:1px solid #f2df9a;
+        border-radius:10px;
+        padding:10px 12px;
+        margin-top:12px;
+        font-size:12px;
+        line-height:1.8;
+      }
 
-        background:
-          #fff8e6;
+      #patientsPanel .patient-empty {
+        text-align:center;
+        padding:30px 15px;
+      }
 
-        color:
-          #755c00;
+      #patientsPanel .patient-loading {
+        text-align:center;
+        padding:30px 15px;
+      }
 
-        border:
-          1px solid #f2df9a;
+      #patientsPanel .patient-error {
+        background:#fff1f2;
+        border:1px solid #f2c5ca;
+        color:#8a2632;
+        border-radius:12px;
+        padding:15px;
+        line-height:1.8;
+      }
 
-        border-radius:
-          10px;
+      #patientsPanel .patient-security {
+        display:flex;
+        gap:8px;
+        align-items:flex-start;
+        margin-top:15px;
+      }
 
-        padding:
-          10px 12px;
+      #patientsPanel .patient-security-icon {
+        font-size:20px;
+        line-height:1;
+      }
 
-        margin-top:
-          12px;
-
-        font-size:
-          12px;
-
-        line-height:
-          1.8;
+      #patientsPanel .patient-readonly {
+        background:#f5f6f9;
+        color:#596177;
+        cursor:not-allowed;
       }
 
       @media(max-width:700px){
 
-        #patientsPanel
-        .patient-tools,
-        #patientsPanel
-        .patient-main {
-
-          grid-template-columns:
-            1fr;
+        #patientsPanel .patient-tools,
+        #patientsPanel .patient-main {
+          grid-template-columns:1fr;
         }
 
-        #patientsPanel
-        .patient-actions
-        .btn {
+        #patientsPanel .patient-actions {
+          width:100%;
+        }
 
-          width:
-            100%;
+        #patientsPanel .patient-actions .btn {
+          width:100%;
+        }
+
+        #patientsPanel .patient-card {
+          padding:13px;
         }
       }
+
     `;
+
 
     document.head.appendChild(
       style
     );
   }
+
+
+  /* ------------------------------------------------------------
+     PANEL CREATION
+     ------------------------------------------------------------ */
 
   function injectUI() {
 
@@ -451,15 +611,23 @@
         '.tabs'
       );
 
+
     const adminPage =
       $('adminPage');
+
 
     if (
       !tabs ||
       !adminPage
     ) {
+
       return false;
     }
+
+
+    /*
+     * Create Patient tab.
+     */
 
     if (
       !$('patientsTab')
@@ -469,6 +637,7 @@
         document.createElement(
           'button'
         );
+
 
       tab.id =
         'patientsTab';
@@ -485,10 +654,12 @@
       tab.textContent =
         '🤢 ملفات المرضى';
 
+
       tabs.insertBefore(
         tab,
         tabs.firstElementChild
       );
+
 
       tab.addEventListener(
         'click',
@@ -500,6 +671,11 @@
       );
     }
 
+
+    /*
+     * Create Patient Center panel.
+     */
+
     if (
       !$('patientsPanel')
     ) {
@@ -509,11 +685,13 @@
           'section'
         );
 
+
       panel.id =
         'patientsPanel';
 
       panel.className =
         'panel';
+
 
       panel.innerHTML = `
 
@@ -528,11 +706,8 @@
               </h2>
 
               <div class="muted">
-
-                MRN ثابت مدى الحياة —
-                لا يتغير عند تعديل الاسم
-                أو رقم الهاتف.
-
+                🆔 MRN ثابت مدى الحياة —
+                لا يتغير عند تعديل الاسم أو رقم الهاتف.
               </div>
 
             </div>
@@ -556,6 +731,7 @@
               placeholder="🔎 ابحث بالاسم أو الموبايل أو MRN مثل AZA-000001"
               autocomplete="off"
             >
+
 
             <button
               id="clearPatientSearchBtn"
@@ -581,27 +757,39 @@
             class="items"
           >
 
-            <div class="empty">
-
-              اضغط تحديث لتحميل ملفات المرضى.
-
+            <div class="empty patient-empty">
+              👥 اضغط تحديث لتحميل ملفات المرضى.
             </div>
 
           </div>
 
 
-          <div class="mrn-warning">
+          <div
+            class="mrn-warning patient-security"
+          >
 
-            🔐
-            <strong>
-              MRN:
-            </strong>
+            <div class="patient-security-icon">
+              🔐
+            </div>
 
-            رقم الملف الطبي هو المعرف
-            الدائم للمريض.
+            <div>
 
-            لا يوجد زر لتعديله أو
-            إعادة استخدامه لمريض آخر.
+              <strong>
+                رقم الملف الطبي MRN
+              </strong>
+
+              <br>
+
+              هذا الرقم هو المعرف الدائم للمريض.
+              لا يمكن تعديله أو تغييره من لوحة الإدارة،
+              ولا يتم إعادة استخدامه لمريض آخر.
+
+              <br>
+
+              ✍️ يمكن للإدارة تعديل الاسم ورقم الهاتف
+              فقط وفقًا للصلاحيات المسجلة في النظام.
+
+            </div>
 
           </div>
 
@@ -609,34 +797,60 @@
 
       `;
 
-      adminPage.insertBefore(
-        panel,
-        adminPage
-          .querySelector(
-            '.tabs'
-          )
-          ?.nextElementSibling ||
-        null
-      );
+
+      /*
+       * Insert panel after tabs.
+       */
+
+      const firstPanel =
+        adminPage.querySelector(
+          '.panel'
+        );
+
+
+      if (firstPanel) {
+
+        adminPage.insertBefore(
+          panel,
+          firstPanel
+        );
+
+      } else {
+
+        adminPage.appendChild(
+          panel
+        );
+
+      }
 
 
       $('refreshPatientsBtn')
-        .addEventListener(
+        ?.addEventListener(
           'click',
           loadPatients
         );
 
 
       $('clearPatientSearchBtn')
-        .addEventListener(
+        ?.addEventListener(
           'click',
           () => {
 
-            $('patientSearchInput')
-              .value = '';
+            const input =
+              $(
+                'patientSearchInput'
+              );
+
+
+            if (input) {
+              input.value =
+                '';
+            }
+
 
             state.search =
               '';
+
 
             renderPatients();
 
@@ -645,15 +859,18 @@
 
 
       $('patientSearchInput')
-        .addEventListener(
+        ?.addEventListener(
           'input',
-          event => {
+          (event) => {
 
             state.search =
-              event.target
-                .value
+              String(
+                event.target.value ||
+                ''
+              )
                 .trim()
                 .toLowerCase();
+
 
             renderPatients();
 
@@ -661,8 +878,14 @@
         );
     }
 
+
     return true;
   }
+
+
+  /* ------------------------------------------------------------
+     PANEL ACTIVATION
+     ------------------------------------------------------------ */
 
   function activatePanel(
     panelId,
@@ -674,7 +897,7 @@
         '.tab'
       )
       .forEach(
-        tab => {
+        (tab) => {
 
           tab.classList.toggle(
             'active',
@@ -684,21 +907,22 @@
         }
       );
 
+
     document
       .querySelectorAll(
         '.panel'
       )
       .forEach(
-        panel => {
+        (panel) => {
 
           panel.classList.toggle(
             'active',
-            panel.id ===
-              panelId
+            panel.id === panelId
           );
 
         }
       );
+
 
     if (
       panelId ===
@@ -710,17 +934,28 @@
     }
   }
 
+
+  /* ------------------------------------------------------------
+     FILTER
+     ------------------------------------------------------------ */
+
   function filteredPatients() {
 
     const q =
       state.search;
 
+
     if (!q) {
-      return state.patients;
+
+      return [
+        ...state.patients
+      ];
+
     }
 
+
     return state.patients.filter(
-      patient => {
+      (patient) => {
 
         const text = [
 
@@ -730,209 +965,276 @@
 
           patient.patient_phone,
 
-          patient.patient_phone_normalized
+          patient.patient_phone_normalized,
+
+          patient.patient_email
 
         ]
+          .filter(Boolean)
           .join(' ')
           .toLowerCase();
+
 
         return text.includes(
           q
         );
+
       }
     );
   }
+
+
+  /* ------------------------------------------------------------
+     RENDER
+     ------------------------------------------------------------ */
 
   function renderPatients() {
 
     const list =
       $('patientsList');
 
+
     const count =
       $('patientsCount');
 
+
     if (!list) {
+
       return;
+
     }
+
 
     const rows =
       filteredPatients();
+
 
     if (count) {
 
       count.textContent =
         `👥 ${rows.length} ملف من أصل ${state.patients.length}`;
+
     }
+
 
     if (!rows.length) {
 
-      list.innerHTML =
-        '<div class="empty">📭 لا توجد ملفات مطابقة للبحث.</div>';
+      list.innerHTML = `
+
+        <div
+          class="empty patient-empty"
+        >
+          📭 لا توجد ملفات مطابقة للبحث.
+        </div>
+
+      `;
 
       return;
+
     }
+
 
     list.innerHTML =
       rows
         .map(
-          patient => `
+          (patient) => {
 
-      <article
-        class="patient-card"
-      >
+            const patientId =
+              escapeHTML(
+                patient.id
+              );
 
-        <div
-          class="patient-main"
-        >
 
-          <div>
+            const mrn =
+              escapeHTML(
+                patient.mrn ||
+                '—'
+              );
 
-            <span
-              class="patient-mrn"
-            >
-              🆔
-              ${escapeHTML(
-                patient.mrn
-              )}
-            </span>
 
-            <div
-              class="patient-name"
-            >
-              ${escapeHTML(
+            const name =
+              escapeHTML(
                 patient.patient_name ||
                 '—'
-              )}
-            </div>
+              );
 
-            <div
-              class="patient-meta"
-            >
 
-              📲
+            const phone =
+              escapeHTML(
+                patient.patient_phone ||
+                '—'
+              );
 
-              <span dir="ltr">
-                ${escapeHTML(
-                  patient.patient_phone ||
-                  '—'
-                )}
-              </span>
 
-              ${
-                patient.patient_email
-                  ? `
-                    <br>
-                    📧
-                    ${escapeHTML(
-                      patient.patient_email
-                    )}
-                  `
-                  : ''
-              }
+            const email =
+              escapeHTML(
+                patient.patient_email ||
+                ''
+              );
 
-              <br>
 
-              🗓️
-              فتح الملف:
-              ${escapeHTML(
+            const created =
+              escapeHTML(
                 formatDate(
                   patient.created_at
                 )
-              )}
+              );
 
-              <br>
 
-              🔄
-              آخر تحديث:
-              ${escapeHTML(
+            const updated =
+              escapeHTML(
                 formatDate(
                   patient.updated_at
                 )
-              )}
-
-            </div>
-
-          </div>
+              );
 
 
-          <div
-            class="patient-actions"
-          >
-
-            <button
-              class="btn btn-primary"
-              type="button"
-              data-edit-patient="${escapeHTML(
-                patient.id
-              )}"
-            >
-
-              ✍️
-              تعديل الاسم والموبايل
-
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <div
-          class="patient-stats"
-        >
-
-          <span
-            class="patient-stat"
-          >
-
-            📅
-            عدد الحجوزات:
-
-            <strong>
-              ${Number(
+            const bookingCount =
+              Number(
                 patient.booking_count ||
                 0
-              )}
-            </strong>
-
-          </span>
+              );
 
 
-          <span
-            class="patient-stat"
-          >
-
-            🕒
-
-            ${escapeHTML(
-              formatLastAppointment(
-                patient.last_appointment
-              )
-            )}
-
-          </span>
+            const active =
+              patient.active !==
+              false;
 
 
-          <span
-            class="patient-stat"
-          >
+            return `
 
-            🚦
-            الحالة:
+              <article
+                class="patient-card"
+              >
 
-            ${
-              patient.active
-                ? '🟢 نشط'
-                : '🔴 غير نشط'
-            }
+                <div
+                  class="patient-main"
+                >
 
-          </span>
+                  <div>
 
-        </div>
+                    <span
+                      class="patient-mrn"
+                    >
+                      🆔
+                      ${mrn}
+                    </span>
 
-      </article>
 
-    `
+                    <div
+                      class="patient-name"
+                    >
+                      ${name}
+                    </div>
+
+
+                    <div
+                      class="patient-meta"
+                    >
+
+                      📲
+
+                      <span dir="ltr">
+                        ${phone}
+                      </span>
+
+
+                      ${
+                        email
+                          ? `
+                            <br>
+                            📧
+                            ${email}
+                          `
+                          : ''
+                      }
+
+
+                      <br>
+
+
+                      🗓️
+                      فتح الملف:
+
+                      ${created}
+
+
+                      <br>
+
+
+                      🔄
+                      آخر تحديث:
+
+                      ${updated}
+
+                    </div>
+
+                  </div>
+
+
+                  <div
+                    class="patient-actions"
+                  >
+
+                    <button
+                      class="btn btn-primary"
+                      type="button"
+                      data-edit-patient="${patientId}"
+                    >
+                      ✍️ تعديل الاسم والموبايل
+                    </button>
+
+                  </div>
+
+                </div>
+
+
+                <div
+                  class="patient-stats"
+                >
+
+                  <span
+                    class="patient-stat"
+                  >
+                    📅 عدد الحجوزات:
+
+                    <strong>
+                      ${bookingCount}
+                    </strong>
+                  </span>
+
+
+                  <span
+                    class="patient-stat"
+                  >
+                    🕒
+                    ${formatLastAppointment(
+                      patient.last_appointment
+                    )}
+                  </span>
+
+
+                  <span
+                    class="patient-stat"
+                  >
+
+                    🚦 الحالة:
+
+                    ${
+                      active
+                        ? '🟢 نشط'
+                        : '🔴 غير نشط'
+                    }
+
+                  </span>
+
+                </div>
+
+              </article>
+
+            `;
+
+          }
         )
         .join('');
 
@@ -942,7 +1244,7 @@
         '[data-edit-patient]'
       )
       .forEach(
-        button => {
+        (button) => {
 
           button.addEventListener(
             'click',
@@ -950,11 +1252,16 @@
 
               const patient =
                 state.patients.find(
-                  item =>
-                    item.id ===
-                    button.dataset
-                      .editPatient
+                  (item) =>
+                    String(
+                      item.id
+                    ) ===
+                    String(
+                      button.dataset
+                        .editPatient
+                    )
                 );
+
 
               if (patient) {
 
@@ -971,30 +1278,67 @@
       );
   }
 
+
+  /* ------------------------------------------------------------
+     LOAD PATIENTS
+     ------------------------------------------------------------ */
+
   async function loadPatients() {
 
     if (
       !$('patientsPanel')
     ) {
+
       return;
+
     }
+
+
+    if (
+      state.loading
+    ) {
+
+      return;
+
+    }
+
 
     const list =
       $('patientsList');
 
+
+    state.loading =
+      true;
+
+
     if (list) {
 
-      list.innerHTML =
-        '<div class="empty">⏳ جاري تحميل ملفات المرضى...</div>';
+      list.innerHTML = `
+
+        <div
+          class="empty patient-loading"
+        >
+          ⏳ جاري تحميل ملفات المرضى...
+        </div>
+
+      `;
 
     }
 
+
     try {
+
+      const search =
+        encodeURIComponent(
+          state.search || ''
+        );
+
 
       const result =
         await api(
-          '?api=patients'
+          `?api=patients&search=${search}`
         );
+
 
       state.patients =
         Array.isArray(
@@ -1003,30 +1347,64 @@
           ? result.patients
           : [];
 
+
       renderPatients();
+
 
     } catch (error) {
 
       console.error(
-        'Patient Center:',
+        'Azaad Patient Center:',
         error
       );
 
+
       if (list) {
 
-        list.innerHTML =
-          `
-            <div class="error">
-              ${escapeHTML(
-                error?.message ||
-                'تعذر تحميل ملفات المرضى.'
-              )}
-            </div>
-          `;
+        list.innerHTML = `
+
+          <div
+            class="patient-error"
+          >
+
+            ❌
+            <strong>
+              تعذر تحميل ملفات المرضى.
+            </strong>
+
+            <br>
+
+            ${escapeHTML(
+              error?.message ||
+              'حدث خطأ غير متوقع.'
+            )}
+
+          </div>
+
+        `;
 
       }
+
+
+      showToast(
+        error?.message ||
+          'تعذر تحميل ملفات المرضى.',
+        'error'
+      );
+
+
+    } finally {
+
+      state.loading =
+        false;
+
     }
   }
+
+
+  /* ------------------------------------------------------------
+     EDIT PATIENT
+     ------------------------------------------------------------ */
 
   function openEditPatient(
     patient
@@ -1035,11 +1413,14 @@
     const modal =
       $('modal');
 
+
     const title =
       $('modalTitle');
 
+
     const content =
       $('modalContent');
+
 
     if (
       !modal ||
@@ -1053,10 +1434,13 @@
       );
 
       return;
+
     }
+
 
     title.textContent =
       '✍️ تعديل ملف المريض';
+
 
     content.innerHTML = `
 
@@ -1070,30 +1454,39 @@
             class="full"
           >
 
-            🆔
-            MRN —
-            رقم الملف الطبي الدائم
+            🆔 MRN
 
             <input
               value="${escapeHTML(
-                patient.mrn
+                patient.mrn ||
+                ''
               )}"
               disabled
+              readonly
+              class="patient-readonly"
             >
+
+            <small
+              class="muted"
+              style="display:block;margin-top:5px"
+            >
+              🔐 رقم الملف الطبي ثابت مدى الحياة
+              ولا يمكن تعديله.
+            </small>
 
           </label>
 
 
           <label>
 
-            🤢
-            اسم المريض
+            🤢 اسم المريض
 
             <input
               id="editPatientName"
               name="patient_name"
               required
               maxlength="200"
+              autocomplete="name"
               value="${escapeHTML(
                 patient.patient_name ||
                 ''
@@ -1105,8 +1498,7 @@
 
           <label>
 
-            📲
-            رقم الموبايل
+            📲 رقم الموبايل
 
             <input
               id="editPatientPhone"
@@ -1114,6 +1506,7 @@
               type="tel"
               required
               maxlength="30"
+              autocomplete="tel"
               value="${escapeHTML(
                 patient.patient_phone ||
                 ''
@@ -1132,15 +1525,23 @@
 
           🔐
           <strong>
-            تنبيه:
+            حماية الملف الطبي
           </strong>
 
-          تعديل الاسم أو الموبايل
-          لا يغير MRN.
+          <br>
 
-          وسيتم تسجيل العملية في
-          سجل التدقيق، وتحديث بيانات
-          الحجز المرتبطة بهذا الملف.
+          تعديل الاسم أو رقم الموبايل
+          لا يغير رقم MRN.
+
+          <br>
+
+          📝 سيتم تسجيل عملية التعديل
+          في سجل التدقيق Audit Log.
+
+          <br>
+
+          📅 سيتم تحديث بيانات الحجوزات
+          المرتبطة بنفس ملف المريض.
 
         </div>
 
@@ -1154,10 +1555,7 @@
             type="submit"
             id="savePatientBtn"
           >
-
-            💾
-            حفظ التعديل
-
+            💾 حفظ التعديل
           </button>
 
 
@@ -1166,9 +1564,7 @@
             type="button"
             id="cancelPatientBtn"
           >
-
             إلغاء
-
           </button>
 
         </div>
@@ -1177,75 +1573,102 @@
 
     `;
 
+
     modal.classList.add(
       'show'
     );
 
+
+    /*
+     * Cancel.
+     */
 
     $('cancelPatientBtn')
       ?.addEventListener(
         'click',
         () => {
 
-          if (
-            typeof window.closeModal ===
-            'function'
-          ) {
-
-            window.closeModal();
-
-          } else {
-
-            modal.classList.remove(
-              'show'
-            );
-
-          }
+          closePatientModal();
 
         }
       );
 
 
+    /*
+     * Submit.
+     */
+
     $('patientEditForm')
       ?.addEventListener(
         'submit',
-        async event => {
+        async (event) => {
 
           event.preventDefault();
+
 
           const button =
             $('savePatientBtn');
 
+
           const name =
-            $('editPatientName')
-              ?.value
-              .trim() ||
-            '';
+            String(
+              $('editPatientName')
+                ?.value ||
+              ''
+            ).trim();
+
 
           const phone =
-            $('editPatientPhone')
-              ?.value
-              .trim() ||
-            '';
+            String(
+              $('editPatientPhone')
+                ?.value ||
+              ''
+            ).trim();
 
-          if (
-            !name ||
-            !phone
-          ) {
+
+          if (!name) {
 
             showToast(
-              '🤢 الاسم ورقم الموبايل مطلوبان.',
+              '🤢 اسم المريض مطلوب.',
               'error'
             );
 
+            $('editPatientName')
+              ?.focus();
+
             return;
+
           }
 
+
+          if (!phone) {
+
+            showToast(
+              '📲 رقم الموبايل مطلوب.',
+              'error'
+            );
+
+            $('editPatientPhone')
+              ?.focus();
+
+            return;
+
+          }
+
+
+          /*
+           * Do not allow MRN changes.
+           * The patient object itself determines the
+           * target ID. MRN is never sent to the update API.
+           */
 
           if (button) {
 
             button.disabled =
               true;
+
+            button.dataset.originalText =
+              button.textContent;
 
             button.textContent =
               '⏳ جاري الحفظ...';
@@ -1264,6 +1687,7 @@
 
                   body:
                     JSON.stringify({
+
                       id:
                         patient.id,
 
@@ -1272,52 +1696,56 @@
 
                       patient_phone:
                         phone
+
                     })
+
                 }
               );
 
 
-            const index =
-              state.patients.findIndex(
-                item =>
-                  item.id ===
-                  patient.id
-              );
+            const updatedPatient =
+              result?.patient;
 
 
             if (
-              index >= 0
+              updatedPatient
             ) {
 
-              state.patients[
-                index
-              ] = {
+              const index =
+                state.patients.findIndex(
+                  (item) =>
+                    String(
+                      item.id
+                    ) ===
+                    String(
+                      patient.id
+                    )
+                );
 
-                ...state.patients[
+
+              if (
+                index >= 0
+              ) {
+
+                state.patients[
                   index
-                ],
+                ] = {
 
-                ...result.patient
+                  ...state
+                    .patients[
+                      index
+                    ],
 
-              };
+                  ...updatedPatient
 
-            }
+                };
 
-
-            if (
-              typeof window.closeModal ===
-              'function'
-            ) {
-
-              window.closeModal();
-
-            } else {
-
-              modal.classList.remove(
-                'show'
-              );
+              }
 
             }
+
+
+            closePatientModal();
 
 
             renderPatients();
@@ -1325,10 +1753,13 @@
 
             showToast(
               `✅ تم تحديث ملف ${
-                result?.patient?.mrn ||
-                patient.mrn
-              } بنجاح.`
+                updatedPatient?.mrn ||
+                patient.mrn ||
+                ''
+              } بنجاح.`,
+              'success'
             );
+
 
           } catch (error) {
 
@@ -1337,11 +1768,13 @@
               error
             );
 
+
             showToast(
               error?.message ||
-              'تعذر تعديل بيانات المريض.',
+                'تعذر تعديل بيانات المريض.',
               'error'
             );
+
 
           } finally {
 
@@ -1351,6 +1784,8 @@
                 false;
 
               button.textContent =
+                button.dataset
+                  .originalText ||
                 '💾 حفظ التعديل';
 
             }
@@ -1361,21 +1796,44 @@
       );
   }
 
-  function init() {
 
-    injectStyles();
+  /* ------------------------------------------------------------
+     CLOSE MODAL
+     ------------------------------------------------------------ */
+
+  function closePatientModal() {
+
+    const modal =
+      $('modal');
+
 
     if (
-      !injectUI()
+      typeof window.closeModal ===
+      'function'
     ) {
-      return false;
+
+      window.closeModal();
+
+      return;
+
     }
 
 
-    /*
-     * Keep the original admin tab system intact
-     * while adding our patient tab.
-     */
+    if (modal) {
+
+      modal.classList.remove(
+        'show'
+      );
+
+    }
+  }
+
+
+  /* ------------------------------------------------------------
+     BIND EXISTING ADMIN TABS
+     ------------------------------------------------------------ */
+
+  function bindExistingTabs() {
 
     const originalTabs =
       document.querySelectorAll(
@@ -1384,15 +1842,18 @@
 
 
     originalTabs.forEach(
-      tab => {
+      (tab) => {
 
         if (
           tab.dataset
             .patientCenterBound ===
           '1'
         ) {
+
           return;
+
         }
+
 
         tab.dataset
           .patientCenterBound =
@@ -1412,7 +1873,7 @@
                 '.tab'
               )
               .forEach(
-                item => {
+                (item) => {
 
                   item.classList.toggle(
                     'active',
@@ -1428,12 +1889,11 @@
                 '.panel'
               )
               .forEach(
-                panel => {
+                (panel) => {
 
                   panel.classList.toggle(
                     'active',
-                    panel.id ===
-                      panelId
+                    panel.id === panelId
                   );
 
                 }
@@ -1444,10 +1904,88 @@
 
       }
     );
+  }
+
+
+  /* ------------------------------------------------------------
+     PERMISSION CHECK
+     ------------------------------------------------------------ */
+
+  function canViewPatients() {
+
+    if (
+      typeof window.AZAAD
+        ?.hasPermission ===
+      'function'
+    ) {
+
+      return (
+        window.AZAAD.hasPermission(
+          'patients.view'
+        ) ||
+        window.AZAAD.hasPermission(
+          'patient.view'
+        ) ||
+        window.AZAAD.hasPermission(
+          'bookings.view'
+        )
+      );
+
+    }
+
+
+    /*
+     * Final authorization is ALWAYS
+     * performed by the Edge Function.
+     *
+     * This frontend check is only UX.
+     */
 
     return true;
   }
 
+
+  /* ------------------------------------------------------------
+     INIT
+     ------------------------------------------------------------ */
+
+  function init() {
+
+    if (
+      state.initialized
+    ) {
+
+      return true;
+
+    }
+
+
+    injectStyles();
+
+
+    if (
+      !injectUI()
+    ) {
+
+      return false;
+
+    }
+
+
+    bindExistingTabs();
+
+
+    state.initialized =
+      true;
+
+
+    return true;
+  }
+
+
+  /* ------------------------------------------------------------
+     AUTO INIT
+     ------------------------------------------------------------ */
 
   if (
     document.readyState ===
@@ -1456,7 +1994,11 @@
 
     document.addEventListener(
       'DOMContentLoaded',
-      init,
+      () => {
+
+        init();
+
+      },
       {
         once: true
       }
@@ -1469,11 +2011,18 @@
   }
 
 
+  /* ------------------------------------------------------------
+     PUBLIC API
+     ------------------------------------------------------------ */
+
   window.AZAAD_PATIENTS = {
 
     init,
 
     load:
+      loadPatients,
+
+    refresh:
       loadPatients,
 
     get patients() {
@@ -1482,8 +2031,23 @@
         ...state.patients
       ];
 
+    },
+
+    get state() {
+
+      return {
+
+        ...state,
+
+        patients: [
+          ...state.patients
+        ]
+
+      };
+
     }
 
   };
+
 
 })();
