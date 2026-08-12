@@ -1,0 +1,1489 @@
+(() => {
+  'use strict';
+
+  /* ============================================================
+     AZAAD CLINIC - PATIENT CENTER
+     File: patients-center.js
+
+     Purpose:
+     - Permanent MRN display
+     - Patient search
+     - Patient name/mobile editing
+     - Booking count + last appointment
+     - Audit-backed secure update through azaad-patients Edge Function
+
+     Compatible with the currently deployed admin.html legacy session.
+     ============================================================ */
+
+  const PATIENTS_API =
+    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-patients';
+
+  const $ = (id) => document.getElementById(id);
+
+  const escapeHTML = (value) => String(value ?? '').replace(
+    /[&<>"']/g,
+    (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[char])
+  );
+
+  const formatDate = (value) => {
+    if (!value) return '—';
+
+    const date = new Date(
+      `${String(value).slice(0, 10)}T00:00:00`
+    );
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleDateString(
+      'ar-EG',
+      {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }
+    );
+  };
+
+  const formatLastAppointment = (value) => {
+    if (!value) {
+      return 'لا يوجد موعد مسجل';
+    }
+
+    const [
+      date,
+      time = ''
+    ] = String(value).split('T');
+
+    return (
+      `${formatDate(date)}` +
+      (
+        time
+          ? ` — ⏰ ${escapeHTML(time.slice(0, 5))}`
+          : ''
+      )
+    );
+  };
+
+  const showToast = (
+    message,
+    type = 'info'
+  ) => {
+
+    if (
+      typeof window.showToast ===
+      'function'
+    ) {
+      window.showToast(message);
+      return;
+    }
+
+    let toast =
+      $('patientsToast');
+
+    if (!toast) {
+
+      toast =
+        document.createElement(
+          'div'
+        );
+
+      toast.id =
+        'patientsToast';
+
+      toast.className =
+        'toast';
+
+      document.body.appendChild(
+        toast
+      );
+    }
+
+    toast.textContent =
+      message;
+
+    toast.style.background =
+      type === 'error'
+        ? '#a32939'
+        : type === 'success'
+        ? '#167345'
+        : '#17214f';
+
+    toast.classList.add(
+      'show'
+    );
+
+    clearTimeout(
+      window.__patientsToastTimer
+    );
+
+    window.__patientsToastTimer =
+      setTimeout(
+        () =>
+          toast.classList.remove(
+            'show'
+          ),
+        3500
+      );
+  };
+
+  const getToken = () =>
+    sessionStorage.getItem(
+      'azaad_admin_token'
+    ) || '';
+
+  const api = async (
+    query,
+    options = {}
+  ) => {
+
+    const token =
+      getToken();
+
+    if (!token) {
+      throw new Error(
+        'جلسة الإدارة غير موجودة.'
+      );
+    }
+
+    const response =
+      await fetch(
+        `${PATIENTS_API}${query}`,
+        {
+          ...options,
+
+          cache:
+            'no-store',
+
+          headers: {
+            Accept:
+              'application/json',
+
+            ...(options.body
+              ? {
+                  'Content-Type':
+                    'application/json'
+                }
+              : {}),
+
+            Authorization:
+              `Bearer ${token}`,
+
+            ...(options.headers || {})
+          }
+        }
+      );
+
+    let body = {};
+
+    try {
+      body =
+        await response.json();
+    } catch (_) {}
+
+    if (!response.ok) {
+
+      throw new Error(
+        body?.error ||
+        body?.message ||
+        `HTTP ${response.status}`
+      );
+    }
+
+    return body;
+  };
+
+  const state = {
+
+    patients: [],
+
+    search: ''
+
+  };
+
+  function injectStyles() {
+
+    if (
+      $('patientsCenterStyles')
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement(
+        'style'
+      );
+
+    style.id =
+      'patientsCenterStyles';
+
+    style.textContent = `
+
+      #patientsPanel .patient-tools {
+
+        display:grid;
+
+        grid-template-columns:
+          minmax(0,1fr) auto;
+
+        gap:10px;
+
+        margin:15px 0;
+      }
+
+      #patientsPanel .patient-card {
+
+        border:
+          1px solid #e2e6ef;
+
+        border-radius:
+          14px;
+
+        padding:
+          15px;
+
+        background:
+          #fff;
+      }
+
+      #patientsPanel
+      .patient-card
+      + .patient-card {
+
+        margin-top:
+          10px;
+      }
+
+      #patientsPanel
+      .patient-main {
+
+        display:grid;
+
+        grid-template-columns:
+          minmax(0,1fr) auto;
+
+        gap:
+          15px;
+
+        align-items:
+          center;
+      }
+
+      #patientsPanel
+      .patient-mrn {
+
+        display:
+          inline-flex;
+
+        align-items:
+          center;
+
+        gap:
+          6px;
+
+        background:
+          #eef1f8;
+
+        color:
+          #17214f;
+
+        border-radius:
+          999px;
+
+        padding:
+          5px 10px;
+
+        font-weight:
+          900;
+
+        font-size:
+          12px;
+      }
+
+      #patientsPanel
+      .patient-name {
+
+        font-size:
+          17px;
+
+        font-weight:
+          900;
+
+        color:
+          #17214f;
+
+        margin:
+          7px 0 4px;
+      }
+
+      #patientsPanel
+      .patient-meta {
+
+        color:
+          #6c758c;
+
+        font-size:
+          12px;
+
+        line-height:
+          1.9;
+      }
+
+      #patientsPanel
+      .patient-actions {
+
+        display:
+          flex;
+
+        gap:
+          8px;
+
+        flex-wrap:
+          wrap;
+
+        justify-content:
+          flex-start;
+      }
+
+      #patientsPanel
+      .patient-stats {
+
+        display:
+          flex;
+
+        flex-wrap:
+          wrap;
+
+        gap:
+          8px;
+
+        margin-top:
+          10px;
+      }
+
+      #patientsPanel
+      .patient-stat {
+
+        background:
+          #f7f8fb;
+
+        border:
+          1px solid #e8eaf0;
+
+        border-radius:
+          10px;
+
+        padding:
+          7px 10px;
+
+        font-size:
+          12px;
+
+        color:
+          #5f6880;
+      }
+
+      #patientsPanel
+      .mrn-warning {
+
+        background:
+          #fff8e6;
+
+        color:
+          #755c00;
+
+        border:
+          1px solid #f2df9a;
+
+        border-radius:
+          10px;
+
+        padding:
+          10px 12px;
+
+        margin-top:
+          12px;
+
+        font-size:
+          12px;
+
+        line-height:
+          1.8;
+      }
+
+      @media(max-width:700px){
+
+        #patientsPanel
+        .patient-tools,
+        #patientsPanel
+        .patient-main {
+
+          grid-template-columns:
+            1fr;
+        }
+
+        #patientsPanel
+        .patient-actions
+        .btn {
+
+          width:
+            100%;
+        }
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
+  function injectUI() {
+
+    const tabs =
+      document.querySelector(
+        '.tabs'
+      );
+
+    const adminPage =
+      $('adminPage');
+
+    if (
+      !tabs ||
+      !adminPage
+    ) {
+      return false;
+    }
+
+    if (
+      !$('patientsTab')
+    ) {
+
+      const tab =
+        document.createElement(
+          'button'
+        );
+
+      tab.id =
+        'patientsTab';
+
+      tab.className =
+        'tab';
+
+      tab.dataset.panel =
+        'patientsPanel';
+
+      tab.type =
+        'button';
+
+      tab.textContent =
+        '🤢 ملفات المرضى';
+
+      tabs.insertBefore(
+        tab,
+        tabs.firstElementChild
+      );
+
+      tab.addEventListener(
+        'click',
+        () =>
+          activatePanel(
+            'patientsPanel',
+            tab
+          )
+      );
+    }
+
+    if (
+      !$('patientsPanel')
+    ) {
+
+      const panel =
+        document.createElement(
+          'section'
+        );
+
+      panel.id =
+        'patientsPanel';
+
+      panel.className =
+        'panel';
+
+      panel.innerHTML = `
+
+        <div class="card">
+
+          <div class="panel-head">
+
+            <div>
+
+              <h2>
+                🤢 ملفات المرضى
+              </h2>
+
+              <div class="muted">
+
+                MRN ثابت مدى الحياة —
+                لا يتغير عند تعديل الاسم
+                أو رقم الهاتف.
+
+              </div>
+
+            </div>
+
+            <button
+              id="refreshPatientsBtn"
+              class="btn btn-secondary"
+              type="button"
+            >
+              🔄 تحديث
+            </button>
+
+          </div>
+
+
+          <div class="patient-tools">
+
+            <input
+              id="patientSearchInput"
+              type="search"
+              placeholder="🔎 ابحث بالاسم أو الموبايل أو MRN مثل AZA-000001"
+              autocomplete="off"
+            >
+
+            <button
+              id="clearPatientSearchBtn"
+              class="btn btn-secondary"
+              type="button"
+            >
+              مسح
+            </button>
+
+          </div>
+
+
+          <div
+            id="patientsCount"
+            class="muted"
+            style="margin-bottom:12px"
+          >
+          </div>
+
+
+          <div
+            id="patientsList"
+            class="items"
+          >
+
+            <div class="empty">
+
+              اضغط تحديث لتحميل ملفات المرضى.
+
+            </div>
+
+          </div>
+
+
+          <div class="mrn-warning">
+
+            🔐
+            <strong>
+              MRN:
+            </strong>
+
+            رقم الملف الطبي هو المعرف
+            الدائم للمريض.
+
+            لا يوجد زر لتعديله أو
+            إعادة استخدامه لمريض آخر.
+
+          </div>
+
+        </div>
+
+      `;
+
+      adminPage.insertBefore(
+        panel,
+        adminPage
+          .querySelector(
+            '.tabs'
+          )
+          ?.nextElementSibling ||
+        null
+      );
+
+
+      $('refreshPatientsBtn')
+        .addEventListener(
+          'click',
+          loadPatients
+        );
+
+
+      $('clearPatientSearchBtn')
+        .addEventListener(
+          'click',
+          () => {
+
+            $('patientSearchInput')
+              .value = '';
+
+            state.search =
+              '';
+
+            renderPatients();
+
+          }
+        );
+
+
+      $('patientSearchInput')
+        .addEventListener(
+          'input',
+          event => {
+
+            state.search =
+              event.target
+                .value
+                .trim()
+                .toLowerCase();
+
+            renderPatients();
+
+          }
+        );
+    }
+
+    return true;
+  }
+
+  function activatePanel(
+    panelId,
+    activeTab
+  ) {
+
+    document
+      .querySelectorAll(
+        '.tab'
+      )
+      .forEach(
+        tab => {
+
+          tab.classList.toggle(
+            'active',
+            tab === activeTab
+          );
+
+        }
+      );
+
+    document
+      .querySelectorAll(
+        '.panel'
+      )
+      .forEach(
+        panel => {
+
+          panel.classList.toggle(
+            'active',
+            panel.id ===
+              panelId
+          );
+
+        }
+      );
+
+    if (
+      panelId ===
+      'patientsPanel'
+    ) {
+
+      loadPatients();
+
+    }
+  }
+
+  function filteredPatients() {
+
+    const q =
+      state.search;
+
+    if (!q) {
+      return state.patients;
+    }
+
+    return state.patients.filter(
+      patient => {
+
+        const text = [
+
+          patient.mrn,
+
+          patient.patient_name,
+
+          patient.patient_phone,
+
+          patient.patient_phone_normalized
+
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        return text.includes(
+          q
+        );
+      }
+    );
+  }
+
+  function renderPatients() {
+
+    const list =
+      $('patientsList');
+
+    const count =
+      $('patientsCount');
+
+    if (!list) {
+      return;
+    }
+
+    const rows =
+      filteredPatients();
+
+    if (count) {
+
+      count.textContent =
+        `👥 ${rows.length} ملف من أصل ${state.patients.length}`;
+    }
+
+    if (!rows.length) {
+
+      list.innerHTML =
+        '<div class="empty">📭 لا توجد ملفات مطابقة للبحث.</div>';
+
+      return;
+    }
+
+    list.innerHTML =
+      rows
+        .map(
+          patient => `
+
+      <article
+        class="patient-card"
+      >
+
+        <div
+          class="patient-main"
+        >
+
+          <div>
+
+            <span
+              class="patient-mrn"
+            >
+              🆔
+              ${escapeHTML(
+                patient.mrn
+              )}
+            </span>
+
+            <div
+              class="patient-name"
+            >
+              ${escapeHTML(
+                patient.patient_name ||
+                '—'
+              )}
+            </div>
+
+            <div
+              class="patient-meta"
+            >
+
+              📲
+
+              <span dir="ltr">
+                ${escapeHTML(
+                  patient.patient_phone ||
+                  '—'
+                )}
+              </span>
+
+              ${
+                patient.patient_email
+                  ? `
+                    <br>
+                    📧
+                    ${escapeHTML(
+                      patient.patient_email
+                    )}
+                  `
+                  : ''
+              }
+
+              <br>
+
+              🗓️
+              فتح الملف:
+              ${escapeHTML(
+                formatDate(
+                  patient.created_at
+                )
+              )}
+
+              <br>
+
+              🔄
+              آخر تحديث:
+              ${escapeHTML(
+                formatDate(
+                  patient.updated_at
+                )
+              )}
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="patient-actions"
+          >
+
+            <button
+              class="btn btn-primary"
+              type="button"
+              data-edit-patient="${escapeHTML(
+                patient.id
+              )}"
+            >
+
+              ✍️
+              تعديل الاسم والموبايل
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div
+          class="patient-stats"
+        >
+
+          <span
+            class="patient-stat"
+          >
+
+            📅
+            عدد الحجوزات:
+
+            <strong>
+              ${Number(
+                patient.booking_count ||
+                0
+              )}
+            </strong>
+
+          </span>
+
+
+          <span
+            class="patient-stat"
+          >
+
+            🕒
+
+            ${escapeHTML(
+              formatLastAppointment(
+                patient.last_appointment
+              )
+            )}
+
+          </span>
+
+
+          <span
+            class="patient-stat"
+          >
+
+            🚦
+            الحالة:
+
+            ${
+              patient.active
+                ? '🟢 نشط'
+                : '🔴 غير نشط'
+            }
+
+          </span>
+
+        </div>
+
+      </article>
+
+    `
+        )
+        .join('');
+
+
+    list
+      .querySelectorAll(
+        '[data-edit-patient]'
+      )
+      .forEach(
+        button => {
+
+          button.addEventListener(
+            'click',
+            () => {
+
+              const patient =
+                state.patients.find(
+                  item =>
+                    item.id ===
+                    button.dataset
+                      .editPatient
+                );
+
+              if (patient) {
+
+                openEditPatient(
+                  patient
+                );
+
+              }
+
+            }
+          );
+
+        }
+      );
+  }
+
+  async function loadPatients() {
+
+    if (
+      !$('patientsPanel')
+    ) {
+      return;
+    }
+
+    const list =
+      $('patientsList');
+
+    if (list) {
+
+      list.innerHTML =
+        '<div class="empty">⏳ جاري تحميل ملفات المرضى...</div>';
+
+    }
+
+    try {
+
+      const result =
+        await api(
+          '?api=patients'
+        );
+
+      state.patients =
+        Array.isArray(
+          result?.patients
+        )
+          ? result.patients
+          : [];
+
+      renderPatients();
+
+    } catch (error) {
+
+      console.error(
+        'Patient Center:',
+        error
+      );
+
+      if (list) {
+
+        list.innerHTML =
+          `
+            <div class="error">
+              ${escapeHTML(
+                error?.message ||
+                'تعذر تحميل ملفات المرضى.'
+              )}
+            </div>
+          `;
+
+      }
+    }
+  }
+
+  function openEditPatient(
+    patient
+  ) {
+
+    const modal =
+      $('modal');
+
+    const title =
+      $('modalTitle');
+
+    const content =
+      $('modalContent');
+
+    if (
+      !modal ||
+      !title ||
+      !content
+    ) {
+
+      showToast(
+        'تعذر فتح نافذة تعديل المريض.',
+        'error'
+      );
+
+      return;
+    }
+
+    title.textContent =
+      '✍️ تعديل ملف المريض';
+
+    content.innerHTML = `
+
+      <form
+        id="patientEditForm"
+      >
+
+        <div class="grid">
+
+          <label
+            class="full"
+          >
+
+            🆔
+            MRN —
+            رقم الملف الطبي الدائم
+
+            <input
+              value="${escapeHTML(
+                patient.mrn
+              )}"
+              disabled
+            >
+
+          </label>
+
+
+          <label>
+
+            🤢
+            اسم المريض
+
+            <input
+              id="editPatientName"
+              name="patient_name"
+              required
+              maxlength="200"
+              value="${escapeHTML(
+                patient.patient_name ||
+                ''
+              )}"
+            >
+
+          </label>
+
+
+          <label>
+
+            📲
+            رقم الموبايل
+
+            <input
+              id="editPatientPhone"
+              name="patient_phone"
+              type="tel"
+              required
+              maxlength="30"
+              value="${escapeHTML(
+                patient.patient_phone ||
+                ''
+              )}"
+            >
+
+          </label>
+
+        </div>
+
+
+        <div
+          class="warning"
+          style="margin-top:15px"
+        >
+
+          🔐
+          <strong>
+            تنبيه:
+          </strong>
+
+          تعديل الاسم أو الموبايل
+          لا يغير MRN.
+
+          وسيتم تسجيل العملية في
+          سجل التدقيق، وتحديث بيانات
+          الحجز المرتبطة بهذا الملف.
+
+        </div>
+
+
+        <div
+          class="modal-actions"
+        >
+
+          <button
+            class="btn btn-primary"
+            type="submit"
+            id="savePatientBtn"
+          >
+
+            💾
+            حفظ التعديل
+
+          </button>
+
+
+          <button
+            class="btn btn-secondary"
+            type="button"
+            id="cancelPatientBtn"
+          >
+
+            إلغاء
+
+          </button>
+
+        </div>
+
+      </form>
+
+    `;
+
+    modal.classList.add(
+      'show'
+    );
+
+
+    $('cancelPatientBtn')
+      ?.addEventListener(
+        'click',
+        () => {
+
+          if (
+            typeof window.closeModal ===
+            'function'
+          ) {
+
+            window.closeModal();
+
+          } else {
+
+            modal.classList.remove(
+              'show'
+            );
+
+          }
+
+        }
+      );
+
+
+    $('patientEditForm')
+      ?.addEventListener(
+        'submit',
+        async event => {
+
+          event.preventDefault();
+
+          const button =
+            $('savePatientBtn');
+
+          const name =
+            $('editPatientName')
+              ?.value
+              .trim() ||
+            '';
+
+          const phone =
+            $('editPatientPhone')
+              ?.value
+              .trim() ||
+            '';
+
+          if (
+            !name ||
+            !phone
+          ) {
+
+            showToast(
+              '🤢 الاسم ورقم الموبايل مطلوبان.',
+              'error'
+            );
+
+            return;
+          }
+
+
+          if (button) {
+
+            button.disabled =
+              true;
+
+            button.textContent =
+              '⏳ جاري الحفظ...';
+
+          }
+
+
+          try {
+
+            const result =
+              await api(
+                '?api=patient',
+                {
+                  method:
+                    'PUT',
+
+                  body:
+                    JSON.stringify({
+                      id:
+                        patient.id,
+
+                      patient_name:
+                        name,
+
+                      patient_phone:
+                        phone
+                    })
+                }
+              );
+
+
+            const index =
+              state.patients.findIndex(
+                item =>
+                  item.id ===
+                  patient.id
+              );
+
+
+            if (
+              index >= 0
+            ) {
+
+              state.patients[
+                index
+              ] = {
+
+                ...state.patients[
+                  index
+                ],
+
+                ...result.patient
+
+              };
+
+            }
+
+
+            if (
+              typeof window.closeModal ===
+              'function'
+            ) {
+
+              window.closeModal();
+
+            } else {
+
+              modal.classList.remove(
+                'show'
+              );
+
+            }
+
+
+            renderPatients();
+
+
+            showToast(
+              `✅ تم تحديث ملف ${
+                result?.patient?.mrn ||
+                patient.mrn
+              } بنجاح.`
+            );
+
+          } catch (error) {
+
+            console.error(
+              'Patient update:',
+              error
+            );
+
+            showToast(
+              error?.message ||
+              'تعذر تعديل بيانات المريض.',
+              'error'
+            );
+
+          } finally {
+
+            if (button) {
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                '💾 حفظ التعديل';
+
+            }
+
+          }
+
+        }
+      );
+  }
+
+  function init() {
+
+    injectStyles();
+
+    if (
+      !injectUI()
+    ) {
+      return false;
+    }
+
+
+    /*
+     * Keep the original admin tab system intact
+     * while adding our patient tab.
+     */
+
+    const originalTabs =
+      document.querySelectorAll(
+        '.tab:not(#patientsTab)'
+      );
+
+
+    originalTabs.forEach(
+      tab => {
+
+        if (
+          tab.dataset
+            .patientCenterBound ===
+          '1'
+        ) {
+          return;
+        }
+
+        tab.dataset
+          .patientCenterBound =
+          '1';
+
+
+        tab.addEventListener(
+          'click',
+          () => {
+
+            const panelId =
+              tab.dataset.panel;
+
+
+            document
+              .querySelectorAll(
+                '.tab'
+              )
+              .forEach(
+                item => {
+
+                  item.classList.toggle(
+                    'active',
+                    item === tab
+                  );
+
+                }
+              );
+
+
+            document
+              .querySelectorAll(
+                '.panel'
+              )
+              .forEach(
+                panel => {
+
+                  panel.classList.toggle(
+                    'active',
+                    panel.id ===
+                      panelId
+                  );
+
+                }
+              );
+
+          }
+        );
+
+      }
+    );
+
+    return true;
+  }
+
+
+  if (
+    document.readyState ===
+    'loading'
+  ) {
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      init,
+      {
+        once: true
+      }
+    );
+
+  } else {
+
+    init();
+
+  }
+
+
+  window.AZAAD_PATIENTS = {
+
+    init,
+
+    load:
+      loadPatients,
+
+    get patients() {
+
+      return [
+        ...state.patients
+      ];
+
+    }
+
+  };
+
+})();
