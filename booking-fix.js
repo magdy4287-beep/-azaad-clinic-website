@@ -7,76 +7,377 @@
    * booking-fix.js
    * =========================================================
    *
-   * Compatibility + dynamic public UI language layer.
+   * FINAL PUBLIC LANGUAGE / DYNAMIC CONTENT FIX
    *
-   * IMPORTANT:
-   * - app.js remains the ONLY booking controller.
-   * - This file never submits a booking.
-   * - This file never calls Supabase.
-   * - This file never changes the booking payload.
-   * - public-ui.js is never loaded twice.
-   * - Dynamic Arabic text generated later by app.js can be
-   *   translated when English is selected.
+   * Fixes:
+   *
+   * 🇬🇧 Arabic content appearing inside English mode
+   * 👨‍⚕️ Doctor names
+   * 🧑‍⚕️ Doctor titles
+   * 📝 Doctor biographies
+   * 🩺 Service names
+   * 📄 Service descriptions
+   * ⏱️ Service duration
+   * 📅 Booking labels
+   * ⏰ Available appointment messages
+   * 🔘 Dynamic buttons
+   * 📱 Placeholders
+   * 💬 WhatsApp booking result
+   *
+   * SECURITY:
+   * - No Service Role Key
+   * - No database writes
+   * - No booking submission
+   * - Does not change booking payload
+   * - Does not interfere with app.js booking controller
+   *
+   * DATA:
+   * Uses the public data already loaded by clinic-posts.js:
+   *
+   * window.AZAAD_PUBLIC_CLINIC_DATA
+   *
+   * English database fields supported:
+   *
+   * doctors:
+   *   name_en
+   *   title_en
+   *   bio_en
+   *
+   * services:
+   *   name_en
+   *   description_en
+   *
    * =========================================================
    */
+
+  const VERSION =
+    '5.0.0';
 
   const STATE_KEY =
-    '__AZAAD_BOOKING_FIX_INITIALIZED__';
+    '__AZAAD_BOOKING_FIX_V5__';
 
-  const TRANSLATION_STATE_KEY =
-    '__AZAAD_DYNAMIC_I18N_INSTALLED__';
+  if (
+    window[STATE_KEY]
+  ) {
+    return;
+  }
 
-  window.AzaadClinicBookingFix =
-    window.AzaadClinicBookingFix || {
-      version: '4.3.0',
-      enabled: false,
-      handledBy: 'app.js',
-      publicUiBootstrapped: false
-    };
+  const state = {
+    version: VERSION,
+    language: null,
+    timer: null,
+    observer: null,
+    scheduled: false
+  };
 
-  const state =
-    window.AzaadClinicBookingFix;
+  window[STATE_KEY] =
+    state;
 
-  /*
-   * =========================================================
-   * LANGUAGE
-   * =========================================================
-   */
+
+  /* =========================================================
+     LANGUAGE
+     ========================================================= */
 
   function getLanguage() {
+
     try {
+
       const saved =
         localStorage.getItem(
           'azaadClinicLanguage'
         );
 
       if (
-        saved === 'en' ||
-        saved === 'ar'
+        saved === 'ar' ||
+        saved === 'en'
       ) {
         return saved;
       }
+
     } catch (_) {}
 
+    const htmlLang =
+      String(
+        document.documentElement.lang ||
+        ''
+      )
+        .toLowerCase()
+        .trim();
+
+    if (
+      htmlLang === 'en' ||
+      htmlLang.startsWith('en-')
+    ) {
+      return 'en';
+    }
+
+    return 'ar';
+  }
+
+
+  function isEnglish() {
     return (
-      document.documentElement.lang ===
-      'en'
-        ? 'en'
-        : 'ar'
+      getLanguage() === 'en'
     );
   }
 
-  function isEnglish() {
-    return getLanguage() === 'en';
-  }
 
-  /*
-   * =========================================================
-   * DYNAMIC TRANSLATIONS
-   * =========================================================
-   */
+  /* =========================================================
+     TRANSLATIONS
+     ========================================================= */
 
-  const EXACT_TRANSLATIONS = {
+  const TEXT = {
+
+    ar: {
+
+      navHome:
+        'الرئيسية',
+
+      navAbout:
+        'عن العيادة',
+
+      navServices:
+        'الخدمات',
+
+      navDoctors:
+        'الأطباء',
+
+      navBooking:
+        'الحجز',
+
+      navContact:
+        'تواصل معنا',
+
+      bookNow:
+        'احجز موعدك',
+
+      heroBook:
+        'احجز جلستك الآن',
+
+      heroWhatsapp:
+        'تواصل عبر واتساب',
+
+      servicesTitle:
+        'خدماتنا',
+
+      servicesIntro:
+        'خدمات نفسية مصممة لتناسب احتياجات كل شخص.',
+
+      doctorsTitle:
+        'فريق العيادة',
+
+      doctorsIntro:
+        'متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.',
+
+      bookingTitle:
+        'احجز موعدك',
+
+      bookingIntro:
+        'اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.',
+
+      doctorLabel:
+        'الطبيب',
+
+      serviceLabel:
+        'الخدمة',
+
+      dateLabel:
+        'التاريخ',
+
+      modeLabel:
+        'نوع الجلسة',
+
+      clinicMode:
+        'داخل العيادة',
+
+      onlineMode:
+        'جلسة أونلاين',
+
+      slotsLabel:
+        'المواعيد المتاحة',
+
+      nameLabel:
+        'الاسم بالكامل',
+
+      phoneLabel:
+        'رقم الهاتف',
+
+      emailLabel:
+        'البريد الإلكتروني',
+
+      notesLabel:
+        'ملاحظات',
+
+      namePlaceholder:
+        'اكتب اسمك',
+
+      phonePlaceholder:
+        'رقم الهاتف',
+
+      notesPlaceholder:
+        'أي معلومات إضافية...',
+
+      confirmBooking:
+        'تأكيد طلب الحجز',
+
+      phoneContact:
+        'الهاتف',
+
+      emailContact:
+        'البريد الإلكتروني',
+
+      whatsappContact:
+        'واتساب',
+
+      startChat:
+        'ابدأ المحادثة',
+
+      contactTitle:
+        'تواصل معنا',
+
+      locationTitle:
+        'موقع العيادة',
+
+      openMaps:
+        'فتح الموقع على Google Maps',
+
+      shareLocation:
+        'مشاركة موقع العيادة عبر WhatsApp',
+
+      rights:
+        'جميع الحقوق محفوظة.'
+    },
+
+
+    en: {
+
+      navHome:
+        'Home',
+
+      navAbout:
+        'About',
+
+      navServices:
+        'Services',
+
+      navDoctors:
+        'Doctors',
+
+      navBooking:
+        'Booking',
+
+      navContact:
+        'Contact',
+
+      bookNow:
+        'Book Appointment',
+
+      heroBook:
+        'Book Your Session',
+
+      heroWhatsapp:
+        'Contact us on WhatsApp',
+
+      servicesTitle:
+        'Our Services',
+
+      servicesIntro:
+        'Mental health services designed around each person’s needs.',
+
+      doctorsTitle:
+        'Our Team',
+
+      doctorsIntro:
+        'Specialists working with you toward a more balanced life.',
+
+      bookingTitle:
+        'Book an Appointment',
+
+      bookingIntro:
+        'Choose your doctor, service, date, and preferred time.',
+
+      doctorLabel:
+        'Doctor',
+
+      serviceLabel:
+        'Service',
+
+      dateLabel:
+        'Date',
+
+      modeLabel:
+        'Session Type',
+
+      clinicMode:
+        'In-clinic',
+
+      onlineMode:
+        'Online session',
+
+      slotsLabel:
+        'Available appointments',
+
+      nameLabel:
+        'Full name',
+
+      phoneLabel:
+        'Phone number',
+
+      emailLabel:
+        'Email',
+
+      notesLabel:
+        'Notes',
+
+      namePlaceholder:
+        'Enter your name',
+
+      phonePlaceholder:
+        'Phone number',
+
+      notesPlaceholder:
+        'Any additional information...',
+
+      confirmBooking:
+        'Submit Booking Request',
+
+      phoneContact:
+        'Phone',
+
+      emailContact:
+        'Email',
+
+      whatsappContact:
+        'WhatsApp',
+
+      startChat:
+        'Start a conversation',
+
+      contactTitle:
+        'Contact Us',
+
+      locationTitle:
+        'Clinic Location',
+
+      openMaps:
+        'Open location in Google Maps',
+
+      shareLocation:
+        'Share clinic location via WhatsApp',
+
+      rights:
+        'All rights reserved.'
+    }
+
+  };
+
+
+  /* =========================================================
+     DYNAMIC BOOKING TRANSLATIONS
+     ========================================================= */
+
+  const EXACT = {
+
     'غير محدد':
       'Not specified',
 
@@ -89,23 +390,29 @@
     'جلسة أونلاين':
       'Online session',
 
+    'أونلاين':
+      'Online',
+
+    'حضوري':
+      'In-person',
+
+    'جاري التحميل...':
+      'Loading...',
+
     'جاري التحميل':
       'Loading...',
 
-    'جاري تحميل البيانات':
-      'Loading data...',
+    'جاري تحميل المواعيد...':
+      'Loading appointments...',
 
     'جاري تحميل المواعيد':
       'Loading appointments...',
 
-    'جاري تحميل المواعيد المتاحة':
+    'جاري تحميل المواعيد المتاحة...':
       'Loading available appointments...',
 
-    'تحميل المواعيد':
-      'Loading appointments...',
-
-    'لا توجد مواعيد متاحة':
-      'No appointments are available',
+    'لا توجد مواعيد متاحة لهذا اليوم.':
+      'No appointments are available for this day.',
 
     'لا توجد مواعيد متاحة لهذا اليوم':
       'No appointments are available for this day',
@@ -125,56 +432,41 @@
     'اختر الوقت':
       'Please select a time',
 
-    'يرجى اختيار الطبيب':
-      'Please select a doctor',
+    'من فضلك اختر الطبيب.':
+      'Please select a doctor.',
 
-    'يرجى اختيار الخدمة':
-      'Please select a service',
+    'من فضلك اختر الخدمة.':
+      'Please select a service.',
 
-    'يرجى اختيار التاريخ':
-      'Please select a date',
+    'من فضلك اختر التاريخ.':
+      'Please select a date.',
 
-    'يرجى اختيار الموعد':
-      'Please select an appointment time',
+    'من فضلك اختر أحد المواعيد المتاحة.':
+      'Please select one of the available appointments.',
 
-    'يرجى اختيار موعد':
-      'Please select an appointment time',
+    'من فضلك اكتب الاسم بالكامل.':
+      'Please enter your full name.',
 
-    'يرجى إدخال الاسم':
-      'Please enter your name',
+    'من فضلك اكتب رقم الهاتف.':
+      'Please enter your phone number.',
 
-    'يرجى إدخال رقم الهاتف':
-      'Please enter your phone number',
+    'من فضلك أدخل رقم هاتف صحيح.':
+      'Please enter a valid phone number.',
 
-    'رقم الهاتف غير صحيح':
-      'Invalid phone number',
+    'من فضلك أدخل بريدًا إلكترونيًا صحيحًا أو اترك الحقل فارغًا.':
+      'Please enter a valid email address or leave the field empty.',
 
-    'يرجى إدخال بريد إلكتروني صحيح':
-      'Please enter a valid email address',
-
-    'جاري تأكيد الحجز':
+    'جاري تأكيد الحجز...':
       'Confirming your booking...',
 
-    'جاري إنشاء الحجز':
-      'Creating your booking...',
+    'تم إنشاء طلب الحجز بنجاح.':
+      'Your booking request was created successfully.',
 
-    'جاري إرسال طلب الحجز':
-      'Submitting your booking request...',
-
-    'تم إنشاء الحجز بنجاح':
-      'Your booking request was created successfully',
-
-    'تم الحجز بنجاح':
-      'Booking completed successfully',
-
-    'تم إرسال طلب الحجز بنجاح':
-      'Your booking request was submitted successfully',
+    'تم إنشاء الحجز بنجاح.':
+      'Booking created successfully.',
 
     'رقم الحجز':
       'Booking number',
-
-    'رقم الحجز:':
-      'Booking number:',
 
     'الطبيب':
       'Doctor',
@@ -191,24 +483,6 @@
     'نوع الجلسة':
       'Session type',
 
-    'المواعيد المتاحة':
-      'Available appointments',
-
-    'داخل العيادة':
-      'In-clinic',
-
-    'جلسة أونلاين':
-      'Online session',
-
-    'أونلاين':
-      'Online',
-
-    'حضوري':
-      'In-person',
-
-    'ملاحظات':
-      'Notes',
-
     'الاسم بالكامل':
       'Full name',
 
@@ -218,20 +492,11 @@
     'البريد الإلكتروني':
       'Email',
 
+    'ملاحظات':
+      'Notes',
+
     'تأكيد طلب الحجز':
       'Submit Booking Request',
-
-    'تأكيد الحجز':
-      'Confirm Booking',
-
-    'احجز موعدك':
-      'Book Appointment',
-
-    'احجز موعد':
-      'Book Appointment',
-
-    'احجز جلستك الآن':
-      'Book Your Session',
 
     'إرسال الموعد إلى WhatsApp العيادة':
       'Send appointment to clinic WhatsApp',
@@ -248,20 +513,14 @@
     'الهاتف':
       'Phone',
 
-    'البريد الإلكتروني':
-      'Email',
-
     'فتح الموقع على Google Maps':
       'Open location in Google Maps',
 
     'مشاركة موقع العيادة عبر WhatsApp':
       'Share clinic location via WhatsApp',
 
-    'مشاركة الموقع':
-      'Share Location',
-
-    'فتح الموقع':
-      'Open Location',
+    'مشاركة موقع العيادة':
+      'Share clinic location',
 
     'ابدأ المحادثة':
       'Start a conversation',
@@ -293,24 +552,13 @@
     'حدث خطأ':
       'An error occurred',
 
-    'حدث خطأ أثناء الحجز':
-      'An error occurred while booking',
-
-    'حدث خطأ أثناء تحميل المواعيد':
-      'An error occurred while loading appointments',
-
     'يرجى المحاولة مرة أخرى':
-      'Please try again',
-
-    'يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى':
-      'Please check your internet connection and try again'
+      'Please try again'
   };
 
-  /*
-   * Longer messages must be checked before shorter ones.
-   */
 
-  const PHRASE_TRANSLATIONS = [
+  const PHRASES = [
+
     [
       'تعذر الاتصال بخادم العيادة. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
       'Unable to connect to the clinic server. Please check your internet connection and try again.'
@@ -322,16 +570,6 @@
     ],
 
     [
-      'لا توجد مواعيد متاحة لهذا اليوم',
-      'No appointments are available for this day'
-    ],
-
-    [
-      'لا توجد مواعيد متاحة في هذا اليوم',
-      'No appointments are available for this day'
-    ],
-
-    [
       'يرجى مراجعة توفر الطبيب وتأكيد الموعد مع المريض.',
       'Please review the doctor availability and confirm the appointment with the patient.'
     ],
@@ -339,12 +577,32 @@
     [
       'بعد فتح WhatsApp ستظهر الرسالة جاهزة.',
       'After WhatsApp opens, the message will be ready to send.'
+    ],
+
+    [
+      'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
+      'To complete the booking process, click the button below to send the appointment details to the clinic WhatsApp.'
+    ],
+
+    [
+      'تم تسجيل طلب الحجز.',
+      'The booking request has been registered.'
+    ],
+
+    [
+      'يمكنك إرسال تفاصيل الموعد إلى WhatsApp العيادة من الزر أعلاه.',
+      'You can send the appointment details to the clinic WhatsApp using the button above.'
     ]
+
   ];
 
-  function translateText(text) {
+
+  function translateText(
+    value
+  ) {
+
     const original =
-      String(text || '');
+      String(value || '');
 
     const trimmed =
       original.trim();
@@ -355,115 +613,769 @@
 
     if (
       Object.prototype.hasOwnProperty.call(
-        EXACT_TRANSLATIONS,
+        EXACT,
         trimmed
       )
     ) {
-      const translated =
-        EXACT_TRANSLATIONS[trimmed];
 
-      const start =
-        original.indexOf(trimmed);
-
-      return (
-        original.slice(
-          0,
-          start
-        ) +
-        translated +
-        original.slice(
-          start + trimmed.length
-        )
+      return original.replace(
+        trimmed,
+        EXACT[trimmed]
       );
+
     }
 
     for (
-      const [ar, en]
-      of PHRASE_TRANSLATIONS
+      const pair of PHRASES
     ) {
+
+      const ar =
+        pair[0];
+
+      const en =
+        pair[1];
+
       if (
         trimmed.includes(ar)
       ) {
+
         return original.replace(
           ar,
           en
         );
+
       }
+
     }
 
     return original;
   }
 
-  /*
-   * =========================================================
-   * TRANSLATE ELEMENT
-   * =========================================================
-   */
 
-  function translateElement(element) {
+  /* =========================================================
+     STATIC DATA-I18N
+     ========================================================= */
+
+  function applyI18nAttributes() {
+
+    const language =
+      getLanguage();
+
+    const dictionary =
+      TEXT[language] ||
+      TEXT.ar;
+
+    document
+      .querySelectorAll(
+        '[data-i18n]'
+      )
+      .forEach(
+        (element) => {
+
+          const key =
+            element.getAttribute(
+              'data-i18n'
+            );
+
+          if (
+            !Object.prototype.hasOwnProperty.call(
+              dictionary,
+              key
+            )
+          ) {
+            return;
+          }
+
+          /*
+           * Preserve nested markup such as
+           * <span> inside heroTitle.
+           */
+
+          element.innerHTML =
+            dictionary[key];
+
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        '[data-i18n-placeholder]'
+      )
+      .forEach(
+        (element) => {
+
+          const key =
+            element.getAttribute(
+              'data-i18n-placeholder'
+            );
+
+          if (
+            Object.prototype.hasOwnProperty.call(
+              dictionary,
+              key
+            )
+          ) {
+
+            element.setAttribute(
+              'placeholder',
+              dictionary[key]
+            );
+
+          }
+
+        }
+      );
+
+
+    document.documentElement.lang =
+      language;
+
+    document.documentElement.dir =
+      language === 'en'
+        ? 'ltr'
+        : 'rtl';
+  }
+
+
+  /* =========================================================
+     PUBLIC DATA
+     ========================================================= */
+
+  function getPublicData() {
+
+    return (
+      window.AZAAD_PUBLIC_CLINIC_DATA ||
+      {}
+    );
+
+  }
+
+
+  function getDoctors() {
+
+    const data =
+      getPublicData();
+
+    return Array.isArray(
+      data.doctors
+    )
+      ? data.doctors
+      : [];
+
+  }
+
+
+  function getServices() {
+
+    const data =
+      getPublicData();
+
+    return Array.isArray(
+      data.services
+    )
+      ? data.services
+      : [];
+
+  }
+
+
+  /* =========================================================
+     DOCTOR ENGLISH CONTENT
+     ========================================================= */
+
+  function getDoctorName(
+    doctor
+  ) {
+
     if (
-      !element ||
+      !isEnglish()
+    ) {
+
+      return (
+        doctor?.name ||
+        doctor?.full_name ||
+        doctor?.display_name ||
+        'طبيب'
+      );
+
+    }
+
+    return (
+      doctor?.name_en ||
+      doctor?.name ||
+      doctor?.full_name ||
+      doctor?.display_name ||
+      'Doctor'
+    );
+
+  }
+
+
+  function getDoctorTitle(
+    doctor
+  ) {
+
+    if (
+      !isEnglish()
+    ) {
+
+      return (
+        doctor?.title ||
+        doctor?.specialty ||
+        doctor?.specialization ||
+        'متخصص في الصحة النفسية'
+      );
+
+    }
+
+    return (
+      doctor?.title_en ||
+      doctor?.title ||
+      doctor?.specialty ||
+      doctor?.specialization ||
+      'Mental health specialist'
+    );
+
+  }
+
+
+  function getDoctorBio(
+    doctor
+  ) {
+
+    if (
+      !isEnglish()
+    ) {
+
+      return (
+        doctor?.bio ||
+        doctor?.description ||
+        doctor?.short_bio ||
+        'متخصص يعمل معك للوصول إلى حياة أكثر توازنًا.'
+      );
+
+    }
+
+    return (
+      doctor?.bio_en ||
+      doctor?.bio ||
+      doctor?.description ||
+      doctor?.short_bio ||
+      'Mental health specialist working with you toward a more balanced life.'
+    );
+
+  }
+
+
+  /* =========================================================
+     SERVICE ENGLISH CONTENT
+     ========================================================= */
+
+  function getServiceName(
+    service
+  ) {
+
+    if (
+      !isEnglish()
+    ) {
+
+      return (
+        service?.name ||
+        service?.title ||
+        service?.service_name ||
+        'خدمة نفسية'
+      );
+
+    }
+
+    return (
+      service?.name_en ||
+      service?.name ||
+      service?.title ||
+      service?.service_name ||
+      'Mental health service'
+    );
+
+  }
+
+
+  function getServiceDescription(
+    service
+  ) {
+
+    if (
+      !isEnglish()
+    ) {
+
+      return (
+        service?.description ||
+        service?.short_description ||
+        service?.details ||
+        'خدمة نفسية مصممة لتناسب احتياجاتك.'
+      );
+
+    }
+
+    return (
+      service?.description_en ||
+      service?.description ||
+      service?.short_description ||
+      service?.details ||
+      'Mental health service designed around your needs.'
+    );
+
+  }
+
+
+  /* =========================================================
+     DOCTOR CARDS
+     ========================================================= */
+
+  function updateDoctorCards() {
+
+    if (
       !isEnglish()
     ) {
       return;
     }
 
-    /*
-     * Do not translate form values or user-entered data.
-     */
+    const doctors =
+      getDoctors();
+
+    if (!doctors.length) {
+      return;
+    }
+
+    const cards =
+      document.querySelectorAll(
+        '#doctorsGrid .clinic-doctor-card'
+      );
+
+    if (!cards.length) {
+      return;
+    }
+
+    cards.forEach(
+      (card, index) => {
+
+        const doctor =
+          doctors[index];
+
+        if (!doctor) {
+          return;
+        }
+
+        const name =
+          getDoctorName(
+            doctor
+          );
+
+        const title =
+          getDoctorTitle(
+            doctor
+          );
+
+        const bio =
+          getDoctorBio(
+            doctor
+          );
+
+        const heading =
+          card.querySelector(
+            'h3'
+          );
+
+        if (heading) {
+          heading.textContent =
+            name;
+        }
+
+        /*
+         * clinic-posts.js renders the title
+         * inside the div immediately after h3.
+         */
+
+        const titleElement =
+          card.querySelector(
+            'h3 + div'
+          );
+
+        if (
+          titleElement
+        ) {
+
+          titleElement.textContent =
+            `🧑‍⚕️ ${title}`;
+
+        }
+
+        const paragraphs =
+          card.querySelectorAll(
+            'p'
+          );
+
+        if (
+          paragraphs.length
+        ) {
+
+          paragraphs[
+            paragraphs.length - 1
+          ].textContent =
+            bio;
+
+        }
+
+        const image =
+          card.querySelector(
+            'img'
+          );
+
+        if (image) {
+          image.alt =
+            name;
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =========================================================
+     SERVICE CARDS
+     ========================================================= */
+
+  function updateServiceCards() {
 
     if (
-      element instanceof
-        HTMLInputElement ||
-      element instanceof
-        HTMLTextAreaElement
+      !isEnglish()
     ) {
       return;
     }
 
-    /*
-     * SELECT options can contain dynamic Arabic labels.
-     */
+    const services =
+      getServices();
+
+    if (!services.length) {
+      return;
+    }
+
+    const cards =
+      document.querySelectorAll(
+        '#servicesGrid .clinic-service-card'
+      );
+
+    if (!cards.length) {
+      return;
+    }
+
+    cards.forEach(
+      (card, index) => {
+
+        const service =
+          services[index];
+
+        if (!service) {
+          return;
+        }
+
+        const name =
+          getServiceName(
+            service
+          );
+
+        const description =
+          getServiceDescription(
+            service
+          );
+
+        const heading =
+          card.querySelector(
+            'h3'
+          );
+
+        if (heading) {
+          heading.textContent =
+            name;
+        }
+
+        const paragraph =
+          card.querySelector(
+            'p'
+          );
+
+        if (paragraph) {
+          paragraph.textContent =
+            description;
+        }
+
+        const duration =
+          Number(
+            service?.duration_minutes ||
+            service?.duration ||
+            0
+          );
+
+        const durationElement =
+          card.querySelector(
+            '.small-note'
+          );
+
+        if (
+          durationElement &&
+          duration
+        ) {
+
+          durationElement.textContent =
+            `⏱️ ${duration} minutes`;
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =========================================================
+     BOOKING SELECT OPTIONS
+     ========================================================= */
+
+  function updateDoctorSelect() {
+
+    const select =
+      document.getElementById(
+        'doctor'
+      );
+
+    const doctors =
+      getDoctors();
 
     if (
-      element instanceof
-      HTMLSelectElement
+      !select ||
+      !doctors.length
     ) {
-      element
-        .querySelectorAll('option')
-        .forEach(
-          (option) => {
-            const text =
-              option.textContent;
+      return;
+    }
 
-            const translated =
-              translateText(text);
+    const selected =
+      select.value;
 
-            if (
-              translated !== text
-            ) {
-              option.textContent =
-                translated;
-            }
+    const firstOption =
+      select.querySelector(
+        'option[value=""]'
+      );
+
+    const firstText =
+      firstOption
+        ? 'Select doctor'
+        : '';
+
+    select.innerHTML =
+      `<option value="">${firstText}</option>` +
+      doctors
+        .map(
+          (doctor) => {
+
+            const name =
+              getDoctorName(
+                doctor
+              );
+
+            const title =
+              getDoctorTitle(
+                doctor
+              );
+
+            return `
+              <option
+                value="${escapeHTML(
+                  doctor.id
+                )}"
+              >
+                ${escapeHTML(
+                  name
+                )}
+                ${
+                  title
+                    ? ` — ${escapeHTML(
+                        title
+                      )}`
+                    : ''
+                }
+              </option>
+            `;
+
           }
-        );
+        )
+        .join('');
 
+
+    if (
+      [...select.options]
+        .some(
+          option =>
+            option.value ===
+            selected
+        )
+    ) {
+
+      select.value =
+        selected;
+
+    }
+
+  }
+
+
+  function updateServiceSelect() {
+
+    const select =
+      document.getElementById(
+        'service'
+      );
+
+    const services =
+      getServices();
+
+    if (
+      !select ||
+      !services.length
+    ) {
       return;
     }
 
-    /*
-     * Translate direct text nodes only.
-     *
-     * This avoids changing doctor names,
-     * service names, patient data, etc.
-     */
+    const selected =
+      select.value;
+
+    select.innerHTML =
+      `
+        <option value="">
+          Select service
+        </option>
+      ` +
+      services
+        .map(
+          (service) => {
+
+            const name =
+              getServiceName(
+                service
+              );
+
+            const duration =
+              Number(
+                service?.duration_minutes ||
+                service?.duration ||
+                0
+              );
+
+            return `
+              <option
+                value="${escapeHTML(
+                  service.id
+                )}"
+              >
+                ${escapeHTML(
+                  name
+                )}
+                ${
+                  duration
+                    ? ` — ${duration} minutes`
+                    : ''
+                }
+              </option>
+            `;
+
+          }
+        )
+        .join('');
+
+
+    if (
+      [...select.options]
+        .some(
+          option =>
+            option.value ===
+            selected
+        )
+    ) {
+
+      select.value =
+        selected;
+
+    }
+
+  }
+
+
+  /* =========================================================
+     SESSION MODE
+     ========================================================= */
+
+  function updateModeSelect() {
+
+    const select =
+      document.getElementById(
+        'mode'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    if (
+      !isEnglish()
+    ) {
+      return;
+    }
+
+    const clinic =
+      select.querySelector(
+        'option[value="clinic"]'
+      );
+
+    const online =
+      select.querySelector(
+        'option[value="online"]'
+      );
+
+    if (clinic) {
+      clinic.textContent =
+        'In-clinic';
+    }
+
+    if (online) {
+      online.textContent =
+        'Online session';
+    }
+
+  }
+
+
+  /* =========================================================
+     DYNAMIC TEXT NODES
+     ========================================================= */
+
+  function translateRoot(
+    root
+  ) {
+
+    if (
+      !root ||
+      !isEnglish()
+    ) {
+      return;
+    }
 
     const walker =
       document.createTreeWalker(
-        element,
+        root,
         NodeFilter.SHOW_TEXT,
         {
           acceptNode(node) {
+
             const parent =
               node.parentElement;
 
@@ -473,13 +1385,14 @@
 
             if (
               parent.closest(
-                'input, textarea, select, option, script, style'
+                'script,style,input,textarea,option'
               )
             ) {
               return NodeFilter.FILTER_REJECT;
             }
 
             return NodeFilter.FILTER_ACCEPT;
+
           }
         }
       );
@@ -492,88 +1405,53 @@
       (node =
         walker.nextNode())
     ) {
+
       nodes.push(node);
+
     }
 
     nodes.forEach(
       (textNode) => {
+
         const before =
-          textNode.nodeValue;
+          textNode.nodeValue ||
+          '';
 
         const after =
-          translateText(before);
+          translateText(
+            before
+          );
 
         if (
-          after !== before
+          after !==
+          before
         ) {
+
           textNode.nodeValue =
             after;
+
         }
+
       }
     );
+
   }
 
-  /*
-   * =========================================================
-   * TRANSLATE DYNAMIC UI
-   * =========================================================
-   */
 
-  function translateDynamicUI() {
-    if (!isEnglish()) {
-      return;
-    }
+  /* =========================================================
+     PLACEHOLDERS
+     ========================================================= */
 
-    const root =
-      document.body;
+  function updatePlaceholders() {
 
-    if (!root) {
-      return;
-    }
-
-    /*
-     * Keep the scope focused on public UI.
-     */
-
-    const selectors = [
-      '#message',
-      '#slots',
-      '#availableSlots',
-      '#bookingForm',
-      '#bookingSummary',
-      '#whatsappBookingStep',
-      '#doctor',
-      '#service',
-      '#mode',
-      '#appointmentTime',
-      '#appointmentDate'
-    ];
-
-    selectors.forEach(
-      (selector) => {
-        document
-          .querySelectorAll(
-            selector
-          )
-          .forEach(
-            translateElement
-          );
-      }
-    );
-  }
-
-  /*
-   * =========================================================
-   * PLACEHOLDERS
-   * =========================================================
-   */
-
-  function translatePlaceholders() {
-    if (!isEnglish()) {
+    if (
+      !isEnglish()
+    ) {
       return;
     }
 
     const placeholders = {
+
       'اكتب اسمك':
         'Enter your name',
 
@@ -583,341 +1461,364 @@
       'أي معلومات إضافية...':
         'Any additional information...',
 
-      'اكتب ملاحظاتك':
-        'Enter your notes',
+      'example@email.com':
+        'example@email.com'
 
-      'البريد الإلكتروني':
-        'Email'
     };
 
     document
       .querySelectorAll(
-        'input, textarea'
+        'input,textarea'
       )
       .forEach(
         (element) => {
+
           const value =
             element.getAttribute(
               'placeholder'
             );
 
           if (
-            !value
-          ) {
-            return;
-          }
-
-          if (
+            value &&
             placeholders[value]
           ) {
+
             element.setAttribute(
               'placeholder',
               placeholders[value]
             );
+
           }
+
         }
       );
+
   }
 
-  /*
-   * =========================================================
-   * DYNAMIC BUTTON LABELS
-   * =========================================================
-   */
 
-  function translateButtons() {
-    if (!isEnglish()) {
+  /* =========================================================
+     BUTTONS
+     ========================================================= */
+
+  function updateButtons() {
+
+    if (
+      !isEnglish()
+    ) {
       return;
     }
 
     document
       .querySelectorAll(
-        'button, a'
+        'button,a'
       )
       .forEach(
         (element) => {
+
           /*
-           * Never translate a patient's name,
-           * doctor name, or service name.
-           * Only exact known UI labels.
+           * Don't touch links containing complex
+           * dynamic markup.
            */
 
-          const text =
-            element.textContent;
+          if (
+            element.children.length >
+            0
+          ) {
+            return;
+          }
 
-          const translated =
-            translateText(text);
+          const before =
+            element.textContent ||
+            '';
+
+          const after =
+            translateText(
+              before
+            );
 
           if (
-            translated !== text
+            after !==
+            before
           ) {
+
             element.textContent =
-              translated;
+              after;
+
           }
 
-          if (
-            element.hasAttribute(
-              'aria-label'
-            )
-          ) {
-            const aria =
-              element.getAttribute(
-                'aria-label'
-              );
-
-            const translatedAria =
-              translateText(aria);
-
-            if (
-              translatedAria !==
-              aria
-            ) {
-              element.setAttribute(
-                'aria-label',
-                translatedAria
-              );
-            }
-          }
-
-          if (
-            element.hasAttribute(
-              'title'
-            )
-          ) {
-            const title =
-              element.getAttribute(
-                'title'
-              );
-
-            const translatedTitle =
-              translateText(title);
-
-            if (
-              translatedTitle !==
-              title
-            ) {
-              element.setAttribute(
-                'title',
-                translatedTitle
-              );
-            }
-          }
         }
       );
+
   }
 
-  /*
-   * =========================================================
-   * CONTACT BUTTON SAFETY
-   * =========================================================
-   */
 
-  function normalizeDigits(value) {
-    return String(value || '')
-      .replace(
-        /\D/g,
-        ''
-      );
+  /* =========================================================
+     ESCAPE HTML
+     ========================================================= */
+
+  function escapeHTML(
+    value
+  ) {
+
+    return String(
+      value ?? ''
+    ).replace(
+      /[&<>"']/g,
+      (char) => {
+
+        const entities = {
+
+          '&':
+            '&amp;',
+
+          '<':
+            '&lt;',
+
+          '>':
+            '&gt;',
+
+          '"':
+            '&quot;',
+
+          "'":
+            '&#039;'
+
+        };
+
+        return entities[
+          char
+        ];
+
+      }
+    );
+
   }
+
+
+  /* =========================================================
+     WHATSAPP
+     ========================================================= */
 
   function getWhatsAppNumber() {
+
     const data =
-      window.AZAAD_PUBLIC_CLINIC_DATA ||
-      {};
+      getPublicData();
 
     const settings =
       data.settings ||
       {};
 
-    return (
-      normalizeDigits(
-        settings.whatsapp ||
-        settings.whatsapp_number ||
-        settings.whatsapp_phone ||
-        ''
-      ) ||
-      '201140526294'
+    const raw =
+      settings.whatsapp ||
+      settings.whatsapp_number ||
+      settings.whatsapp_phone ||
+      '201140526294';
+
+    return String(
+      raw
+    ).replace(
+      /\D/g,
+      ''
     );
+
   }
 
-  function ensureContactLinks() {
-    const whatsapp =
+
+  function updateWhatsAppLinks() {
+
+    const number =
       getWhatsAppNumber();
 
-    const waLinks =
-      document.querySelectorAll(
-        '#waHero, #waLink'
+    if (!number) {
+      return;
+    }
+
+    document
+      .querySelectorAll(
+        '#waHero,#waLink'
+      )
+      .forEach(
+        (link) => {
+
+          if (
+            link &&
+            (
+              !link.href ||
+              link.getAttribute(
+                'href'
+              ) === '#'
+            )
+          ) {
+
+            link.href =
+              `https://wa.me/${number}`;
+
+          }
+
+        }
       );
 
-    waLinks.forEach(
-      (link) => {
-        if (
-          !link ||
-          !whatsapp
-        ) {
-          return;
-        }
+  }
 
-        /*
-         * Only set WhatsApp if it is missing.
-         * public-ui.js remains the primary owner.
-         */
 
-        if (
-          !link.getAttribute(
-            'href'
-          )
-        ) {
-          link.setAttribute(
-            'href',
-            `https://wa.me/${whatsapp}`
-          );
-        }
+  /* =========================================================
+     APPLY EVERYTHING
+     ========================================================= */
+
+  function apply() {
+
+    if (
+      !isEnglish()
+    ) {
+      return;
+    }
+
+    applyI18nAttributes();
+
+    updateDoctorCards();
+
+    updateServiceCards();
+
+    updateDoctorSelect();
+
+    updateServiceSelect();
+
+    updateModeSelect();
+
+    updatePlaceholders();
+
+    updateButtons();
+
+    updateWhatsAppLinks();
+
+    translateRoot(
+      document.getElementById(
+        'slots'
+      )
+    );
+
+    translateRoot(
+      document.getElementById(
+        'message'
+      )
+    );
+
+    translateRoot(
+      document.getElementById(
+        'whatsappBookingStep'
+      )
+    );
+
+  }
+
+
+  /* =========================================================
+     SCHEDULE
+     ========================================================= */
+
+  function schedule() {
+
+    if (
+      state.scheduled
+    ) {
+      return;
+    }
+
+    state.scheduled =
+      true;
+
+    requestAnimationFrame(
+      () => {
+
+        state.scheduled =
+          false;
+
+        apply();
+
       }
     );
 
-    const maps =
-      document.querySelector(
-        '#mapsLink'
-      );
-
-    if (
-      maps &&
-      !maps.getAttribute(
-        'href'
-      )
-    ) {
-      maps.setAttribute(
-        'href',
-        'https://maps.app.goo.gl/6kta6eBxN7TH88ATA?g_st=ic'
-      );
-    }
   }
 
-  /*
-   * =========================================================
-   * LANGUAGE EVENT OBSERVER
-   * =========================================================
-   */
 
-  function observeLanguageChanges() {
-    if (
-      window.__AZAAD_LANGUAGE_OBSERVER__
-    ) {
-      return;
-    }
+  /* =========================================================
+     LANGUAGE WATCHER
+     ========================================================= */
 
-    window.__AZAAD_LANGUAGE_OBSERVER__ =
-      true;
+  function watchLanguage() {
 
-    let lastLanguage =
+    let last =
       getLanguage();
 
-    setInterval(
-      () => {
-        const current =
-          getLanguage();
+    state.language =
+      last;
 
-        if (
-          current !==
-          lastLanguage
-        ) {
-          lastLanguage =
-            current;
+    state.timer =
+      setInterval(
+        () => {
 
-          /*
-           * public-ui.js handles the main
-           * static translation.
-           *
-           * We handle dynamic content.
-           */
+          const current =
+            getLanguage();
 
-          setTimeout(
-            () => {
-              translateDynamicUI();
-              translatePlaceholders();
-              translateButtons();
-            },
-            0
-          );
-        }
-      },
-      250
-    );
+          if (
+            current !==
+            last
+          ) {
+
+            last =
+              current;
+
+            state.language =
+              current;
+
+            schedule();
+
+          }
+
+          if (
+            current === 'en'
+          ) {
+
+            schedule();
+
+          }
+
+        },
+        500
+      );
+
   }
 
-  /*
-   * =========================================================
-   * DOM MUTATION OBSERVER
-   * =========================================================
-   */
 
-  function observeDynamicContent() {
+  /* =========================================================
+     DOM OBSERVER
+     ========================================================= */
+
+  function watchDOM() {
+
     if (
-      window.__AZAAD_DYNAMIC_UI_OBSERVER__
+      state.observer ||
+      !document.body
     ) {
       return;
     }
 
-    window.__AZAAD_DYNAMIC_UI_OBSERVER__ =
-      true;
-
-    const observer =
+    state.observer =
       new MutationObserver(
-        (mutations) => {
-          if (!isEnglish()) {
-            return;
-          }
+        () => {
 
-          let relevant = false;
-
-          for (
-            const mutation
-            of mutations
+          if (
+            isEnglish()
           ) {
-            if (
-              mutation.type ===
-              'childList'
-            ) {
-              relevant = true;
-              break;
-            }
 
-            if (
-              mutation.type ===
-              'characterData'
-            ) {
-              relevant = true;
-              break;
-            }
+            schedule();
+
           }
 
-          if (!relevant) {
-            return;
-          }
-
-          /*
-           * Batch mutations so app.js can finish
-           * rendering before translation occurs.
-           */
-
-          clearTimeout(
-            window.__AZAAD_TRANSLATION_TIMER__
-          );
-
-          window.__AZAAD_TRANSLATION_TIMER__ =
-            setTimeout(
-              () => {
-                translateDynamicUI();
-                translatePlaceholders();
-                translateButtons();
-              },
-              20
-            );
         }
       );
 
-    observer.observe(
+    state.observer.observe(
       document.body,
       {
         subtree: true,
@@ -925,200 +1826,72 @@
         characterData: true
       }
     );
+
   }
 
-  /*
-   * =========================================================
-   * PUBLIC UI LOADER
-   * =========================================================
-   */
 
-  function publicUiAlreadyPresent() {
-    return Boolean(
-      window.AzaadClinicPublicUILoaded ||
-      window.AzaadClinicPublicUI ||
-      document.querySelector(
-        'script[src*="public-ui.js"]'
-      ) ||
-      document.querySelector(
-        'script[data-azaad-public-ui="true"]'
-      )
-    );
-  }
+  /* =========================================================
+     INIT
+     ========================================================= */
 
-  function markPublicUIReady() {
-    state.publicUiBootstrapped =
-      true;
+  function init() {
 
-    try {
-      window.AzaadClinicPublicUILoaded =
-        true;
-    } catch (_) {}
-  }
+    state.language =
+      getLanguage();
 
-  function loadPublicUIIfNeeded() {
-    /*
-     * index.html already loads public-ui.js.
-     * Never inject another copy.
-     */
+    watchLanguage();
 
-    if (
-      publicUiAlreadyPresent()
-    ) {
-      markPublicUIReady();
-      return;
-    }
-
-    if (
-      document.querySelector(
-        'script[data-azaad-public-ui-loader="true"]'
-      )
-    ) {
-      return;
-    }
-
-    const script =
-      document.createElement(
-        'script'
-      );
-
-    script.src =
-      'public-ui.js?v=1';
-
-    script.async =
-      false;
-
-    script.dataset.azaadPublicUi =
-      'true';
-
-    script.dataset.azaadPublicUiLoader =
-      'true';
-
-    script.onload =
-      () => {
-        markPublicUIReady();
-
-        setTimeout(
-          () => {
-            translateDynamicUI();
-            translatePlaceholders();
-            translateButtons();
-          },
-          50
-        );
-      };
-
-    script.onerror =
-      (error) => {
-        console.error(
-          'Azaad Clinic public UI failed to load:',
-          error
-        );
-      };
-
-    document.head.appendChild(
-      script
-    );
-  }
-
-  /*
-   * =========================================================
-   * INITIALIZATION
-   * =========================================================
-   */
-
-  function initialize() {
-    /*
-     * Hard guard against duplicate initialization.
-     */
-
-    if (
-      window[STATE_KEY]
-    ) {
-      return;
-    }
-
-    window[STATE_KEY] =
-      true;
+    watchDOM();
 
     /*
-     * Compatibility state.
-     */
-
-    state.enabled =
-      false;
-
-    state.handledBy =
-      'app.js';
-
-    /*
-     * Never interfere with booking.
-     */
-
-    loadPublicUIIfNeeded();
-
-    /*
-     * Install dynamic language layer.
-     */
-
-    if (
-      !window[
-        TRANSLATION_STATE_KEY
-      ]
-    ) {
-      window[
-        TRANSLATION_STATE_KEY
-      ] = true;
-
-      observeLanguageChanges();
-      observeDynamicContent();
-    }
-
-    /*
-     * Give app.js and public-ui.js time to
-     * finish their initial rendering.
+     * app.js / clinic-posts.js / public-ui.js
+     * may still be loading.
      */
 
     setTimeout(
-      () => {
-        ensureContactLinks();
-        translateDynamicUI();
-        translatePlaceholders();
-        translateButtons();
-      },
+      schedule,
       100
     );
 
     setTimeout(
-      () => {
-        ensureContactLinks();
-        translateDynamicUI();
-        translatePlaceholders();
-        translateButtons();
-      },
-      700
+      schedule,
+      500
     );
+
+    setTimeout(
+      schedule,
+      1000
+    );
+
+    setTimeout(
+      schedule,
+      2000
+    );
+
   }
 
-  /*
-   * =========================================================
-   * START
-   * =========================================================
-   */
+
+  /* =========================================================
+     START
+     ========================================================= */
 
   if (
     document.readyState ===
     'loading'
   ) {
+
     document.addEventListener(
       'DOMContentLoaded',
-      initialize,
+      init,
       {
         once: true
       }
     );
+
   } else {
-    initialize();
+
+    init();
+
   }
 
 })();
