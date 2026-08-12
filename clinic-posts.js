@@ -16,6 +16,20 @@
    * 📣 عرض المنشورات
    * 📤 مشاركة الموقع الإلكتروني للعيادة
    *
+   * LANGUAGE:
+   *
+   * 🇪🇬 Arabic:
+   *   name
+   *   title
+   *   bio
+   *   description
+   *
+   * 🇬🇧 English:
+   *   name_en
+   *   title_en
+   *   bio_en
+   *   description_en
+   *
    * IMPORTANT:
    * - لا يحتوي على Service Role Key
    * - لا يغير نظام الحجز الموجود في app.js
@@ -35,6 +49,317 @@
   const WEBSITE_URL =
     "https://magdy4287-beep.github.io/-azaad-clinic-website/";
 
+  const LANGUAGE_STORAGE_KEY =
+    "azaadClinicLanguage";
+
+  const STATE_KEY =
+    "__AZAAD_CLINIC_POSTS_V6__";
+
+
+  /* =========================================================
+     SINGLE INITIALIZATION GUARD
+     ========================================================= */
+
+  if (window[STATE_KEY]) {
+    return;
+  }
+
+
+  const state = {
+
+    version:
+      "6.0.0",
+
+    language:
+      null,
+
+    services:
+      [],
+
+    doctors:
+      [],
+
+    posts:
+      [],
+
+    settings:
+      {},
+
+    languageTimer:
+      null,
+
+    shareObserver:
+      null,
+
+    renderTimer:
+      null,
+
+    started:
+      false
+
+  };
+
+
+  window[STATE_KEY] =
+    state;
+
+
+  /* =========================================================
+     LANGUAGE
+     ========================================================= */
+
+  function getLanguage() {
+
+    try {
+
+      const saved =
+        localStorage.getItem(
+          LANGUAGE_STORAGE_KEY
+        );
+
+      if (
+        saved === "ar" ||
+        saved === "en"
+      ) {
+
+        return saved;
+
+      }
+
+    }
+
+    catch (_) {}
+
+
+    const htmlLang =
+      String(
+        document.documentElement.lang ||
+        ""
+      )
+        .toLowerCase()
+        .trim();
+
+
+    if (
+      htmlLang === "en" ||
+      htmlLang.startsWith("en-")
+    ) {
+
+      return "en";
+
+    }
+
+
+    return "ar";
+
+  }
+
+
+  function isEnglish() {
+
+    return (
+      getLanguage() === "en"
+    );
+
+  }
+
+
+  function getCurrentLanguage() {
+
+    return getLanguage();
+
+  }
+
+
+  /* =========================================================
+     TEXT
+     ========================================================= */
+
+  const TEXT = {
+
+    ar: {
+
+      servicesEmpty:
+        "🩺 خدمات العيادة سيتم تحديثها قريبًا.",
+
+      servicesError:
+        "⚠️ تعذر تحميل خدمات العيادة حاليًا.\nيرجى تحديث الصفحة والمحاولة مرة أخرى.",
+
+      defaultService:
+        "خدمة نفسية",
+
+      defaultServiceDescription:
+        "خدمة نفسية مصممة لتناسب احتياجاتك.",
+
+      durationMinute:
+        "دقيقة",
+
+      doctorsEmpty:
+        "🧑‍⚕️ فريق العيادة سيتم تحديثه قريبًا.",
+
+      doctorsError:
+        "⚠️ تعذر تحميل فريق العيادة حاليًا.\nيرجى تحديث الصفحة والمحاولة مرة أخرى.",
+
+      defaultDoctor:
+        "طبيب",
+
+      defaultDoctorTitle:
+        "متخصص في الصحة النفسية",
+
+      defaultDoctorBio:
+        "متخصص يعمل معك للوصول إلى حياة أكثر توازنًا.",
+
+      postsEyebrow:
+        "AZAAD CLINIC",
+
+      postsTitle:
+        "المنشورات والعروض",
+
+      postsIntro:
+        "آخر الأخبار والعروض والمحتوى من عيادة آزاد للصحة النفسية.",
+
+      loadingPosts:
+        "جاري تحميل المنشورات...",
+
+      postMore:
+        "عرض المزيد",
+
+      defaultPostTitle:
+        "منشور من عيادة آزاد",
+
+      videoUnsupported:
+        "المتصفح لا يدعم تشغيل الفيديو.",
+
+      shareTitle:
+        "Azaad Clinic | عيادة آزاد للصحة النفسية",
+
+      shareText:
+        "🌐 مشاركة الموقع الإلكتروني للعيادة\n\n" +
+        "🏥 Azaad Clinic - عيادة آزاد للصحة النفسية\n\n" +
+        "يمكنك التعرف على خدمات العيادة وفريقها وحجز موعد بسهولة.",
+
+      shareButton:
+        "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp",
+
+      shareAria:
+        "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp",
+
+      copied:
+        "تم نسخ رابط موقع العيادة الإلكتروني.\n\nيمكنك الآن فتح WhatsApp أو Messenger أو أي تطبيق آخر ولصق الرابط وإرساله.",
+
+      prompt:
+        "انسخ رابط موقع العيادة الإلكتروني:",
+
+      shareDataTitle:
+        "Azaad Clinic | عيادة آزاد للصحة النفسية",
+
+      shareDataText:
+        "🌐 مشاركة الموقع الإلكتروني للعيادة\n\n" +
+        "🏥 Azaad Clinic - عيادة آزاد للصحة النفسية\n\n" +
+        "يمكنك التعرف على خدمات العيادة وفريقها وحجز موعد بسهولة."
+
+    },
+
+
+    en: {
+
+      servicesEmpty:
+        "🩺 Our clinic services will be updated soon.",
+
+      servicesError:
+        "⚠️ Unable to load clinic services right now.\nPlease refresh the page and try again.",
+
+      defaultService:
+        "Mental health service",
+
+      defaultServiceDescription:
+        "Mental health service designed around your needs.",
+
+      durationMinute:
+        "minutes",
+
+      doctorsEmpty:
+        "🧑‍⚕️ Our clinic team will be updated soon.",
+
+      doctorsError:
+        "⚠️ Unable to load our clinic team right now.\nPlease refresh the page and try again.",
+
+      defaultDoctor:
+        "Doctor",
+
+      defaultDoctorTitle:
+        "Mental health specialist",
+
+      defaultDoctorBio:
+        "Mental health specialist working with you toward a more balanced life.",
+
+      postsEyebrow:
+        "AZAAD CLINIC",
+
+      postsTitle:
+        "News, Posts & Offers",
+
+      postsIntro:
+        "The latest news, offers, and content from Azaad Clinic for Mental Health.",
+
+      loadingPosts:
+        "Loading posts...",
+
+      postMore:
+        "View more",
+
+      defaultPostTitle:
+        "Azaad Clinic Post",
+
+      videoUnsupported:
+        "Your browser does not support video playback.",
+
+      shareTitle:
+        "Azaad Clinic | Mental Health Clinic",
+
+      shareText:
+        "🌐 Share Azaad Clinic website\n\n" +
+        "🏥 Azaad Clinic for Mental Health\n\n" +
+        "Explore our services and team and book an appointment easily.",
+
+      shareButton:
+        "📲 Share clinic website via WhatsApp",
+
+      shareAria:
+        "Share the clinic website via WhatsApp",
+
+      copied:
+        "The clinic website link has been copied.\n\nYou can now open WhatsApp, Messenger, or another app and paste the link to share it.",
+
+      prompt:
+        "Copy the clinic website link:",
+
+      shareDataTitle:
+        "Azaad Clinic | Mental Health Clinic",
+
+      shareDataText:
+        "🌐 Share Azaad Clinic website\n\n" +
+        "🏥 Azaad Clinic for Mental Health\n\n" +
+        "Explore our services and team and book an appointment easily."
+
+    }
+
+  };
+
+
+  function t(key) {
+
+    const language =
+      getCurrentLanguage();
+
+    return (
+      TEXT[language]?.[key] ??
+      TEXT.ar[key] ??
+      ""
+    );
+
+  }
+
 
   /* =========================================================
      HELPERS
@@ -42,15 +367,28 @@
 
   function esc(value) {
 
-    return String(value ?? "").replace(
+    return String(
+      value ?? ""
+    ).replace(
       /[&<>"']/g,
-      character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-      }[character])
+      character =>
+        ({
+          "&":
+            "&amp;",
+
+          "<":
+            "&lt;",
+
+          ">":
+            "&gt;",
+
+          '"':
+            "&quot;",
+
+          "'":
+            "&#039;"
+
+        }[character])
     );
 
   }
@@ -59,27 +397,37 @@
   function safeUrl(url) {
 
     const value =
-      String(url || "").trim();
+      String(
+        url || ""
+      ).trim();
+
 
     if (!value) {
       return "";
     }
+
 
     try {
 
       const parsed =
         new URL(value);
 
+
       if (
-        parsed.protocol === "https:" ||
-        parsed.protocol === "http:"
+        parsed.protocol ===
+          "https:" ||
+        parsed.protocol ===
+          "http:"
       ) {
 
         return parsed.href;
 
       }
 
-    } catch (_) {}
+    }
+
+    catch (_) {}
+
 
     return "";
 
@@ -95,11 +443,14 @@
     const controller =
       new AbortController();
 
+
     const timeout =
       setTimeout(
-        () => controller.abort(),
+        () =>
+          controller.abort(),
         20000
       );
+
 
     try {
 
@@ -107,8 +458,12 @@
         await fetch(
           url,
           {
-            method: "GET",
-            cache: "no-store",
+            method:
+              "GET",
+
+            cache:
+              "no-store",
+
             signal:
               controller.signal,
 
@@ -116,6 +471,7 @@
               Accept:
                 "application/json"
             }
+
           }
         );
 
@@ -128,7 +484,9 @@
         data =
           await response.json();
 
-      } catch (_) {
+      }
+
+      catch (_) {
 
         data = {};
 
@@ -152,7 +510,9 @@
 
     finally {
 
-      clearTimeout(timeout);
+      clearTimeout(
+        timeout
+      );
 
     }
 
@@ -165,11 +525,26 @@
 
   function getServiceName(service) {
 
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        service?.name_en ||
+        service?.name ||
+        service?.title ||
+        service?.service_name ||
+        t("defaultService")
+      );
+
+    }
+
+
     return (
       service?.name ||
       service?.title ||
       service?.service_name ||
-      "خدمة نفسية"
+      t("defaultService")
     );
 
   }
@@ -177,11 +552,26 @@
 
   function getServiceDescription(service) {
 
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        service?.description_en ||
+        service?.description ||
+        service?.short_description ||
+        service?.details ||
+        t("defaultServiceDescription")
+      );
+
+    }
+
+
     return (
       service?.description ||
       service?.short_description ||
       service?.details ||
-      "خدمة نفسية مصممة لتناسب احتياجاتك."
+      t("defaultServiceDescription")
     );
 
   }
@@ -195,12 +585,17 @@
       null;
 
 
-    if (!duration) {
+    if (
+      !duration
+    ) {
+
       return "";
+
     }
 
 
     return `
+
       <div
         class="small-note"
         style="
@@ -208,14 +603,19 @@
           opacity:.8;
         "
       >
-        ⏱️ ${esc(duration)} دقيقة
+        ⏱️ ${esc(duration)} ${esc(
+          t("durationMinute")
+        )}
       </div>
+
     `;
 
   }
 
 
-  function renderServices(services) {
+  function renderServices(
+    services
+  ) {
 
     const grid =
       document.getElementById(
@@ -229,11 +629,14 @@
 
 
     if (
-      !Array.isArray(services) ||
+      !Array.isArray(
+        services
+      ) ||
       !services.length
     ) {
 
       grid.innerHTML = `
+
         <div
           class="empty"
           style="
@@ -241,8 +644,11 @@
             text-align:center;
           "
         >
-          🩺 خدمات العيادة سيتم تحديثها قريبًا.
+          ${esc(
+            t("servicesEmpty")
+          )}
         </div>
+
       `;
 
       return;
@@ -288,6 +694,7 @@
                     font-size:34px;
                     margin-bottom:12px;
                   "
+                  aria-hidden="true"
                 >
                   🩺
                 </div>
@@ -325,43 +732,96 @@
      DOCTORS / TEAM
      ========================================================= */
 
-  function getDoctorName(doctor) {
+  function getDoctorName(
+    doctor
+  ) {
+
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        doctor?.name_en ||
+        doctor?.name ||
+        doctor?.full_name ||
+        doctor?.display_name ||
+        t("defaultDoctor")
+      );
+
+    }
+
 
     return (
       doctor?.name ||
       doctor?.full_name ||
       doctor?.display_name ||
-      "طبيب"
+      t("defaultDoctor")
     );
 
   }
 
 
-  function getDoctorTitle(doctor) {
+  function getDoctorTitle(
+    doctor
+  ) {
+
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        doctor?.title_en ||
+        doctor?.title ||
+        doctor?.specialty ||
+        doctor?.specialization ||
+        t("defaultDoctorTitle")
+      );
+
+    }
+
 
     return (
       doctor?.title ||
       doctor?.specialty ||
       doctor?.specialization ||
-      "متخصص في الصحة النفسية"
+      t("defaultDoctorTitle")
     );
 
   }
 
 
-  function getDoctorBio(doctor) {
+  function getDoctorBio(
+    doctor
+  ) {
+
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        doctor?.bio_en ||
+        doctor?.bio ||
+        doctor?.description ||
+        doctor?.short_bio ||
+        t("defaultDoctorBio")
+      );
+
+    }
+
 
     return (
       doctor?.bio ||
       doctor?.description ||
       doctor?.short_bio ||
-      "متخصص يعمل معك للوصول إلى حياة أكثر توازنًا."
+      t("defaultDoctorBio")
     );
 
   }
 
 
-  function getDoctorImage(doctor) {
+  function getDoctorImage(
+    doctor
+  ) {
 
     return (
       doctor?.image_url ||
@@ -375,7 +835,9 @@
   }
 
 
-  function renderDoctors(doctors) {
+  function renderDoctors(
+    doctors
+  ) {
 
     const grid =
       document.getElementById(
@@ -389,11 +851,14 @@
 
 
     if (
-      !Array.isArray(doctors) ||
+      !Array.isArray(
+        doctors
+      ) ||
       !doctors.length
     ) {
 
       grid.innerHTML = `
+
         <div
           class="empty"
           style="
@@ -401,8 +866,11 @@
             text-align:center;
           "
         >
-          🧑‍⚕️ فريق العيادة سيتم تحديثه قريبًا.
+          ${esc(
+            t("doctorsEmpty")
+          )}
         </div>
+
       `;
 
       return;
@@ -444,6 +912,7 @@
             const photo =
               image
                 ? `
+
                   <div
                     style="
                       width:100%;
@@ -473,8 +942,10 @@
                     >
 
                   </div>
+
                 `
                 : `
+
                   <div
                     style="
                       width:100%;
@@ -490,6 +961,7 @@
                   >
                     🧑‍⚕️
                   </div>
+
                 `;
 
 
@@ -587,6 +1059,18 @@
           : [];
 
 
+      state.services =
+        services;
+
+
+      state.doctors =
+        doctors;
+
+
+      state.settings =
+        data?.settings || {};
+
+
       window.AZAAD_PUBLIC_CLINIC_DATA = {
 
         services,
@@ -621,17 +1105,20 @@
       if (servicesGrid) {
 
         servicesGrid.innerHTML = `
+
           <div
             class="empty"
             style="
               grid-column:1/-1;
               text-align:center;
+              white-space:pre-line;
             "
           >
-            ⚠️ تعذر تحميل خدمات العيادة حاليًا.
-            <br>
-            يرجى تحديث الصفحة والمحاولة مرة أخرى.
+            ${esc(
+              t("servicesError")
+            )}
           </div>
+
         `;
 
       }
@@ -640,17 +1127,20 @@
       if (doctorsGrid) {
 
         doctorsGrid.innerHTML = `
+
           <div
             class="empty"
             style="
               grid-column:1/-1;
               text-align:center;
+              white-space:pre-line;
             "
           >
-            ⚠️ تعذر تحميل فريق العيادة حاليًا.
-            <br>
-            يرجى تحديث الصفحة والمحاولة مرة أخرى.
+            ${esc(
+              t("doctorsError")
+            )}
           </div>
+
         `;
 
       }
@@ -696,18 +1186,23 @@
       <div class="container">
 
         <div class="eyebrow">
-          AZAAD CLINIC
+          ${esc(
+            t("postsEyebrow")
+          )}
         </div>
 
 
         <h2>
-          المنشورات والعروض
+          ${esc(
+            t("postsTitle")
+          )}
         </h2>
 
 
         <p class="section-intro">
-          آخر الأخبار والعروض والمحتوى
-          من عيادة آزاد للصحة النفسية.
+          ${esc(
+            t("postsIntro")
+          )}
         </p>
 
 
@@ -717,7 +1212,9 @@
         >
 
           <div class="loading">
-            جاري تحميل المنشورات...
+            ${esc(
+              t("loadingPosts")
+            )}
           </div>
 
         </div>
@@ -789,7 +1286,122 @@
   }
 
 
-  function renderPosts(posts) {
+  /* =========================================================
+     POST LANGUAGE HELPERS
+     ========================================================= */
+
+  function getPostTitle(
+    post
+  ) {
+
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        post?.title_en ||
+        post?.title ||
+        t("defaultPostTitle")
+      );
+
+    }
+
+
+    return (
+      post?.title ||
+      t("defaultPostTitle")
+    );
+
+  }
+
+
+  function getPostContent(
+    post
+  ) {
+
+    if (
+      isEnglish()
+    ) {
+
+      return (
+        post?.content_en ||
+        post?.content ||
+        ""
+      );
+
+    }
+
+
+    return (
+      post?.content ||
+      ""
+    );
+
+  }
+
+
+  function getPostDate(
+    post
+  ) {
+
+    if (
+      !post?.published_at
+    ) {
+
+      return "";
+
+    }
+
+
+    try {
+
+      const date =
+        new Date(
+          post.published_at
+        );
+
+
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+
+        return "";
+
+      }
+
+
+      return date.toLocaleDateString(
+        isEnglish()
+          ? "en-US"
+          : "ar-EG",
+        {
+          year:
+            "numeric",
+
+          month:
+            "long",
+
+          day:
+            "numeric"
+        }
+      );
+
+    }
+
+    catch (_) {
+
+      return "";
+
+    }
+
+  }
+
+
+  function renderPosts(
+    posts
+  ) {
 
     const section =
       createPostsSection();
@@ -811,7 +1423,12 @@
     }
 
 
-    if (!posts.length) {
+    if (
+      !Array.isArray(
+        posts
+      ) ||
+      !posts.length
+    ) {
 
       section.style.display =
         "none";
@@ -823,6 +1440,54 @@
 
     section.style.display =
       "";
+
+
+    /*
+     * Update the section heading too,
+     * because this section can survive
+     * a language change.
+     */
+
+    const eyebrow =
+      section.querySelector(
+        ".eyebrow"
+      );
+
+
+    const heading =
+      section.querySelector(
+        "h2"
+      );
+
+
+    const intro =
+      section.querySelector(
+        ".section-intro"
+      );
+
+
+    if (eyebrow) {
+
+      eyebrow.textContent =
+        t("postsEyebrow");
+
+    }
+
+
+    if (heading) {
+
+      heading.textContent =
+        t("postsTitle");
+
+    }
+
+
+    if (intro) {
+
+      intro.textContent =
+        t("postsIntro");
+
+    }
 
 
     grid.innerHTML =
@@ -838,7 +1503,8 @@
              */
 
             if (
-              post.media_type === "image" &&
+              post.media_type ===
+                "image" &&
               post.media_url
             ) {
 
@@ -865,8 +1531,7 @@
                     <img
                       src="${esc(imageUrl)}"
                       alt="${esc(
-                        post.title ||
-                        "Azaad Clinic"
+                        getPostTitle(post)
                       )}"
                       loading="lazy"
                       decoding="async"
@@ -897,7 +1562,8 @@
              */
 
             if (
-              post.media_type === "video" &&
+              post.media_type ===
+                "video" &&
               post.media_url
             ) {
 
@@ -938,7 +1604,9 @@
                         src="${esc(videoUrl)}"
                       >
 
-                      المتصفح لا يدعم تشغيل الفيديو.
+                      ${esc(
+                        t("videoUnsupported")
+                      )}
 
                     </video>
 
@@ -969,55 +1637,31 @@
                     rel="noopener noreferrer"
                     class="btn"
                   >
-                    عرض المزيد
+                    ${esc(
+                      t("postMore")
+                    )}
                   </a>
 
                 `
                 : "";
 
 
-            let dateText =
-              "";
+            const dateText =
+              getPostDate(
+                post
+              );
 
 
-            if (
-              post.published_at
-            ) {
-
-              try {
-
-                const date =
-                  new Date(
-                    post.published_at
-                  );
+            const title =
+              getPostTitle(
+                post
+              );
 
 
-                if (
-                  !Number.isNaN(
-                    date.getTime()
-                  )
-                ) {
-
-                  dateText =
-                    date.toLocaleDateString(
-                      "ar-EG",
-                      {
-                        year:
-                          "numeric",
-                        month:
-                          "long",
-                        day:
-                          "numeric"
-                      }
-                    );
-
-                }
-
-              }
-
-              catch (_) {}
-
-            }
+            const content =
+              getPostContent(
+                post
+              );
 
 
             return `
@@ -1037,35 +1681,38 @@
                   ${
                     dateText
                       ? `
+
                         <div
                           class="small-note"
                           style="
                             margin-bottom:8px;
                           "
                         >
-                          ${esc(dateText)}
+                          ${esc(
+                            dateText
+                          )}
                         </div>
+
                       `
                       : ""
                   }
 
 
                   <h3>
-                    ${esc(
-                      post.title ||
-                      "منشور من عيادة آزاد"
-                    )}
+                    ${esc(title)}
                   </h3>
 
 
                   ${
-                    post.content
+                    content
                       ? `
+
                         <p>
                           ${esc(
-                            post.content
+                            content
                           )}
                         </p>
+
                       `
                       : ""
                   }
@@ -1085,6 +1732,10 @@
 
   }
 
+
+  /* =========================================================
+     LOAD POSTS
+     ========================================================= */
 
   async function loadPosts() {
 
@@ -1108,7 +1759,9 @@
       grid.innerHTML = `
 
         <div class="loading">
-          جاري تحميل المنشورات...
+          ${esc(
+            t("loadingPosts")
+          )}
         </div>
 
       `;
@@ -1153,6 +1806,10 @@
       );
 
 
+      state.posts =
+        posts;
+
+
       renderPosts(
         posts
       );
@@ -1176,6 +1833,169 @@
         "none";
 
     }
+
+  }
+
+
+  /* =========================================================
+     RE-RENDER CONTENT AFTER LANGUAGE CHANGE
+     ========================================================= */
+
+  function rerenderPublicContent() {
+
+    renderServices(
+      state.services
+    );
+
+
+    renderDoctors(
+      state.doctors
+    );
+
+
+    if (
+      state.posts.length
+    ) {
+
+      renderPosts(
+        state.posts
+      );
+
+    }
+
+
+    updateShareButtonLanguage();
+
+  }
+
+
+  function scheduleRerender() {
+
+    if (
+      state.renderTimer
+    ) {
+
+      clearTimeout(
+        state.renderTimer
+      );
+
+    }
+
+
+    state.renderTimer =
+      setTimeout(
+        () => {
+
+          state.renderTimer =
+            null;
+
+          rerenderPublicContent();
+
+        },
+        50
+      );
+
+  }
+
+
+  /* =========================================================
+     LANGUAGE WATCHER
+     ========================================================= */
+
+  function watchLanguage() {
+
+    let previous =
+      getCurrentLanguage();
+
+
+    state.language =
+      previous;
+
+
+    /*
+     * localStorage changes are useful when
+     * another tab changes language.
+     */
+
+    window.addEventListener(
+      "storage",
+      event => {
+
+        if (
+          event.key ===
+          LANGUAGE_STORAGE_KEY
+        ) {
+
+          scheduleRerender();
+
+        }
+
+      }
+    );
+
+
+    /*
+     * Some versions of the language
+     * switcher dispatch a custom event.
+     */
+
+    [
+      "azaadLanguageChanged",
+      "languageChanged",
+      "languagechange"
+    ]
+      .forEach(
+        eventName => {
+
+          window.addEventListener(
+            eventName,
+            () => {
+
+              scheduleRerender();
+
+            }
+          );
+
+        }
+      );
+
+
+    /*
+     * Fallback watcher.
+     *
+     * This guarantees that if public-ui.js
+     * changes localStorage without dispatching
+     * an event, the public cards still update.
+     */
+
+    state.languageTimer =
+      setInterval(
+        () => {
+
+          const current =
+            getCurrentLanguage();
+
+
+          if (
+            current !==
+            previous
+          ) {
+
+            previous =
+              current;
+
+
+            state.language =
+              current;
+
+
+            scheduleRerender();
+
+          }
+
+        },
+        300
+      );
 
   }
 
@@ -1216,15 +2036,15 @@
               /*
                * Do not remove the actual
                * location-share button.
-               *
-               * We will convert it below.
                */
 
               if (
                 element.id ===
                 "shareLocation"
               ) {
+
                 return;
+
               }
 
 
@@ -1246,13 +2066,11 @@
   async function shareClinicWebsite() {
 
     const shareTitle =
-      "Azaad Clinic | عيادة آزاد للصحة النفسية";
+      t("shareDataTitle");
 
 
     const shareText =
-      "🌐 مشاركة الموقع الإلكتروني للعيادة\n\n" +
-      "🏥 Azaad Clinic - عيادة آزاد للصحة النفسية\n\n" +
-      "يمكنك التعرف على خدمات العيادة وفريقها وحجز موعد بسهولة.";
+      t("shareDataText");
 
 
     const shareUrl =
@@ -1263,8 +2081,6 @@
      * =======================================================
      * NATIVE DEVICE SHARE
      * =======================================================
-     *
-     * هذا هو السلوك المطلوب:
      *
      * 👤 المستخدم يختار بنفسه:
      *
@@ -1280,8 +2096,10 @@
      */
 
     if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.share === "function"
+      typeof navigator !==
+        "undefined" &&
+      typeof navigator.share ===
+        "function"
     ) {
 
       try {
@@ -1306,14 +2124,6 @@
 
       catch (error) {
 
-        /*
-         * المستخدم قد يكون أغلق
-         * نافذة المشاركة.
-         *
-         * لا نعرض له رسالة خطأ
-         * في هذه الحالة.
-         */
-
         if (
           error?.name ===
           "AbortError"
@@ -1322,6 +2132,7 @@
           return false;
 
         }
+
 
         console.warn(
           "Azaad Clinic share error:",
@@ -1333,11 +2144,9 @@
     }
 
 
-    /*
-     * =======================================================
-     * FALLBACK — COPY LINK
-     * =======================================================
-     */
+    /* =======================================================
+       FALLBACK — COPY LINK
+       ======================================================= */
 
     try {
 
@@ -1353,7 +2162,7 @@
 
 
         alert(
-          "تم نسخ رابط موقع العيادة الإلكتروني.\n\nيمكنك الآن فتح WhatsApp أو Messenger أو أي تطبيق آخر ولصق الرابط وإرساله."
+          t("copied")
         );
 
 
@@ -1373,16 +2182,14 @@
     }
 
 
-    /*
-     * =======================================================
-     * FINAL FALLBACK
-     * =======================================================
-     */
+    /* =======================================================
+       FINAL FALLBACK
+       ======================================================= */
 
     try {
 
       window.prompt(
-        "انسخ رابط موقع العيادة الإلكتروني:",
+        t("prompt"),
         shareUrl
       );
 
@@ -1397,24 +2204,10 @@
 
 
   /* =========================================================
-     SET SHARE LOCATION BUTTON
+     UPDATE SHARE BUTTON LANGUAGE
      ========================================================= */
 
-  function setupWebsiteShareButton() {
-
-    /*
-     * Remove obsolete WhatsApp-specific
-     * buttons first.
-     */
-
-    removeOldClinicWhatsAppButtons();
-
-
-    /*
-     * The existing location-share button
-     * is the button that should become
-     * the general website sharing button.
-     */
+  function updateShareButtonLanguage() {
 
     const button =
       document.getElementById(
@@ -1423,11 +2216,46 @@
 
 
     if (!button) {
+      return;
+    }
 
-      /*
-       * If it does not exist,
-       * create it near the location actions.
-       */
+
+    button.textContent =
+      t("shareButton");
+
+
+    button.setAttribute(
+      "aria-label",
+      t("shareAria")
+    );
+
+
+    button.dataset.action =
+      "share-clinic-website";
+
+
+    button.style.cursor =
+      "pointer";
+
+  }
+
+
+  /* =========================================================
+     SET SHARE LOCATION BUTTON
+     ========================================================= */
+
+  function setupWebsiteShareButton() {
+
+    removeOldClinicWhatsAppButtons();
+
+
+    const button =
+      document.getElementById(
+        "shareLocation"
+      );
+
+
+    if (!button) {
 
       const locationActions =
         document.querySelector(
@@ -1459,13 +2287,17 @@
 
 
       newButton.textContent =
-        "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+        t("shareButton");
 
 
       newButton.setAttribute(
         "aria-label",
-        "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+        t("shareAria")
       );
+
+
+      newButton.dataset.action =
+        "share-clinic-website";
 
 
       newButton.addEventListener(
@@ -1473,6 +2305,8 @@
         event => {
 
           event.preventDefault();
+
+          event.stopPropagation();
 
           shareClinicWebsite();
 
@@ -1489,12 +2323,6 @@
 
     }
 
-
-    /*
-     * =======================================================
-     * EXISTING BUTTON
-     * =======================================================
-     */
 
     /*
      * Remove old href because the button
@@ -1524,7 +2352,7 @@
 
     button.setAttribute(
       "aria-label",
-      "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+      t("shareAria")
     );
 
 
@@ -1533,7 +2361,7 @@
 
 
     button.textContent =
-      "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+      t("shareButton");
 
 
     button.style.cursor =
@@ -1546,7 +2374,9 @@
      */
 
     const replacement =
-      button.cloneNode(true);
+      button.cloneNode(
+        true
+      );
 
 
     replacement.removeAttribute(
@@ -1572,7 +2402,7 @@
 
     replacement.setAttribute(
       "aria-label",
-      "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+      t("shareAria")
     );
 
 
@@ -1581,7 +2411,7 @@
 
 
     replacement.textContent =
-      "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+      t("shareButton");
 
 
     replacement.style.cursor =
@@ -1614,20 +2444,6 @@
      ========================================================= */
 
   function removeUnwantedMiddleShareButtons() {
-
-    /*
-     * Previous versions may have created
-     * one or more extra WhatsApp/share
-     * buttons dynamically.
-     *
-     * Keep:
-     *
-     * 1️⃣ Google Maps
-     * 2️⃣ Website Share
-     *
-     * Remove obsolete WhatsApp-specific
-     * duplicate buttons.
-     */
 
     const unwantedSelectors = [
 
@@ -1707,10 +2523,6 @@
               "shareLocation"
             ) {
 
-              /*
-               * Convert it rather than remove it.
-               */
-
               element.removeAttribute(
                 "href"
               );
@@ -1741,6 +2553,8 @@
 
     setupWebsiteShareButton();
 
+    updateShareButtonLanguage();
+
   }
 
 
@@ -1760,6 +2574,15 @@
     }
 
 
+    if (
+      state.shareObserver
+    ) {
+
+      return;
+
+    }
+
+
     const observer =
       new MutationObserver(
         mutations => {
@@ -1770,7 +2593,7 @@
 
           for (
             const mutation of mutations
-          ) {
+            ) {
 
             if (
               mutation.addedNodes &&
@@ -1792,11 +2615,6 @@
           }
 
 
-          /*
-           * Delay slightly so dynamic
-           * DOM operations finish first.
-           */
-
           setTimeout(
             () => {
 
@@ -1808,6 +2626,10 @@
 
         }
       );
+
+
+    state.shareObserver =
+      observer;
 
 
     try {
@@ -1831,10 +2653,64 @@
 
 
   /* =========================================================
+     PUBLIC REFRESH API
+     ========================================================= */
+
+  /*
+   * Allows another public UI script to
+   * explicitly request a content refresh
+   * without touching the booking controller.
+   */
+
+  window.AZAAD_PUBLIC_CONTENT =
+    {
+
+      version:
+        state.version,
+
+      refresh: () => {
+
+        scheduleRerender();
+
+        normalizeShareArea();
+
+      },
+
+      getLanguage:
+        getCurrentLanguage
+
+    };
+
+
+  /* =========================================================
      INITIALIZATION
      ========================================================= */
 
   async function start() {
+
+    if (
+      state.started
+    ) {
+
+      return;
+
+    }
+
+
+    state.started =
+      true;
+
+
+    state.language =
+      getCurrentLanguage();
+
+
+    /*
+     * Setup language watcher first.
+     */
+
+    watchLanguage();
+
 
     /*
      * Setup the share button immediately.
@@ -1872,6 +2748,14 @@
 
     normalizeShareArea();
 
+
+    /*
+     * Final render according to the
+     * currently selected language.
+     */
+
+    rerenderPublicContent();
+
   }
 
 
@@ -1888,7 +2772,8 @@
       "DOMContentLoaded",
       start,
       {
-        once: true
+        once:
+          true
       }
     );
 
