@@ -5,7 +5,7 @@
    * =========================================================
    * AZAAD CLINIC
    * PUBLIC BOOKING SYSTEM
-   * app.js
+   * File: app.js
    * =========================================================
    *
    * مسؤول عن:
@@ -14,6 +14,7 @@
    * 👨‍⚕️ تحميل الأطباء
    * 🩺 تحميل الخدمات
    * 📅 تحميل المواعيد المتاحة
+   * 🏥 / 💻 نوع الجلسة
    * 👤 استقبال بيانات المريض
    * 📱 التحقق من رقم الهاتف
    * 📋 إنشاء طلب الحجز
@@ -21,17 +22,12 @@
    * 🎫 استلام رقم الحجز
    * 📲 تجهيز WhatsApp
    *
-   * =========================================================
-   *
-   * IMPORTANT
-   * =========================================================
-   *
-   * - لا يتم تغيير Supabase API.
-   * - لا يتم تغيير Edge Function.
-   * - لا يتم تغيير Booking Payload.
-   * - لا يتم تغيير أسماء الحقول المرسلة إلى API.
-   * - العربية هي اللغة الافتراضية.
-   * - English تعمل على النصوص الديناميكية التي ينشئها هذا الملف.
+   * SECURITY
+   * ---------------------------------------------------------
+   * ❌ لا يحتوي على Service Role Key
+   * ❌ لا ينفذ عمليات إدارية
+   * ❌ لا يتعامل مع Auth Admin
+   * ❌ لا يغير Booking Payload
    *
    * =========================================================
    */
@@ -54,6 +50,20 @@
   };
 
   let initialized = false;
+
+  let lastSuccessfulBooking = null;
+
+  /*
+   * =========================================================
+   * REQUEST CONTROL
+   * =========================================================
+   *
+   * يمنع نتيجة طلب قديم من الكتابة فوق نتيجة أحدث.
+   */
+
+  let slotsRequestId = 0;
+
+  let slotsAbortController = null;
 
   /*
    * =========================================================
@@ -151,6 +161,9 @@
 
       selectDate:
         'من فضلك اختر التاريخ.',
+
+      selectMode:
+        'من فضلك اختر نوع الجلسة.',
 
       selectTime:
         'من فضلك اختر أحد المواعيد المتاحة.',
@@ -305,7 +318,7 @@
         'No appointments are available for this day.',
 
       selectDoctorServiceDate:
-        'Select a doctor, service, and date to view available appointments.',
+        'Select a doctor, service, date, and session type to view available appointments.',
 
       selectDoctor:
         'Please select a doctor.',
@@ -315,6 +328,9 @@
 
       selectDate:
         'Please select a date.',
+
+      selectMode:
+        'Please select the session type.',
 
       selectTime:
         'Please select one of the available appointments.',
@@ -480,11 +496,19 @@
     options = {}
   ) {
     const controller =
-      new AbortController();
+      options.signal
+        ? null
+        : new AbortController();
+
+    const signal =
+      options.signal ||
+      controller?.signal;
 
     const timeout =
       setTimeout(() => {
-        controller.abort();
+        try {
+          controller?.abort();
+        } catch (_) {}
       }, 20000);
 
     try {
@@ -494,8 +518,7 @@
 
           cache: 'no-store',
 
-          signal:
-            controller.signal,
+          signal,
 
           headers: {
             Accept:
@@ -530,9 +553,7 @@
         error?.name ===
         'AbortError'
       ) {
-        throw new Error(
-          t('connectionTimeout')
-        );
+        throw error;
       }
 
       if (
@@ -707,9 +728,27 @@
 
   /*
    * =========================================================
-   * BOOKING MODE
+   * MODE
    * =========================================================
    */
+
+  function getSelectedMode() {
+    const modeElement =
+      $('mode');
+
+    if (!modeElement) {
+      return 'clinic';
+    }
+
+    const value =
+      String(
+        modeElement.value || ''
+      )
+        .trim()
+        .toLowerCase();
+
+    return value || 'clinic';
+  }
 
   function getModeText(mode) {
     const value =
@@ -812,8 +851,16 @@
   }
 
   function getClinicWhatsApp() {
+    const settings =
+      clinicData?.settings ||
+      {};
+
     const configured =
-      clinicData?.settings?.whatsapp;
+      settings.whatsapp ||
+      settings.whatsapp_number ||
+      settings.whatsapp_phone ||
+      settings.phone_whatsapp ||
+      '';
 
     const normalized =
       normalizeWhatsAppNumber(
@@ -897,11 +944,7 @@
         ''
       ).trim();
 
-    let message;
-
-    if (isEnglish()) {
-
-      message =
+    let message =
 `🏥 Azaad Clinic - ${t('bookingRequest')}
 
 📌 ${t('bookingNumber')}: ${bookingCode}
@@ -920,63 +963,23 @@
 
 💻 ${t('sessionType')}: ${mode}`;
 
-      if (patientEmail) {
-        message +=
-`\n📧 ${t('email')}: ${patientEmail}`;
-      }
-
-      if (notes) {
-        message +=
-`\n\n📝 ${t('notes')}:
-${notes}`;
-      }
-
+    if (patientEmail) {
       message +=
-`
-
-⚠️ ${t('reviewAvailability')}
-
-${t('sentFromWebsite')}`;
-
-    } else {
-
-      message =
-`🏥 Azaad Clinic - ${t('bookingRequest')}
-
-📌 ${t('bookingNumber')}: ${bookingCode}
-
-👤 ${t('patientName')}: ${patientName}
-
-📱 ${t('phone')}: ${patientPhone}
-
-👨‍⚕️ ${t('doctor')}: ${doctorDisplay}
-
-🩺 ${t('service')}: ${serviceName}
-
-📅 ${t('date')}: ${date}
-
-⏰ ${t('time')}: ${time || t('unspecified')}
-
-💻 ${t('sessionType')}: ${mode}`;
-
-      if (patientEmail) {
-        message +=
 `\n📧 ${t('email')}: ${patientEmail}`;
-      }
-
-      if (notes) {
-        message +=
-`\n\n📝 ${t('notes')}:
-${notes}`;
-      }
-
-      message +=
-`
-
-⚠️ ${t('reviewAvailability')}
-
-${t('sentFromWebsite')}`;
     }
+
+    if (notes) {
+      message +=
+`\n\n📝 ${t('notes')}:
+${notes}`;
+    }
+
+    message +=
+`
+
+⚠️ ${t('reviewAvailability')}
+
+${t('sentFromWebsite')}`;
 
     return message;
   }
@@ -1121,12 +1124,6 @@ ${t('sentFromWebsite')}`;
     } catch (_) {}
   }
 
-  /*
-   * =========================================================
-   * REMOVE OLD WHATSAPP RESULT
-   * =========================================================
-   */
-
   function removeOldWhatsAppStep() {
     const old =
       $('whatsappBookingStep');
@@ -1134,6 +1131,9 @@ ${t('sentFromWebsite')}`;
     if (old) {
       old.remove();
     }
+
+    lastSuccessfulBooking =
+      null;
   }
 
   /*
@@ -1290,7 +1290,10 @@ ${t('sentFromWebsite')}`;
     dateInput.min =
       today;
 
-    if (!dateInput.value) {
+    if (
+      !dateInput.value ||
+      dateInput.value < today
+    ) {
       dateInput.value =
         today;
     }
@@ -1346,7 +1349,7 @@ ${t('sentFromWebsite')}`;
       );
 
       showMessage(
-        error.message ||
+        error?.message ||
         t('dataLoadFailed')
       );
     }
@@ -1375,8 +1378,13 @@ ${t('sentFromWebsite')}`;
       $('date')?.value ||
       '';
 
+    const mode =
+      getSelectedMode();
+
     selectedSlot =
       '';
+
+    removeOldWhatsAppStep();
 
     if (!slotsContainer) {
       return;
@@ -1399,6 +1407,20 @@ ${t('sentFromWebsite')}`;
       return;
     }
 
+    /*
+     * إلغاء الطلب السابق إذا كان لا يزال يعمل.
+     */
+
+    try {
+      slotsAbortController?.abort();
+    } catch (_) {}
+
+    slotsAbortController =
+      new AbortController();
+
+    const requestId =
+      ++slotsRequestId;
+
     slotsContainer.innerHTML = `
       <div class="slots-loading">
         ${escapeHtml(
@@ -1408,6 +1430,14 @@ ${t('sentFromWebsite')}`;
     `;
 
     try {
+
+      /*
+       * مهم:
+       * mode أصبح جزءًا من طلب المواعيد.
+       *
+       * هذا لا يغير Booking Payload.
+       * هو فقط يخبر API بنوع الجلسة المطلوبة.
+       */
 
       const url =
         API +
@@ -1424,11 +1454,34 @@ ${t('sentFromWebsite')}`;
         encodeURIComponent(
           date
         ) +
+        '&mode=' +
+        encodeURIComponent(
+          mode
+        ) +
         '&_=' +
         Date.now();
 
       const result =
-        await request(url);
+        await request(
+          url,
+          {
+            signal:
+              slotsAbortController
+                .signal
+          }
+        );
+
+      /*
+       * إذا كان هناك طلب أحدث،
+       * تجاهل هذه النتيجة.
+       */
+
+      if (
+        requestId !==
+        slotsRequestId
+      ) {
+        return;
+      }
 
       const slots =
         Array.isArray(
@@ -1453,19 +1506,30 @@ ${t('sentFromWebsite')}`;
       slotsContainer.innerHTML =
         slots
           .map(
-            (time) => `
-              <button
-                type="button"
-                class="slot"
-                data-slot="${escapeHtml(
-                  normalizeTime(time)
-                )}"
-              >
-                ${escapeHtml(
-                  normalizeTime(time)
-                )}
-              </button>
-            `
+            (time) => {
+
+              const normalized =
+                normalizeTime(
+                  time
+                );
+
+              return `
+                <button
+                  type="button"
+                  class="slot"
+                  data-slot="${escapeHtml(
+                    normalized
+                  )}"
+                  aria-label="${escapeHtml(
+                    `${t('chooseTime')}: ${normalized}`
+                  )}"
+                >
+                  ${escapeHtml(
+                    normalized
+                  )}
+                </button>
+              `;
+            }
           )
           .join('');
 
@@ -1489,11 +1553,20 @@ ${t('sentFromWebsite')}`;
                       item.classList.remove(
                         'selected'
                       );
+                      item.setAttribute(
+                        'aria-pressed',
+                        'false'
+                      );
                     }
                   );
 
                 button.classList.add(
                   'selected'
+                );
+
+                button.setAttribute(
+                  'aria-pressed',
+                  'true'
                 );
 
                 selectedSlot =
@@ -1510,10 +1583,29 @@ ${t('sentFromWebsite')}`;
 
     } catch (error) {
 
+      /*
+       * Abort طبيعي عند تغيير
+       * الطبيب / الخدمة / التاريخ / mode.
+       */
+
+      if (
+        error?.name ===
+        'AbortError'
+      ) {
+        return;
+      }
+
       console.error(
         'Slots error:',
         error
       );
+
+      if (
+        requestId !==
+        slotsRequestId
+      ) {
+        return;
+      }
 
       slotsContainer.innerHTML = `
         <div class="slots-error">
@@ -1524,7 +1616,7 @@ ${t('sentFromWebsite')}`;
       `;
 
       showMessage(
-        error.message ||
+        error?.message ||
         t('slotsLoadFailed')
       );
     }
@@ -1606,9 +1698,14 @@ ${t('sentFromWebsite')}`;
       $('notes')?.value.trim() ||
       '';
 
+    /*
+     * مهم:
+     * نأخذ mode وقت الإرسال،
+     * ولا نستخدم قيمة قديمة.
+     */
+
     const mode =
-      $('mode')?.value ||
-      'clinic';
+      getSelectedMode();
 
     /*
      * -------------------------
@@ -1633,6 +1730,13 @@ ${t('sentFromWebsite')}`;
     if (!date) {
       showMessage(
         t('selectDate')
+      );
+      return;
+    }
+
+    if (!mode) {
+      showMessage(
+        t('selectMode')
       );
       return;
     }
@@ -1676,6 +1780,8 @@ ${t('sentFromWebsite')}`;
      * -------------------------
      * PAYLOAD
      * -------------------------
+     *
+     * لا نغير أسماء الحقول الحالية.
      */
 
     const payload = {
@@ -1730,6 +1836,11 @@ ${t('sentFromWebsite')}`;
 
       submitButton.disabled =
         true;
+
+      submitButton.setAttribute(
+        'aria-busy',
+        'true'
+      );
 
       submitButton.textContent =
         t('bookingConfirming');
@@ -1799,6 +1910,17 @@ ${t('sentFromWebsite')}`;
 
       /*
        * -------------------------
+       * SAVE LAST BOOKING
+       * -------------------------
+       */
+
+      lastSuccessfulBooking =
+        {
+          ...bookingData
+        };
+
+      /*
+       * -------------------------
        * SUCCESS
        * -------------------------
        */
@@ -1815,7 +1937,7 @@ ${t('sentFromWebsite')}`;
        */
 
       showWhatsAppStep(
-        bookingData
+        lastSuccessfulBooking
       );
 
       /*
@@ -1912,6 +2034,10 @@ ${t('sentFromWebsite')}`;
         submitButton.disabled =
           false;
 
+        submitButton.removeAttribute(
+          'aria-busy'
+        );
+
         submitButton.textContent =
           oldButtonText ||
           (
@@ -1927,16 +2053,11 @@ ${t('sentFromWebsite')}`;
    * =========================================================
    * LANGUAGE CHANGE SUPPORT
    * =========================================================
-   *
-   * public-ui.js هو المسؤول الأساسي عن تغيير اللغة.
-   * هذا الجزء يستمع لأي تغيير في اللغة ويعيد بناء
-   * العناصر الديناميكية التي أنشأها app.js.
-   *
-   * =========================================================
    */
 
   function refreshDynamicLanguage() {
     try {
+
       populateSelectors();
 
       const slotsContainer =
@@ -1955,8 +2076,9 @@ ${t('sentFromWebsite')}`;
         '';
 
       /*
-       * إذا كانت هناك عناصر Slots حاليًا،
-       * نعيد تحميلها حتى تظهر الرسائل باللغة الجديدة.
+       * إعادة تحميل المواعيد
+       * عند تغيير اللغة حتى تتغير
+       * الرسائل الديناميكية.
        */
 
       if (
@@ -1969,7 +2091,7 @@ ${t('sentFromWebsite')}`;
       }
 
       /*
-       * تحديث زر Submit بدون إرسال النموذج.
+       * تحديث زر Submit.
        */
 
       const submitButton =
@@ -1981,6 +2103,7 @@ ${t('sentFromWebsite')}`;
         submitButton &&
         !submitButton.disabled
       ) {
+
         const currentText =
           String(
             submitButton.textContent ||
@@ -2007,6 +2130,7 @@ ${t('sentFromWebsite')}`;
             currentText
           )
         ) {
+
           submitButton.textContent =
             isEnglish()
               ? 'Confirm booking request'
@@ -2015,29 +2139,16 @@ ${t('sentFromWebsite')}`;
       }
 
       /*
-       * إعادة بناء WhatsApp إذا كان موجودًا.
+       * إعادة بناء WhatsApp
+       * باستخدام آخر حجز ناجح.
        */
 
-      const whatsappStep =
-        $('whatsappBookingStep');
-
-      if (whatsappStep) {
-
-        /*
-         * نحاول إعادة تكوين البيانات من آخر
-         * رابط WhatsApp بدون إرسال أي طلب جديد.
-         */
-
-        const whatsappLink =
-          $('sendBookingWhatsApp');
-
-        if (whatsappLink) {
-
-          /*
-           * إذا كان هناك حجز ناجح، نستخدم
-           * booking data المحفوظة داخليًا.
-           */
-        }
+      if (
+        lastSuccessfulBooking
+      ) {
+        showWhatsAppStep(
+          lastSuccessfulBooking
+        );
       }
 
     } catch (error) {
@@ -2050,7 +2161,9 @@ ${t('sentFromWebsite')}`;
   }
 
   /*
-   * مراقبة تغيير اللغة من public-ui.js.
+   * =========================================================
+   * LANGUAGE OBSERVER
+   * =========================================================
    */
 
   function setupLanguageObserver() {
@@ -2077,9 +2190,8 @@ ${t('sentFromWebsite')}`;
       };
 
     /*
-     * بعض نسخ public-ui.js تستخدم
-     * localStorage مباشرة، لذلك نستخدم
-     * polling خفيف للتوافق.
+     * polling خفيف للتوافق
+     * مع public-ui.js
      */
 
     setInterval(
@@ -2088,8 +2200,7 @@ ${t('sentFromWebsite')}`;
     );
 
     /*
-     * storage event للتوافق مع
-     * تغييرات اللغة من نافذة أخرى.
+     * storage event
      */
 
     window.addEventListener(
@@ -2106,8 +2217,7 @@ ${t('sentFromWebsite')}`;
     );
 
     /*
-     * MutationObserver لمتابعة تغيير
-     * document.documentElement.lang.
+     * MutationObserver
      */
 
     try {
@@ -2138,7 +2248,37 @@ ${t('sentFromWebsite')}`;
 
   /*
    * =========================================================
-   * EVENT LISTENERS
+   * EVENT HELPERS
+   * =========================================================
+   */
+
+  function resetBookingState() {
+
+    selectedSlot =
+      '';
+
+    removeOldWhatsAppStep();
+
+    hideMessage();
+  }
+
+  function setupSelectChange(
+    element,
+    callback
+  ) {
+    if (!element) {
+      return;
+    }
+
+    element.addEventListener(
+      'change',
+      callback
+    );
+  }
+
+  /*
+   * =========================================================
+   * INITIALIZE
    * =========================================================
    */
 
@@ -2155,9 +2295,8 @@ ${t('sentFromWebsite')}`;
       $('bookingForm');
 
     /*
-     * إذا كانت الصفحة الحالية
-     * لا تحتوي على نموذج الحجز،
-     * لا نحتاج لتشغيل النظام.
+     * الصفحة قد لا تحتوي
+     * على نموذج الحجز.
      */
 
     if (!form) {
@@ -2174,29 +2313,24 @@ ${t('sentFromWebsite')}`;
     const date =
       $('date');
 
+    const mode =
+      $('mode');
+
     /*
      * -------------------------
      * DOCTOR
      * -------------------------
      */
 
-    if (doctor) {
+    setupSelectChange(
+      doctor,
+      () => {
 
-      doctor.addEventListener(
-        'change',
-        () => {
+        resetBookingState();
 
-          selectedSlot =
-            '';
-
-          removeOldWhatsAppStep();
-
-          hideMessage();
-
-          loadAvailableSlots();
-        }
-      );
-    }
+        loadAvailableSlots();
+      }
+    );
 
     /*
      * -------------------------
@@ -2204,23 +2338,15 @@ ${t('sentFromWebsite')}`;
      * -------------------------
      */
 
-    if (service) {
+    setupSelectChange(
+      service,
+      () => {
 
-      service.addEventListener(
-        'change',
-        () => {
+        resetBookingState();
 
-          selectedSlot =
-            '';
-
-          removeOldWhatsAppStep();
-
-          hideMessage();
-
-          loadAvailableSlots();
-        }
-      );
-    }
+        loadAvailableSlots();
+      }
+    );
 
     /*
      * -------------------------
@@ -2228,23 +2354,35 @@ ${t('sentFromWebsite')}`;
      * -------------------------
      */
 
-    if (date) {
+    setupSelectChange(
+      date,
+      () => {
 
-      date.addEventListener(
-        'change',
-        () => {
+        resetBookingState();
 
-          selectedSlot =
-            '';
+        loadAvailableSlots();
+      }
+    );
 
-          removeOldWhatsAppStep();
+    /*
+     * -------------------------
+     * MODE
+     * -------------------------
+     *
+     * هذا هو الإصلاح المهم:
+     * تغيير In-clinic / Online
+     * يعيد تحميل المواعيد.
+     */
 
-          hideMessage();
+    setupSelectChange(
+      mode,
+      () => {
 
-          loadAvailableSlots();
-        }
-      );
-    }
+        resetBookingState();
+
+        loadAvailableSlots();
+      }
+    );
 
     /*
      * -------------------------
