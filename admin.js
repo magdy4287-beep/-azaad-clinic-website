@@ -2,7 +2,7 @@
    AZAAD CLINIC - ADMIN CONTROL CENTER
    File: admin.js
 
-   Production-oriented frontend controller
+   Production frontend controller
    Supabase Auth + RLS
    Username Login through staff-login Edge Function
 
@@ -11,6 +11,9 @@
    - Only the public/publishable Supabase key is used.
    - Username/password authentication is handled by the
      secured staff-login Edge Function.
+   - clinic_staff uses "active" (NOT "is_active").
+   - A valid authenticated session without a valid active
+     clinic_staff record is NOT treated as ADMIN.
    ============================================================ */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -105,7 +108,7 @@ const formatDate = (
 
   try {
     return new Date(
-      value + "T00:00:00"
+      `${value}T00:00:00`
     ).toLocaleDateString(
       "ar-EG",
       {
@@ -151,6 +154,10 @@ const normalizePhone = (
       p.substring(2);
   }
 
+  /*
+   * Egyptian local mobile number:
+   * 010xxxxxxxx / 011xxxxxxxx / 012xxxxxxxx / 015xxxxxxxx
+   */
   if (
     p.startsWith("01") &&
     p.length === 11
@@ -160,9 +167,19 @@ const normalizePhone = (
       p.substring(1);
   }
 
-  return p
-    .replace("+", "")
-    .replace(/\s/g, "");
+  /*
+   * Remove all remaining formatting.
+   */
+  p =
+    p.replace(
+      /^\+/,
+      ""
+    );
+
+  return p.replace(
+    /\s/g,
+    ""
+  );
 };
 
 const whatsappURL = (
@@ -229,11 +246,14 @@ const showToast = (
   );
 
   window.__toastTimer =
-    setTimeout(() => {
-      toast.classList.remove(
-        "show"
-      );
-    }, 3500);
+    setTimeout(
+      () => {
+        toast.classList.remove(
+          "show"
+        );
+      },
+      3500
+    );
 };
 
 const safeQuery = async (
@@ -242,7 +262,9 @@ const safeQuery = async (
   try {
     return await query;
   } catch (error) {
-    console.error(error);
+    console.error(
+      error
+    );
 
     return {
       data: null,
@@ -264,18 +286,10 @@ const state = {
 
   bookings: [],
 
-  currentRole: "ADMIN",
+  currentRole: null,
 
   permissions:
-    new Set([
-      "dashboard.view",
-      "bookings.view",
-      "patients.view",
-      "followups.view",
-      "marketing.view",
-      "finance.view",
-      "staff.view"
-    ]),
+    new Set(),
 
   initialized: false
 };
@@ -348,6 +362,37 @@ const ROLE_PERMISSIONS = {
 };
 
 /* ------------------------------------------------------------
+   PERMISSION HELPERS
+   ------------------------------------------------------------ */
+
+function hasPermission(
+  permission
+) {
+  return state.permissions.has(
+    permission
+  );
+}
+
+function requirePermission(
+  permission
+) {
+  if (
+    hasPermission(
+      permission
+    )
+  ) {
+    return true;
+  }
+
+  showToast(
+    "⛔ ليس لديك صلاحية لتنفيذ هذا الإجراء.",
+    "error"
+  );
+
+  return false;
+}
+
+/* ------------------------------------------------------------
    APPLY STAFF ROLE
    ------------------------------------------------------------ */
 
@@ -355,15 +400,29 @@ function applyStaffRole(
   staff
 ) {
   if (!staff) {
-    return;
+    return false;
   }
 
   const role =
     String(
-      staff.role || "ADMIN"
+      staff.role || ""
     )
       .toUpperCase()
       .trim();
+
+  if (
+    !role ||
+    !ROLE_PERMISSIONS[
+      role
+    ]
+  ) {
+    console.error(
+      "Invalid staff role:",
+      staff.role
+    );
+
+    return false;
+  }
 
   state.staff =
     staff;
@@ -375,14 +434,15 @@ function applyStaffRole(
     new Set(
       ROLE_PERMISSIONS[
         role
-      ] ||
-      ROLE_PERMISSIONS.ADMIN
+      ]
     );
 
   document.body.dataset.role =
     role;
 
   updateUserIdentity();
+
+  return true;
 }
 
 /* ------------------------------------------------------------
@@ -418,16 +478,16 @@ async function login(
   }
 
   /*
-    Username authentication is handled by the
-    secured staff-login Edge Function.
-
-    The Edge Function:
-    1. Finds clinic_staff by username.
-    2. Verifies the employee is active.
-    3. Verifies the role.
-    4. Authenticates the corresponding Supabase Auth email.
-    5. Returns a real Supabase session.
-  */
+   * Username authentication is handled by the secured
+   * staff-login Edge Function.
+   *
+   * The Edge Function is responsible for:
+   * 1. Finding clinic_staff by username.
+   * 2. Verifying the employee is active.
+   * 3. Verifying the employee's role.
+   * 4. Authenticating the corresponding Supabase Auth user.
+   * 5. Returning a real Supabase session.
+   */
 
   const response =
     await fetch(
@@ -482,12 +542,44 @@ async function login(
   }
 
   /*
-    Store the session inside the normal Supabase
-    browser client.
+   * A successful login MUST include staff information.
+   * We never default to ADMIN when staff information is missing.
+   */
 
-    This is important because staff-management.js
-    uses window.AZAAD.supabase.auth.getSession().
-  */
+  if (
+    !result.staff
+  ) {
+    throw new Error(
+      "تم تسجيل الدخول ولكن لم يتم العثور على ملف الموظف."
+    );
+  }
+
+  if (
+    result.staff.active === false
+  ) {
+    throw new Error(
+      "حساب الموظف غير فعال."
+    );
+  }
+
+  if (
+    !applyStaffRole(
+      result.staff
+    )
+  ) {
+    throw new Error(
+      "دور الموظف غير صالح."
+    );
+  }
+
+  /*
+   * Store the session inside the normal Supabase browser
+   * client.
+   *
+   * This is important because other modules can use:
+   *
+   * window.AZAAD.supabase.auth.getSession()
+   */
 
   const {
     error: sessionError
@@ -509,6 +601,11 @@ async function login(
 
   state.user =
     result.session.user;
+
+  /*
+   * Re-apply role after setting the authenticated user
+   * so identity information is complete.
+   */
 
   applyStaffRole(
     result.staff
@@ -540,6 +637,12 @@ async function logout() {
   state.staff =
     null;
 
+  state.currentRole =
+    null;
+
+  state.permissions =
+    new Set();
+
   state.initialized =
     false;
 
@@ -567,26 +670,49 @@ async function restoreSession() {
   }
 
   if (
-    data?.session
+    !data?.session
   ) {
-    state.session =
-      data.session;
+    return;
+  }
 
-    state.user =
-      data.session.user;
+  state.session =
+    data.session;
 
-    /*
-      Recover staff identity from clinic_staff.
+  state.user =
+    data.session.user;
 
-      This is only a profile lookup.
-      Authorization is still enforced by the
-      staff-admin Edge Function and RLS.
-    */
+  /*
+   * A Supabase session alone is NOT enough for access
+   * to the clinic administration system.
+   *
+   * We must have an active clinic_staff record.
+   */
 
+  const validStaff =
     await restoreStaffProfile();
 
-    await initializeApplication();
+  if (!validStaff) {
+    await supabase.auth.signOut();
+
+    state.session =
+      null;
+
+    state.user =
+      null;
+
+    state.staff =
+      null;
+
+    state.currentRole =
+      null;
+
+    state.permissions =
+      new Set();
+
+    return;
   }
+
+  await initializeApplication();
 }
 
 /* ------------------------------------------------------------
@@ -595,13 +721,21 @@ async function restoreSession() {
 
 async function restoreStaffProfile() {
   if (!state.user?.id) {
-    return;
+    return false;
   }
+
+  /*
+   * IMPORTANT:
+   * clinic_staff uses "active".
+   * Do NOT query "is_active".
+   */
 
   const result =
     await safeQuery(
       supabase
-        .from("clinic_staff")
+        .from(
+          "clinic_staff"
+        )
         .select(`
           id,
           auth_user_id,
@@ -610,8 +744,7 @@ async function restoreStaffProfile() {
           email,
           phone,
           role,
-          active,
-          is_active
+          active
         `)
         .eq(
           "auth_user_id",
@@ -626,37 +759,41 @@ async function restoreStaffProfile() {
       result.error
     );
 
-    return;
+    return false;
+  }
+
+  if (!result.data) {
+    console.warn(
+      "No clinic_staff record found for authenticated user."
+    );
+
+    return false;
+  }
+
+  /*
+   * The database schema uses active.
+   * Only explicit false is considered inactive.
+   */
+
+  if (
+    result.data.active === false
+  ) {
+    console.warn(
+      "Authenticated staff member is inactive."
+    );
+
+    return false;
   }
 
   if (
-    result.data
-  ) {
-    const active =
-      result.data.active !== false &&
-      result.data.is_active !== false;
-
-    if (!active) {
-      await supabase.auth.signOut();
-
-      state.session =
-        null;
-
-      state.user =
-        null;
-
-      state.staff =
-        null;
-
-      throw new Error(
-        "حساب الموظف غير فعال."
-      );
-    }
-
-    applyStaffRole(
+    !applyStaffRole(
       result.data
-    );
+    )
+  ) {
+    return false;
   }
+
+  return true;
 }
 
 /* ------------------------------------------------------------
@@ -667,6 +804,26 @@ async function initializeApplication() {
   if (
     state.initialized
   ) {
+    return;
+  }
+
+  /*
+   * Never initialize the admin interface without:
+   * - authenticated user
+   * - active staff profile
+   * - valid role
+   */
+
+  if (
+    !state.session ||
+    !state.user ||
+    !state.staff ||
+    !state.currentRole
+  ) {
+    console.warn(
+      "Admin initialization blocked: incomplete authentication context."
+    );
+
     return;
   }
 
@@ -692,9 +849,9 @@ async function initializeApplication() {
   updateUserIdentity();
 
   /*
-    Staff Management is loaded separately if the
-    staff-management.js file exists on the page.
-  */
+   * Staff Management is loaded separately if the
+   * staff-management.js file exists on the page.
+   */
 
   if (
     window.AZAAD_STAFF &&
@@ -722,13 +879,17 @@ async function initializeApplication() {
    ------------------------------------------------------------ */
 
 function updateUserIdentity() {
-  if (!state.user) {
+  if (
+    !state.user &&
+    !state.staff
+  ) {
     return;
   }
 
   const email =
-    state.user.email ||
-    "Administrator";
+    state.user?.email ||
+    state.staff?.email ||
+    "";
 
   const username =
     state.staff?.username ||
@@ -740,7 +901,7 @@ function updateUserIdentity() {
 
   const role =
     state.currentRole ||
-    "ADMIN";
+    "";
 
   let identity =
     document.querySelector(
@@ -786,7 +947,8 @@ function updateUserIdentity() {
     ${escapeHTML(
       fullName ||
       username ||
-      email
+      email ||
+      "موظف"
     )}
 
     ${
@@ -801,12 +963,17 @@ function updateUserIdentity() {
         : ""
     }
 
-    <br>
-
-    🎯
-    ${escapeHTML(
+    ${
       role
-    )}
+        ? `
+          <br>
+          🎯
+          ${escapeHTML(
+            role
+          )}
+        `
+        : ""
+    }
   `;
 }
 
@@ -815,6 +982,14 @@ function updateUserIdentity() {
    ------------------------------------------------------------ */
 
 async function loadBookings() {
+  if (
+    !requirePermission(
+      "bookings.view"
+    )
+  ) {
+    return;
+  }
+
   const result =
     await safeQuery(
       supabase
@@ -863,7 +1038,11 @@ async function loadBookings() {
   }
 
   state.bookings =
-    result.data || [];
+    Array.isArray(
+      result.data
+    )
+      ? result.data
+      : [];
 
   renderBookings();
 
@@ -1002,7 +1181,6 @@ function renderBookings() {
       (
         booking
       ) => {
-
         const searchable =
           [
             booking.booking_code,
@@ -1092,7 +1270,6 @@ function renderBookings() {
               (
                 booking
               ) => {
-
                 const message =
                   `مرحبًا ${
                     booking.patient_name ||
@@ -1165,9 +1342,11 @@ function renderBookings() {
                         booking.patient_phone
                           ? `
                             <a
-                              href="${wa}"
+                              href="${escapeHTML(
+                                wa
+                              )}"
                               target="_blank"
-                              rel="noopener"
+                              rel="noopener noreferrer"
                               class="btn btn-success"
                               style="
                                 display:inline-block;
@@ -1650,7 +1829,6 @@ function buildCommandCenter() {
     ?.addEventListener(
       "click",
       () => {
-
         const staffPanel =
           document.getElementById(
             "staffPanel"
@@ -1659,6 +1837,14 @@ function buildCommandCenter() {
         if (
           staffPanel
         ) {
+          if (
+            !requirePermission(
+              "staff.view"
+            )
+          ) {
+            return;
+          }
+
           switchPanel(
             "staffPanel"
           );
@@ -1749,7 +1935,9 @@ function refreshCommandCenter() {
   if ($("ccTodayLabel")) {
     $("ccTodayLabel")
       .textContent =
-      formatDate(today);
+      formatDate(
+        today
+      );
   }
 
   renderTodayList(
@@ -1890,7 +2078,6 @@ function renderNoShowList(
       )
       .map(
         booking => {
-
           const message =
             `مرحبًا ${
               booking.patient_name ||
@@ -1949,9 +2136,11 @@ function renderNoShowList(
                   booking.patient_phone
                     ? `
                       <a
-                        href="${wa}"
+                        href="${escapeHTML(
+                          wa
+                        )}"
                         target="_blank"
-                        rel="noopener"
+                        rel="noopener noreferrer"
                         class="btn btn-success"
                         style="text-decoration:none"
                       >
@@ -2006,15 +2195,23 @@ function renderNoShowList(
 async function markNoShowFollowup(
   bookingCode
 ) {
+  if (
+    !requirePermission(
+      "followups.view"
+    )
+  ) {
+    return;
+  }
+
   showToast(
     `🔔 سيتم تسجيل متابعة للحجز ${bookingCode}.`,
     "success"
   );
 
   /*
-    The final Follow-up INSERT remains controlled by
-    the existing Follow-up Center / database automation.
-  */
+   * The final Follow-up INSERT remains controlled by
+   * the existing Follow-up Center / database automation.
+   */
 }
 
 /* ------------------------------------------------------------
@@ -2028,7 +2225,7 @@ async function shareWhatsApp() {
         WEBSITE_MESSAGE
       ),
     "_blank",
-    "noopener"
+    "noopener,noreferrer"
   );
 }
 
@@ -2036,9 +2233,19 @@ async function shareWhatsApp() {
 
 async function copyWebsite() {
   try {
-    await navigator.clipboard.writeText(
-      WEBSITE_URL
-    );
+    if (
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText ===
+        "function"
+    ) {
+      await navigator.clipboard.writeText(
+        WEBSITE_URL
+      );
+    } else {
+      throw new Error(
+        "Clipboard API unavailable"
+      );
+    }
 
     showToast(
       "🔗 تم نسخ رابط الموقع.",
@@ -2053,15 +2260,30 @@ async function copyWebsite() {
     input.value =
       WEBSITE_URL;
 
+    input.setAttribute(
+      "readonly",
+      ""
+    );
+
+    input.style.position =
+      "fixed";
+
+    input.style.opacity =
+      "0";
+
     document.body.appendChild(
       input
     );
 
     input.select();
 
-    document.execCommand(
-      "copy"
-    );
+    try {
+      document.execCommand(
+        "copy"
+      );
+    } catch {
+      /* Ignore fallback failure */
+    }
 
     input.remove();
 
@@ -2117,6 +2339,14 @@ async function shareWebsite() {
    ------------------------------------------------------------ */
 
 function showNoShowCenter() {
+  if (
+    !requirePermission(
+      "bookings.view"
+    )
+  ) {
+    return;
+  }
+
   const panel =
     document.getElementById(
       "bookingsPanel"
@@ -2191,13 +2421,11 @@ function switchPanel(
     )
     .forEach(
       tab => {
-
         tab.classList.toggle(
           "active",
           tab.dataset.panel ===
             panelId
         );
-
       }
     );
 
@@ -2231,7 +2459,6 @@ function bindTabs() {
     )
     .forEach(
       tab => {
-
         tab.addEventListener(
           "click",
           () =>
@@ -2239,7 +2466,6 @@ function bindTabs() {
               tab.dataset.panel
             )
         );
-
       }
     );
 }
@@ -2265,7 +2491,6 @@ function bindBookingFilters() {
     ?.addEventListener(
       "click",
       async () => {
-
         await loadBookings();
 
         showToast(
@@ -2279,7 +2504,6 @@ function bindBookingFilters() {
     ?.addEventListener(
       "click",
       async () => {
-
         await loadBookings();
 
         refreshCommandCenter();
@@ -2316,7 +2540,6 @@ function bindLogout() {
     ?.addEventListener(
       "click",
       async () => {
-
         const confirmed =
           window.confirm(
             "هل تريد تسجيل الخروج من لوحة الإدارة؟"
@@ -2346,7 +2569,6 @@ function bindLogin() {
   form.addEventListener(
     "submit",
     async event => {
-
       event.preventDefault();
 
       const username =
@@ -2428,7 +2650,6 @@ function bindLogin() {
           password
         );
       } catch (error) {
-
         console.error(
           "Login error:",
           error
@@ -2476,13 +2697,11 @@ supabase.auth.onAuthStateChange(
     event,
     session
   ) => {
-
     if (
       event ===
         "SIGNED_IN" &&
       session
     ) {
-
       state.session =
         session;
 
@@ -2490,23 +2709,32 @@ supabase.auth.onAuthStateChange(
         session.user;
 
       /*
-        Do not recursively call login here.
-        The username login already establishes the session.
-      */
+       * Do not recursively call login here.
+       * Username login already established the session.
+       */
 
       if (
         !state.initialized
       ) {
         try {
-          await restoreStaffProfile();
+          const validStaff =
+            await restoreStaffProfile();
+
+          if (
+            validStaff
+          ) {
+            await initializeApplication();
+          } else {
+            await supabase.auth.signOut();
+          }
         } catch (error) {
           console.error(
             "Auth staff restore:",
             error
           );
-        }
 
-        await initializeApplication();
+          await supabase.auth.signOut();
+        }
       }
 
       return;
@@ -2514,10 +2742,9 @@ supabase.auth.onAuthStateChange(
 
     if (
       event ===
-      "TOKEN_REFRESHED" &&
+        "TOKEN_REFRESHED" &&
       session
     ) {
-
       state.session =
         session;
 
@@ -2531,7 +2758,6 @@ supabase.auth.onAuthStateChange(
       event ===
       "SIGNED_OUT"
     ) {
-
       state.session =
         null;
 
@@ -2540,6 +2766,12 @@ supabase.auth.onAuthStateChange(
 
       state.staff =
         null;
+
+      state.currentRole =
+        null;
+
+      state.permissions =
+        new Set();
 
       state.initialized =
         false;
@@ -2580,7 +2812,9 @@ window.AZAAD = {
 
   markNoShowFollowup,
 
-  logout
+  logout,
+
+  hasPermission
 };
 
 /* ------------------------------------------------------------
@@ -2590,7 +2824,6 @@ window.AZAAD = {
 document.addEventListener(
   "DOMContentLoaded",
   async () => {
-
     bindLogin();
 
     bindLogout();
@@ -2604,7 +2837,6 @@ document.addEventListener(
     try {
       await restoreSession();
     } catch (error) {
-
       console.error(
         "Application startup error:",
         error
