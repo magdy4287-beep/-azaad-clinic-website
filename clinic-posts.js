@@ -21,11 +21,30 @@
    * - لا يغير نظام الحجز الموجود في app.js
    * - يستخدم الـ public Edge Functions فقط
    * - لا يعرض أي بيانات مرضى
-   * - زر المشاركة لا يفتح WhatsApp العيادة
-   * - المشاركة تتم من خلال نظام المشاركة الأصلي للجهاز
+   *
+   * مشاركة الموقع:
+   *
+   * 📱 تستخدم Web Share API في الأجهزة
+   *     التي تدعم قائمة المشاركة الأصلية.
+   *
+   * 💬 يستطيع المستخدم اختيار:
+   *     WhatsApp
+   *     Messenger
+   *     Messages
+   *     البريد الإلكتروني
+   *     أو أي تطبيق مشاركة متاح على جهازه.
+   *
+   * ❌ لا يتم فتح WhatsApp العيادة.
+   * ❌ لا يتم استخدام رقم WhatsApp العيادة.
+   * ❌ لا يتم إرسال بيانات المرضى.
    *
    * =========================================================
    */
+
+
+  /* =========================================================
+     PUBLIC APIs
+     ========================================================= */
 
   const CLINIC_API =
     "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic";
@@ -33,8 +52,28 @@
   const POSTS_API =
     "https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-content";
 
+
+  /* =========================================================
+     WEBSITE
+     ========================================================= */
+
   const WEBSITE_URL =
     "https://magdy4287-beep.github.io/-azaad-clinic-website/";
+
+
+  /* =========================================================
+     SHARE TEXT
+     ========================================================= */
+
+  const WEBSITE_SHARE_TITLE =
+    "Azaad Clinic | عيادة أزاد للصحة النفسية";
+
+
+  const WEBSITE_SHARE_TEXT =
+    "🏥 عيادة أزاد للصحة النفسية\n\n" +
+    "🌐 الموقع الإلكتروني للعيادة\n\n" +
+    "تعرف على خدمات العيادة وفريقنا واحجز موعدك بسهولة:\n\n" +
+    WEBSITE_URL;
 
 
   /* =========================================================
@@ -75,7 +114,9 @@
         parsed.protocol === "https:" ||
         parsed.protocol === "http:"
       ) {
+
         return parsed.href;
+
       }
 
     } catch (_) {}
@@ -120,7 +161,9 @@
           }
         );
 
+
       let data = {};
+
 
       try {
 
@@ -147,7 +190,9 @@
 
       return data;
 
-    } finally {
+    }
+
+    finally {
 
       clearTimeout(timeout);
 
@@ -191,9 +236,13 @@
       service?.duration ??
       null;
 
+
     if (!duration) {
+
       return "";
+
     }
+
 
     return `
       <div
@@ -219,8 +268,11 @@
         "servicesGrid"
       );
 
+
     if (!grid) {
+
       return;
+
     }
 
 
@@ -256,10 +308,12 @@
                 service
               );
 
+
             const description =
               getServiceDescription(
                 service
               );
+
 
             const duration =
               getServiceDuration(
@@ -386,8 +440,11 @@
         "doctorsGrid"
       );
 
+
     if (!grid) {
+
       return;
+
     }
 
 
@@ -423,15 +480,18 @@
                 doctor
               );
 
+
             const title =
               getDoctorTitle(
                 doctor
               );
 
+
             const bio =
               getDoctorBio(
                 doctor
               );
+
 
             const image =
               safeUrl(
@@ -554,6 +614,7 @@
         "servicesGrid"
       );
 
+
     const doctorsGrid =
       document.getElementById(
         "doctorsGrid"
@@ -587,15 +648,18 @@
 
 
       /*
-       * Save a small public copy
-       * for other public website helpers.
+       * Save public clinic data.
        */
 
       window.AZAAD_PUBLIC_CLINIC_DATA = {
+
         services,
+
         doctors,
+
         settings:
           data?.settings || {}
+
       };
 
 
@@ -620,8 +684,9 @@
 
 
       /*
-       * Do not leave the user staring
-       * at "جاري التحميل..." forever.
+       * IMPORTANT:
+       * Never leave "جاري التحميل..."
+       * forever.
        */
 
       if (servicesGrid) {
@@ -679,7 +744,9 @@
 
 
     if (section) {
+
       return section;
+
     }
 
 
@@ -804,7 +871,9 @@
 
 
     if (!section) {
+
       return;
+
     }
 
 
@@ -815,7 +884,9 @@
 
 
     if (!grid) {
+
       return;
+
     }
 
 
@@ -1101,7 +1172,9 @@
 
 
     if (!section) {
+
       return;
+
     }
 
 
@@ -1182,7 +1255,9 @@
        */
 
       if (grid) {
+
         grid.innerHTML = "";
+
       }
 
 
@@ -1195,57 +1270,153 @@
 
 
   /* =========================================================
-     CLINIC WEBSITE SHARING
-     =========================================================
-     
-     IMPORTANT:
-     
-     This function DOES NOT:
-     
-     ❌ open wa.me
-     ❌ open a conversation with the clinic
-     ❌ use the clinic WhatsApp number
-     ❌ send patient information
-     
-     Instead it:
-     
-     📱 opens the device's native share sheet
-     
-     allowing the user to choose:
-     
-     WhatsApp
-     Messenger
-     Telegram
-     Messages
-     Mail
-     AirDrop
-     etc.
-     
+     WEBSITE SHARE
      ========================================================= */
 
-  async function shareClinicWebsite() {
+  function getWebsiteShareData() {
 
-    const shareData = {
+    return {
 
       title:
-        "عيادة آزاد للصحة النفسية",
+        WEBSITE_SHARE_TITLE,
 
       text:
-        "🌿 مشاركة الموقع الإلكتروني لعيادة آزاد للصحة النفسية",
+        WEBSITE_SHARE_TEXT,
 
       url:
         WEBSITE_URL
 
     };
 
+  }
+
+
+  /* =========================================================
+     COPY WEBSITE URL
+     ========================================================= */
+
+  async function copyWebsiteUrl() {
+
+    try {
+
+      if (
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText ===
+          "function"
+      ) {
+
+        await navigator.clipboard.writeText(
+          WEBSITE_URL
+        );
+
+        return true;
+
+      }
+
+    }
+
+    catch (_) {}
+
 
     /*
-     * Native device sharing
+     * Fallback for older browsers.
+     */
+
+    try {
+
+      const textarea =
+        document.createElement(
+          "textarea"
+        );
+
+
+      textarea.value =
+        WEBSITE_URL;
+
+
+      textarea.setAttribute(
+        "readonly",
+        ""
+      );
+
+
+      textarea.style.position =
+        "fixed";
+
+
+      textarea.style.opacity =
+        "0";
+
+
+      textarea.style.pointerEvents =
+        "none";
+
+
+      document.body.appendChild(
+        textarea
+      );
+
+
+      textarea.select();
+
+
+      const copied =
+        document.execCommand(
+          "copy"
+        );
+
+
+      textarea.remove();
+
+
+      return copied;
+
+    }
+
+    catch (_) {
+
+      return false;
+
+    }
+
+  }
+
+
+  /* =========================================================
+     WEBSITE SHARE - MAIN
+     ========================================================= */
+
+  async function shareClinicWebsite() {
+
+    const shareData =
+      getWebsiteShareData();
+
+
+    /*
+     * =======================================================
+     * PRIMARY METHOD
+     * =======================================================
+     *
+     * navigator.share opens the native share sheet.
+     *
+     * On iPhone / iPad:
+     *
+     * 📱 مشاركة
+     *   ├── WhatsApp
+     *   ├── Messenger
+     *   ├── Messages
+     *   ├── Mail
+     *   └── other available apps
+     *
+     * IMPORTANT:
+     *
+     * We DO NOT specify a WhatsApp number.
+     * We DO NOT open a clinic WhatsApp conversation.
      */
 
     if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.share === "function"
+      typeof navigator.share ===
+      "function"
     ) {
 
       try {
@@ -1261,10 +1432,8 @@
       catch (error) {
 
         /*
-         * User cancelled the native
-         * share sheet.
-         *
-         * Do nothing.
+         * User cancellation is normal.
+         * Do not show an error.
          */
 
         if (
@@ -1277,7 +1446,7 @@
         }
 
         console.warn(
-          "Native share failed:",
+          "Azaad Clinic share:",
           error
         );
 
@@ -1287,68 +1456,42 @@
 
 
     /*
-     * Fallback:
+     * =======================================================
+     * FALLBACK
+     * =======================================================
      *
-     * If the browser/device does not
-     * support navigator.share(),
-     * copy the website URL.
+     * Some desktop browsers do not support
+     * navigator.share.
+     *
+     * In that case we copy the website URL
+     * so the user can paste it into:
+     *
+     * WhatsApp / Messenger / Email / etc.
      */
 
-    try {
-
-      if (
-        navigator.clipboard &&
-        typeof navigator.clipboard.writeText ===
-          "function"
-      ) {
-
-        await navigator.clipboard.writeText(
-          WEBSITE_URL
-        );
+    const copied =
+      await copyWebsiteUrl();
 
 
-        showShareFallbackMessage(
-          "✅ تم نسخ رابط موقع العيادة.\nيمكنك الآن مشاركته عبر WhatsApp أو Messenger أو أي تطبيق آخر."
-        );
+    if (copied) {
 
-
-        return;
-
-      }
-
-    }
-
-    catch (error) {
-
-      console.warn(
-        "Clipboard share failed:",
-        error
+      showShareFallbackMessage(
+        "تم نسخ رابط الموقع الإلكتروني للعيادة. يمكنك الآن لصقه ومشاركته عبر WhatsApp أو Messenger أو أي تطبيق آخر."
       );
+
+      return;
 
     }
 
 
     /*
-     * Last fallback for older browsers.
+     * Final fallback:
+     * show the URL visibly.
      */
 
-    try {
-
-      window.prompt(
-        "📲 انسخ رابط موقع العيادة وشاركه مع من تريد:",
-        WEBSITE_URL
-      );
-
-    }
-
-    catch (error) {
-
-      console.warn(
-        "Share fallback failed:",
-        error
-      );
-
-    }
+    showShareFallbackMessage(
+      `رابط موقع العيادة:\n${WEBSITE_URL}`
+    );
 
   }
 
@@ -1361,123 +1504,97 @@
     message
   ) {
 
-    /*
-     * Try existing toast systems
-     * without depending on them.
-     */
-
-    if (
-      typeof window.showToast ===
-      "function"
-    ) {
-
-      try {
-
-        window.showToast(
-          message
-        );
-
-        return;
-
-      }
-
-      catch (_) {}
-
-    }
-
-
-    if (
-      typeof window.showMessage ===
-      "function"
-    ) {
-
-      try {
-
-        window.showMessage(
-          message,
-          "success"
-        );
-
-        return;
-
-      }
-
-      catch (_) {}
-
-    }
-
-
-    /*
-     * Create a small temporary
-     * notification if no project
-     * notification system exists.
-     */
-
-    let notice =
+    let existing =
       document.getElementById(
-        "azaadShareNotice"
+        "azaadShareMessage"
       );
 
 
-    if (!notice) {
+    if (!existing) {
 
-      notice =
+      existing =
         document.createElement(
           "div"
         );
 
 
-      notice.id =
-        "azaadShareNotice";
+      existing.id =
+        "azaadShareMessage";
 
 
-      notice.style.cssText = `
-        position:fixed;
-        left:50%;
-        bottom:25px;
-        transform:translateX(-50%);
-        z-index:999999;
-        max-width:90%;
-        box-sizing:border-box;
-        padding:14px 18px;
-        border-radius:14px;
-        background:#17214f;
-        color:#fff;
-        font-weight:700;
-        line-height:1.7;
-        text-align:center;
-        direction:rtl;
-        box-shadow:0 10px 30px rgba(0,0,0,.2);
-        font-family:inherit;
-      `;
+      existing.style.position =
+        "fixed";
+
+
+      existing.style.left =
+        "16px";
+
+
+      existing.style.right =
+        "16px";
+
+
+      existing.style.bottom =
+        "20px";
+
+
+      existing.style.zIndex =
+        "99999";
+
+
+      existing.style.padding =
+        "16px 18px";
+
+
+      existing.style.borderRadius =
+        "14px";
+
+
+      existing.style.background =
+        "#101b56";
+
+
+      existing.style.color =
+        "#fff";
+
+
+      existing.style.boxShadow =
+        "0 10px 35px rgba(0,0,0,.25)";
+
+
+      existing.style.textAlign =
+        "center";
+
+
+      existing.style.lineHeight =
+        "1.8";
+
+
+      existing.style.fontSize =
+        "15px";
 
 
       document.body.appendChild(
-        notice
+        existing
       );
 
     }
 
 
-    notice.textContent =
+    existing.textContent =
       message;
 
 
-    notice.style.display =
-      "block";
-
-
     clearTimeout(
-      window.__azaadShareNoticeTimer
+      existing._azaadShareTimer
     );
 
 
-    window.__azaadShareNoticeTimer =
+    existing._azaadShareTimer =
       setTimeout(
         () => {
 
-          notice.style.display =
-            "none";
+          existing.remove();
 
         },
         5000
@@ -1487,296 +1604,115 @@
 
 
   /* =========================================================
-     FIND / CONFIGURE SHARE BUTTON
+     SETUP WEBSITE SHARE BUTTON
      ========================================================= */
 
-  function setupWhatsAppShareButton() {
+  function setupWebsiteShareButton() {
 
     /*
-     * Support several possible IDs
-     * already used in previous versions.
+     * The button already exists in index.html:
+     *
+     * #shareLocation
+     *
+     * We do not create a second button.
      */
 
-    const possibleIds = [
+    const button =
+      document.getElementById(
+        "shareLocation"
+      );
 
-      "shareClinicWhatsApp",
-
-      "shareClinicWebsiteWhatsApp",
-
-      "whatsappClinicShare",
-
-      "shareWebsiteWhatsApp",
-
-      "clinicWhatsAppShare"
-
-    ];
-
-
-    let button = null;
-
-
-    for (
-      const id of possibleIds
-    ) {
-
-      const candidate =
-        document.getElementById(
-          id
-        );
-
-
-      if (candidate) {
-
-        button =
-          candidate;
-
-        break;
-
-      }
-
-    }
-
-
-    /*
-     * Also support a data attribute
-     * so the HTML can identify the
-     * action without depending on ID.
-     */
 
     if (!button) {
 
-      button =
-        document.querySelector(
-          '[data-action="share-clinic-whatsapp"]'
-        );
-
-    }
-
-
-    /*
-     * If an existing button is found,
-     * replace its click behavior.
-     */
-
-    if (button) {
-
-      /*
-       * IMPORTANT:
-       *
-       * The visible name requested by
-       * the clinic owner is preserved.
-       */
-
-      button.textContent =
-        "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
-
-
-      button.setAttribute(
-        "aria-label",
-        "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
-      );
-
-
-      /*
-       * Remove links so the button
-       * cannot accidentally navigate
-       * to wa.me.
-       */
-
-      button.removeAttribute(
-        "href"
-      );
-
-
-      button.removeAttribute(
-        "target"
-      );
-
-
-      button.removeAttribute(
-        "rel"
-      );
-
-
-      button.style.cursor =
-        "pointer";
-
-
-      /*
-       * Clone the element to remove
-       * previously attached click
-       * handlers safely.
-       */
-
-      const replacement =
-        button.cloneNode(true);
-
-
-      replacement.textContent =
-        "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
-
-
-      replacement.setAttribute(
-        "type",
-        "button"
-      );
-
-
-      replacement.setAttribute(
-        "aria-label",
-        "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
-      );
-
-
-      replacement.removeAttribute(
-        "href"
-      );
-
-
-      replacement.removeAttribute(
-        "target"
-      );
-
-
-      replacement.removeAttribute(
-        "rel"
-      );
-
-
-      replacement.addEventListener(
-        "click",
-        event => {
-
-          event.preventDefault();
-
-          event.stopPropagation();
-
-          shareClinicWebsite();
-
-        }
-      );
-
-
-      button.replaceWith(
-        replacement
-      );
-
-
       return;
 
     }
 
 
     /*
-     * If the old button does not exist,
-     * create a safe fallback button
-     * near the contact section.
+     * IMPORTANT:
+     *
+     * Remove the old href that opened
+     * WhatsApp / any external conversation.
      */
 
-    const contact =
-      document.getElementById(
-        "contact"
-      );
+    button.removeAttribute(
+      "href"
+    );
 
 
-    if (!contact) {
-      return;
-    }
+    button.removeAttribute(
+      "target"
+    );
 
 
-    /*
-     * Do not create duplicates.
-     */
-
-    if (
-      document.getElementById(
-        "shareClinicWhatsApp"
-      )
-    ) {
-      return;
-    }
+    button.removeAttribute(
+      "rel"
+    );
 
 
-    const wrapper =
-      document.createElement(
-        "div"
-      );
+    button.setAttribute(
+      "type",
+      "button"
+    );
 
 
-    wrapper.style.cssText = `
-      margin-top:20px;
-      text-align:center;
-    `;
+    button.setAttribute(
+      "role",
+      "button"
+    );
 
 
-    const newButton =
-      document.createElement(
-        "button"
-      );
-
-
-    newButton.id =
-      "shareClinicWhatsApp";
-
-
-    newButton.type =
-      "button";
-
-
-    newButton.className =
-      "btn";
-
-
-    newButton.textContent =
-      "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
-
-
-    newButton.setAttribute(
+    button.setAttribute(
       "aria-label",
       "مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
     );
 
 
-    newButton.addEventListener(
+    /*
+     * Exact requested visible name.
+     */
+
+    button.textContent =
+      "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
+
+
+    button.style.cursor =
+      "pointer";
+
+
+    /*
+     * Avoid duplicate listeners.
+     */
+
+    if (
+      button.dataset.azaadShareReady ===
+      "true"
+    ) {
+
+      return;
+
+    }
+
+
+    button.dataset.azaadShareReady =
+      "true";
+
+
+    button.addEventListener(
       "click",
-      event => {
+      async event => {
 
         event.preventDefault();
 
         event.stopPropagation();
 
-        shareClinicWebsite();
+
+        await shareClinicWebsite();
 
       }
     );
-
-
-    wrapper.appendChild(
-      newButton
-    );
-
-
-    const container =
-      contact.querySelector(
-        ".container"
-      );
-
-
-    if (container) {
-
-      container.appendChild(
-        wrapper
-      );
-
-    }
-
-    else {
-
-      contact.appendChild(
-        wrapper
-      );
-
-    }
 
   }
 
@@ -1788,43 +1724,43 @@
   async function start() {
 
     /*
-     * Load independent public content.
+     * IMPORTANT:
      *
-     * We intentionally do not wait
-     * for app.js because this file
-     * has its own public API request.
+     * Setup the share button FIRST.
+     * This guarantees that the user can
+     * use it without waiting for Supabase.
      */
 
-    setupWhatsAppShareButton();
+    setupWebsiteShareButton();
 
 
     /*
-     * Services + Team
+     * Load services + team.
      */
 
     await loadClinicTeamAndServices();
 
 
     /*
-     * Posts
+     * Load public posts.
      */
 
     await loadPosts();
 
 
     /*
-     * Re-run the share setup after
-     * dynamic sections are available.
+     * Run share setup again in case
+     * another script modified the DOM.
      */
 
-    setupWhatsAppShareButton();
+    setupWebsiteShareButton();
 
   }
 
 
   /* =========================================================
-     * START
-     * ========================================================= */
+     START
+     ========================================================= */
 
   if (
     document.readyState ===
