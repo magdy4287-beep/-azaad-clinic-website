@@ -14,13 +14,15 @@
    * 🏥 عرض الخدمات
    * 👨‍⚕️ عرض فريق العيادة
    * 📣 عرض المنشورات
-   * 📲 مشاركة الموقع عبر WhatsApp
+   * 📲 مشاركة الموقع الإلكتروني للعيادة
    *
    * IMPORTANT:
    * - لا يحتوي على Service Role Key
    * - لا يغير نظام الحجز الموجود في app.js
    * - يستخدم الـ public Edge Functions فقط
    * - لا يعرض أي بيانات مرضى
+   * - زر المشاركة لا يفتح WhatsApp العيادة
+   * - المشاركة تتم من خلال نظام المشاركة الأصلي للجهاز
    *
    * =========================================================
    */
@@ -33,9 +35,6 @@
 
   const WEBSITE_URL =
     "https://magdy4287-beep.github.io/-azaad-clinic-website/";
-
-  const DEFAULT_WHATSAPP_NUMBER =
-    "201140526294";
 
 
   /* =========================================================
@@ -53,29 +52,6 @@
         '"': "&quot;",
         "'": "&#039;"
       }[character])
-    );
-
-  }
-
-
-  function normalizeWhatsAppNumber(number) {
-
-    return String(number || "")
-      .replace(/\D/g, "");
-
-  }
-
-
-  function getWhatsAppNumber(settings = {}) {
-
-    const configured =
-      normalizeWhatsAppNumber(
-        settings?.whatsapp
-      );
-
-    return (
-      configured ||
-      DEFAULT_WHATSAPP_NUMBER
     );
 
   }
@@ -612,7 +588,7 @@
 
       /*
        * Save a small public copy
-       * for the WhatsApp/share helpers.
+       * for other public website helpers.
        */
 
       window.AZAAD_PUBLIC_CLINIC_DATA = {
@@ -1219,88 +1195,299 @@
 
 
   /* =========================================================
-     WHATSAPP WEBSITE SHARE
+     CLINIC WEBSITE SHARING
+     =========================================================
+     
+     IMPORTANT:
+     
+     This function DOES NOT:
+     
+     ❌ open wa.me
+     ❌ open a conversation with the clinic
+     ❌ use the clinic WhatsApp number
+     ❌ send patient information
+     
+     Instead it:
+     
+     📱 opens the device's native share sheet
+     
+     allowing the user to choose:
+     
+     WhatsApp
+     Messenger
+     Telegram
+     Messages
+     Mail
+     AirDrop
+     etc.
+     
      ========================================================= */
 
-  function createWhatsAppShareUrl() {
+  async function shareClinicWebsite() {
 
-    const publicData =
-      window.AZAAD_PUBLIC_CLINIC_DATA ||
-      {};
+    const shareData = {
 
+      title:
+        "عيادة آزاد للصحة النفسية",
 
-    const phone =
-      getWhatsAppNumber(
-        publicData.settings
-      );
+      text:
+        "🌿 مشاركة الموقع الإلكتروني لعيادة آزاد للصحة النفسية",
+
+      url:
+        WEBSITE_URL
+
+    };
 
 
     /*
-     * IMPORTANT:
-     * No patient information is included.
+     * Native device sharing
      */
 
-    const message =
-      `🏥 Azaad Clinic - عيادة آزاد للصحة النفسية
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function"
+    ) {
 
-🌐 مشاركة الموقع الإلكتروني للعيادة
+      try {
 
-يمكنك زيارة الموقع الإلكتروني للعيادة والتعرف على خدماتنا وفريقنا وحجز موعد بسهولة:
+        await navigator.share(
+          shareData
+        );
 
-${WEBSITE_URL}`;
+        return;
+
+      }
+
+      catch (error) {
+
+        /*
+         * User cancelled the native
+         * share sheet.
+         *
+         * Do nothing.
+         */
+
+        if (
+          error?.name ===
+          "AbortError"
+        ) {
+
+          return;
+
+        }
+
+        console.warn(
+          "Native share failed:",
+          error
+        );
+
+      }
+
+    }
 
 
     /*
-     * We intentionally use wa.me.
-     * This opens WhatsApp directly
-     * when WhatsApp is available.
+     * Fallback:
      *
-     * The clinic number is used when
-     * available, but the actual
-     * website link is always included.
+     * If the browser/device does not
+     * support navigator.share(),
+     * copy the website URL.
      */
 
-    if (phone) {
+    try {
 
-      return (
-        `https://wa.me/${phone}` +
-        `?text=${encodeURIComponent(
-          message
-        )}`
+      if (
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText ===
+          "function"
+      ) {
+
+        await navigator.clipboard.writeText(
+          WEBSITE_URL
+        );
+
+
+        showShareFallbackMessage(
+          "✅ تم نسخ رابط موقع العيادة.\nيمكنك الآن مشاركته عبر WhatsApp أو Messenger أو أي تطبيق آخر."
+        );
+
+
+        return;
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "Clipboard share failed:",
+        error
       );
 
     }
 
 
-    return (
-      `https://wa.me/?text=` +
-      encodeURIComponent(
-        message
-      )
-    );
-
-  }
-
-
-  function shareWebsiteViaWhatsApp() {
-
-    const url =
-      createWhatsAppShareUrl();
-
-
     /*
-     * Direct navigation is more reliable
-     * than navigator.share for this button.
+     * Last fallback for older browsers.
      */
 
-    window.location.href =
-      url;
+    try {
+
+      window.prompt(
+        "📲 انسخ رابط موقع العيادة وشاركه مع من تريد:",
+        WEBSITE_URL
+      );
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "Share fallback failed:",
+        error
+      );
+
+    }
 
   }
 
 
   /* =========================================================
-     FIND / CREATE SHARE BUTTON
+     SHARE FALLBACK MESSAGE
+     ========================================================= */
+
+  function showShareFallbackMessage(
+    message
+  ) {
+
+    /*
+     * Try existing toast systems
+     * without depending on them.
+     */
+
+    if (
+      typeof window.showToast ===
+      "function"
+    ) {
+
+      try {
+
+        window.showToast(
+          message
+        );
+
+        return;
+
+      }
+
+      catch (_) {}
+
+    }
+
+
+    if (
+      typeof window.showMessage ===
+      "function"
+    ) {
+
+      try {
+
+        window.showMessage(
+          message,
+          "success"
+        );
+
+        return;
+
+      }
+
+      catch (_) {}
+
+    }
+
+
+    /*
+     * Create a small temporary
+     * notification if no project
+     * notification system exists.
+     */
+
+    let notice =
+      document.getElementById(
+        "azaadShareNotice"
+      );
+
+
+    if (!notice) {
+
+      notice =
+        document.createElement(
+          "div"
+        );
+
+
+      notice.id =
+        "azaadShareNotice";
+
+
+      notice.style.cssText = `
+        position:fixed;
+        left:50%;
+        bottom:25px;
+        transform:translateX(-50%);
+        z-index:999999;
+        max-width:90%;
+        box-sizing:border-box;
+        padding:14px 18px;
+        border-radius:14px;
+        background:#17214f;
+        color:#fff;
+        font-weight:700;
+        line-height:1.7;
+        text-align:center;
+        direction:rtl;
+        box-shadow:0 10px 30px rgba(0,0,0,.2);
+        font-family:inherit;
+      `;
+
+
+      document.body.appendChild(
+        notice
+      );
+
+    }
+
+
+    notice.textContent =
+      message;
+
+
+    notice.style.display =
+      "block";
+
+
+    clearTimeout(
+      window.__azaadShareNoticeTimer
+    );
+
+
+    window.__azaadShareNoticeTimer =
+      setTimeout(
+        () => {
+
+          notice.style.display =
+            "none";
+
+        },
+        5000
+      );
+
+  }
+
+
+  /* =========================================================
+     FIND / CONFIGURE SHARE BUTTON
      ========================================================= */
 
   function setupWhatsAppShareButton() {
@@ -1373,6 +1560,13 @@ ${WEBSITE_URL}`;
 
     if (button) {
 
+      /*
+       * IMPORTANT:
+       *
+       * The visible name requested by
+       * the clinic owner is preserved.
+       */
+
       button.textContent =
         "📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp";
 
@@ -1383,8 +1577,24 @@ ${WEBSITE_URL}`;
       );
 
 
+      /*
+       * Remove links so the button
+       * cannot accidentally navigate
+       * to wa.me.
+       */
+
       button.removeAttribute(
         "href"
+      );
+
+
+      button.removeAttribute(
+        "target"
+      );
+
+
+      button.removeAttribute(
+        "rel"
       );
 
 
@@ -1418,13 +1628,30 @@ ${WEBSITE_URL}`;
       );
 
 
+      replacement.removeAttribute(
+        "href"
+      );
+
+
+      replacement.removeAttribute(
+        "target"
+      );
+
+
+      replacement.removeAttribute(
+        "rel"
+      );
+
+
       replacement.addEventListener(
         "click",
         event => {
 
           event.preventDefault();
 
-          shareWebsiteViaWhatsApp();
+          event.stopPropagation();
+
+          shareClinicWebsite();
 
         }
       );
@@ -1512,7 +1739,15 @@ ${WEBSITE_URL}`;
 
     newButton.addEventListener(
       "click",
-      shareWebsiteViaWhatsApp
+      event => {
+
+        event.preventDefault();
+
+        event.stopPropagation();
+
+        shareClinicWebsite();
+
+      }
     );
 
 
@@ -1588,7 +1823,7 @@ ${WEBSITE_URL}`;
 
 
   /* =========================================================
-     START
+     * START
      * ========================================================= */
 
   if (
