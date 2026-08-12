@@ -230,6 +230,10 @@
   outline-offset: 3px;
 }
 
+.clinic-share-button.is-opening {
+  opacity: .75;
+}
+
 .back-home {
   display: block;
   text-align: center;
@@ -508,9 +512,8 @@
             id="shareClinicWhatsapp"
             class="clinic-share-button"
             href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp">
+            aria-label="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp"
+            title="مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp">
 
             📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp
 
@@ -540,7 +543,6 @@
 
 <script>
 
-
 const API =
   'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
 
@@ -569,7 +571,24 @@ const $ =
 
 
 /* =========================================
+   WHATSAPP URL
+========================================= */
+
+function getClinicWebsiteWhatsAppURL() {
+
+  return (
+    'https://wa.me/?text=' +
+    encodeURIComponent(
+      CLINIC_SHARE_TEXT
+    )
+  );
+
+}
+
+
+/* =========================================
    CLINIC WEBSITE WHATSAPP SHARE
+   DIRECT OPEN
 ========================================= */
 
 function setupClinicWebsiteShare() {
@@ -581,14 +600,75 @@ function setupClinicWebsiteShare() {
     return;
   }
 
+
   const whatsappShareUrl =
-    'https://wa.me/?text=' +
-    encodeURIComponent(
-      CLINIC_SHARE_TEXT
-    );
+    getClinicWebsiteWhatsAppURL();
+
+
+  /*
+    Keep the real URL on the button.
+
+    This means:
+    - Mobile WhatsApp app can open directly.
+    - Desktop opens WhatsApp Web.
+    - Browser fallback remains available.
+  */
 
   shareButton.href =
     whatsappShareUrl;
+
+
+  /*
+    IMPORTANT:
+
+    Do NOT use target="_blank" here.
+
+    Using the current window gives the browser
+    the best chance to immediately hand the
+    request to WhatsApp without opening an
+    unnecessary blank tab first.
+  */
+
+  shareButton.removeAttribute(
+    'target'
+  );
+
+
+  shareButton.addEventListener(
+    'click',
+    function(event) {
+
+      event.preventDefault();
+
+
+      if (
+        shareButton.classList.contains(
+          'is-opening'
+        )
+      ) {
+        return;
+      }
+
+
+      shareButton.classList.add(
+        'is-opening'
+      );
+
+
+      /*
+        Direct WhatsApp navigation.
+
+        On phones with WhatsApp installed,
+        the operating system can open WhatsApp.
+
+        On desktop, WhatsApp Web will open.
+      */
+
+      window.location.href =
+        whatsappShareUrl;
+
+    }
+  );
 
 }
 
@@ -603,9 +683,11 @@ function showError(message) {
     .classList
     .remove('show');
 
+
   $('resultMessage')
     .textContent =
       message;
+
 
   $('resultMessage')
     .className =
@@ -618,6 +700,7 @@ function clearError() {
 
   $('resultMessage')
     .textContent = '';
+
 
   $('resultMessage')
     .className =
@@ -968,7 +1051,7 @@ async function renderBooking(data) {
 
 
   /*
-     Get WhatsApp from clinic settings
+     Get WhatsApp from clinic settings.
   */
 
   if (clinic?.settings?.whatsapp) {
@@ -1106,6 +1189,7 @@ $('statusForm').onsubmit =
       button.disabled =
         false;
 
+
       button.textContent =
         originalText;
 
@@ -1119,7 +1203,6 @@ $('statusForm').onsubmit =
 ========================================= */
 
 setupClinicWebsiteShare();
-
 
 </script>
 
