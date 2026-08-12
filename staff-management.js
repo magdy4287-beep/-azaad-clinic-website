@@ -3,14 +3,15 @@
    STAFF MANAGEMENT CENTER
    File: staff-management.js
 
+   Version: 2.0
    Purpose:
    - Employee creation
    - Employee listing
    - Role management
    - Enable / Disable employee
    - Password reset
-   - Staff permissions UI
-   - Secure communication with staff-admin Edge Function
+   - Staff management UI
+   - Secure communication with staff-admin-v2 Edge Function
 
    IMPORTANT:
    This file NEVER contains the Supabase Service Role Key.
@@ -26,8 +27,13 @@
   const SUPABASE_URL =
     "https://derofsthjivlkcdnojww.supabase.co";
 
+  /*
+   IMPORTANT:
+   This is the NEW deployed Edge Function.
+   Do not change back to staff-admin.
+  */
   const STAFF_ADMIN_FUNCTION =
-    `${SUPABASE_URL}/functions/v1/staff-admin`;
+    `${SUPABASE_URL}/functions/v1/staff-admin-v2`;
 
   const WEBSITE_URL =
     "https://magdy4287-beep.github.io/-azaad-clinic-website/";
@@ -40,6 +46,53 @@
     staff: [],
     loading: false,
     editingStaffId: null
+  };
+
+  /* ----------------------------------------------------------
+     ROLE DEFINITIONS
+     ---------------------------------------------------------- */
+
+  const ROLES = {
+    OWNER: {
+      label: "👑 Owner",
+      description: "صلاحيات المالك الكاملة",
+      protected: true
+    },
+
+    ADMIN: {
+      label: "🛡️ Admin",
+      description: "إدارة النظام والموظفين"
+    },
+
+    MANAGER: {
+      label: "👨‍💼 Manager",
+      description: "إدارة وتشغيل العيادة"
+    },
+
+    SECRETARY: {
+      label: "👩‍💼 Secretary",
+      description: "الحجوزات والمرضى والتحصيل حسب الصلاحيات"
+    },
+
+    CASHIER: {
+      label: "💰 Cashier",
+      description: "المدفوعات والتحصيل والفواتير"
+    },
+
+    RECEPTION: {
+      label: "🧑‍💼 Reception",
+      description: "الاستقبال والحجوزات والبيانات الأساسية"
+    },
+
+    DOCTOR: {
+      label: "🧑‍⚕️ Doctor",
+      description: "المواعيد والمهام الطبية المصرح بها"
+    },
+
+    MARKETING: {
+      label: "📣 Marketing",
+      description: "التسويق والمحتوى والحملات والعروض"
+    }
   };
 
   /* ----------------------------------------------------------
@@ -62,6 +115,30 @@
       .replaceAll("'", "&#039;");
   }
 
+  function formatDate(value) {
+    if (!value) {
+      return "—";
+    }
+
+    try {
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return "—";
+      }
+
+      return date.toLocaleString("ar-EG", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return "—";
+    }
+  }
+
   function showMessage(
     message,
     type = "info"
@@ -82,14 +159,16 @@
         position:fixed;
         top:20px;
         right:20px;
-        z-index:99999;
-        max-width:420px;
+        z-index:999999;
+        max-width:460px;
         padding:14px 18px;
         border-radius:14px;
         color:#fff;
         font-weight:700;
+        white-space:pre-line;
         box-shadow:0 10px 30px rgba(0,0,0,.18);
         font-family:inherit;
+        direction:rtl;
       `;
 
       document.body.appendChild(box);
@@ -116,7 +195,7 @@
       setTimeout(() => {
         box.style.display =
           "none";
-      }, 4500);
+      }, 6000);
   }
 
   function getSupabaseClient() {
@@ -126,6 +205,12 @@
     ) {
       return window.AZAAD.supabase;
     }
+
+    /*
+      Supabase CDN normally exposes the global
+      client as window.supabase only when the
+      application initialized it that way.
+    */
 
     if (
       window.supabase &&
@@ -164,7 +249,7 @@
       !data.session.access_token
     ) {
       throw new Error(
-        "يجب تسجيل الدخول أولاً."
+        "🔐 يجب تسجيل الدخول أولاً."
       );
     }
 
@@ -229,58 +314,53 @@
   }
 
   /* ----------------------------------------------------------
-     ROLE DEFINITIONS
+     ROLE LABEL
      ---------------------------------------------------------- */
 
-  const ROLES = {
-    OWNER: {
-      label: "👑 Owner",
-      description:
-        "صلاحيات المالك الكاملة"
-    },
+  function getRoleLabel(
+    role
+  ) {
+    const key =
+      String(
+        role || ""
+      ).toUpperCase();
 
-    ADMIN: {
-      label: "🛡️ Admin",
-      description:
-        "إدارة النظام والموظفين"
-    },
+    return (
+      ROLES[key]?.label ||
+      `🎯 ${escapeHTML(
+        role || "غير محدد"
+      )}`
+    );
+  }
 
-    MANAGER: {
-      label: "👨‍💼 Manager",
-      description:
-        "إدارة تشغيل العيادة"
-    },
+  /* ----------------------------------------------------------
+     ROLE OPTIONS
+     ---------------------------------------------------------- */
 
-    SECRETARY: {
-      label: "👩‍💼 Secretary",
-      description:
-        "الحجوزات والتحصيل والمتابعة"
-    },
-
-    CASHIER: {
-      label: "💰 Cashier",
-      description:
-        "المدفوعات والفواتير"
-    },
-
-    RECEPTION: {
-      label: "🧑‍💼 Reception",
-      description:
-        "استقبال المرضى والحجوزات"
-    },
-
-    DOCTOR: {
-      label: "🧑‍⚕️ Doctor",
-      description:
-        "المواعيد والمهام الطبية المصرح بها"
-    },
-
-    MARKETING: {
-      label: "📣 Marketing",
-      description:
-        "التسويق والمحتوى والحملات"
-    }
-  };
+  function getRoleOptions(
+    selectedRole = ""
+  ) {
+    return Object.entries(
+      ROLES
+    )
+      .map(
+        ([key, role]) => `
+          <option
+            value="${escapeHTML(key)}"
+            ${
+              String(
+                selectedRole || ""
+              ).toUpperCase() === key
+                ? "selected"
+                : ""
+            }
+          >
+            ${escapeHTML(role.label)}
+          </option>
+        `
+      )
+      .join("");
+  }
 
   /* ----------------------------------------------------------
      RENDER STAFF MANAGEMENT
@@ -335,10 +415,8 @@
             👥 إدارة الموظفين
           </h2>
 
-          <div
-            class="muted"
-          >
-            إنشاء الحسابات وإدارة الوظائف والصلاحيات
+          <div class="muted">
+            إنشاء الحسابات وإدارة الوظائف والحالة والوصول
           </div>
 
         </div>
@@ -364,9 +442,7 @@
         "
       >
 
-        <div
-          class="stat"
-        >
+        <div class="stat">
           <div
             id="staffTotal"
             class="stat-number"
@@ -380,9 +456,7 @@
         </div>
 
 
-        <div
-          class="stat"
-        >
+        <div class="stat">
           <div
             id="staffActive"
             class="stat-number"
@@ -396,9 +470,7 @@
         </div>
 
 
-        <div
-          class="stat"
-        >
+        <div class="stat">
           <div
             id="staffInactive"
             class="stat-number"
@@ -412,9 +484,7 @@
         </div>
 
 
-        <div
-          class="stat"
-        >
+        <div class="stat">
           <div
             id="marketingCount"
             class="stat-number"
@@ -469,15 +539,7 @@
             🎯 كل الوظائف
           </option>
 
-          ${Object.entries(ROLES)
-            .map(
-              ([key, role]) => `
-                <option value="${key}">
-                  ${role.label}
-                </option>
-              `
-            )
-            .join("")}
+          ${getRoleOptions()}
 
         </select>
 
@@ -496,9 +558,7 @@
       <div
         id="staffTableContainer"
       >
-        <div
-          class="empty"
-        >
+        <div class="empty">
           ⏳ جاري تحميل الموظفين...
         </div>
       </div>
@@ -582,67 +642,43 @@
     state.loading = true;
 
     try {
-
-      const client =
-        getSupabaseClient();
-
-      if (!client) {
-        throw new Error(
-          "Supabase client غير متاح."
-        );
-      }
-
       /*
        IMPORTANT:
-       RLS decides which authenticated employee
-       is allowed to read staff records.
+       We intentionally load through the protected
+       Edge Function instead of querying clinic_staff
+       directly from the browser.
+
+       This means:
+       - no Service Role Key in browser
+       - server-side authorization
+       - active is the correct DB field
       */
 
-      const {
-        data,
-        error
-      } =
-        await client
-          .from("clinic_staff")
-          .select(`
-            id,
-            auth_user_id,
-            full_name,
-            username,
-            email,
-            phone,
-            role,
-            is_active,
-            created_at,
-            updated_at
-          `)
-          .order(
-            "created_at",
-            {
-              ascending:false
-            }
-          );
-
-      if (error) {
-        throw error;
-      }
+      const result =
+        await callStaffAdmin(
+          "list"
+        );
 
       state.staff =
-        data || [];
+        Array.isArray(
+          result?.staff
+        )
+          ? result.staff
+          : [];
 
       renderStaffTable();
 
       updateStaffStats();
 
     } catch (error) {
-
       console.error(
         "Load staff error:",
         error
       );
 
-      if (table) {
+      state.staff = [];
 
+      if (table) {
         table.innerHTML = `
           <div
             style="
@@ -660,14 +696,11 @@
             )}
           </div>
         `;
-
       }
 
     } finally {
-
       state.loading =
         false;
-
     }
   }
 
@@ -676,14 +709,13 @@
      ---------------------------------------------------------- */
 
   function updateStaffStats() {
-
     const total =
       state.staff.length;
 
     const active =
       state.staff.filter(
         staff =>
-          staff.is_active !== false
+          staff.active !== false
       ).length;
 
     const inactive =
@@ -718,21 +750,25 @@
         "marketingCount"
       );
 
-    if (totalElement)
+    if (totalElement) {
       totalElement.textContent =
         total;
+    }
 
-    if (activeElement)
+    if (activeElement) {
       activeElement.textContent =
         active;
+    }
 
-    if (inactiveElement)
+    if (inactiveElement) {
       inactiveElement.textContent =
         inactive;
+    }
 
-    if (marketingElement)
+    if (marketingElement) {
       marketingElement.textContent =
         marketing;
+    }
   }
 
   /* ----------------------------------------------------------
@@ -740,7 +776,6 @@
      ---------------------------------------------------------- */
 
   function getFilteredStaff() {
-
     const search =
       (
         document.getElementById(
@@ -761,7 +796,6 @@
 
     return state.staff.filter(
       staff => {
-
         const searchable =
           [
             staff.full_name,
@@ -795,32 +829,10 @@
   }
 
   /* ----------------------------------------------------------
-     ROLE LABEL
-     ---------------------------------------------------------- */
-
-  function getRoleLabel(
-    role
-  ) {
-
-    const key =
-      String(
-        role || ""
-      ).toUpperCase();
-
-    return (
-      ROLES[key]?.label ||
-      `🎯 ${escapeHTML(
-        role || "غير محدد"
-      )}`
-    );
-  }
-
-  /* ----------------------------------------------------------
      STAFF TABLE
      ---------------------------------------------------------- */
 
   function renderStaffTable() {
-
     const container =
       document.getElementById(
         "staffTableContainer"
@@ -834,7 +846,6 @@
       getFilteredStaff();
 
     if (!rows.length) {
-
       container.innerHTML = `
         <div class="empty">
           📭 لا توجد سجلات موظفين مطابقة.
@@ -858,7 +869,7 @@
           style="
             width:100%;
             border-collapse:collapse;
-            min-width:900px;
+            min-width:1120px;
           "
         >
 
@@ -876,6 +887,8 @@
 
               <th>🚦 الحالة</th>
 
+              <th>🕐 آخر تحديث</th>
+
               <th>⚙️ الإجراءات</th>
 
             </tr>
@@ -887,10 +900,14 @@
             ${rows
               .map(
                 staff => {
-
                   const active =
-                    staff.is_active !==
-                    false;
+                    staff.active !== false;
+
+                  const isOwner =
+                    String(
+                      staff.role || ""
+                    ).toUpperCase() ===
+                    "OWNER";
 
                   return `
 
@@ -946,9 +963,7 @@
 
                       <td>
 
-                        <span
-                          class="badge"
-                        >
+                        <span class="badge">
                           ${getRoleLabel(
                             staff.role
                           )}
@@ -982,6 +997,18 @@
 
                       <td>
 
+                        <small>
+                          ${formatDate(
+                            staff.updated_at ||
+                            staff.created_at
+                          )}
+                        </small>
+
+                      </td>
+
+
+                      <td>
+
                         <div
                           style="
                             display:flex;
@@ -990,55 +1017,68 @@
                           "
                         >
 
-                          <button
-                            type="button"
-                            class="btn btn-secondary"
-                            data-action="role"
-                            data-id="${escapeHTML(
-                              staff.id
-                            )}"
-                          >
-                            🎯 Role
-                          </button>
-
-
-                          <button
-                            type="button"
-                            class="btn btn-secondary"
-                            data-action="password"
-                            data-id="${escapeHTML(
-                              staff.id
-                            )}"
-                          >
-                            🔐 Reset
-                          </button>
-
-
                           ${
-                            active
+                            isOwner
                               ? `
                                 <button
                                   type="button"
-                                  class="btn btn-danger"
-                                  data-action="disable"
-                                  data-id="${escapeHTML(
-                                    staff.id
-                                  )}"
+                                  class="btn btn-secondary"
+                                  disabled
+                                  title="حساب OWNER محمي"
                                 >
-                                  ⛔ تعطيل
+                                  👑 OWNER
                                 </button>
                               `
                               : `
                                 <button
                                   type="button"
-                                  class="btn btn-success"
-                                  data-action="enable"
+                                  class="btn btn-secondary"
+                                  data-action="role"
                                   data-id="${escapeHTML(
                                     staff.id
                                   )}"
                                 >
-                                  🟢 تفعيل
+                                  🎯 Role
                                 </button>
+
+                                <button
+                                  type="button"
+                                  class="btn btn-secondary"
+                                  data-action="password"
+                                  data-id="${escapeHTML(
+                                    staff.id
+                                  )}"
+                                >
+                                  🔐 Reset
+                                </button>
+
+                                ${
+                                  active
+                                    ? `
+                                      <button
+                                        type="button"
+                                        class="btn btn-danger"
+                                        data-action="disable"
+                                        data-id="${escapeHTML(
+                                          staff.id
+                                        )}"
+                                      >
+                                        ⛔ تعطيل
+                                      </button>
+                                    `
+                                    : `
+                                      <button
+                                        type="button"
+                                        class="btn btn-success"
+                                        data-action="enable"
+                                        data-id="${escapeHTML(
+                                          staff.id
+                                        )}"
+                                      >
+                                        🟢 تفعيل
+                                      </button>
+                                    `
+                                }
                               `
                           }
 
@@ -1049,7 +1089,6 @@
                     </tr>
 
                   `;
-
                 }
               )
               .join("")}
@@ -1068,11 +1107,9 @@
       )
       .forEach(
         button => {
-
           button.addEventListener(
             "click",
             () => {
-
               const action =
                 button.dataset.action;
 
@@ -1083,10 +1120,8 @@
                 action,
                 id
               );
-
             }
           );
-
         }
       );
   }
@@ -1096,7 +1131,6 @@
      ---------------------------------------------------------- */
 
   function openCreateStaffModal() {
-
     closeModal();
 
     const modal =
@@ -1110,7 +1144,7 @@
     modal.style.cssText = `
       position:fixed;
       inset:0;
-      z-index:99998;
+      z-index:999998;
       background:rgba(10,18,45,.65);
       display:flex;
       align-items:center;
@@ -1145,14 +1179,12 @@
 
           <div>
 
-            <h2
-              style="margin:0"
-            >
+            <h2 style="margin:0">
               ➕ إضافة موظف جديد
             </h2>
 
             <div class="muted">
-              إنشاء حساب دخول وصلاحيات للموظف
+              إنشاء حساب دخول وربطه بوظيفة الموظف
             </div>
 
           </div>
@@ -1168,9 +1200,7 @@
         </div>
 
 
-        <form
-          id="createStaffForm"
-        >
+        <form id="createStaffForm">
 
           <div
             style="
@@ -1213,6 +1243,7 @@
                 required
                 type="text"
                 autocomplete="username"
+                pattern="[a-z0-9._-]{3,40}"
                 placeholder="مثال: sara"
                 style="
                   width:100%;
@@ -1299,17 +1330,7 @@
                   اختر الوظيفة
                 </option>
 
-                ${Object.entries(
-                  ROLES
-                )
-                  .map(
-                    ([key, role]) => `
-                      <option value="${key}">
-                        ${role.label}
-                      </option>
-                    `
-                  )
-                  .join("")}
+                ${getRoleOptions()}
 
               </select>
 
@@ -1323,7 +1344,7 @@
               <input
                 id="newStaffPassword"
                 type="password"
-                minlength="8"
+                minlength="10"
                 autocomplete="new-password"
                 placeholder="اتركه فارغًا للتوليد التلقائي"
                 style="
@@ -1337,6 +1358,10 @@
                   text-align:left;
                 "
               />
+
+              <small class="muted">
+                🔒 الحد الأدنى 10 أحرف
+              </small>
 
             </label>
 
@@ -1353,22 +1378,37 @@
               background:#f4f0ff;
               color:#493276;
               font-weight:700;
+              line-height:1.8;
             "
           >
 
-            📣 هذا حساب Marketing.
-
-            <br><br>
-
-            سيحصل على صلاحيات التسويق والمحتوى
-            والحملات والـLeads فقط حسب إعدادات
-            RLS والصلاحيات.
+            📣 <strong>Marketing</strong>
 
             <br>
 
-            🙅‍♀️ لن يحصل تلقائيًا على صلاحيات
-            المرضى الطبية أو المالية أو إدارة الموظفين.
+            هذا الحساب مخصص للتسويق والمحتوى
+            والحملات والعروض.
 
+            <br>
+
+            🙅‍♀️ لا يحصل تلقائيًا على بيانات المرضى
+            الطبية أو الحسابات المالية أو إدارة الموظفين.
+
+          </div>
+
+
+          <div
+            id="roleDescription"
+            style="
+              margin-top:15px;
+              padding:14px;
+              border-radius:12px;
+              background:#f5f7fb;
+              color:#46516b;
+              line-height:1.8;
+            "
+          >
+            🎯 اختر الوظيفة لعرض وصف الصلاحيات.
           </div>
 
 
@@ -1386,11 +1426,11 @@
             🔐 <strong>الأمان:</strong>
 
             كلمة المرور لا يتم تخزينها في
-            JavaScript أو جدول الموظفين.
+            JavaScript أو في جدول الموظفين.
 
             <br>
 
-            سيتم إرسال عملية إنشاء الحساب إلى
+            يتم إنشاء حساب Auth من خلال
             Edge Function المؤمنة.
 
           </div>
@@ -1457,7 +1497,7 @@
       )
       ?.addEventListener(
         "change",
-        updateMarketingNotice
+        updateRoleNotice
       );
 
     document
@@ -1469,33 +1509,59 @@
         createStaff
       );
 
-    updateMarketingNotice();
+    updateRoleNotice();
   }
 
   /* ----------------------------------------------------------
-     MARKETING NOTICE
+     ROLE NOTICE
      ---------------------------------------------------------- */
 
-  function updateMarketingNotice() {
-
+  function updateRoleNotice() {
     const role =
       document.getElementById(
         "newStaffRole"
       )?.value;
 
-    const notice =
+    const marketingNotice =
       document.getElementById(
         "marketingPermissionNotice"
       );
 
-    if (!notice) {
-      return;
+    const roleDescription =
+      document.getElementById(
+        "roleDescription"
+      );
+
+    if (marketingNotice) {
+      marketingNotice.style.display =
+        role === "MARKETING"
+          ? "block"
+          : "none";
     }
 
-    notice.style.display =
-      role === "MARKETING"
-        ? "block"
-        : "none";
+    if (roleDescription) {
+      if (
+        role &&
+        ROLES[role]
+      ) {
+        roleDescription.innerHTML = `
+          🎯 <strong>
+            ${escapeHTML(
+              ROLES[role].label
+            )}
+          </strong>
+
+          <br>
+
+          ${escapeHTML(
+            ROLES[role].description
+          )}
+        `;
+      } else {
+        roleDescription.innerHTML =
+          "🎯 اختر الوظيفة لعرض وصف الصلاحيات.";
+      }
+    }
   }
 
   /* ----------------------------------------------------------
@@ -1503,7 +1569,6 @@
      ---------------------------------------------------------- */
 
   function closeModal() {
-
     document
       .getElementById(
         "staffModal"
@@ -1524,7 +1589,6 @@
   async function createStaff(
     event
   ) {
-
     event.preventDefault();
 
     const name =
@@ -1576,55 +1640,57 @@
         ?.value || "";
 
     if (!name) {
-
       showMessage(
         "❌ الاسم مطلوب.",
         "error"
       );
-
       return;
     }
 
     if (!username) {
-
       showMessage(
         "❌ Username مطلوب.",
         "error"
       );
+      return;
+    }
 
+    if (
+      !/^[a-z0-9._-]{3,40}$/.test(
+        username
+      )
+    ) {
+      showMessage(
+        "❌ Username يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو . _ - فقط، من 3 إلى 40 حرفًا.",
+        "error"
+      );
       return;
     }
 
     if (!email) {
-
       showMessage(
         "❌ Email مطلوب.",
         "error"
       );
-
       return;
     }
 
     if (!role) {
-
       showMessage(
         "❌ اختر وظيفة الموظف.",
         "error"
       );
-
       return;
     }
 
     if (
       password &&
-      password.length < 8
+      password.length < 10
     ) {
-
       showMessage(
-        "❌ كلمة المرور يجب أن تكون 8 أحرف على الأقل.",
+        "❌ كلمة المرور يجب أن تكون 10 أحرف على الأقل.",
         "error"
       );
-
       return;
     }
 
@@ -1640,7 +1706,6 @@
     }
 
     try {
-
       const result =
         await callStaffAdmin(
           "create",
@@ -1660,6 +1725,10 @@
             role:
               role,
 
+            /*
+             The Edge Function accepts both
+             password and temp_password.
+            */
             password:
               password || null
           }
@@ -1675,10 +1744,8 @@
       if (
         result?.temporary_password
       ) {
-
         successMessage +=
-          `\n🔐 كلمة المرور المؤقتة: ${result.temporary_password}`;
-
+          `\n🔐 كلمة المرور المؤقتة:\n${result.temporary_password}\n\n⚠️ احفظها الآن؛ لا نعرضها مرة أخرى تلقائيًا.`;
       }
 
       showMessage(
@@ -1687,14 +1754,13 @@
       );
 
     } catch (error) {
-
       console.error(
         "Create staff error:",
         error
       );
 
       showMessage(
-        `❌ تعذر إنشاء الموظف: ${error.message}`,
+        `❌ تعذر إنشاء الموظف:\n${error.message}`,
         "error"
       );
 
@@ -1705,9 +1771,7 @@
         submit.textContent =
           "➕ إنشاء حساب الموظف";
       }
-
     }
-
   }
 
   /* ----------------------------------------------------------
@@ -1718,7 +1782,6 @@
     action,
     staffId
   ) {
-
     const staff =
       state.staff.find(
         item =>
@@ -1727,51 +1790,53 @@
       );
 
     if (!staff) {
-
       showMessage(
         "❌ الموظف غير موجود.",
         "error"
       );
+      return;
+    }
 
+    if (
+      String(
+        staff.role || ""
+      ).toUpperCase() ===
+      "OWNER"
+    ) {
+      showMessage(
+        "👑 حساب OWNER محمي ولا يمكن تعديل حالته من هنا.",
+        "error"
+      );
       return;
     }
 
     if (action === "role") {
-
       openRoleModal(
         staff
       );
-
       return;
     }
 
     if (action === "password") {
-
       await resetStaffPassword(
         staff
       );
-
       return;
     }
 
     if (action === "disable") {
-
       await disableStaff(
         staff
       );
-
       return;
     }
 
     if (action === "enable") {
-
       await enableStaff(
         staff
       );
-
       return;
     }
-
   }
 
   /* ----------------------------------------------------------
@@ -1781,7 +1846,6 @@
   function openRoleModal(
     staff
   ) {
-
     closeModal();
 
     const modal =
@@ -1795,7 +1859,7 @@
     modal.style.cssText = `
       position:fixed;
       inset:0;
-      z-index:99999;
+      z-index:999999;
       background:rgba(10,18,45,.65);
       display:flex;
       align-items:center;
@@ -1808,10 +1872,13 @@
 
       <div
         style="
-          width:min(500px,100%);
+          width:min(520px,100%);
+          max-height:90vh;
+          overflow:auto;
           background:#fff;
           border-radius:20px;
           padding:24px;
+          box-shadow:0 25px 70px rgba(0,0,0,.3);
         "
       >
 
@@ -1829,9 +1896,17 @@
           </strong>
         </p>
 
+        <p class="muted">
+          🔑 Username:
+          ${escapeHTML(
+            staff.username ||
+            "-"
+          )}
+        </p>
+
         <label>
 
-          الوظيفة الجديدة
+          🎯 الوظيفة الجديدة
 
           <select
             id="changeStaffRole"
@@ -1841,34 +1916,30 @@
               padding:12px;
               border:1px solid #d9deea;
               border-radius:12px;
+              box-sizing:border-box;
             "
           >
 
-            ${Object.entries(
-              ROLES
-            )
-              .map(
-                ([key, role]) => `
-                  <option
-                    value="${key}"
-                    ${
-                      String(
-                        staff.role || ""
-                      ).toUpperCase() ===
-                      key
-                        ? "selected"
-                        : ""
-                    }
-                  >
-                    ${role.label}
-                  </option>
-                `
-              )
-              .join("")}
+            ${getRoleOptions(
+              staff.role
+            )}
 
           </select>
 
         </label>
+
+
+        <div
+          id="editRoleDescription"
+          style="
+            margin-top:14px;
+            padding:14px;
+            border-radius:12px;
+            background:#f5f7fb;
+            line-height:1.8;
+          "
+        >
+        </div>
 
 
         <div
@@ -1906,6 +1977,48 @@
       modal
     );
 
+    const roleSelect =
+      document.getElementById(
+        "changeStaffRole"
+      );
+
+    const description =
+      document.getElementById(
+        "editRoleDescription"
+      );
+
+    function updateDescription() {
+      const role =
+        roleSelect?.value;
+
+      if (
+        description &&
+        role &&
+        ROLES[role]
+      ) {
+        description.innerHTML = `
+          🎯 <strong>
+            ${escapeHTML(
+              ROLES[role].label
+            )}
+          </strong>
+
+          <br>
+
+          ${escapeHTML(
+            ROLES[role].description
+          )}
+        `;
+      }
+    }
+
+    roleSelect?.addEventListener(
+      "change",
+      updateDescription
+    );
+
+    updateDescription();
+
     document
       .getElementById(
         "cancelRoleChange"
@@ -1921,21 +2034,28 @@
       )
       ?.addEventListener(
         "click",
-        async () => {
-
+        async event => {
           const role =
-            document
-              .getElementById(
-                "changeStaffRole"
-              )
-              ?.value;
+            roleSelect?.value;
 
           if (!role) {
+            showMessage(
+              "❌ اختر الوظيفة.",
+              "error"
+            );
             return;
           }
 
-          try {
+          const button =
+            event.currentTarget;
 
+          button.disabled =
+            true;
+
+          button.textContent =
+            "⏳ جاري الحفظ...";
+
+          try {
             await callStaffAdmin(
               "update_role",
               {
@@ -1959,18 +2079,22 @@
           } catch (
             error
           ) {
-
             console.error(
+              "Update role error:",
               error
             );
 
             showMessage(
-              `❌ ${error.message}`,
+              `❌ تعذر تغيير الوظيفة:\n${error.message}`,
               "error"
             );
 
-          }
+            button.disabled =
+              false;
 
+            button.textContent =
+              "💾 حفظ الوظيفة";
+          }
         }
       );
   }
@@ -1982,10 +2106,9 @@
   async function resetStaffPassword(
     staff
   ) {
-
     const confirmed =
       window.confirm(
-        `🔐 هل تريد إعادة تعيين كلمة مرور ${staff.full_name || "الموظف"}؟`
+        `🔐 هل تريد إعادة تعيين كلمة مرور ${staff.full_name || "الموظف"}؟\n\nسيتم إبطال كلمة المرور الحالية واستبدالها بكلمة مرور جديدة.`
       );
 
     if (!confirmed) {
@@ -1993,7 +2116,6 @@
     }
 
     try {
-
       const result =
         await callStaffAdmin(
           "reset_password",
@@ -2009,10 +2131,8 @@
       if (
         result?.temporary_password
       ) {
-
         message +=
-          `\n🔐 كلمة المرور المؤقتة: ${result.temporary_password}`;
-
+          `\n🔐 كلمة المرور الجديدة:\n${result.temporary_password}\n\n⚠️ احفظها الآن.`;
       }
 
       showMessage(
@@ -2023,18 +2143,16 @@
     } catch (
       error
     ) {
-
       console.error(
+        "Reset password error:",
         error
       );
 
       showMessage(
-        `❌ تعذر إعادة تعيين كلمة المرور: ${error.message}`,
+        `❌ تعذر إعادة تعيين كلمة المرور:\n${error.message}`,
         "error"
       );
-
     }
-
   }
 
   /* ----------------------------------------------------------
@@ -2044,10 +2162,9 @@
   async function disableStaff(
     staff
   ) {
-
     const confirmed =
       window.confirm(
-        `⛔ هل أنت متأكد من إلغاء صلاحيات ${staff.full_name || "هذا الموظف"}؟\n\nسيتم تعطيل تسجيل الدخول مع الاحتفاظ بسجل الموظف والعمليات السابقة.`
+        `⛔ هل أنت متأكد من تعطيل حساب ${staff.full_name || "هذا الموظف"}؟\n\nسيتم إلغاء وصول الموظف للنظام، مع الاحتفاظ بسجل الموظف والعمليات السابقة.`
       );
 
     if (!confirmed) {
@@ -2055,7 +2172,6 @@
     }
 
     try {
-
       await callStaffAdmin(
         "disable",
         {
@@ -2074,18 +2190,16 @@
     } catch (
       error
     ) {
-
       console.error(
+        "Disable staff error:",
         error
       );
 
       showMessage(
-        `❌ تعذر تعطيل الموظف: ${error.message}`,
+        `❌ تعذر تعطيل الموظف:\n${error.message}`,
         "error"
       );
-
     }
-
   }
 
   /* ----------------------------------------------------------
@@ -2095,7 +2209,6 @@
   async function enableStaff(
     staff
   ) {
-
     const confirmed =
       window.confirm(
         `🟢 هل تريد إعادة تفعيل حساب ${staff.full_name || "هذا الموظف"}؟`
@@ -2106,7 +2219,6 @@
     }
 
     try {
-
       await callStaffAdmin(
         "enable",
         {
@@ -2125,18 +2237,16 @@
     } catch (
       error
     ) {
-
       console.error(
+        "Enable staff error:",
         error
       );
 
       showMessage(
-        `❌ تعذر تفعيل الموظف: ${error.message}`,
+        `❌ تعذر تفعيل الموظف:\n${error.message}`,
         "error"
       );
-
     }
-
   }
 
   /* ----------------------------------------------------------
@@ -2144,7 +2254,6 @@
      ---------------------------------------------------------- */
 
   function ensureStaffTab() {
-
     const existing =
       document.querySelector(
         '[data-panel="staffPanel"]'
@@ -2189,14 +2298,12 @@
     button.addEventListener(
       "click",
       () => {
-
         const panel =
           document.getElementById(
             "staffPanel"
           );
 
         if (panel) {
-
           document
             .querySelectorAll(
               ".panel"
@@ -2213,9 +2320,7 @@
           );
 
           loadStaff();
-
         }
-
       }
     );
 
@@ -2229,7 +2334,6 @@
      ---------------------------------------------------------- */
 
   function ensureStaffPanel() {
-
     let panel =
       document.getElementById(
         "staffPanel"
@@ -2260,12 +2364,8 @@
       "panel";
 
     panel.innerHTML = `
-      <div
-        class="card"
-      >
-        <div
-          class="empty"
-        >
+      <div class="card">
+        <div class="empty">
           👥 جاري تجهيز إدارة الموظفين...
         </div>
       </div>
@@ -2283,10 +2383,11 @@
      ---------------------------------------------------------- */
 
   async function initialize() {
-
     /*
-      Wait briefly because admin.js is responsible
-      for initializing the Supabase client and session.
+      admin.js should initialize the Supabase client
+      and session before this module runs.
+
+      We wait briefly to avoid racing admin.js.
     */
 
     let attempts =
@@ -2295,7 +2396,6 @@
     while (
       attempts < 50
     ) {
-
       if (
         getSupabaseClient()
       ) {
@@ -2316,7 +2416,6 @@
     if (
       !getSupabaseClient()
     ) {
-
       console.error(
         "Azaad Staff Management: Supabase client unavailable."
       );
@@ -2330,6 +2429,10 @@
 
     ensureStaffTab();
 
+    /*
+      The initial load is intentionally protected
+      by the Edge Function.
+    */
     await loadStaff();
   }
 
@@ -2338,7 +2441,6 @@
      ---------------------------------------------------------- */
 
   window.AZAAD_STAFF = {
-
     init:
       initialize,
 
@@ -2352,7 +2454,6 @@
       loadStaff,
 
     state
-
   };
 
   /* ----------------------------------------------------------
@@ -2363,16 +2464,12 @@
     document.readyState ===
     "loading"
   ) {
-
     document.addEventListener(
       "DOMContentLoaded",
       initialize
     );
-
   } else {
-
     initialize();
-
   }
 
 })();
