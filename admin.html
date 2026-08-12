@@ -734,8 +734,6 @@ class="btn btn-danger">
 </div>
 
 
-<!-- BOOKINGS -->
-
 <section id="bookingsPanel" class="panel active">
 
 <div class="card">
@@ -792,8 +790,6 @@ placeholder="بحث بالاسم أو الهاتف أو رقم الحجز">
 </section>
 
 
-<!-- DOCTORS -->
-
 <section id="doctorsPanel" class="panel">
 
 <div class="card">
@@ -818,8 +814,6 @@ class="btn btn-primary">
 </section>
 
 
-<!-- SERVICES -->
-
 <section id="servicesPanel" class="panel">
 
 <div class="card">
@@ -843,8 +837,6 @@ class="btn btn-primary">
 </div>
 </section>
 
-
-<!-- SCHEDULE -->
 
 <section id="schedulePanel" class="panel">
 
@@ -886,8 +878,6 @@ style="max-width:320px">
 </section>
 
 
-<!-- POSTS -->
-
 <section id="postsPanel" class="panel">
 
 <div class="card">
@@ -924,8 +914,6 @@ style="margin-top:15px">
 </section>
 
 
-<!-- HOLIDAYS -->
-
 <section id="holidaysPanel" class="panel">
 
 <div class="card">
@@ -960,8 +948,6 @@ style="margin-top:15px">
 </section>
 
 
-<!-- HOURS -->
-
 <section id="hoursPanel" class="panel">
 
 <div class="card">
@@ -988,8 +974,6 @@ class="btn btn-primary">
 </section>
 
 
-<!-- SETTINGS -->
-
 <section id="settingsPanel" class="panel">
 
 <div class="card">
@@ -1015,8 +999,6 @@ class="btn btn-primary">
 </div>
 </section>
 
-
-<!-- ACCOUNT -->
 
 <section id="accountPanel" class="panel">
 
@@ -1096,8 +1078,6 @@ type="submit">
 </div>
 
 
-<!-- MODAL -->
-
 <div id="modal" class="modal">
 
 <div class="modal-box">
@@ -1155,7 +1135,6 @@ schedules:[]
 
 const $=id=>document.getElementById(id);
 
-
 function escapeHTML(value){
 
 return String(value??"").replace(
@@ -1170,7 +1149,6 @@ c=>({
 );
 
 }
-
 
 function showToast(message){
 
@@ -1188,7 +1166,6 @@ window.__toastTimer=setTimeout(
 );
 
 }
-
 
 async function api(query,options={}){
 
@@ -1238,7 +1215,6 @@ data.message||
 return data;
 
 }
-
 
 async function managementApi(query,options={}){
 
@@ -1844,14 +1820,6 @@ MEDIA UPLOAD
 ====================================================
 */
 
-/*
-The upload goes directly through the existing
-authorized admin endpoint.
-
-Image maximum = 50 MB
-Video maximum = 150 MB
-*/
-
 async function uploadMediaFile(
 file,
 folder,
@@ -1921,12 +1889,6 @@ form.append(
 "folder",
 folder||"media"
 );
-
-
-/*
-Use XMLHttpRequest so we can display
-real upload progress.
-*/
 
 return new Promise(
 (resolve,reject)=>{
@@ -2121,13 +2083,6 @@ bar.style.width="0%";
 
 preview.innerHTML="";
 
-
-/*
-Local preview immediately.
-This prevents the user from
-thinking the page is frozen.
-*/
-
 const localURL=
 URL.createObjectURL(file);
 
@@ -2243,15 +2198,7 @@ d.image_url
 class="doctor-photo"
 src="${escapeHTML(d.image_url)}"
 alt="${escapeHTML(d.name)}"
-onerror="
-this.onerror=null;
-this.src='data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
-<rect width="100" height="100" fill="#f1f3f8"/>
-<text x="50" y="55" text-anchor="middle" font-size="42">👨‍⚕️</text>
-</svg>
-`)}';
-">
+onerror="this.onerror=null;this.style.display='none';">
 `
 :
 `
@@ -3852,7 +3799,6 @@ publish
 
 try{
 
-const result=
 await managementApi(
 post
 ?
@@ -4833,7 +4779,6 @@ return;
 
 try{
 
-const result=
 await api(
 "?api=password",
 {
