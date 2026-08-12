@@ -13,10 +13,11 @@
    - Last login display
    - Secure communication with staff-admin Edge Function
 
-   IMPORTANT:
+   SECURITY:
    - NEVER contains the Supabase Service Role Key.
+   - Password operations are handled by Edge Function.
    - clinic_staff uses "active", NOT "is_active".
-   - Authentication/password operations are handled by Edge Function.
+   - Backend / RLS must enforce the real permissions.
    ============================================================ */
 
 (function () {
@@ -132,6 +133,7 @@
         white-space:pre-line;
         box-shadow:0 10px 30px rgba(0,0,0,.18);
         font-family:inherit;
+        direction:rtl;
       `;
 
       document.body.appendChild(box);
@@ -968,6 +970,11 @@
                       staff
                     );
 
+                  const isOwner =
+                    normalizeRole(
+                      staff.role
+                    ) === "OWNER";
+
                   return `
 
                     <tr>
@@ -1134,7 +1141,22 @@
 
 
                           ${
-                            active
+                            isOwner
+                              ? `
+                                <button
+                                  type="button"
+                                  class="btn btn-secondary"
+                                  disabled
+                                  title="Owner محمي"
+                                  style="
+                                    opacity:.55;
+                                    cursor:not-allowed;
+                                  "
+                                >
+                                  👑 Owner محمي
+                                </button>
+                              `
+                              : active
                               ? `
                                 <button
                                   type="button"
@@ -2330,6 +2352,20 @@
   ) {
     closeModal();
 
+    const isOwner =
+      normalizeRole(
+        staff.role
+      ) === "OWNER";
+
+    if (isOwner) {
+      showMessage(
+        "👑 حساب Owner محمي ولا يمكن تغيير وظيفته من شاشة الموظفين.",
+        "error"
+      );
+
+      return;
+    }
+
     const modal =
       document.createElement(
         "div"
@@ -2430,6 +2466,13 @@
           🔐 تغيير الوظيفة يتم من خلال النظام
           الآمن، وتطبق الصلاحيات الفعلية من
           الـ backend/RLS.
+
+          <br><br>
+
+          ⚠️ الصلاحيات الحقيقية لا تعتمد على
+          JavaScript فقط، ويجب أن يمنع الـ backend
+          أي تغيير غير مصرح به.
+
         </div>
 
 
@@ -2492,6 +2535,22 @@
               ?.value;
 
           if (!role) {
+            showMessage(
+              "❌ اختر الوظيفة الجديدة.",
+              "error"
+            );
+
+            return;
+          }
+
+          if (
+            role === "OWNER"
+          ) {
+            showMessage(
+              "👑 لا يمكن إنشاء أو نقل موظف إلى Owner من شاشة الموظفين.",
+              "error"
+            );
+
             return;
           }
 
@@ -2671,6 +2730,19 @@
   async function enableStaff(
     staff
   ) {
+    if (
+      normalizeRole(
+        staff.role
+      ) === "OWNER"
+    ) {
+      showMessage(
+        "👑 حساب Owner محمي.",
+        "error"
+      );
+
+      return;
+    }
+
     const confirmed =
       window.confirm(
         `🟢 هل تريد إعادة تفعيل حساب ${staff.full_name || "هذا الموظف"}؟`
