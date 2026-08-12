@@ -12,44 +12,84 @@
    * IMPORTANT:
    * - app.js remains the ONLY booking submit/slot handler.
    * - This file must NOT create duplicate booking requests.
-   * - It also bootstraps public-ui.js because older index.html
-   *   deployments may not include public-ui.js directly.
+   * - public-ui.js is normally loaded directly by index.html.
+   * - This file only bootstraps public-ui.js when it is genuinely
+   *   missing, and never loads it twice.
    * =========================================================
    */
 
-  window.AzaadClinicBookingFix = {
-    version: '4.1.0',
-    enabled: false,
-    handledBy: 'app.js',
-    publicUiBootstrapped: false
-  };
+  const STATE_KEY = '__AZAAD_BOOKING_FIX_INITIALIZED__';
 
-  function loadPublicUI() {
-    if (window.AzaadClinicPublicUILoaded) {
-      window.AzaadClinicBookingFix.publicUiBootstrapped = true;
-      return;
-    }
+  window.AzaadClinicBookingFix =
+    window.AzaadClinicBookingFix || {
+      version: '4.2.0',
+      enabled: false,
+      handledBy: 'app.js',
+      publicUiBootstrapped: false
+    };
 
-    const existing = document.querySelector(
-      'script[data-azaad-public-ui="true"]'
+  const state = window.AzaadClinicBookingFix;
+
+  function publicUiAlreadyPresent() {
+    return Boolean(
+      window.AzaadClinicPublicUILoaded ||
+      window.AzaadClinicPublicUI ||
+      document.querySelector(
+        'script[src*="public-ui.js"]'
+      ) ||
+      document.querySelector(
+        'script[data-azaad-public-ui="true"]'
+      )
     );
+  }
 
-    if (existing) {
+  function markPublicUIReady() {
+    state.publicUiBootstrapped = true;
+
+    try {
+      window.AzaadClinicPublicUILoaded = true;
+    } catch (_) {
+      // Ignore read-only/global assignment problems.
+    }
+  }
+
+  function loadPublicUIIfNeeded() {
+    /*
+     * index.html already loads public-ui.js.
+     * Never inject another copy when it is present.
+     */
+    if (publicUiAlreadyPresent()) {
+      markPublicUIReady();
       return;
     }
 
-    const script = document.createElement('script');
+    /*
+     * Prevent this compatibility loader itself from running
+     * more than once.
+     */
+    if (
+      document.querySelector(
+        'script[data-azaad-public-ui-loader="true"]'
+      )
+    ) {
+      return;
+    }
 
-    script.src = 'public-ui.js?v=1';
+    const script =
+      document.createElement('script');
+
+    script.src =
+      'public-ui.js?v=1';
 
     script.async = false;
 
     script.dataset.azaadPublicUi = 'true';
 
-    script.onload = () => {
-      window.AzaadClinicPublicUILoaded = true;
+    script.dataset.azaadPublicUiLoader =
+      'true';
 
-      window.AzaadClinicBookingFix.publicUiBootstrapped = true;
+    script.onload = () => {
+      markPublicUIReady();
     };
 
     script.onerror = (error) => {
@@ -62,20 +102,47 @@
     document.head.appendChild(script);
   }
 
-  if (document.readyState === 'loading') {
+  function initialize() {
+    /*
+     * Hard guard against duplicate initialization
+     * if this script is accidentally included more than once.
+     */
+    if (window[STATE_KEY]) {
+      return;
+    }
 
+    window[STATE_KEY] = true;
+
+    /*
+     * This compatibility file does NOT:
+     *
+     * - submit bookings
+     * - fetch slots
+     * - attach booking form handlers
+     * - call Supabase
+     * - modify booking payloads
+     *
+     * app.js remains the sole booking controller.
+     */
+    state.enabled = false;
+    state.handledBy = 'app.js';
+
+    loadPublicUIIfNeeded();
+  }
+
+  if (
+    document.readyState ===
+    'loading'
+  ) {
     document.addEventListener(
       'DOMContentLoaded',
-      loadPublicUI,
+      initialize,
       {
         once: true
       }
     );
-
   } else {
-
-    loadPublicUI();
-
+    initialize();
   }
 
 })();
