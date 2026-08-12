@@ -3,7 +3,6 @@
    STAFF MANAGEMENT CENTER
    File: staff-management.js
 
-   Version: Production Staff Center
    Purpose:
    - Employee creation
    - Employee listing
@@ -16,10 +15,10 @@
 
    SECURITY:
    - NEVER contains the Supabase Service Role Key.
-   - NEVER performs privileged Auth operations from browser.
-   - All staff administration operations go through staff-admin.
-   - clinic_staff.active is the canonical active-status field.
+   - Password operations are handled by Edge Function.
+   - clinic_staff uses "active", NOT "is_active".
    - Backend / RLS must enforce the real permissions.
+   - Staff listing is requested through the secure Edge Function.
    ============================================================ */
 
 (function () {
@@ -45,8 +44,7 @@
   const state = {
     staff: [],
     loading: false,
-    editingStaffId: null,
-    initialized: false
+    editingStaffId: null
   };
 
   /* ==========================================================
@@ -56,20 +54,17 @@
   const ROLES = {
     OWNER: {
       label: "👑 Owner",
-      description:
-        "صلاحيات المالك الكاملة"
+      description: "صلاحيات المالك الكاملة"
     },
 
     ADMIN: {
       label: "🛡️ Admin",
-      description:
-        "إدارة النظام والموظفين"
+      description: "إدارة النظام والموظفين"
     },
 
     MANAGER: {
       label: "👨‍💼 Manager",
-      description:
-        "إدارة تشغيل العيادة"
+      description: "إدارة تشغيل العيادة"
     },
 
     SECRETARY: {
@@ -132,15 +127,11 @@
   function isStaffActive(staff) {
     /*
       IMPORTANT:
-      Canonical database field:
-      clinic_staff.active
-
-      Some older database versions may still
-      contain is_active, but it is NOT used
-      for authorization decisions here.
+      Database column is clinic_staff.active
+      NOT clinic_staff.is_active.
     */
 
-    return staff?.active === true;
+    return staff?.active !== false;
   }
 
   function formatDateTime(value) {
@@ -161,14 +152,6 @@
       });
     } catch {
       return escapeHTML(value);
-    }
-  }
-
-  function getCurrentOrigin() {
-    try {
-      return window.location.origin;
-    } catch {
-      return "";
     }
   }
 
@@ -229,7 +212,7 @@
       setTimeout(() => {
         box.style.display =
           "none";
-      }, 6000);
+      }, 5000);
   }
 
   function getSupabaseClient() {
@@ -254,33 +237,6 @@
         "object"
     ) {
       return window.supabase;
-    }
-
-    return null;
-  }
-
-  async function waitForSupabaseClient() {
-    let attempts = 0;
-
-    while (
-      attempts < 80
-    ) {
-      const client =
-        getSupabaseClient();
-
-      if (client) {
-        return client;
-      }
-
-      await new Promise(
-        resolve =>
-          setTimeout(
-            resolve,
-            100
-          )
-      );
-
-      attempts++;
     }
 
     return null;
@@ -320,7 +276,7 @@
   }
 
   /* ==========================================================
-     STAFF ADMIN API
+     SECURE STAFF ADMIN API
      ========================================================== */
 
   async function callStaffAdmin(
@@ -341,7 +297,10 @@
               "application/json",
 
             Authorization:
-              `Bearer ${token}`
+              `Bearer ${token}`,
+
+            Accept:
+              "application/json"
           },
 
           body: JSON.stringify({
@@ -377,26 +336,7 @@
       );
     }
 
-    return result || {};
-  }
-
-  /* ==========================================================
-     MODAL CLEANUP
-     ========================================================== */
-
-  function closeModal() {
-    [
-      "staffModal",
-      "staffActionModal",
-      "staffEditModal"
-    ].forEach(id => {
-      document
-        .getElementById(id)
-        ?.remove();
-    });
-
-    state.editingStaffId =
-      null;
+    return result;
   }
 
   /* ==========================================================
@@ -409,21 +349,6 @@
         "staffManagementCenter"
       )
     ) {
-      return;
-    }
-
-    const target =
-      document.querySelector(
-        "#staffPanel"
-      ) ||
-      document.querySelector(
-        "#staff"
-      ) ||
-      document.querySelector(
-        "#adminPage"
-      );
-
-    if (!target) {
       return;
     }
 
@@ -468,8 +393,7 @@
           </h2>
 
           <div class="muted">
-            إنشاء الحسابات وإدارة الوظائف والحالة
-            والصلاحيات من خلال النظام الآمن
+            إنشاء الحسابات وإدارة الوظائف والصلاحيات والحالة
           </div>
 
         </div>
@@ -496,7 +420,6 @@
       >
 
         <div class="stat">
-
           <div
             id="staffTotal"
             class="stat-number"
@@ -507,12 +430,10 @@
           <div class="muted">
             👥 إجمالي الموظفين
           </div>
-
         </div>
 
 
         <div class="stat">
-
           <div
             id="staffActive"
             class="stat-number"
@@ -523,12 +444,10 @@
           <div class="muted">
             🟢 حسابات نشطة
           </div>
-
         </div>
 
 
         <div class="stat">
-
           <div
             id="staffInactive"
             class="stat-number"
@@ -539,12 +458,10 @@
           <div class="muted">
             🔴 حسابات موقوفة
           </div>
-
         </div>
 
 
         <div class="stat">
-
           <div
             id="marketingCount"
             class="stat-number"
@@ -555,7 +472,6 @@
           <div class="muted">
             📣 Marketing
           </div>
-
         </div>
 
       </div>
@@ -581,7 +497,6 @@
             border:1px solid #d9deea;
             border-radius:12px;
             font-family:inherit;
-            box-sizing:border-box;
           "
         />
 
@@ -635,6 +550,21 @@
 
     `;
 
+    const target =
+      document.querySelector(
+        "#staffPanel"
+      ) ||
+      document.querySelector(
+        "#staff"
+      ) ||
+      document.querySelector(
+        "#adminPage"
+      );
+
+    if (!target) {
+      return;
+    }
+
     target.appendChild(
       container
     );
@@ -678,9 +608,6 @@
 
   /* ==========================================================
      LOAD STAFF
-     IMPORTANT:
-     Staff list is obtained from staff-admin Edge Function.
-     We do NOT query clinic_staff directly from the browser.
      ========================================================== */
 
   async function loadStaff() {
@@ -692,7 +619,7 @@
     if (table) {
       table.innerHTML = `
         <div class="empty">
-          ⏳ جاري تحميل بيانات الموظفين بشكل آمن...
+          ⏳ جاري تحميل بيانات الموظفين...
         </div>
       `;
     }
@@ -700,24 +627,57 @@
     state.loading = true;
 
     try {
+      /*
+        SECURITY:
+        Do NOT query clinic_staff directly from the
+        browser for Staff Administration.
+
+        The secure Edge Function validates:
+        - authenticated user
+        - staff status
+        - role
+        - administrative permissions
+
+        and then performs the privileged operation.
+      */
+
       const result =
         await callStaffAdmin(
           "list"
         );
 
-      if (
-        !result ||
-        !Array.isArray(
-          result.staff
-        )
-      ) {
-        throw new Error(
-          "استجابة إدارة الموظفين غير صالحة."
-        );
-      }
+      /*
+        Support multiple response shapes so the UI
+        remains compatible with the current backend.
+      */
+
+      let staff =
+        Array.isArray(result)
+          ? result
+          : Array.isArray(
+              result?.staff
+            )
+          ? result.staff
+          : Array.isArray(
+              result?.data
+            )
+          ? result.data
+          : [];
 
       state.staff =
-        result.staff || [];
+        staff.map(
+          item => ({
+            ...item,
+
+            /*
+              Never expose or store passwords here.
+            */
+
+            password: undefined,
+            encrypted_password:
+              undefined
+          })
+        );
 
       renderStaffTable();
 
@@ -728,6 +688,8 @@
         "Load staff error:",
         error
       );
+
+      state.staff = [];
 
       if (table) {
         table.innerHTML = `
@@ -744,8 +706,7 @@
             ❌ تعذر تحميل الموظفين.
             <br><br>
             ${escapeHTML(
-              error.message ||
-              "حدث خطأ غير معروف."
+              error.message
             )}
           </div>
         `;
@@ -802,25 +763,21 @@
         "marketingCount"
       );
 
-    if (totalElement) {
+    if (totalElement)
       totalElement.textContent =
         total;
-    }
 
-    if (activeElement) {
+    if (activeElement)
       activeElement.textContent =
         active;
-    }
 
-    if (inactiveElement) {
+    if (inactiveElement)
       inactiveElement.textContent =
         inactive;
-    }
 
-    if (marketingElement) {
+    if (marketingElement)
       marketingElement.textContent =
         marketing;
-    }
   }
 
   /* ==========================================================
@@ -1476,6 +1433,17 @@
                 "
               />
 
+              <small
+                style="
+                  display:block;
+                  margin-top:5px;
+                  color:#667085;
+                  line-height:1.6;
+                "
+              >
+                الحد الأدنى 10 أحرف.
+              </small>
+
             </label>
 
           </div>
@@ -1531,11 +1499,6 @@
 
             سيتم إرسال عملية إنشاء الحساب إلى
             Edge Function المؤمنة.
-
-            <br>
-
-            ⚠️ كلمة المرور المؤقتة تظهر مرة واحدة
-            فقط بعد الإنشاء.
 
           </div>
 
@@ -1642,6 +1605,30 @@
   }
 
   /* ==========================================================
+     CLOSE MODALS
+     ========================================================== */
+
+  function closeModal() {
+    document
+      .getElementById(
+        "staffModal"
+      )
+      ?.remove();
+
+    document
+      .getElementById(
+        "staffActionModal"
+      )
+      ?.remove();
+
+    document
+      .getElementById(
+        "staffEditModal"
+      )
+      ?.remove();
+  }
+
+  /* ==========================================================
      CREATE STAFF
      ========================================================== */
 
@@ -1741,10 +1728,6 @@
       );
       return;
     }
-
-    /*
-      Backend currently requires minimum 10 characters.
-    */
 
     if (
       password &&
@@ -1856,42 +1839,39 @@
       return;
     }
 
-    switch (action) {
-      case "edit":
-        openEditStaffModal(
-          staff
-        );
-        break;
+    if (action === "edit") {
+      openEditStaffModal(
+        staff
+      );
+      return;
+    }
 
-      case "role":
-        openRoleModal(
-          staff
-        );
-        break;
+    if (action === "role") {
+      openRoleModal(
+        staff
+      );
+      return;
+    }
 
-      case "password":
-        await resetStaffPassword(
-          staff
-        );
-        break;
+    if (action === "password") {
+      await resetStaffPassword(
+        staff
+      );
+      return;
+    }
 
-      case "disable":
-        await disableStaff(
-          staff
-        );
-        break;
+    if (action === "disable") {
+      await disableStaff(
+        staff
+      );
+      return;
+    }
 
-      case "enable":
-        await enableStaff(
-          staff
-        );
-        break;
-
-      default:
-        console.warn(
-          "Unknown staff action:",
-          action
-        );
+    if (action === "enable") {
+      await enableStaff(
+        staff
+      );
+      return;
     }
   }
 
@@ -1903,9 +1883,6 @@
     staff
   ) {
     closeModal();
-
-    state.editingStaffId =
-      staff.id;
 
     const modal =
       document.createElement(
@@ -2456,14 +2433,15 @@
             line-height:1.7;
           "
         >
-          🔐 تغيير الوظيفة يتم من خلال
-          Edge Function الآمنة.
+          🔐 تغيير الوظيفة يتم من خلال النظام
+          الآمن، وتطبق الصلاحيات الفعلية من
+          الـ backend/RLS.
 
           <br><br>
 
           ⚠️ الصلاحيات الحقيقية لا تعتمد على
-          JavaScript فقط، والـ backend يتحقق
-          من دور المستخدم الحالي.
+          JavaScript فقط، ويجب أن يمنع الـ backend
+          أي تغيير غير مصرح به.
 
         </div>
 
@@ -2539,7 +2517,7 @@
             role === "OWNER"
           ) {
             showMessage(
-              "👑 لا يمكن نقل موظف إلى Owner من هذه الشاشة.",
+              "👑 لا يمكن إنشاء أو نقل موظف إلى Owner من شاشة الموظفين.",
               "error"
             );
 
@@ -2612,7 +2590,7 @@
   ) {
     const confirmed =
       window.confirm(
-        `🔐 هل تريد إعادة تعيين كلمة مرور ${staff.full_name || "الموظف"}؟\n\nسيتم إنشاء كلمة مرور جديدة للحساب من خلال النظام الآمن.`
+        `🔐 هل تريد إعادة تعيين كلمة مرور ${staff.full_name || "الموظف"}؟\n\nسيتم إنشاء/تعيين كلمة مرور جديدة للحساب.`
       );
 
     if (!confirmed) {
@@ -2670,7 +2648,7 @@
       ) === "OWNER"
     ) {
       showMessage(
-        "🛡️ لا يمكن تعطيل حساب Owner.",
+        "🛡️ لا يمكن تعطيل حساب Owner من شاشة الموظفين.",
         "error"
       );
 
@@ -2827,26 +2805,24 @@
             "staffPanel"
           );
 
-        if (!panel) {
-          return;
-        }
+        if (panel) {
+          document
+            .querySelectorAll(
+              ".panel"
+            )
+            .forEach(
+              p =>
+                p.classList.remove(
+                  "active"
+                )
+            );
 
-        document
-          .querySelectorAll(
-            ".panel"
-          )
-          .forEach(
-            p =>
-              p.classList.remove(
-                "active"
-              )
+          panel.classList.add(
+            "active"
           );
 
-        panel.classList.add(
-          "active"
-        );
-
-        loadStaff();
+          loadStaff();
+        }
       }
     );
 
@@ -2905,27 +2881,94 @@
   }
 
   /* ==========================================================
-     INITIALIZATION
+     AUTH CHANGE HANDLER
      ========================================================== */
 
-  async function initialize() {
+  function setupAuthListener() {
+    const client =
+      getSupabaseClient();
+
     if (
-      state.initialized
+      !client ||
+      !client.auth ||
+      typeof client.auth.onAuthStateChange !==
+        "function"
     ) {
       return;
     }
 
-    const client =
-      await waitForSupabaseClient();
+    if (
+      window.__AZAAD_STAFF_AUTH_LISTENER
+    ) {
+      return;
+    }
 
-    if (!client) {
-      console.error(
-        "Azaad Staff Management: Supabase client unavailable."
+    window.__AZAAD_STAFF_AUTH_LISTENER =
+      true;
+
+    client.auth.onAuthStateChange(
+      async (
+        event,
+        session
+      ) => {
+        if (
+          event === "SIGNED_IN" ||
+          event === "TOKEN_REFRESHED"
+        ) {
+          if (session) {
+            await loadStaff();
+          }
+        }
+
+        if (
+          event === "SIGNED_OUT"
+        ) {
+          state.staff = [];
+          renderStaffTable();
+          updateStaffStats();
+        }
+      }
+    );
+  }
+
+  /* ==========================================================
+     INITIALIZATION
+     ========================================================== */
+
+  async function initialize() {
+    /*
+      Wait because admin.js is responsible for
+      initializing Supabase and the current session.
+    */
+
+    let attempts =
+      0;
+
+    while (
+      attempts < 50
+    ) {
+      if (
+        getSupabaseClient()
+      ) {
+        break;
+      }
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            100
+          )
       );
 
-      showMessage(
-        "❌ تعذر تهيئة نظام الموظفين: Supabase غير متاح.",
-        "error"
+      attempts++;
+    }
+
+    if (
+      !getSupabaseClient()
+    ) {
+      console.error(
+        "Azaad Staff Management: Supabase client unavailable."
       );
 
       return;
@@ -2933,22 +2976,11 @@
 
     ensureStaffPanel();
 
-    /*
-      renderStaffManagement must run after
-      staffPanel has been created.
-    */
-
     renderStaffManagement();
 
     ensureStaffTab();
 
-    state.initialized =
-      true;
-
-    /*
-      Do not block the rest of the admin UI
-      forever if staff loading fails.
-    */
+    setupAuthListener();
 
     await loadStaff();
   }
@@ -2970,9 +3002,6 @@
     refresh:
       loadStaff,
 
-    closeModal:
-      closeModal,
-
     state
   };
 
@@ -2986,10 +3015,7 @@
   ) {
     document.addEventListener(
       "DOMContentLoaded",
-      initialize,
-      {
-        once: true
-      }
+      initialize
     );
   } else {
     initialize();
