@@ -2,36 +2,50 @@
   'use strict';
 
   /*
-   * Azaad Clinic
-   * Public Booking Application
+   * =========================================================
+   * AZAAD CLINIC
+   * PUBLIC BOOKING SYSTEM
+   * app.js
+   * =========================================================
    *
-   * Main responsibilities:
-   * - Load clinic doctors/services/settings
-   * - Load available appointment slots
-   * - Validate booking information
-   * - Create booking through Supabase Edge Function
-   * - Show booking confirmation
-   * - Generate WhatsApp message for clinic
+   * هذا الملف هو المسؤول عن:
    *
-   * IMPORTANT:
-   * This file is the single booking controller.
-   * Do not attach another submit handler from another file.
+   * 🏥 تحميل بيانات العيادة
+   * 👨‍⚕️ تحميل الأطباء
+   * 🩺 تحميل الخدمات
+   * 📅 تحميل المواعيد المتاحة
+   * 👤 استقبال بيانات المريض
+   * 📱 التحقق من رقم الهاتف
+   * 📋 إنشاء طلب الحجز
+   * 🔐 إرسال الحجز إلى Supabase Edge Function
+   * 🎫 استلام رقم الحجز
+   * 📲 تجهيز رسالة WhatsApp للعيادة
+   *
+   * مهم:
+   * لا يوجد submit handler آخر للحجز.
+   * booking-fix.js يجب ألا ينشئ أي حجز.
+   *
+   * =========================================================
    */
 
   const API =
     'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
 
   /*
-   * Supabase clinic_settings currently contains:
+   * رقم WhatsApp الافتراضي للعيادة.
+   *
+   * الرقم الموجود حاليًا في إعدادات العيادة:
    * 201140526294
    *
-   * This is only a safe fallback.
-   * If the API returns another WhatsApp number,
-   * the API/database value takes priority.
+   * إذا أعاد Supabase رقمًا آخر من settings
+   * سيتم استخدام الرقم الموجود في قاعدة البيانات.
    */
-  const DEFAULT_WHATSAPP_NUMBER = '201140526294';
 
-  const $ = (id) => document.getElementById(id);
+  const DEFAULT_WHATSAPP_NUMBER =
+    '201140526294';
+
+  const $ = (id) =>
+    document.getElementById(id);
 
   let selectedSlot = '';
 
@@ -44,9 +58,9 @@
   let initialized = false;
 
   /*
-   * ---------------------------------------------------------
-   * SECURITY / HTML ESCAPING
-   * ---------------------------------------------------------
+   * =========================================================
+   * HTML ESCAPE
+   * =========================================================
    */
 
   function escapeHtml(value) {
@@ -67,49 +81,66 @@
   }
 
   /*
-   * ---------------------------------------------------------
-   * API
-   * ---------------------------------------------------------
+   * =========================================================
+   * API REQUEST
+   * =========================================================
    */
 
-  async function request(url, options = {}) {
-    const controller = new AbortController();
+  async function request(
+    url,
+    options = {}
+  ) {
+    const controller =
+      new AbortController();
 
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 20000);
+    const timeout =
+      setTimeout(() => {
+        controller.abort();
+      }, 20000);
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        cache: 'no-store',
-        signal: controller.signal,
-        headers: {
-          Accept: 'application/json',
-          ...(options.headers || {})
-        }
-      });
+      const response =
+        await fetch(url, {
+          ...options,
+
+          cache: 'no-store',
+
+          signal:
+            controller.signal,
+
+          headers: {
+            Accept:
+              'application/json',
+
+            ...(options.headers || {})
+          }
+        });
 
       let body = {};
 
       try {
-        body = await response.json();
+        body =
+          await response.json();
       } catch (_) {
         body = {};
       }
 
       if (!response.ok) {
-        const errorMessage =
+        throw new Error(
           body?.error ||
           body?.message ||
-          `HTTP ${response.status}`;
-
-        throw new Error(errorMessage);
+          `HTTP ${response.status}`
+        );
       }
 
       return body;
+
     } catch (error) {
-      if (error?.name === 'AbortError') {
+
+      if (
+        error?.name ===
+        'AbortError'
+      ) {
         throw new Error(
           'انتهت مهلة الاتصال بالخادم. يرجى المحاولة مرة أخرى.'
         );
@@ -117,9 +148,13 @@
 
       if (
         error instanceof TypeError &&
-        String(error.message || '')
+        String(
+          error.message || ''
+        )
           .toLowerCase()
-          .includes('failed to fetch')
+          .includes(
+            'failed to fetch'
+          )
       ) {
         throw new Error(
           'تعذر الاتصال بخادم العيادة. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.'
@@ -127,45 +162,62 @@
       }
 
       throw error;
+
     } finally {
       clearTimeout(timeout);
     }
   }
 
   /*
-   * ---------------------------------------------------------
-   * MESSAGES
-   * ---------------------------------------------------------
+   * =========================================================
+   * MESSAGE UI
+   * =========================================================
    */
 
-  function showMessage(message, success = false) {
-    const element = $('message');
+  function showMessage(
+    message,
+    success = false
+  ) {
+    const element =
+      $('message');
 
     if (!element) {
       window.alert(message);
       return;
     }
 
-    element.textContent = String(message || '');
+    element.textContent =
+      String(message || '');
 
-    element.style.display = 'block';
-    element.style.color = success
-      ? '#16734a'
-      : '#a13a3a';
+    element.style.display =
+      'block';
 
-    element.style.background = success
-      ? '#eaf8f1'
-      : '#fff1f1';
+    element.style.color =
+      success
+        ? '#16734a'
+        : '#a13a3a';
+
+    element.style.background =
+      success
+        ? '#eaf8f1'
+        : '#fff1f1';
 
     element.style.border =
       success
         ? '1px solid #ccebd8'
         : '1px solid #f1cccc';
 
-    element.style.padding = '12px 16px';
-    element.style.borderRadius = '10px';
-    element.style.marginTop = '12px';
-    element.style.lineHeight = '1.8';
+    element.style.padding =
+      '12px 16px';
+
+    element.style.borderRadius =
+      '10px';
+
+    element.style.marginTop =
+      '12px';
+
+    element.style.lineHeight =
+      '1.8';
 
     element.scrollIntoView({
       behavior: 'smooth',
@@ -174,31 +226,39 @@
   }
 
   function hideMessage() {
-    const element = $('message');
+    const element =
+      $('message');
 
     if (!element) {
       return;
     }
 
-    element.textContent = '';
-    element.style.display = 'none';
+    element.textContent =
+      '';
+
+    element.style.display =
+      'none';
   }
 
   /*
-   * ---------------------------------------------------------
-   * CLINIC DATA HELPERS
-   * ---------------------------------------------------------
+   * =========================================================
+   * DOCTOR HELPERS
+   * =========================================================
    */
 
   function getDoctor(id) {
-    return (clinicData.doctors || []).find(
+    return (
+      clinicData.doctors || []
+    ).find(
       (item) =>
-        String(item.id) === String(id)
+        String(item.id) ===
+        String(id)
     );
   }
 
   function getDoctorName(id) {
-    const doctor = getDoctor(id);
+    const doctor =
+      getDoctor(id);
 
     if (!doctor) {
       return 'غير محدد';
@@ -213,7 +273,8 @@
   }
 
   function getDoctorTitle(id) {
-    const doctor = getDoctor(id);
+    const doctor =
+      getDoctor(id);
 
     if (!doctor) {
       return '';
@@ -226,15 +287,25 @@
     );
   }
 
+  /*
+   * =========================================================
+   * SERVICE HELPERS
+   * =========================================================
+   */
+
   function getService(id) {
-    return (clinicData.services || []).find(
+    return (
+      clinicData.services || []
+    ).find(
       (item) =>
-        String(item.id) === String(id)
+        String(item.id) ===
+        String(id)
     );
   }
 
   function getServiceName(id) {
-    const service = getService(id);
+    const service =
+      getService(id);
 
     if (!service) {
       return 'غير محدد';
@@ -246,6 +317,12 @@
       'غير محدد'
     );
   }
+
+  /*
+   * =========================================================
+   * MODE
+   * =========================================================
+   */
 
   function getModeText(mode) {
     const value =
@@ -265,9 +342,9 @@
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * DATE / TIME
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   function formatDate(date) {
@@ -277,9 +354,15 @@
 
     try {
       const parsed =
-        new Date(`${date}T00:00:00`);
+        new Date(
+          `${date}T00:00:00`
+        );
 
-      if (Number.isNaN(parsed.getTime())) {
+      if (
+        Number.isNaN(
+          parsed.getTime()
+        )
+      ) {
         return String(date);
       }
 
@@ -292,6 +375,7 @@
           day: 'numeric'
         }
       );
+
     } catch (_) {
       return String(date);
     }
@@ -304,29 +388,36 @@
   }
 
   function getTodayLocalDate() {
-    const now = new Date();
+    const now =
+      new Date();
 
     const year =
       now.getFullYear();
 
     const month =
-      String(now.getMonth() + 1)
-        .padStart(2, '0');
+      String(
+        now.getMonth() + 1
+      ).padStart(2, '0');
 
     const day =
-      String(now.getDate())
-        .padStart(2, '0');
+      String(
+        now.getDate()
+      ).padStart(2, '0');
 
-    return `${year}-${month}-${day}`;
+    return (
+      `${year}-${month}-${day}`
+    );
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * WHATSAPP
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
-  function normalizeWhatsAppNumber(number) {
+  function normalizeWhatsAppNumber(
+    number
+  ) {
     return String(number || '')
       .replace(/\D/g, '');
   }
@@ -336,21 +427,37 @@
       clinicData?.settings?.whatsapp;
 
     const normalized =
-      normalizeWhatsAppNumber(configured);
+      normalizeWhatsAppNumber(
+        configured
+      );
 
     if (normalized) {
       return normalized;
     }
 
-    return DEFAULT_WHATSAPP_NUMBER;
+    return (
+      DEFAULT_WHATSAPP_NUMBER
+    );
   }
 
-  function createWhatsAppMessage(booking) {
+  /*
+   * =========================================================
+   * WHATSAPP MESSAGE
+   * =========================================================
+   */
+
+  function createWhatsAppMessage(
+    booking
+  ) {
     const doctorName =
-      getDoctorName(booking.doctor_id);
+      getDoctorName(
+        booking.doctor_id
+      );
 
     const doctorTitle =
-      getDoctorTitle(booking.doctor_id);
+      getDoctorTitle(
+        booking.doctor_id
+      );
 
     const doctorDisplay =
       doctorTitle
@@ -358,10 +465,14 @@
         : doctorName;
 
     const serviceName =
-      getServiceName(booking.service_id);
+      getServiceName(
+        booking.service_id
+      );
 
     const mode =
-      getModeText(booking.mode);
+      getModeText(
+        booking.mode
+      );
 
     const date =
       formatDate(
@@ -387,7 +498,8 @@
 
     const patientEmail =
       String(
-        booking.patient_email || ''
+        booking.patient_email ||
+        ''
       ).trim();
 
     const notes =
@@ -435,21 +547,40 @@ ${notes}`;
     return message;
   }
 
-  function showWhatsAppStep(booking) {
+  /*
+   * =========================================================
+   * WHATSAPP CONFIRMATION
+   * =========================================================
+   */
+
+  function showWhatsAppStep(
+    booking
+  ) {
     let container =
       $('whatsappBookingStep');
 
     if (!container) {
+
       container =
-        document.createElement('div');
+        document.createElement(
+          'div'
+        );
 
       container.id =
         'whatsappBookingStep';
 
-      container.style.marginTop = '20px';
-      container.style.padding = '20px';
-      container.style.borderRadius = '14px';
-      container.style.background = '#f1fbf5';
+      container.style.marginTop =
+        '20px';
+
+      container.style.padding =
+        '20px';
+
+      container.style.borderRadius =
+        '14px';
+
+      container.style.background =
+        '#f1fbf5';
+
       container.style.border =
         '1px solid #ccebd8';
 
@@ -468,7 +599,9 @@ ${notes}`;
       getClinicWhatsApp();
 
     const message =
-      createWhatsAppMessage(booking);
+      createWhatsAppMessage(
+        booking
+      );
 
     const whatsappURL =
       `https://wa.me/${phone}?text=${encodeURIComponent(
@@ -497,8 +630,12 @@ ${notes}`;
               booking.booking_code || ''
             )}
           </strong>
+
           <br>
-          لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.
+
+          لإكمال إجراءات الحجز،
+          اضغط الزر التالي لإرسال
+          تفاصيل الموعد إلى WhatsApp العيادة.
         </p>
 
         <a
@@ -541,6 +678,12 @@ ${notes}`;
     });
   }
 
+  /*
+   * =========================================================
+   * REMOVE OLD WHATSAPP BOX
+   * =========================================================
+   */
+
   function removeOldWhatsAppStep() {
     const old =
       $('whatsappBookingStep');
@@ -551,9 +694,9 @@ ${notes}`;
   }
 
   /*
-   * ---------------------------------------------------------
-   * SELECTORS
-   * ---------------------------------------------------------
+   * =========================================================
+   * POPULATE DOCTORS / SERVICES
+   * =========================================================
    */
 
   function populateSelectors() {
@@ -596,35 +739,40 @@ ${notes}`;
       </option>
     `;
 
-    doctors.forEach((doctor) => {
-      const option =
-        document.createElement(
-          'option'
+    doctors.forEach(
+      (doctor) => {
+
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          String(
+            doctor.id ?? ''
+          );
+
+        const name =
+          doctor.name ||
+          doctor.full_name ||
+          doctor.display_name ||
+          'طبيب';
+
+        const title =
+          doctor.title ||
+          doctor.specialty ||
+          '';
+
+        option.textContent =
+          title
+            ? `${name} — ${title}`
+            : name;
+
+        doctorSelect.appendChild(
+          option
         );
-
-      option.value =
-        String(doctor.id ?? '');
-
-      const name =
-        doctor.name ||
-        doctor.full_name ||
-        doctor.display_name ||
-        'طبيب';
-
-      const title =
-        doctor.title ||
-        doctor.specialty ||
-        '';
-
-      option.textContent =
-        title
-          ? `${name} — ${title}`
-          : name;
-
-      doctorSelect.appendChild(
-        option
-      );
-    });
+      }
+    );
 
     serviceSelect.innerHTML = `
       <option value="">
@@ -632,38 +780,44 @@ ${notes}`;
       </option>
     `;
 
-    services.forEach((service) => {
-      const option =
-        document.createElement(
-          'option'
+    services.forEach(
+      (service) => {
+
+        const option =
+          document.createElement(
+            'option'
+          );
+
+        option.value =
+          String(
+            service.id ?? ''
+          );
+
+        const name =
+          service.name ||
+          service.title ||
+          'خدمة';
+
+        const duration =
+          service.duration_minutes;
+
+        option.textContent =
+          duration
+            ? `${name} — ${duration} دقيقة`
+            : name;
+
+        serviceSelect.appendChild(
+          option
         );
-
-      option.value =
-        String(service.id ?? '');
-
-      const name =
-        service.name ||
-        service.title ||
-        'خدمة';
-
-      const duration =
-        service.duration_minutes;
-
-      option.textContent =
-        duration
-          ? `${name} — ${duration} دقيقة`
-          : name;
-
-      serviceSelect.appendChild(
-        option
-      );
-    });
+      }
+    );
 
     if (
       [...doctorSelect.options]
         .some(
           (option) =>
-            option.value === oldDoctor
+            option.value ===
+            oldDoctor
         )
     ) {
       doctorSelect.value =
@@ -674,7 +828,8 @@ ${notes}`;
       [...serviceSelect.options]
         .some(
           (option) =>
-            option.value === oldService
+            option.value ===
+            oldService
         )
     ) {
       serviceSelect.value =
@@ -683,9 +838,9 @@ ${notes}`;
   }
 
   /*
-   * ---------------------------------------------------------
-   * DATE
-   * ---------------------------------------------------------
+   * =========================================================
+   * DATE SETUP
+   * =========================================================
    */
 
   function setupDate() {
@@ -699,30 +854,34 @@ ${notes}`;
     const today =
       getTodayLocalDate();
 
-    dateInput.min = today;
+    dateInput.min =
+      today;
 
     if (
       !dateInput.value ||
       dateInput.value < today
     ) {
-      dateInput.value = today;
+      dateInput.value =
+        today;
     }
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * LOAD CLINIC DATA
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   async function loadClinicData() {
     try {
+
       const result =
         await request(
           `${API}?api=data&_=${Date.now()}`
         );
 
       clinicData = {
+
         doctors:
           Array.isArray(
             result?.doctors
@@ -746,11 +905,13 @@ ${notes}`;
       };
 
       populateSelectors();
+
       setupDate();
 
       await loadAvailableSlots();
 
     } catch (error) {
+
       console.error(
         'Azaad Clinic data error:',
         error
@@ -764,25 +925,30 @@ ${notes}`;
   }
 
   /*
-   * ---------------------------------------------------------
-   * AVAILABLE SLOTS
-   * ---------------------------------------------------------
+   * =========================================================
+   * LOAD AVAILABLE SLOTS
+   * =========================================================
    */
 
   async function loadAvailableSlots() {
+
     const slotsContainer =
       $('slots');
 
     const doctor =
-      $('doctor')?.value || '';
+      $('doctor')?.value ||
+      '';
 
     const service =
-      $('service')?.value || '';
+      $('service')?.value ||
+      '';
 
     const date =
-      $('date')?.value || '';
+      $('date')?.value ||
+      '';
 
-    selectedSlot = '';
+    selectedSlot =
+      '';
 
     if (!slotsContainer) {
       return;
@@ -793,6 +959,7 @@ ${notes}`;
       !service ||
       !date
     ) {
+
       slotsContainer.innerHTML = `
         <div class="slots-empty">
           اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.
@@ -809,13 +976,16 @@ ${notes}`;
     `;
 
     try {
+
       const params =
         new URLSearchParams({
           api: 'slots',
           doctor,
           service,
           date,
-          _: String(Date.now())
+          _: String(
+            Date.now()
+          )
         });
 
       const result =
@@ -831,6 +1001,7 @@ ${notes}`;
           : [];
 
       if (!slots.length) {
+
         slotsContainer.innerHTML = `
           <div class="slots-empty">
             لا توجد مواعيد متاحة لهذا اليوم.
@@ -840,55 +1011,68 @@ ${notes}`;
         return;
       }
 
-      slotsContainer.innerHTML = '';
+      slotsContainer.innerHTML =
+        '';
 
-      slots.forEach((time) => {
-        const button =
-          document.createElement(
-            'button'
-          );
+      slots.forEach(
+        (time) => {
 
-        button.type = 'button';
-        button.className = 'slot';
-
-        const normalized =
-          normalizeTime(time);
-
-        button.dataset.slot =
-          normalized;
-
-        button.textContent =
-          normalized;
-
-        button.addEventListener(
-          'click',
-          () => {
-            slotsContainer
-              .querySelectorAll('.slot')
-              .forEach((item) => {
-                item.classList.remove(
-                  'selected'
-                );
-              });
-
-            button.classList.add(
-              'selected'
+          const button =
+            document.createElement(
+              'button'
             );
 
-            selectedSlot =
-              button.dataset.slot ||
-              '';
+          button.type =
+            'button';
 
-            hideMessage();
-          }
-        );
+          button.className =
+            'slot';
 
-        slotsContainer.appendChild(
-          button
-        );
-      });
+          const normalized =
+            normalizeTime(time);
+
+          button.dataset.slot =
+            normalized;
+
+          button.textContent =
+            normalized;
+
+          button.addEventListener(
+            'click',
+            () => {
+
+              slotsContainer
+                .querySelectorAll(
+                  '.slot'
+                )
+                .forEach(
+                  (item) => {
+                    item.classList.remove(
+                      'selected'
+                    );
+                  }
+                );
+
+              button.classList.add(
+                'selected'
+              );
+
+              selectedSlot =
+                button.dataset.slot ||
+                '';
+
+              hideMessage();
+            }
+          );
+
+          slotsContainer.appendChild(
+            button
+          );
+        }
+      );
 
     } catch (error) {
+
       console.error(
         'Slots error:',
         error
@@ -909,26 +1093,32 @@ ${notes}`;
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * PHONE VALIDATION
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   function validatePhone(phone) {
+
     const digits =
       String(phone || '')
         .replace(/\D/g, '');
 
-    return digits.length >= 8;
+    return (
+      digits.length >= 8
+    );
   }
 
   /*
-   * ---------------------------------------------------------
-   * BOOKING
-   * ---------------------------------------------------------
+   * =========================================================
+   * SUBMIT BOOKING
+   * =========================================================
    */
 
-  async function submitBooking(event) {
+  async function submitBooking(
+    event
+  ) {
+
     event.preventDefault();
 
     hideMessage();
@@ -936,52 +1126,67 @@ ${notes}`;
     removeOldWhatsAppStep();
 
     const doctor =
-      $('doctor')?.value || '';
+      $('doctor')?.value ||
+      '';
 
     const service =
-      $('service')?.value || '';
+      $('service')?.value ||
+      '';
 
     const date =
-      $('date')?.value || '';
+      $('date')?.value ||
+      '';
 
     const name =
-      $('name')?.value.trim() || '';
+      $('name')?.value.trim() ||
+      '';
 
     const phone =
-      $('phone')?.value.trim() || '';
+      $('phone')?.value.trim() ||
+      '';
 
     const email =
-      $('email')?.value.trim() || '';
+      $('email')?.value.trim() ||
+      '';
 
     const notes =
-      $('notes')?.value.trim() || '';
+      $('notes')?.value.trim() ||
+      '';
 
     const mode =
       $('mode')?.value ||
       'clinic';
 
     /*
-     * Required validation
+     * -------------------------------------------------------
+     * VALIDATION
+     * -------------------------------------------------------
      */
 
     if (!doctor) {
+
       showMessage(
         'من فضلك اختر الطبيب.'
       );
+
       return;
     }
 
     if (!service) {
+
       showMessage(
         'من فضلك اختر الخدمة.'
       );
+
       return;
     }
 
     if (!date) {
+
       showMessage(
         'من فضلك اختر التاريخ.'
       );
+
       return;
     }
 
@@ -989,67 +1194,107 @@ ${notes}`;
       date <
       getTodayLocalDate()
     ) {
+
       showMessage(
         'لا يمكن اختيار تاريخ سابق.'
       );
+
       return;
     }
 
     if (!selectedSlot) {
+
       showMessage(
         'من فضلك اختر أحد المواعيد المتاحة.'
       );
+
       return;
     }
 
     if (!name) {
+
       showMessage(
         'من فضلك اكتب الاسم بالكامل.'
       );
+
       return;
     }
 
     if (!phone) {
+
       showMessage(
         'من فضلك اكتب رقم الهاتف.'
       );
+
       return;
     }
 
-    if (!validatePhone(phone)) {
+    if (
+      !validatePhone(phone)
+    ) {
+
       showMessage(
         'من فضلك أدخل رقم هاتف صحيح.'
       );
+
       return;
     }
 
     if (
       email &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        .test(email)
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
     ) {
+
       showMessage(
         'من فضلك أدخل بريدًا إلكترونيًا صحيحًا.'
       );
+
       return;
     }
 
     /*
-     * Payload expected by the
-     * Supabase booking endpoint.
+     * -------------------------------------------------------
+     * BOOKING PAYLOAD
+     * -------------------------------------------------------
      */
 
     const payload = {
-      doctor_id: doctor,
-      service_id: service,
-      appointment_date: date,
-      appointment_time: selectedSlot,
-      mode,
-      patient_name: name,
-      patient_phone: phone,
-      patient_email: email || null,
-      notes: notes || null
+
+      doctor_id:
+        doctor,
+
+      service_id:
+        service,
+
+      appointment_date:
+        date,
+
+      appointment_time:
+        selectedSlot,
+
+      mode:
+        mode,
+
+      patient_name:
+        name,
+
+      patient_phone:
+        phone,
+
+      patient_email:
+        email || null,
+
+      notes:
+        notes || null
     };
+
+    /*
+     * -------------------------------------------------------
+     * SUBMIT BUTTON
+     * -------------------------------------------------------
+     */
 
     const submitButton =
       document.querySelector(
@@ -1062,7 +1307,9 @@ ${notes}`;
         : '';
 
     if (submitButton) {
-      submitButton.disabled = true;
+
+      submitButton.disabled =
+        true;
 
       submitButton.setAttribute(
         'aria-busy',
@@ -1073,7 +1320,14 @@ ${notes}`;
         'جاري تأكيد الحجز...';
     }
 
+    /*
+     * -------------------------------------------------------
+     * SEND BOOKING
+     * -------------------------------------------------------
+     */
+
     try {
+
       const result =
         await request(
           `${API}?api=book`,
@@ -1086,7 +1340,9 @@ ${notes}`;
             },
 
             body:
-              JSON.stringify(payload)
+              JSON.stringify(
+                payload
+              )
           }
         );
 
@@ -1103,36 +1359,58 @@ ${notes}`;
         '';
 
       /*
-       * The API must return a booking code.
-       * Do not tell the patient that a booking
-       * was successfully created without one.
+       * لا نعتبر الحجز ناجحًا
+       * بدون رقم حجز من الخادم.
        */
 
       if (!bookingCode) {
+
         throw new Error(
           'تم إرسال الطلب ولكن لم يتم استلام رقم الحجز. يرجى التواصل مع العيادة للتأكد من حالة الطلب.'
         );
       }
 
+      /*
+       * -----------------------------------------------------
+       * COMPLETE BOOKING OBJECT
+       * -----------------------------------------------------
+       */
+
       const bookingData = {
+
         ...payload,
+
         ...booking,
+
         booking_code:
           bookingCode
       };
+
+      /*
+       * -----------------------------------------------------
+       * SUCCESS
+       * -----------------------------------------------------
+       */
 
       showMessage(
         `تم إنشاء طلب الحجز بنجاح. رقم الحجز: ${bookingCode}`,
         true
       );
 
+      /*
+       * -----------------------------------------------------
+       * WHATSAPP
+       * -----------------------------------------------------
+       */
+
       showWhatsAppStep(
         bookingData
       );
 
       /*
-       * Clear form only AFTER all booking
-       * information has been captured.
+       * -----------------------------------------------------
+       * RESET FORM
+       * -----------------------------------------------------
        */
 
       const form =
@@ -1142,7 +1420,8 @@ ${notes}`;
         form.reset();
       }
 
-      selectedSlot = '';
+      selectedSlot =
+        '';
 
       setupDate();
 
@@ -1150,6 +1429,7 @@ ${notes}`;
         $('slots');
 
       if (slots) {
+
         slots.innerHTML = `
           <div class="slots-empty">
             تم تسجيل الحجز.
@@ -1159,6 +1439,7 @@ ${notes}`;
       }
 
     } catch (error) {
+
       console.error(
         'Booking error:',
         error
@@ -1173,44 +1454,74 @@ ${notes}`;
           .toLowerCase();
 
       /*
-       * PostgreSQL duplicate / unique errors
+       * -----------------------------------------------------
+       * DUPLICATE BOOKING
+       * -----------------------------------------------------
        */
 
       if (
-        lower.includes('duplicate') ||
-        lower.includes('unique') ||
-        lower.includes('already booked') ||
-        lower.includes('already_booked') ||
-        lower.includes('23505') ||
-        lower.includes('slot_unavailable') ||
-        lower.includes('slot unavailable')
+        lower.includes(
+          'duplicate'
+        ) ||
+        lower.includes(
+          'unique'
+        ) ||
+        lower.includes(
+          'already booked'
+        ) ||
+        lower.includes(
+          'already_booked'
+        ) ||
+        lower.includes(
+          '23505'
+        ) ||
+        lower.includes(
+          'slot_unavailable'
+        ) ||
+        lower.includes(
+          'slot unavailable'
+        )
       ) {
+
         message =
           'هذا الموعد تم حجزه بالفعل. يرجى اختيار موعد آخر.';
       }
 
       /*
-       * Common server-side booking conflicts
+       * -----------------------------------------------------
+       * UNAVAILABLE
+       * -----------------------------------------------------
        */
 
       if (
-        lower.includes('not available') ||
-        lower.includes('not_available')
+        lower.includes(
+          'not available'
+        ) ||
+        lower.includes(
+          'not_available'
+        )
       ) {
+
         message =
           'هذا الموعد غير متاح حاليًا. يرجى اختيار موعد آخر.';
       }
 
-      showMessage(message);
+      showMessage(
+        message
+      );
 
       /*
-       * Refresh slots after a failed booking,
-       * especially if another patient took the slot.
+       * تحديث المواعيد بعد فشل الحجز
        */
 
       try {
+
         await loadAvailableSlots();
-      } catch (slotError) {
+
+      } catch (
+        slotError
+      ) {
+
         console.error(
           'Slot refresh error:',
           slotError
@@ -1218,8 +1529,11 @@ ${notes}`;
       }
 
     } finally {
+
       if (submitButton) {
-        submitButton.disabled = false;
+
+        submitButton.disabled =
+          false;
 
         submitButton.removeAttribute(
           'aria-busy'
@@ -1233,12 +1547,15 @@ ${notes}`;
   }
 
   /*
-   * ---------------------------------------------------------
-   * EVENT LISTENERS
-   * ---------------------------------------------------------
+   * =========================================================
+   * EVENT BINDING
+   * =========================================================
    */
 
-  function bindChangeEvent(element) {
+  function bindChangeEvent(
+    element
+  ) {
+
     if (!element) {
       return;
     }
@@ -1246,26 +1563,37 @@ ${notes}`;
     element.addEventListener(
       'change',
       () => {
+
         removeOldWhatsAppStep();
+
         hideMessage();
+
         loadAvailableSlots();
       }
     );
   }
 
+  /*
+   * =========================================================
+   * INITIALIZATION
+   * =========================================================
+   */
+
   function initializeBooking() {
+
     if (initialized) {
       return;
     }
 
-    initialized = true;
+    initialized =
+      true;
 
     const form =
       $('bookingForm');
 
     /*
-     * Some pages in the project do not contain
-     * the public booking form. That is normal.
+     * الصفحات التي لا تحتوي على
+     * bookingForm لا تحتاج نظام الحجز.
      */
 
     if (!form) {
@@ -1281,9 +1609,17 @@ ${notes}`;
     const date =
       $('date');
 
-    bindChangeEvent(doctor);
-    bindChangeEvent(service);
-    bindChangeEvent(date);
+    bindChangeEvent(
+      doctor
+    );
+
+    bindChangeEvent(
+      service
+    );
+
+    bindChangeEvent(
+      date
+    );
 
     form.addEventListener(
       'submit',
@@ -1296,21 +1632,26 @@ ${notes}`;
   }
 
   /*
-   * ---------------------------------------------------------
-   * START
-   * ---------------------------------------------------------
+   * =========================================================
+   * START APPLICATION
+   * =========================================================
    */
 
   if (
     document.readyState ===
     'loading'
   ) {
+
     document.addEventListener(
       'DOMContentLoaded',
       initializeBooking,
-      { once: true }
+      {
+        once: true
+      }
     );
+
   } else {
+
     initializeBooking();
   }
 
