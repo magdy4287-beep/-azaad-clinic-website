@@ -3,16 +3,22 @@
    File: admin.js
 
    Production-oriented frontend controller
-   Supabase Auth + RLS
-   Username + Password Login via staff-login Edge Function
+
+   Authentication:
+   - Username + Password
+   - Secure staff-login Edge Function
+   - Supabase Auth session
+   - RLS-compatible access token
 
    IMPORTANT:
-   - No Supabase Service Role Key is stored here.
-   - Username login is handled securely by staff-login.
-   - The returned Supabase session is restored locally.
+   - NEVER contains Supabase Service Role Key.
+   - NEVER contains employee passwords.
+   - Username login is handled by the secure Edge Function.
    ============================================================ */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createClient
+} from "https://esm.sh/@supabase/supabase-js@2";
 
 /* ------------------------------------------------------------
    SUPABASE
@@ -22,11 +28,19 @@ const SUPABASE_URL =
   "https://derofsthjivlkcdnojww.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa";
+  "sb_publishable_GC253fvQbNBsDOaKjWGRw_tPYJrgLa";
 
 /*
- * Username login is handled by this secured Edge Function.
- */
+  Secure username login Edge Function.
+
+  This function:
+  1. Receives username + password.
+  2. Finds the employee in clinic_staff.
+  3. Verifies that the account is active.
+  4. Authenticates against Supabase Auth using the employee email.
+  5. Returns the real Supabase session.
+*/
+
 const STAFF_LOGIN_FUNCTION =
   `${SUPABASE_URL}/functions/v1/staff-login`;
 
@@ -44,6 +58,20 @@ const supabase =
   );
 
 /* ------------------------------------------------------------
+   WEBSITE
+   ------------------------------------------------------------ */
+
+const WEBSITE_URL =
+  "https://magdy4287-beep.github.io/-azaad-clinic-website/";
+
+const WEBSITE_MESSAGE =
+  `🏥 عيادة أزاد للصحة النفسية
+
+📅 لحجز موعد يمكنك الدخول من هنا:
+
+${WEBSITE_URL}`;
+
+/* ------------------------------------------------------------
    HELPERS
    ------------------------------------------------------------ */
 
@@ -51,6 +79,7 @@ const $ = (id) =>
   document.getElementById(id);
 
 const escapeHTML = (value) => {
+
   if (
     value === null ||
     value === undefined
@@ -102,14 +131,9 @@ const formatDate = (
     ).toLocaleDateString(
       "ar-EG",
       {
-        year:
-          "numeric",
-
-        month:
-          "short",
-
-        day:
-          "numeric"
+        year: "numeric",
+        month: "short",
+        day: "numeric"
       }
     );
 
@@ -128,9 +152,8 @@ const formatTime = (
     return "-";
   }
 
-  return String(
-    value
-  ).slice(0, 5);
+  return String(value)
+    .slice(0, 5);
 };
 
 const normalizePhone = (
@@ -144,10 +167,7 @@ const normalizePhone = (
   let p =
     String(phone)
       .trim()
-      .replace(
-        /[^\d+]/g,
-        ""
-      );
+      .replace(/[^\d+]/g, "");
 
   if (
     p.startsWith("00")
@@ -253,94 +273,25 @@ const showToast = (
     );
 };
 
-const safeQuery =
-  async (
-    query
-  ) => {
+const safeQuery = async (
+  query
+) => {
 
-    try {
+  try {
 
-      return await query;
+    return await query;
 
-    } catch (
+  } catch (error) {
+
+    console.error(error);
+
+    return {
+      data: null,
       error
-    ) {
-
-      console.error(
-        error
-      );
-
-      return {
-        data:
-          null,
-
-        error
-      };
-
-    }
-  };
-
-/* ------------------------------------------------------------
-   ROLE PERMISSIONS
-   ------------------------------------------------------------ */
-
-function getPermissionsForRole(
-  role
-) {
-
-  const normalized =
-    String(
-      role || ""
-    )
-      .trim()
-      .toUpperCase();
-
-  const permissions =
-    new Set([
-      "dashboard.view"
-    ]);
-
-  /*
-   * Management roles.
-   */
-  if (
-    [
-      "OWNER",
-      "ADMIN",
-      "MANAGER"
-    ].includes(
-      normalized
-    )
-  ) {
-
-    permissions.add(
-      "bookings.view"
-    );
-
-    permissions.add(
-      "patients.view"
-    );
-
-    permissions.add(
-      "followups.view"
-    );
-
-    permissions.add(
-      "marketing.view"
-    );
-
-    permissions.add(
-      "finance.view"
-    );
-
-    permissions.add(
-      "staff.view"
-    );
+    };
 
   }
-
-  return permissions;
-}
+};
 
 /* ------------------------------------------------------------
    STATE
@@ -364,9 +315,15 @@ const state = {
     "ADMIN",
 
   permissions:
-    getPermissionsForRole(
-      "ADMIN"
-    ),
+    new Set([
+      "dashboard.view",
+      "bookings.view",
+      "patients.view",
+      "followups.view",
+      "marketing.view",
+      "finance.view",
+      "staff.view"
+    ]),
 
   initialized:
     false
@@ -374,16 +331,78 @@ const state = {
 };
 
 /* ------------------------------------------------------------
-   PERMISSION CHECK
+   STAFF ROLE
    ------------------------------------------------------------ */
 
-function hasPermission(
-  permission
+function normalizeRole(
+  role
 ) {
 
-  return state.permissions.has(
-    permission
-  );
+  return String(
+    role || ""
+  )
+    .trim()
+    .toUpperCase();
+
+}
+
+/* ------------------------------------------------------------
+   LOAD CURRENT STAFF PROFILE
+   ------------------------------------------------------------ */
+
+async function loadCurrentStaff() {
+
+  if (!state.user?.id) {
+    return null;
+  }
+
+  const result =
+    await safeQuery(
+      supabase
+        .from("clinic_staff")
+        .select(`
+          id,
+          auth_user_id,
+          full_name,
+          username,
+          email,
+          phone,
+          role,
+          active,
+          is_active,
+          created_at,
+          updated_at
+        `)
+        .eq(
+          "auth_user_id",
+          state.user.id
+        )
+        .maybeSingle()
+    );
+
+  if (result.error) {
+
+    console.error(
+      "Current staff loading error:",
+      result.error
+    );
+
+    return null;
+  }
+
+  if (!result.data) {
+    return null;
+  }
+
+  state.staff =
+    result.data;
+
+  state.currentRole =
+    normalizeRole(
+      result.data.role
+    );
+
+  return result.data;
 }
 
 /* ------------------------------------------------------------
@@ -418,45 +437,27 @@ async function login(
 
   }
 
-  /*
-   * Username validation.
-   *
-   * This must remain aligned with
-   * the staff-login Edge Function.
-   */
-
-  if (
-    !/^[a-z0-9._-]{3,40}$/.test(
-      cleanUsername
-    )
-  ) {
-
-    throw new Error(
-      "بيانات الدخول غير صحيحة."
-    );
-
-  }
-
   const response =
     await fetch(
       STAFF_LOGIN_FUNCTION,
       {
-        method:
-          "POST",
+        method: "POST",
 
         headers: {
           "Content-Type":
-            "application/json"
+            "application/json",
+
+          apikey:
+            SUPABASE_PUBLISHABLE_KEY
         },
 
-        body:
-          JSON.stringify({
-            username:
-              cleanUsername,
+        body: JSON.stringify({
+          username:
+            cleanUsername,
 
-            password:
-              cleanPassword
-          })
+          password:
+            cleanPassword
+        })
       }
     );
 
@@ -475,110 +476,75 @@ async function login(
 
   }
 
-  if (
-    !response.ok
-  ) {
+  if (!response.ok) {
 
     throw new Error(
       result?.error ||
       result?.message ||
-      "بيانات الدخول غير صحيحة أو الحساب غير فعال."
+      "بيانات الدخول غير صحيحة."
     );
 
   }
 
   if (
-    !result ||
-    result.ok !== true
+    !result?.ok ||
+    !result?.session?.access_token ||
+    !result?.session?.refresh_token
   ) {
 
     throw new Error(
-      result?.error ||
-      "تعذر تسجيل الدخول."
+      "لم يتم إنشاء جلسة دخول صالحة."
     );
 
   }
 
   /*
-   * The Edge Function returns:
-   *
-   * session.access_token
-   * session.refresh_token
-   *
-   * We restore the Supabase Auth session
-   * so the rest of the Admin Center can
-   * continue using normal Supabase RLS.
-   */
+    Convert the session returned by staff-login
+    into a normal Supabase browser session.
 
-  if (
-    !result.session ||
-    !result.session.access_token ||
-    !result.session.refresh_token
-  ) {
-
-    throw new Error(
-      "تعذر إنشاء جلسة Supabase."
-    );
-
-  }
+    This is important because all RLS-protected
+    database requests made later by admin.js
+    must use the authenticated access token.
+  */
 
   const {
-    data:
-      sessionData,
-
-    error:
-      sessionError
-
+    data,
+    error
   } =
     await supabase.auth.setSession({
-
       access_token:
         result.session.access_token,
 
       refresh_token:
         result.session.refresh_token
-
     });
 
-  if (
-    sessionError
-  ) {
-
-    throw sessionError;
-
+  if (error) {
+    throw error;
   }
 
-  if (
-    !sessionData?.session
-  ) {
+  if (!data?.session) {
 
     throw new Error(
-      "تعذر حفظ جلسة المستخدم."
+      "تعذر حفظ جلسة تسجيل الدخول."
     );
 
   }
 
   state.session =
-    sessionData.session;
+    data.session;
 
   state.user =
-    sessionData.user;
+    data.user ||
+    data.session.user;
 
   state.staff =
     result.staff ||
     null;
 
   state.currentRole =
-    String(
-      result?.staff?.role ||
-      "ADMIN"
-    )
-      .trim()
-      .toUpperCase();
-
-  state.permissions =
-    getPermissionsForRole(
-      state.currentRole
+    normalizeRole(
+      result.staff?.role
     );
 
   await initializeApplication();
@@ -595,9 +561,7 @@ async function logout() {
 
     await supabase.auth.signOut();
 
-  } catch (
-    error
-  ) {
+  } catch (error) {
 
     console.error(
       "Logout error:",
@@ -618,12 +582,11 @@ async function logout() {
   state.initialized =
     false;
 
-  location.reload();
-
+  window.location.reload();
 }
 
 /* ------------------------------------------------------------
-   AUTH SESSION RESTORE
+   AUTH SESSION
    ------------------------------------------------------------ */
 
 async function restoreSession() {
@@ -655,90 +618,9 @@ async function restoreSession() {
     state.user =
       data.session.user;
 
-    /*
-     * Restore the staff profile from
-     * clinic_staff after Supabase session
-     * is restored.
-     */
-
     await loadCurrentStaff();
 
     await initializeApplication();
-
-  }
-
-}
-
-/* ------------------------------------------------------------
-   CURRENT STAFF
-   ------------------------------------------------------------ */
-
-async function loadCurrentStaff() {
-
-  if (
-    !state.user?.id
-  ) {
-
-    return;
-
-  }
-
-  const result =
-    await safeQuery(
-      supabase
-        .from(
-          "clinic_staff"
-        )
-        .select(`
-          id,
-          auth_user_id,
-          full_name,
-          username,
-          email,
-          phone,
-          role,
-          active,
-          is_active
-        `)
-        .eq(
-          "auth_user_id",
-          state.user.id
-        )
-        .maybeSingle()
-    );
-
-  if (
-    result.error
-  ) {
-
-    console.error(
-      "Current staff loading error:",
-      result.error
-    );
-
-    return;
-
-  }
-
-  if (
-    result.data
-  ) {
-
-    state.staff =
-      result.data;
-
-    state.currentRole =
-      String(
-        result.data.role ||
-        "ADMIN"
-      )
-        .trim()
-        .toUpperCase();
-
-    state.permissions =
-      getPermissionsForRole(
-        state.currentRole
-      );
 
   }
 
@@ -753,67 +635,70 @@ async function initializeApplication() {
   if (
     state.initialized
   ) {
-
-    /*
-     * If already initialized,
-     * simply refresh dynamic content.
-     */
-
-    await loadBookings();
-
-    refreshCommandCenter();
-
-    updateUserIdentity();
-
     return;
+  }
 
+  /*
+    Do not mark initialized until the
+    authenticated user has been checked.
+  */
+
+  if (
+    !state.session ||
+    !state.user
+  ) {
+    return;
   }
 
   state.initialized =
     true;
 
-  if (
-    $("loginPage")
-  ) {
+  if ($("loginPage")) {
 
     $("loginPage")
-      .classList.add(
-        "hidden"
-      );
+      .classList
+      .add("hidden");
 
   }
 
-  if (
-    $("adminPage")
-  ) {
+  if ($("adminPage")) {
 
     $("adminPage")
-      .classList.remove(
-        "hidden"
-      );
+      .classList
+      .remove("hidden");
 
   }
 
-  /*
-   * Make sure current staff permissions
-   * are known before loading the dashboard.
-   */
-
-  if (
-    !state.staff
-  ) {
-
-    await loadCurrentStaff();
-
-  }
+  await loadCurrentStaff();
 
   /*
-   * Do not silently allow an inactive account.
-   */
+    Security check:
+    Only active OWNER / ADMIN / MANAGER
+    accounts can operate the admin center.
+  */
+
+  const role =
+    normalizeRole(
+      state.staff?.role
+    );
+
+  const active =
+    state.staff?.active !== false &&
+    state.staff?.is_active !== false;
+
+  const allowedRoles =
+    [
+      "OWNER",
+      "ADMIN",
+      "MANAGER"
+    ];
 
   if (
-    state.staff &&
-    state.staff.active === false
+    !state.staff ||
+    !active ||
+    !allowedRoles.includes(
+      role
+    )
   ) {
 
     await supabase.auth.signOut();
@@ -830,30 +715,24 @@ async function initializeApplication() {
     state.initialized =
       false;
 
-    if (
-      $("adminPage")
-    ) {
+    if ($("adminPage")) {
 
       $("adminPage")
-        .classList.add(
-          "hidden"
-        );
+        .classList
+        .add("hidden");
 
     }
 
-    if (
-      $("loginPage")
-    ) {
+    if ($("loginPage")) {
 
       $("loginPage")
-        .classList.remove(
-          "hidden"
-        );
+        .classList
+        .remove("hidden");
 
     }
 
     showToast(
-      "⛔ هذا الحساب غير فعال.",
+      "⛔ هذا الحساب لا يملك صلاحية الدخول إلى مركز الإدارة.",
       "error"
     );
 
@@ -868,64 +747,34 @@ async function initializeApplication() {
   updateUserIdentity();
 
   /*
-   * Load staff management module if
-   * the separate file is available.
-   */
+    Start Staff Management module if the file
+    is loaded on the page.
+  */
 
-  initializeStaffModule();
+  if (
+    window.AZAAD_STAFF &&
+    typeof window.AZAAD_STAFF.init ===
+      "function"
+  ) {
+
+    try {
+
+      await window.AZAAD_STAFF.init();
+
+    } catch (error) {
+
+      console.error(
+        "Staff management initialization error:",
+        error
+      );
+
+    }
+
+  }
 
   showToast(
-    `🏥 تم تسجيل الدخول بنجاح — ${getRoleDisplayName(
-      state.currentRole
-    )}`,
+    `✅ تم تسجيل الدخول إلى نظام عيادة أزاد — ${role}`,
     "success"
-  );
-
-}
-
-/* ------------------------------------------------------------
-   ROLE DISPLAY
-   ------------------------------------------------------------ */
-
-function getRoleDisplayName(
-  role
-) {
-
-  const map = {
-
-    OWNER:
-      "👑 Owner",
-
-    ADMIN:
-      "🛡️ Admin",
-
-    MANAGER:
-      "👨‍💼 Manager",
-
-    SECRETARY:
-      "👩‍💼 Secretary",
-
-    CASHIER:
-      "💰 Cashier",
-
-    RECEPTION:
-      "🧑‍💼 Reception",
-
-    DOCTOR:
-      "🧑‍⚕️ Doctor",
-
-    MARKETING:
-      "📣 Marketing"
-
-  };
-
-  return (
-    map[
-      String(
-        role || ""
-      ).toUpperCase()
-    ] ||
-    "👤 Staff"
   );
 
 }
@@ -936,26 +785,24 @@ function getRoleDisplayName(
 
 function updateUserIdentity() {
 
-  if (
-    !state.user
-  ) {
-
+  if (!state.user) {
     return;
-
   }
 
   const email =
-    state.staff?.email ||
     state.user.email ||
+    state.staff?.email ||
     "Administrator";
 
   const username =
     state.staff?.username ||
     "";
 
-  const fullName =
-    state.staff?.full_name ||
-    "";
+  const role =
+    normalizeRole(
+      state.staff?.role ||
+      state.user?.app_metadata?.role
+    );
 
   let identity =
     document.querySelector(
@@ -977,7 +824,7 @@ function updateUserIdentity() {
       font-size:13px;
       color:#6c758c;
       font-weight:700;
-      line-height:1.7;
+      line-height:1.8;
     `;
 
     const topbar =
@@ -1003,16 +850,17 @@ function updateUserIdentity() {
   }
 
   identity.innerHTML = `
-    👤 ${escapeHTML(
-      fullName ||
+    👤 المستخدم:
+    ${escapeHTML(
       username ||
       email
     )}
+
     <br>
-    🎯 ${escapeHTML(
-      getRoleDisplayName(
-        state.currentRole
-      )
+
+    🎯 الصلاحية:
+    ${escapeHTML(
+      role || "ADMIN"
     )}
   `;
 
@@ -1026,11 +874,8 @@ async function loadBookings() {
 
   const result =
     await safeQuery(
-
       supabase
-        .from(
-          "clinic_bookings"
-        )
+        .from("clinic_bookings")
         .select(`
           id,
           booking_code,
@@ -1046,26 +891,19 @@ async function loadBookings() {
         .order(
           "appointment_date",
           {
-            ascending:
-              false
+            ascending: false
           }
         )
         .order(
           "appointment_time",
           {
-            ascending:
-              true
+            ascending: true
           }
         )
-        .limit(
-          500
-        )
-
+        .limit(500)
     );
 
-  if (
-    result.error
-  ) {
+  if (result.error) {
 
     console.error(
       "Booking loading error:",
@@ -1233,16 +1071,15 @@ function renderBookings() {
 
   const rows =
     state.bookings.filter(
-      booking => {
+      (booking) => {
 
-        const searchable =
-          [
-            booking.booking_code,
-            booking.patient_name,
-            booking.patient_phone
-          ]
-            .join(" ")
-            .toLowerCase();
+        const searchable = [
+          booking.booking_code,
+          booking.patient_name,
+          booking.patient_phone
+        ]
+          .join(" ")
+          .toLowerCase();
 
         const matchesSearch =
           !search ||
@@ -1267,9 +1104,7 @@ function renderBookings() {
       }
     );
 
-  if (
-    !rows.length
-  ) {
+  if (!rows.length) {
 
     container.innerHTML = `
       <div class="empty">
@@ -1327,13 +1162,10 @@ function renderBookings() {
 
           ${rows
             .map(
-              booking => {
+              (booking) => {
 
                 const message =
-                  `مرحبًا ${
-                    booking.patient_name ||
-                    ""
-                  }، معك عيادة أزاد للصحة النفسية. ` +
+                  `مرحبًا ${booking.patient_name || ""}، معك عيادة أزاد للصحة النفسية. ` +
                   `يمكنكم التواصل معنا بخصوص موعدكم. ` +
                   `لحجز أو إعادة حجز موعد يمكنكم استخدام رابط الحجز.`;
 
@@ -1348,38 +1180,48 @@ function renderBookings() {
                   <tr>
 
                     <td>
+
                       <strong>
                         ${escapeHTML(
                           booking.booking_code ||
                           "-"
                         )}
                       </strong>
+
                     </td>
 
                     <td>
+
                       ${escapeHTML(
                         booking.patient_name ||
                         "-"
                       )}
+
                     </td>
 
                     <td dir="ltr">
+
                       ${escapeHTML(
                         booking.patient_phone ||
                         "-"
                       )}
+
                     </td>
 
                     <td>
+
                       ${formatDate(
                         booking.appointment_date
                       )}
+
                     </td>
 
                     <td>
+
                       ${formatTime(
                         booking.appointment_time
                       )}
+
                     </td>
 
                     <td>
@@ -1405,7 +1247,7 @@ function renderBookings() {
                             <a
                               href="${wa}"
                               target="_blank"
-                              rel="noopener noreferrer"
+                              rel="noopener"
                               class="btn btn-success"
                               style="
                                 display:inline-block;
@@ -1515,43 +1357,35 @@ function updateStatistics() {
         today
     ).length;
 
-  if (
-    $("totalCount")
-  ) {
+  if ($("totalCount")) {
 
     $("totalCount")
       .textContent =
-        total;
+      total;
 
   }
 
-  if (
-    $("pendingCount")
-  ) {
+  if ($("pendingCount")) {
 
     $("pendingCount")
       .textContent =
-        pending;
+      pending;
 
   }
 
-  if (
-    $("confirmedCount")
-  ) {
+  if ($("confirmedCount")) {
 
     $("confirmedCount")
       .textContent =
-        confirmed;
+      confirmed;
 
   }
 
-  if (
-    $("todayCount")
-  ) {
+  if ($("todayCount")) {
 
     $("todayCount")
       .textContent =
-        todayCount;
+      todayCount;
 
   }
 
@@ -1777,14 +1611,16 @@ function buildCommandCenter() {
         <span
           id="ccTodayLabel"
           class="muted"
-        ></span>
+        >
+        </span>
 
       </div>
 
       <div
         id="ccTodayList"
         class="items"
-      ></div>
+      >
+      </div>
 
     </div>
 
@@ -1798,7 +1634,8 @@ function buildCommandCenter() {
       <div
         id="ccNoShowList"
         class="items"
-      ></div>
+      >
+      </div>
 
     </div>
 
@@ -1927,8 +1764,27 @@ function buildCommandCenter() {
   $("quickStaff")
     ?.addEventListener(
       "click",
-      () =>
-        showStaffManagement()
+      () => {
+
+        if (
+          window.AZAAD_STAFF &&
+          typeof window.AZAAD_STAFF.openCreate ===
+            "function"
+        ) {
+
+          switchPanel(
+            "staffPanel"
+          );
+
+          return;
+
+        }
+
+        showFeatureNotice(
+          "👥 Staff Management"
+        );
+
+      }
     );
 
   refreshCommandCenter();
@@ -1978,55 +1834,45 @@ function refreshCommandCenter() {
         "pending"
     );
 
-  if (
-    $("ccToday")
-  ) {
+  if ($("ccToday")) {
 
     $("ccToday")
       .textContent =
-        todays.length;
+      todays.length;
 
   }
 
-  if (
-    $("ccConfirmed")
-  ) {
+  if ($("ccConfirmed")) {
 
     $("ccConfirmed")
       .textContent =
-        confirmed.length;
+      confirmed.length;
 
   }
 
-  if (
-    $("ccNoShow")
-  ) {
+  if ($("ccNoShow")) {
 
     $("ccNoShow")
       .textContent =
-        noShows.length;
+      noShows.length;
 
   }
 
-  if (
-    $("ccPending")
-  ) {
+  if ($("ccPending")) {
 
     $("ccPending")
       .textContent =
-        pending.length;
+      pending.length;
 
   }
 
-  if (
-    $("ccTodayLabel")
-  ) {
+  if ($("ccTodayLabel")) {
 
     $("ccTodayLabel")
       .textContent =
-        formatDate(
-          today
-        );
+      formatDate(
+        today
+      );
 
   }
 
@@ -2055,9 +1901,7 @@ function renderTodayList(
     return;
   }
 
-  if (
-    !bookings.length
-  ) {
+  if (!bookings.length) {
 
     container.innerHTML = `
       <div class="empty">
@@ -2070,7 +1914,9 @@ function renderTodayList(
   }
 
   const sorted =
-    [...bookings].sort(
+    [
+      ...bookings
+    ].sort(
       (a, b) =>
         String(
           a.appointment_time ||
@@ -2093,10 +1939,12 @@ function renderTodayList(
             <div>
 
               <strong>
+
                 ${escapeHTML(
                   booking.patient_name ||
                   "-"
                 )}
+
               </strong>
 
               <div class="muted">
@@ -2155,9 +2003,7 @@ function renderNoShowList(
     return;
   }
 
-  if (
-    !bookings.length
-  ) {
+  if (!bookings.length) {
 
     container.innerHTML = `
       <div class="empty">
@@ -2171,18 +2017,12 @@ function renderNoShowList(
 
   container.innerHTML =
     bookings
-      .slice(
-        0,
-        20
-      )
+      .slice(0, 20)
       .map(
         booking => {
 
           const message =
-            `مرحبًا ${
-              booking.patient_name ||
-              ""
-            }، ` +
+            `مرحبًا ${booking.patient_name || ""}، ` +
             `معك عيادة أزاد للصحة النفسية. ` +
             `لاحظنا عدم حضوركم للموعد المحدد، ونتمنى أن تكونوا بخير. ` +
             `إذا كنتم ترغبون في إعادة حجز الموعد، يسعدنا مساعدتكم.`;
@@ -2202,7 +2042,6 @@ function renderNoShowList(
                 <strong>
 
                   🔴
-
                   ${escapeHTML(
                     booking.patient_name ||
                     "-"
@@ -2243,11 +2082,9 @@ function renderNoShowList(
                       <a
                         href="${wa}"
                         target="_blank"
-                        rel="noopener noreferrer"
+                        rel="noopener"
                         class="btn btn-success"
-                        style="
-                          text-decoration:none
-                        "
+                        style="text-decoration:none"
                       >
                         📱 WhatsApp
                       </a>
@@ -2263,11 +2100,7 @@ function renderNoShowList(
                     booking.booking_code ||
                     ""
                   )}"
-                  onclick="
-                    window.AZAAD.markNoShowFollowup(
-                      this.dataset.bookingCode
-                    )
-                  "
+                  onclick="window.AZAAD.markNoShowFollowup(this.dataset.bookingCode)"
                 >
                   🔔 متابعة
                 </button>
@@ -2297,23 +2130,61 @@ async function markNoShowFollowup(
     "success"
   );
 
+  /*
+    Database automation already creates
+    the Follow-up for No-Show appointments.
+
+    The dedicated Follow-up Center will use
+    its own Edge Function and RLS policies.
+  */
+
 }
 
 /* ------------------------------------------------------------
-   WEBSITE SHARING
+   NO SHOW CENTER
    ------------------------------------------------------------ */
 
-const WEBSITE_URL =
-  "https://magdy4287-beep.github.io/-azaad-clinic-website/";
+function showNoShowCenter() {
 
-const WEBSITE_MESSAGE =
-  `🏥 عيادة أزاد للصحة النفسية
+  const noShows =
+    state.bookings.filter(
+      booking =>
+        normalizeStatus(
+          booking.status
+        ) ===
+        "no_show"
+    );
 
-📅 لحجز موعد يمكنك الدخول من هنا:
+  if (
+    noShows.length === 0
+  ) {
 
-${WEBSITE_URL}`;
+    showToast(
+      "🟢 لا توجد حالات No-Show.",
+      "success"
+    );
 
-/* ------------------------------------------------------------ */
+    return;
+
+  }
+
+  const container =
+    $("ccNoShowList");
+
+  if (container) {
+
+    container.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+
+  }
+
+}
+
+/* ------------------------------------------------------------
+   SHARE WEBSITE
+   ------------------------------------------------------------ */
 
 async function shareWhatsApp() {
 
@@ -2387,7 +2258,6 @@ async function nativeShare() {
     try {
 
       await navigator.share({
-
         title:
           "Azaad Clinic for Mental Health",
 
@@ -2396,14 +2266,11 @@ async function nativeShare() {
 
         url:
           WEBSITE_URL
-
       });
 
       return;
 
-    } catch (
-      error
-    ) {
+    } catch (error) {
 
       if (
         error?.name ===
@@ -2485,13 +2352,8 @@ function switchPanel(
     );
 
   window.scrollTo({
-
-    top:
-      0,
-
-    behavior:
-      "smooth"
-
+    top: 0,
+    behavior: "smooth"
   });
 
 }
@@ -2512,169 +2374,6 @@ function showFeatureNotice(
 }
 
 /* ------------------------------------------------------------
-   STAFF MANAGEMENT
-   ------------------------------------------------------------ */
-
-function initializeStaffModule() {
-
-  /*
-   * staff-management.js exposes:
-   *
-   * window.AZAAD_STAFF
-   *
-   * We initialize it only when the
-   * management module is loaded.
-   */
-
-  try {
-
-    if (
-      window.AZAAD_STAFF &&
-      typeof
-        window.AZAAD_STAFF.init ===
-        "function"
-    ) {
-
-      window.AZAAD_STAFF.init();
-
-    }
-
-  } catch (
-    error
-  ) {
-
-    console.error(
-      "Staff management initialization error:",
-      error
-    );
-
-  }
-
-}
-
-function showStaffManagement() {
-
-  if (
-    !hasPermission(
-      "staff.view"
-    )
-  ) {
-
-    showToast(
-      "🙅‍♂️ ليس لديك صلاحية إدارة الموظفين.",
-      "error"
-    );
-
-    return;
-
-  }
-
-  const panel =
-    document.getElementById(
-      "staffPanel"
-    );
-
-  if (panel) {
-
-    switchPanel(
-      "staffPanel"
-    );
-
-    if (
-      window.AZAAD_STAFF &&
-      typeof
-        window.AZAAD_STAFF.load ===
-        "function"
-    ) {
-
-      window.AZAAD_STAFF.load();
-
-    }
-
-    return;
-
-  }
-
-  /*
-   * If staff-management.js has not
-   * loaded yet, try initializing it.
-   */
-
-  initializeStaffModule();
-
-  setTimeout(
-    () => {
-
-      const retryPanel =
-        document.getElementById(
-          "staffPanel"
-        );
-
-      if (retryPanel) {
-
-        switchPanel(
-          "staffPanel"
-        );
-
-        window.AZAAD_STAFF
-          ?.load?.();
-
-      } else {
-
-        showFeatureNotice(
-          "👥 Staff Management"
-        );
-
-      }
-
-    },
-    250
-  );
-
-}
-
-/* ------------------------------------------------------------
-   NO-SHOW CENTER
-   ------------------------------------------------------------ */
-
-function showNoShowCenter() {
-
-  const panel =
-    document.getElementById(
-      "bookingsPanel"
-    );
-
-  if (
-    panel
-  ) {
-
-    switchPanel(
-      "bookingsPanel"
-    );
-
-    const status =
-      $("bookingStatus");
-
-    if (status) {
-
-      status.value =
-        "no_show";
-
-      renderBookings();
-
-    }
-
-    return;
-
-  }
-
-  showFeatureNotice(
-    "🔴 No-Show Center"
-  );
-
-}
-
-/* ------------------------------------------------------------
    TABS
    ------------------------------------------------------------ */
 
@@ -2686,22 +2385,6 @@ function bindTabs() {
     )
     .forEach(
       tab => {
-
-        /*
-         * Prevent duplicate listeners.
-         */
-
-        if (
-          tab.dataset.azaadBound ===
-          "true"
-        ) {
-
-          return;
-
-        }
-
-        tab.dataset.azaadBound =
-          "true";
 
         tab.addEventListener(
           "click",
@@ -2740,6 +2423,8 @@ function bindBookingFilters() {
       async () => {
 
         await loadBookings();
+
+        refreshCommandCenter();
 
         showToast(
           "🔄 تم تحديث الحجوزات.",
@@ -2827,22 +2512,6 @@ function bindLogin() {
     return;
   }
 
-  /*
-   * Prevent duplicate listener registration.
-   */
-
-  if (
-    form.dataset.azaadBound ===
-    "true"
-  ) {
-
-    return;
-
-  }
-
-  form.dataset.azaadBound =
-    "true";
-
   form.addEventListener(
     "submit",
     async event => {
@@ -2852,19 +2521,18 @@ function bindLogin() {
       const username =
         $("username")
           ?.value
-          ?.trim();
+          ?.trim()
+          .toLowerCase();
 
       const password =
         $("password")
           ?.value ||
-        "";
+          "";
 
       const errorBox =
         $("loginError");
 
-      if (
-        errorBox
-      ) {
+      if (errorBox) {
 
         errorBox.textContent =
           "";
@@ -2880,9 +2548,7 @@ function bindLogin() {
         !password
       ) {
 
-        if (
-          errorBox
-        ) {
+        if (errorBox) {
 
           errorBox.textContent =
             "يرجى إدخال اسم المستخدم وكلمة المرور.";
@@ -2897,20 +2563,20 @@ function bindLogin() {
 
       }
 
-      const submit =
-        event.submitter;
+      const submitButton =
+        form.querySelector(
+          'button[type="submit"]'
+        );
 
-      if (
-        submit
-      ) {
+      const originalText =
+        submitButton?.textContent;
 
-        submit.disabled =
+      if (submitButton) {
+
+        submitButton.disabled =
           true;
 
-        submit.dataset.originalText =
-          submit.textContent;
-
-        submit.textContent =
+        submitButton.textContent =
           "⏳ جاري تسجيل الدخول...";
 
       }
@@ -2922,18 +2588,14 @@ function bindLogin() {
           password
         );
 
-      } catch (
-        error
-      ) {
+      } catch (error) {
 
         console.error(
           "Login error:",
           error
         );
 
-        if (
-          errorBox
-        ) {
+        if (errorBox) {
 
           errorBox.textContent =
             error?.message ||
@@ -2945,26 +2607,33 @@ function bindLogin() {
 
         }
 
-        showToast(
-          `❌ ${
-            error?.message ||
-            "فشل تسجيل الدخول."
-          }`,
-          "error"
-        );
+        /*
+          Clear password after failed login
+          for security and easier retry.
+        */
+
+        const passwordInput =
+          $("password");
+
+        if (passwordInput) {
+
+          passwordInput.value =
+            "";
+
+          passwordInput.focus();
+
+        }
 
       } finally {
 
-        if (
-          submit
-        ) {
+        if (submitButton) {
 
-          submit.disabled =
+          submitButton.disabled =
             false;
 
-          submit.textContent =
-            submit.dataset.originalText ||
-            "دخول";
+          submitButton.textContent =
+            originalText ||
+            "🔐 تسجيل الدخول";
 
         }
 
@@ -2998,20 +2667,12 @@ supabase.auth.onAuthStateChange(
         session.user;
 
       /*
-       * Do not perform another sign-in here.
-       * The login function already restored
-       * the session.
-       */
+        initializeApplication() may already have
+        been called by login(). The internal guard
+        prevents duplicate initialization.
+      */
 
-      if (
-        !state.initialized
-      ) {
-
-        await loadCurrentStaff();
-
-        await initializeApplication();
-
-      }
+      await initializeApplication();
 
     }
 
@@ -3020,12 +2681,15 @@ supabase.auth.onAuthStateChange(
       "TOKEN_REFRESHED"
     ) {
 
-      state.session =
-        session;
+      if (session) {
 
-      state.user =
-        session?.user ||
-        state.user;
+        state.session =
+          session;
+
+        state.user =
+          session.user;
+
+      }
 
     }
 
@@ -3061,16 +2725,12 @@ window.AZAAD = {
 
   state,
 
-  hasPermission,
-
   refresh:
     async () => {
 
       await loadBookings();
 
       refreshCommandCenter();
-
-      initializeStaffModule();
 
     },
 
@@ -3084,11 +2744,7 @@ window.AZAAD = {
 
   markNoShowFollowup,
 
-  logout,
-
-  switchPanel,
-
-  showStaffManagement
+  logout
 
 };
 
@@ -3109,11 +2765,6 @@ document.addEventListener(
     bindBookingFilters();
 
     bindPatientPage();
-
-    /*
-     * Try restoring an existing
-     * Supabase Auth session.
-     */
 
     await restoreSession();
 
