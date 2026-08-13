@@ -1,41 +1,59 @@
-staff-management.js
-
 /* ============================================================
    AZAAD CLINIC
    STAFF MANAGEMENT CENTER
    File: staff-management.js
-   Purpose:
-   - Employee creation
-   - Employee listing
-   - Employee editing
-   - Role management
-   - Enable / Disable employee
-   - Password reset
-   - Staff permissions information
-   - Last login display
-   - Secure communication with staff-admin Edge Function
-   IMPORTANT:
-   - This file does NOT contain the Supabase Service Role Key.
-   - Password operations are handled by the secure Edge Function.
+
+   Production Staff Administration UI
+
+   Backend:
+   https://derofsthjivlkcdnojww.supabase.co/functions/v1/staff-admin
+
+   Supported backend actions:
+   - list
+   - create
+   - update
+   - update_role
+   - reset_password
+   - disable
+   - enable
+
+   SECURITY
+   ------------------------------------------------------------
+   - NEVER contains the Supabase Service Role Key.
+   - Uses ONLY the Supabase Publishable Key.
+   - Password operations are handled by staff-admin Edge Function.
    - clinic_staff uses "active", NOT "is_active".
-   - The real authorization is enforced by staff-admin backend.
-   - The existing #staff panel in admin.html is reused.
+   - Real authorization is enforced by staff-admin backend.
+   - Owner protection is enforced by backend.
+   - Passwords are never stored in browser state.
+   - Temporary passwords are displayed only once after creation/reset.
+   - Existing #staff panel in admin.html is reused.
    - No duplicate staff tab is created.
    ============================================================ */
+
 (function () {
   "use strict";
+
   /* ==========================================================
      CONFIGURATION
      ========================================================== */
+
   const SUPABASE_URL =
     "https://derofsthjivlkcdnojww.supabase.co";
+
   const SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa";
+
   const STAFF_ADMIN_FUNCTION =
     `${SUPABASE_URL}/functions/v1/staff-admin`;
+
+  const WEBSITE_URL =
+    "https://magdy4287-beep.github.io/-azaad-clinic-website/";
+
   /* ==========================================================
      STATE
      ========================================================== */
+
   const state = {
     client: null,
     staff: [],
@@ -46,59 +64,77 @@ staff-management.js
     currentUser: null,
     currentRole: null
   };
+
   /* ==========================================================
      ROLE DEFINITIONS
      ========================================================== */
+
   const ROLES = {
     OWNER: {
       label: "👑 Owner",
       description: "صلاحيات المالك الكاملة"
     },
+
     ADMIN: {
       label: "🛡️ Admin",
       description: "إدارة النظام والموظفين"
     },
+
     MANAGER: {
       label: "👨‍💼 Manager",
       description: "إدارة تشغيل العيادة"
     },
+
     SECRETARY: {
       label: "👩‍💼 Secretary",
       description:
         "الحجوزات والمرضى والمتابعة حسب الصلاحيات"
     },
+
     CASHIER: {
       label: "💰 Cashier",
       description:
         "المدفوعات والتحصيل والفواتير"
     },
+
     RECEPTION: {
       label: "🧑‍💼 Reception",
       description:
         "استقبال المرضى والحجوزات"
     },
+
     DOCTOR: {
       label: "🧑‍⚕️ Doctor",
       description:
         "المواعيد والمهام الطبية المصرح بها"
     },
+
     MARKETING: {
       label: "📣 Marketing",
       description:
         "التسويق والمحتوى والحملات والـ Leads"
     }
   };
-  const MANAGER_ROLES = new Set([
-    "OWNER",
-    "ADMIN",
-    "MANAGER"
-  ]);
+
+  const ROLE_LEVEL = {
+    OWNER: 100,
+    ADMIN: 80,
+    MANAGER: 60,
+    SECRETARY: 40,
+    CASHIER: 40,
+    RECEPTION: 40,
+    DOCTOR: 40,
+    MARKETING: 40
+  };
+
   /* ==========================================================
      DOM HELPERS
      ========================================================== */
+
   function $(id) {
     return document.getElementById(id);
   }
+
   function escapeHTML(value) {
     if (
       value === null ||
@@ -106,6 +142,7 @@ staff-management.js
     ) {
       return "";
     }
+
     return String(value).replace(
       /[&<>"']/g,
       function (character) {
@@ -119,27 +156,58 @@ staff-management.js
       }
     );
   }
+
   function normalizeRole(role) {
     return String(role || "")
       .trim()
       .toUpperCase();
   }
+
   function isStaffActive(staff) {
     return staff?.active === true;
   }
+
+  function getCurrentRole() {
+    if (state.currentRole) {
+      return normalizeRole(
+        state.currentRole
+      );
+    }
+
+    const metadataRole =
+      state.currentUser?.app_metadata?.role ||
+      state.currentUser?.user_metadata?.role;
+
+    return normalizeRole(
+      metadataRole
+    );
+  }
+
+  function isOwner() {
+    return (
+      getCurrentRole() === "OWNER"
+    );
+  }
+
   function formatDateTime(value) {
     if (!value) {
       return "—";
     }
+
     try {
-      const date = new Date(value);
+      const date =
+        new Date(value);
+
       if (
         Number.isNaN(
           date.getTime()
         )
       ) {
-        return escapeHTML(value);
+        return escapeHTML(
+          value
+        );
       }
+
       return date.toLocaleString(
         "ar-EG",
         {
@@ -148,22 +216,28 @@ staff-management.js
         }
       );
     } catch (_) {
-      return escapeHTML(value);
+      return escapeHTML(
+        value
+      );
     }
   }
+
   function showMessage(
     message,
     type = "info"
   ) {
     let box =
       $("staffMessage");
+
     if (!box) {
       box =
         document.createElement(
           "div"
         );
+
       box.id =
         "staffMessage";
+
       box.style.cssText = `
         position:fixed;
         top:20px;
@@ -182,23 +256,29 @@ staff-management.js
         font-family:inherit;
         direction:rtl;
       `;
+
       document.body.appendChild(
         box
       );
     }
+
     box.style.background =
       type === "error"
         ? "#a32939"
         : type === "success"
         ? "#167345"
         : "#17214f";
+
     box.textContent =
       message;
+
     box.style.display =
       "block";
+
     clearTimeout(
       window.__AZAAD_STAFF_MESSAGE_TIMER
     );
+
     window.__AZAAD_STAFF_MESSAGE_TIMER =
       setTimeout(
         function () {
@@ -208,6 +288,7 @@ staff-management.js
         5000
       );
   }
+
   function generateClientId() {
     return (
       "staff-" +
@@ -218,18 +299,26 @@ staff-management.js
         .slice(2, 9)
     );
   }
+
   /* ==========================================================
      SUPABASE CLIENT
      ========================================================== */
+
   async function createSupabaseClient() {
     if (state.client) {
       return state.client;
     }
+
     /*
-      Prefer an already exposed project client if available.
+      admin.js currently creates its own Supabase client
+      inside module scope.
+
+      If another project script exposes it, reuse it.
     */
+
     const existing =
       window.AZAAD?.supabase;
+
     if (
       existing &&
       existing.auth &&
@@ -238,22 +327,23 @@ staff-management.js
     ) {
       state.client =
         existing;
+
       return state.client;
     }
+
     /*
-      The current admin.html keeps its Supabase client
-      inside a module scope. Therefore this file uses a
-      dynamic import as a safe compatibility layer.
-      This creates another client using the SAME project
-      and SAME publishable key. Supabase Auth persists the
-      session in browser storage, so the authenticated
-      session is shared.
+      Compatibility client.
+
+      This uses the SAME publishable key.
+      It does NOT use a Service Role Key.
     */
+
     try {
       const module =
         await import(
           "https://esm.sh/@supabase/supabase-js@2"
         );
+
       if (
         !module ||
         typeof module.createClient !==
@@ -263,6 +353,7 @@ staff-management.js
           "تعذر تحميل Supabase Client."
         );
       }
+
       state.client =
         module.createClient(
           SUPABASE_URL,
@@ -275,33 +366,41 @@ staff-management.js
             }
           }
         );
+
       return state.client;
     } catch (error) {
       console.error(
         "Azaad Staff: Supabase client initialization failed.",
         error
       );
+
       throw new Error(
         "تعذر تشغيل اتصال Supabase لإدارة الموظفين."
       );
     }
   }
+
   async function getSession() {
     const client =
       await createSupabaseClient();
+
     const result =
       await client.auth.getSession();
+
     if (result.error) {
       throw result.error;
     }
+
     return (
       result.data?.session ||
       null
     );
   }
+
   async function getAccessToken() {
     const session =
       await getSession();
+
     if (
       !session?.access_token
     ) {
@@ -309,15 +408,28 @@ staff-management.js
         "يجب تسجيل الدخول أولاً."
       );
     }
+
     state.currentSession =
       session;
+
     state.currentUser =
-      session.user || null;
+      session.user ||
+      null;
+
+    state.currentRole =
+      normalizeRole(
+        session.user?.app_metadata?.role ||
+        session.user?.user_metadata?.role ||
+        state.currentRole
+      );
+
     return session.access_token;
   }
+
   /* ==========================================================
-     SECURE STAFF ADMIN API
+     STAFF ADMIN API
      ========================================================== */
+
   async function callStaffAdmin(
     action,
     payload = {}
@@ -327,31 +439,41 @@ staff-management.js
         "Staff action غير محدد."
       );
     }
+
     const token =
       await getAccessToken();
+
     const response =
       await fetch(
         STAFF_ADMIN_FUNCTION,
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
+
             Accept:
               "application/json",
+
             Authorization:
               `Bearer ${token}`,
+
             apikey:
               SUPABASE_PUBLISHABLE_KEY
           },
-          body: JSON.stringify({
-            action,
-            ...payload
-          })
+
+          body:
+            JSON.stringify({
+              action,
+              ...payload
+            })
         }
       );
+
     let result =
       null;
+
     try {
       result =
         await response.json();
@@ -359,6 +481,7 @@ staff-management.js
       result =
         null;
     }
+
     if (!response.ok) {
       throw new Error(
         result?.error ||
@@ -366,6 +489,7 @@ staff-management.js
         `Staff API Error ${response.status}`
       );
     }
+
     if (
       result &&
       result.error
@@ -374,116 +498,58 @@ staff-management.js
         result.error
       );
     }
+
     return result;
   }
+
   /* ==========================================================
-     ACCESS CHECK
+     PANEL
      ========================================================== */
-  async function checkManagementAccess() {
-    try {
-      const result =
-        await callStaffAdmin(
-          "list"
-        );
-      /*
-        The list action itself is protected by the
-        backend. If it succeeds, the authenticated
-        account has staff-management permission.
-      */
-      state.currentRole =
-        normalizeRole(
-          result?.currentRole ||
-          state.currentRole
-        );
-      return {
-        allowed: true,
-        result
-      };
-    } catch (error) {
-      const message =
-        String(
-          error?.message || ""
-        );
-      if (
-        /ليس لديك صلاحية|Unauthorized|غير نشط|غير مرتبط|إدارة الموظفين/i.test(
-          message
-        )
-      ) {
-        return {
-          allowed: false,
-          result: null,
-          error
-        };
-      }
-      throw error;
-    }
-  }
-  /* ==========================================================
-     FIND EXISTING STAFF PANEL
-     ========================================================== */
+
   function getStaffPanel() {
     return (
       $("staff") ||
       $("staffPanel")
     );
   }
+
   /* ==========================================================
-     HIDE LEGACY STAFF UI
+     RENDER STAFF MANAGEMENT
      ========================================================== */
-  function hideLegacyStaffContent() {
-    const panel =
-      getStaffPanel();
-    if (!panel) {
-      return;
-    }
-    /*
-      admin.html already contains a built-in staff card.
-      This external file becomes the dedicated Staff
-      Management Center.
-      We hide the old card instead of creating another
-      tab or another panel.
-    */
-    Array.from(
-      panel.children
-    ).forEach(function (child) {
-      if (
-        child.id !==
-        "staffManagementCenter"
-      ) {
-        child.style.display =
-          "none";
-      }
-    });
-  }
-  /* ==========================================================
-     RENDER MANAGEMENT CENTER
-     ========================================================== */
+
   function renderStaffManagement() {
     const panel =
       getStaffPanel();
+
     if (!panel) {
       return false;
     }
+
     let container =
       $("staffManagementCenter");
+
     if (!container) {
       container =
         document.createElement(
           "div"
         );
+
       container.id =
         "staffManagementCenter";
+
       container.className =
         "card";
+
       container.style.cssText = `
         margin-bottom:15px;
         direction:rtl;
       `;
+
       panel.appendChild(
         container
       );
     }
-    hideLegacyStaffContent();
+
     container.innerHTML = `
       <div
         style="
@@ -495,7 +561,9 @@ staff-management.js
           margin-bottom:18px;
         "
       >
+
         <div>
+
           <h2
             style="
               margin:0 0 6px;
@@ -504,6 +572,7 @@ staff-management.js
           >
             👥 إدارة الموظفين
           </h2>
+
           <div
             class="muted"
             style="line-height:1.8"
@@ -511,7 +580,9 @@ staff-management.js
             إنشاء الحسابات وإدارة الوظائف
             والحالة وكلمات المرور.
           </div>
+
         </div>
+
         <button
           id="staffAddButton"
           class="btn btn-primary"
@@ -519,7 +590,9 @@ staff-management.js
         >
           ➕ إضافة موظف
         </button>
+
       </div>
+
       <div
         id="staffManagementStats"
         style="
@@ -530,51 +603,69 @@ staff-management.js
           margin-bottom:20px;
         "
       >
+
         <div class="stat">
+
           <div
             id="staffTotal"
             class="stat-number"
           >
             0
           </div>
+
           <div class="muted">
             👥 إجمالي الموظفين
           </div>
+
         </div>
+
         <div class="stat">
+
           <div
             id="staffActive"
             class="stat-number"
           >
             0
           </div>
+
           <div class="muted">
             🟢 حسابات نشطة
           </div>
+
         </div>
+
         <div class="stat">
+
           <div
             id="staffInactive"
             class="stat-number"
           >
             0
           </div>
+
           <div class="muted">
             🔴 حسابات موقوفة
           </div>
+
         </div>
+
         <div class="stat">
+
           <div
             id="marketingCount"
             class="stat-number"
           >
             0
           </div>
+
           <div class="muted">
             📣 Marketing
           </div>
+
         </div>
+
       </div>
+
       <div
         style="
           display:flex;
@@ -583,6 +674,7 @@ staff-management.js
           margin-bottom:15px;
         "
       >
+
         <input
           id="staffSearch"
           type="search"
@@ -593,37 +685,46 @@ staff-management.js
             min-width:240px;
           "
         />
+
         <select
           id="staffRoleFilter"
           style="
             min-width:190px;
           "
         >
+
           <option value="">
             🎯 كل الوظائف
           </option>
-          ${Object.entries(ROLES)
+
+          ${Object.entries(
+            ROLES
+          )
             .map(
-              function ([key, role]) {
-                return `
-                  <option value="${escapeHTML(
+              ([key, value]) => `
+                <option
+                  value="${escapeHTML(
                     key
-                  )}">
-                    ${role.label}
-                  </option>
-                `;
-              }
+                  )}"
+                >
+                  ${value.label}
+                </option>
+              `
             )
             .join("")}
+
         </select>
+
         <button
-          id="staffRefreshButton"
+          id="refreshStaffButton"
           class="btn btn-secondary"
           type="button"
         >
           🔄 تحديث
         </button>
+
       </div>
+
       <div
         id="staffTableContainer"
       >
@@ -632,34 +733,42 @@ staff-management.js
         </div>
       </div>
     `;
+
     $("staffAddButton")
       ?.addEventListener(
         "click",
         openCreateStaffModal
       );
-    $("staffRefreshButton")
+
+    $("refreshStaffButton")
       ?.addEventListener(
         "click",
         loadStaff
       );
+
     $("staffSearch")
       ?.addEventListener(
         "input",
         renderStaffTable
       );
+
     $("staffRoleFilter")
       ?.addEventListener(
         "change",
         renderStaffTable
       );
+
     return true;
   }
+
   /* ==========================================================
      LOAD STAFF
      ========================================================== */
+
   async function loadStaff() {
     const table =
       $("staffTableContainer");
+
     if (table) {
       table.innerHTML = `
         <div class="empty">
@@ -667,17 +776,18 @@ staff-management.js
         </div>
       `;
     }
+
     state.loading =
       true;
+
     try {
       const result =
         await callStaffAdmin(
           "list"
         );
-      const rows =
-        Array.isArray(
-          result
-        )
+
+      let staff =
+        Array.isArray(result)
           ? result
           : Array.isArray(
               result?.staff
@@ -688,32 +798,39 @@ staff-management.js
             )
           ? result.data
           : [];
+
+      /*
+        Never keep password values.
+      */
+
       state.staff =
-        rows.map(
+        staff.map(
           function (item) {
-            const clean = {
-              ...item
-            };
-            /*
-              Never retain password material.
-            */
-            delete clean.password;
-            delete clean.temp_password;
-            delete clean.temporary_password;
-            delete clean.encrypted_password;
-            delete clean.password_hash;
-            return clean;
+            const copy =
+              {
+                ...item
+              };
+
+            delete copy.password;
+            delete copy.encrypted_password;
+            delete copy.temporary_password;
+
+            return copy;
           }
         );
+
       renderStaffTable();
       updateStaffStats();
-      return state.staff;
+
     } catch (error) {
       console.error(
-        "Azaad Staff load error:",
+        "Load staff error:",
         error
       );
-      state.staff = [];
+
+      state.staff =
+        [];
+
       if (table) {
         table.innerHTML = `
           <div
@@ -721,38 +838,51 @@ staff-management.js
               padding:20px;
               border-radius:14px;
               background:#fff0f2;
-              color:#a32939;
+              color:#8e2534;
               font-weight:700;
               line-height:1.8;
             "
           >
+
             ❌ تعذر تحميل الموظفين.
+
             <br><br>
+
             ${escapeHTML(
               error?.message ||
               "حدث خطأ غير معروف."
             )}
+
           </div>
         `;
       }
-      throw error;
+
     } finally {
       state.loading =
         false;
     }
   }
+
   /* ==========================================================
      STATS
      ========================================================== */
+
   function updateStaffStats() {
     const total =
       state.staff.length;
+
     const active =
       state.staff.filter(
-        isStaffActive
+        function (staff) {
+          return isStaffActive(
+            staff
+          );
+        }
       ).length;
+
     const inactive =
       total - active;
+
     const marketing =
       state.staff.filter(
         function (staff) {
@@ -763,61 +893,74 @@ staff-management.js
           );
         }
       ).length;
+
     if ($("staffTotal")) {
       $("staffTotal").textContent =
-        String(total);
+        total;
     }
+
     if ($("staffActive")) {
       $("staffActive").textContent =
-        String(active);
+        active;
     }
+
     if ($("staffInactive")) {
       $("staffInactive").textContent =
-        String(inactive);
+        inactive;
     }
+
     if ($("marketingCount")) {
       $("marketingCount").textContent =
-        String(marketing);
+        marketing;
     }
   }
+
   /* ==========================================================
      FILTER
      ========================================================== */
+
   function getFilteredStaff() {
     const search =
-      String(
-        $("staffSearch")?.value ||
+      (
+        $("staffSearch")
+          ?.value ||
         ""
       )
         .trim()
         .toLowerCase();
-    const selectedRole =
+
+    const role =
       normalizeRole(
-        $("staffRoleFilter")?.value ||
+        $("staffRoleFilter")
+          ?.value ||
         ""
       );
+
     return state.staff.filter(
       function (staff) {
-        const searchable = [
-          staff.full_name,
-          staff.username,
-          staff.email,
-          staff.phone,
-          staff.role
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+        const searchable =
+          [
+            staff.full_name,
+            staff.username,
+            staff.email,
+            staff.phone,
+            staff.role
+          ]
+            .join(" ")
+            .toLowerCase();
+
         const matchesSearch =
           !search ||
           searchable.includes(
             search
           );
+
         const matchesRole =
-          !selectedRole ||
+          !role ||
           normalizeRole(
             staff.role
-          ) === selectedRole;
+          ) === role;
+
         return (
           matchesSearch &&
           matchesRole
@@ -825,78 +968,147 @@ staff-management.js
       }
     );
   }
+
   /* ==========================================================
-     ROLE LABEL
+     ROLE HELPERS
      ========================================================== */
+
   function getRoleLabel(role) {
-    const normalized =
-      normalizeRole(role);
+    const key =
+      normalizeRole(
+        role
+      );
+
     return (
-      ROLES[normalized]?.label ||
+      ROLES[key]?.label ||
       `🎯 ${escapeHTML(
-        role || "غير محدد"
+        role ||
+        "غير محدد"
       )}`
     );
   }
-  /* ==========================================================
-     ROLE DESCRIPTION
-     ========================================================== */
-  function getRoleDescription(role) {
-    const normalized =
-      normalizeRole(role);
+
+  function canManageTarget(
+    staff
+  ) {
+    const current =
+      getCurrentRole();
+
+    const target =
+      normalizeRole(
+        staff?.role
+      );
+
+    if (!current) {
+      return false;
+    }
+
+    if (
+      current === "OWNER"
+    ) {
+      return (
+        target !== "OWNER" ||
+        isOwner()
+      );
+    }
+
+    const currentLevel =
+      ROLE_LEVEL[current] ||
+      0;
+
+    const targetLevel =
+      ROLE_LEVEL[target] ||
+      0;
+
     return (
-      ROLES[normalized]?.description ||
-      "الصلاحيات يحددها النظام الآمن."
+      target !== "OWNER" &&
+      targetLevel <
+        currentLevel
     );
   }
+
   /* ==========================================================
-     STAFF TABLE
+     TABLE
      ========================================================== */
+
   function renderStaffTable() {
     const container =
       $("staffTableContainer");
+
     if (!container) {
       return;
     }
+
     const rows =
       getFilteredStaff();
+
     if (!rows.length) {
       container.innerHTML = `
         <div class="empty">
           📭 لا توجد سجلات موظفين مطابقة.
         </div>
       `;
+
       updateStaffStats();
+
       return;
     }
+
     container.innerHTML = `
       <div
-        class="table-wrap"
         style="
           overflow-x:auto;
-          border:1px solid #e3e6ed;
-          border-radius:12px;
+          border:1px solid #e5e8f0;
+          border-radius:14px;
         "
       >
+
         <table
           style="
             width:100%;
-            min-width:1200px;
             border-collapse:collapse;
+            min-width:1120px;
           "
         >
+
           <thead>
+
             <tr>
-              <th>👤 الموظف</th>
-              <th>🔑 Username</th>
-              <th>📧 Email</th>
-              <th>🎯 الوظيفة</th>
-              <th>🚦 الحالة</th>
-              <th>🕐 آخر دخول</th>
-              <th>⚙️ الإجراءات</th>
+
+              <th>
+                👤 الموظف
+              </th>
+
+              <th>
+                🔑 Username
+              </th>
+
+              <th>
+                📧 Email
+              </th>
+
+              <th>
+                🎯 الوظيفة
+              </th>
+
+              <th>
+                🚦 الحالة
+              </th>
+
+              <th>
+                🕐 آخر دخول
+              </th>
+
+              <th>
+                ⚙️ الإجراءات
+              </th>
+
             </tr>
+
           </thead>
+
           <tbody>
+
             ${rows
               .map(
                 function (staff) {
@@ -904,19 +1116,29 @@ staff-management.js
                     isStaffActive(
                       staff
                     );
+
                   const owner =
                     normalizeRole(
                       staff.role
                     ) === "OWNER";
+
+                  const manageable =
+                    canManageTarget(
+                      staff
+                    );
+
                   return `
                     <tr>
+
                       <td>
+
                         <strong>
                           ${escapeHTML(
                             staff.full_name ||
-                            "—"
+                            "-"
                           )}
                         </strong>
+
                         ${
                           staff.phone
                             ? `
@@ -933,34 +1155,35 @@ staff-management.js
                             `
                             : ""
                         }
+
                       </td>
+
                       <td dir="ltr">
                         ${escapeHTML(
                           staff.username ||
-                          "—"
+                          "-"
                         )}
                       </td>
+
                       <td dir="ltr">
                         ${escapeHTML(
                           staff.email ||
-                          "—"
+                          "-"
                         )}
                       </td>
+
                       <td>
-                        <span
-                          class="badge"
-                          title="${escapeHTML(
-                            getRoleDescription(
-                              staff.role
-                            )
-                          )}"
-                        >
+
+                        <span class="badge">
                           ${getRoleLabel(
                             staff.role
                           )}
                         </span>
+
                       </td>
+
                       <td>
+
                         ${
                           active
                             ? `
@@ -976,13 +1199,15 @@ staff-management.js
                               >
                                 🔴 Disabled
                               </span>
+
                               ${
                                 staff.terminated_at
                                   ? `
                                     <div
                                       class="muted"
-                                      style="margin-top:4px"
+                                      style="margin-top:5px"
                                     >
+                                      🕐
                                       ${formatDateTime(
                                         staff.terminated_at
                                       )}
@@ -992,8 +1217,11 @@ staff-management.js
                               }
                             `
                         }
+
                       </td>
+
                       <td>
+
                         ${
                           staff.last_login
                             ? `
@@ -1008,16 +1236,19 @@ staff-management.js
                               </span>
                             `
                         }
+
                       </td>
+
                       <td>
+
                         <div
-                          class="item-actions"
                           style="
                             display:flex;
                             flex-wrap:wrap;
                             gap:6px;
                           "
                         >
+
                           <button
                             type="button"
                             class="btn btn-secondary"
@@ -1025,9 +1256,20 @@ staff-management.js
                             data-staff-id="${escapeHTML(
                               staff.id
                             )}"
+                            ${
+                              manageable
+                                ? ""
+                                : "disabled"
+                            }
+                            title="${
+                              manageable
+                                ? "تعديل"
+                                : "لا توجد صلاحية"
+                            }"
                           >
                             ✍️ تعديل
                           </button>
+
                           <button
                             type="button"
                             class="btn btn-secondary"
@@ -1036,13 +1278,19 @@ staff-management.js
                               staff.id
                             )}"
                             ${
-                              owner
-                                ? "disabled"
-                                : ""
+                              manageable
+                                ? ""
+                                : "disabled"
                             }
+                            title="${
+                              manageable
+                                ? "تغيير الوظيفة"
+                                : "لا توجد صلاحية"
+                            }"
                           >
                             🎯 Role
                           </button>
+
                           <button
                             type="button"
                             class="btn btn-secondary"
@@ -1050,9 +1298,20 @@ staff-management.js
                             data-staff-id="${escapeHTML(
                               staff.id
                             )}"
+                            ${
+                              manageable
+                                ? ""
+                                : "disabled"
+                            }
+                            title="${
+                              manageable
+                                ? "إعادة تعيين كلمة المرور"
+                                : "لا توجد صلاحية"
+                            }"
                           >
                             🔐 Reset
                           </button>
+
                           ${
                             owner
                               ? `
@@ -1060,7 +1319,10 @@ staff-management.js
                                   type="button"
                                   class="btn btn-secondary"
                                   disabled
-                                  title="Owner محمي"
+                                  style="
+                                    opacity:.55;
+                                    cursor:not-allowed;
+                                  "
                                 >
                                   👑 Owner محمي
                                 </button>
@@ -1074,6 +1336,11 @@ staff-management.js
                                   data-staff-id="${escapeHTML(
                                     staff.id
                                   )}"
+                                  ${
+                                    manageable
+                                      ? ""
+                                      : "disabled"
+                                  }
                                 >
                                   ⛔ تعطيل
                                 </button>
@@ -1086,22 +1353,34 @@ staff-management.js
                                   data-staff-id="${escapeHTML(
                                     staff.id
                                   )}"
+                                  ${
+                                    manageable
+                                      ? ""
+                                      : "disabled"
+                                  }
                                 >
                                   🟢 تفعيل
                                 </button>
                               `
                           }
+
                         </div>
+
                       </td>
+
                     </tr>
                   `;
                 }
               )
               .join("")}
+
           </tbody>
+
         </table>
+
       </div>
     `;
+
     container
       .querySelectorAll(
         "[data-staff-action]"
@@ -1111,6 +1390,12 @@ staff-management.js
           button.addEventListener(
             "click",
             function () {
+              if (
+                button.disabled
+              ) {
+                return;
+              }
+
               handleStaffAction(
                 button.dataset
                   .staffAction,
@@ -1121,93 +1406,44 @@ staff-management.js
           );
         }
       );
+
     updateStaffStats();
   }
+
   /* ==========================================================
-     HANDLE STAFF ACTION
+     MODAL BASE
      ========================================================== */
-  async function handleStaffAction(
-    action,
-    staffId
-  ) {
-    const staff =
-      state.staff.find(
-        function (item) {
-          return (
-            String(item.id) ===
-            String(staffId)
-          );
-        }
-      );
-    if (!staff) {
-      showMessage(
-        "❌ الموظف غير موجود.",
-        "error"
-      );
-      return;
-    }
-    switch (action) {
-      case "edit":
-        openEditStaffModal(
-          staff
-        );
-        break;
-      case "role":
-        openRoleModal(
-          staff
-        );
-        break;
-      case "password":
-        await resetStaffPassword(
-          staff
-        );
-        break;
-      case "disable":
-        await disableStaff(
-          staff
-        );
-        break;
-      case "enable":
-        await enableStaff(
-          staff
-        );
-        break;
-      default:
-        showMessage(
-          "❌ إجراء غير معروف.",
-          "error"
-        );
-    }
-  }
-  /* ==========================================================
-     MODAL HELPERS
-     ========================================================== */
+
   function closeModal() {
-    document
-      .querySelectorAll(
-        ".azaad-staff-modal"
-      )
-      .forEach(
-        function (modal) {
-          modal.remove();
-        }
-      );
+    [
+      "staffModal",
+      "staffEditModal",
+      "staffActionModal"
+    ].forEach(
+      function (id) {
+        $(id)?.remove();
+      }
+    );
   }
+
   function createModal(
-    title,
+    id,
     content
   ) {
     closeModal();
+
     const modal =
       document.createElement(
         "div"
       );
-    modal.className =
-      "azaad-staff-modal";
+
+    modal.id =
+      id;
+
     modal.style.cssText = `
       position:fixed;
       inset:0;
-      z-index:999999;
+      z-index:99999;
       background:rgba(10,18,45,.68);
       display:flex;
       align-items:center;
@@ -1215,56 +1451,14 @@ staff-management.js
       padding:20px;
       direction:rtl;
     `;
-    modal.innerHTML = `
-      <div
-        style="
-          width:min(760px,100%);
-          max-height:92vh;
-          overflow:auto;
-          background:#fff;
-          border-radius:22px;
-          padding:24px;
-          box-shadow:0 25px 70px rgba(0,0,0,.3);
-        "
-      >
-        <div
-          style="
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            margin-bottom:20px;
-          "
-        >
-          <div>
-            <h2 style="margin:0">
-              ${escapeHTML(title)}
-            </h2>
-          </div>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            data-staff-modal-close
-          >
-            ✖️ إغلاق
-          </button>
-        </div>
-        <div>
-          ${content}
-        </div>
-      </div>
-    `;
+
+    modal.innerHTML =
+      content;
+
     document.body.appendChild(
       modal
     );
-    modal
-      .querySelector(
-        "[data-staff-modal-close]"
-      )
-      ?.addEventListener(
-        "click",
-        closeModal
-      );
+
     modal.addEventListener(
       "click",
       function (event) {
@@ -1276,283 +1470,403 @@ staff-management.js
         }
       }
     );
+
     return modal;
   }
+
   /* ==========================================================
      CREATE STAFF MODAL
      ========================================================== */
+
   function openCreateStaffModal() {
+    if (
+      !getCurrentRole()
+    ) {
+      showMessage(
+        "❌ لا يمكن التحقق من صلاحيات الحساب.",
+        "error"
+      );
+      return;
+    }
+
+    closeModal();
+
     const roleOptions =
-      Object.entries(ROLES)
+      Object.entries(
+        ROLES
+      )
         .filter(
           function ([key]) {
-            /*
-              OWNER creation is deliberately excluded
-              from this UI. The backend also enforces it.
-            */
-            return key !== "OWNER";
+            return (
+              key !== "OWNER" ||
+              isOwner()
+            );
           }
         )
         .map(
-          function ([key, role]) {
+          function ([key, value]) {
             return `
-              <option value="${escapeHTML(
-                key
-              )}">
-                ${role.label}
+              <option
+                value="${escapeHTML(
+                  key
+                )}"
+              >
+                ${value.label}
               </option>
             `;
           }
         )
         .join("");
+
     const modal =
       createModal(
-        "➕ إضافة موظف جديد",
+        "staffModal",
         `
-          <form id="createStaffForm">
-            <div
-              style="
-                display:grid;
-                grid-template-columns:
-                  repeat(auto-fit,minmax(230px,1fr));
-                gap:14px;
-              "
-            >
-              <label>
-                👤 الاسم الكامل
-                <input
-                  id="newStaffName"
-                  type="text"
-                  required
-                  maxlength="200"
-                  autocomplete="name"
-                  placeholder="اسم الموظف"
-                >
-              </label>
-              <label>
-                🔑 Username
-                <input
-                  id="newStaffUsername"
-                  type="text"
-                  required
-                  maxlength="40"
-                  autocomplete="username"
-                  pattern="[A-Za-z0-9._-]{3,40}"
-                  placeholder="example.user"
-                  dir="ltr"
-                >
-              </label>
-              <label>
-                📧 Email
-                <input
-                  id="newStaffEmail"
-                  type="email"
-                  required
-                  autocomplete="email"
-                  placeholder="employee@example.com"
-                  dir="ltr"
-                >
-              </label>
-              <label>
-                📱 الهاتف
-                <input
-                  id="newStaffPhone"
-                  type="tel"
-                  autocomplete="tel"
-                  placeholder="01xxxxxxxxx"
-                  dir="ltr"
-                >
-              </label>
-              <label>
-                🎯 الوظيفة
-                <select
-                  id="newStaffRole"
-                  required
-                >
-                  <option value="">
-                    اختر الوظيفة
-                  </option>
-                  ${roleOptions}
-                </select>
-              </label>
-              <label>
-                🔐 Temporary Password
-                <input
-                  id="newStaffPassword"
-                  type="password"
-                  minlength="10"
-                  autocomplete="new-password"
-                  placeholder="اتركه فارغًا للتوليد الآمن"
-                  dir="ltr"
-                >
-                <small
-                  class="muted"
-                  style="
-                    display:block;
-                    margin-top:5px;
-                    line-height:1.6;
-                  "
-                >
-                  الحد الأدنى 10 أحرف.
-                  إذا تركته فارغًا سيولد النظام كلمة
-                  مرور عشوائية آمنة.
-                </small>
-              </label>
-            </div>
-            <div
-              id="newStaffRoleInfo"
-              style="
-                margin-top:15px;
-                padding:14px;
-                border-radius:12px;
-                background:#f5f7fb;
-                line-height:1.8;
-              "
-            >
-              🎯 اختر الوظيفة لعرض وصف الصلاحيات.
-            </div>
-            <div
-              style="
-                margin-top:15px;
-                padding:14px;
-                border-radius:12px;
-                background:#f5f7fb;
-                color:#46516b;
-                line-height:1.8;
-              "
-            >
-              🔐 <strong>الأمان:</strong>
-              <br>
-              كلمة المرور لا يتم تخزينها في هذا الملف
-              أو في واجهة الموظفين.
-              <br>
-              عملية إنشاء الحساب تتم داخل
-              <strong>staff-admin Edge Function</strong>.
-            </div>
+          <div
+            style="
+              width:min(760px,100%);
+              max-height:92vh;
+              overflow:auto;
+              background:#fff;
+              border-radius:22px;
+              padding:25px;
+              box-shadow:0 25px 70px rgba(0,0,0,.3);
+            "
+          >
+
             <div
               style="
                 display:flex;
-                justify-content:flex-end;
+                align-items:center;
+                justify-content:space-between;
                 gap:10px;
-                margin-top:20px;
+                margin-bottom:20px;
               "
             >
+
+              <div>
+
+                <h2 style="margin:0">
+                  ➕ إضافة موظف جديد
+                </h2>
+
+                <div class="muted">
+                  إنشاء حساب دخول وصلاحيات للموظف
+                </div>
+
+              </div>
+
               <button
+                id="closeStaffModal"
                 type="button"
                 class="btn btn-secondary"
-                data-staff-modal-close
               >
-                إلغاء
+                ✖
               </button>
-              <button
-                id="createStaffSubmit"
-                type="submit"
-                class="btn btn-primary"
-              >
-                ➕ إنشاء الحساب
-              </button>
+
             </div>
-          </form>
+
+            <form
+              id="createStaffForm"
+              autocomplete="off"
+            >
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:
+                    repeat(auto-fit,minmax(230px,1fr));
+                  gap:14px;
+                "
+              >
+
+                <label>
+                  👤 الاسم الكامل
+
+                  <input
+                    id="newStaffName"
+                    type="text"
+                    required
+                    autocomplete="name"
+                    placeholder="مثال: Sara Mohamed"
+                  >
+                </label>
+
+                <label>
+                  🔑 Username
+
+                  <input
+                    id="newStaffUsername"
+                    type="text"
+                    required
+                    autocomplete="off"
+                    pattern="[A-Za-z0-9._-]{3,40}"
+                    placeholder="مثال: sara"
+                    dir="ltr"
+                  >
+                </label>
+
+                <label>
+                  📧 Email
+
+                  <input
+                    id="newStaffEmail"
+                    type="email"
+                    required
+                    autocomplete="email"
+                    placeholder="employee@example.com"
+                    dir="ltr"
+                  >
+                </label>
+
+                <label>
+                  📱 الهاتف
+
+                  <input
+                    id="newStaffPhone"
+                    type="tel"
+                    autocomplete="tel"
+                    placeholder="01xxxxxxxxx"
+                    dir="ltr"
+                  >
+                </label>
+
+                <label>
+                  🎯 الوظيفة
+
+                  <select
+                    id="newStaffRole"
+                    required
+                  >
+
+                    <option value="">
+                      اختر الوظيفة
+                    </option>
+
+                    ${roleOptions}
+
+                  </select>
+                </label>
+
+                <label>
+                  🔐 Temporary Password
+
+                  <input
+                    id="newStaffPassword"
+                    type="password"
+                    minlength="10"
+                    autocomplete="new-password"
+                    placeholder="اتركه فارغًا للتوليد التلقائي"
+                    dir="ltr"
+                  >
+
+                  <small
+                    class="muted"
+                    style="
+                      display:block;
+                      margin-top:5px;
+                    "
+                  >
+                    الحد الأدنى 10 أحرف.
+                  </small>
+
+                </label>
+
+              </div>
+
+              <div
+                id="marketingPermissionNotice"
+                style="
+                  display:none;
+                  margin-top:15px;
+                  padding:14px;
+                  border-radius:12px;
+                  background:#f4f0ff;
+                  color:#493276;
+                  font-weight:700;
+                  line-height:1.8;
+                "
+              >
+                📣 هذا حساب Marketing.
+
+                <br><br>
+
+                سيحصل على صلاحيات التسويق
+                والمحتوى والحملات والـ Leads
+                حسب ما يسمح به النظام.
+
+                <br>
+
+                🙅‍♀️ لا يحصل تلقائيًا على
+                البيانات الطبية أو المالية
+                أو إدارة الموظفين.
+              </div>
+
+              <div
+                style="
+                  margin-top:15px;
+                  padding:14px;
+                  border-radius:12px;
+                  background:#f5f7fb;
+                  color:#46516b;
+                  line-height:1.8;
+                "
+              >
+
+                🔐 <strong>الأمان:</strong>
+
+                <br>
+
+                كلمة المرور يتم التعامل معها
+                بواسطة Edge Function الآمنة.
+
+                <br>
+
+                لا يتم تخزين Service Role Key
+                أو كلمة المرور داخل هذا الملف.
+
+              </div>
+
+              <div
+                style="
+                  display:flex;
+                  justify-content:flex-end;
+                  gap:10px;
+                  margin-top:20px;
+                "
+              >
+
+                <button
+                  id="cancelStaffCreation"
+                  type="button"
+                  class="btn btn-secondary"
+                >
+                  إلغاء
+                </button>
+
+                <button
+                  id="createStaffSubmit"
+                  type="submit"
+                  class="btn btn-primary"
+                >
+                  ➕ إنشاء حساب الموظف
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
         `
       );
-    const roleSelect =
-      $("newStaffRole");
-    const roleInfo =
-      $("newStaffRoleInfo");
-    function updateRoleInfo() {
-      const role =
-        normalizeRole(
-          roleSelect?.value
-        );
-      if (!roleInfo) {
-        return;
-      }
-      if (!role) {
-        roleInfo.innerHTML =
-          "🎯 اختر الوظيفة لعرض وصف الصلاحيات.";
-        return;
-      }
-      roleInfo.innerHTML = `
-        ${getRoleLabel(role)}
-        <br>
-        <span class="muted">
-          ${escapeHTML(
-            getRoleDescription(
-              role
-            )
-          )}
-        </span>
-        ${
-          role === "MARKETING"
-            ? `
-              <br><br>
-              📣 Marketing لا يحصل تلقائيًا
-              على البيانات الطبية أو المالية أو
-              إدارة الموظفين.
-            `
-            : ""
-        }
-      `;
-    }
-    roleSelect?.addEventListener(
-      "change",
-      updateRoleInfo
-    );
-    updateRoleInfo();
+
+    $("closeStaffModal")
+      ?.addEventListener(
+        "click",
+        closeModal
+      );
+
+    $("cancelStaffCreation")
+      ?.addEventListener(
+        "click",
+        closeModal
+      );
+
+    $("newStaffRole")
+      ?.addEventListener(
+        "change",
+        updateMarketingNotice
+      );
+
     $("createStaffForm")
       ?.addEventListener(
         "submit",
-        function (event) {
-          createStaff(
-            event
-          );
-        }
+        createStaff
       );
+
+    updateMarketingNotice();
+
     return modal;
   }
+
+  /* ==========================================================
+     MARKETING NOTICE
+     ========================================================== */
+
+  function updateMarketingNotice() {
+    const role =
+      $("newStaffRole")
+        ?.value;
+
+    const notice =
+      $("marketingPermissionNotice");
+
+    if (!notice) {
+      return;
+    }
+
+    notice.style.display =
+      role === "MARKETING"
+        ? "block"
+        : "none";
+  }
+
   /* ==========================================================
      CREATE STAFF
      ========================================================== */
+
   async function createStaff(
     event
   ) {
     event.preventDefault();
-    const submit =
-      $("createStaffSubmit");
-    const full_name =
+
+    const name =
       $("newStaffName")
         ?.value
         ?.trim();
+
     const username =
       $("newStaffUsername")
         ?.value
         ?.trim()
         .toLowerCase();
+
     const email =
       $("newStaffEmail")
         ?.value
         ?.trim()
         .toLowerCase();
+
     const phone =
       $("newStaffPhone")
         ?.value
         ?.trim();
+
     const role =
-      $("newStaffRole")
-        ?.value;
+      normalizeRole(
+        $("newStaffRole")
+          ?.value
+      );
+
     const password =
       $("newStaffPassword")
-        ?.value || "";
-    if (!full_name) {
+        ?.value ||
+        "";
+
+    const submit =
+      $("createStaffSubmit");
+
+    if (!name) {
       showMessage(
-        "❌ الاسم الكامل مطلوب.",
+        "❌ الاسم مطلوب.",
         "error"
       );
       return;
     }
+
     if (
       !/^[a-z0-9._-]{3,40}$/i.test(
-        username || ""
+        username
       )
     ) {
       showMessage(
@@ -1561,6 +1875,7 @@ staff-management.js
       );
       return;
     }
+
     if (!email) {
       showMessage(
         "❌ Email مطلوب.",
@@ -1568,6 +1883,7 @@ staff-management.js
       );
       return;
     }
+
     if (!role) {
       showMessage(
         "❌ اختر وظيفة الموظف.",
@@ -1575,19 +1891,11 @@ staff-management.js
       );
       return;
     }
-    if (
-      normalizeRole(role) ===
-      "OWNER"
-    ) {
-      showMessage(
-        "👑 لا يمكن إنشاء Owner من شاشة الموظفين.",
-        "error"
-      );
-      return;
-    }
+
     if (
       password &&
-      password.length < 10
+      password.length <
+        10
     ) {
       showMessage(
         "❌ كلمة المرور يجب أن تكون 10 أحرف على الأقل.",
@@ -1595,69 +1903,309 @@ staff-management.js
       );
       return;
     }
+
+    if (
+      role === "OWNER" &&
+      !isOwner()
+    ) {
+      showMessage(
+        "❌ فقط Owner يمكنه إنشاء Owner.",
+        "error"
+      );
+      return;
+    }
+
     if (submit) {
       submit.disabled =
         true;
+
       submit.textContent =
         "⏳ جاري إنشاء الحساب...";
     }
+
     try {
       const result =
         await callStaffAdmin(
           "create",
           {
-            full_name,
-            username,
-            email,
+            full_name:
+              name,
+
+            username:
+              username,
+
+            email:
+              email,
+
             phone:
-              phone || null,
-            role,
+              phone ||
+              null,
+
+            role:
+              role,
+
             password:
-              password || null
+              password ||
+              null
           }
         );
+
       closeModal();
+
       await loadStaff();
+
       let message =
         "✅ تم إنشاء حساب الموظف بنجاح.";
+
       if (
         result?.temporary_password
       ) {
         message +=
-          `\n\n🔐 كلمة المرور المؤقتة:\n${result.temporary_password}\n\n⚠️ احفظها الآن. لن يتم عرضها مرة أخرى.`;
+          "\n\n🔐 كلمة المرور المؤقتة:";
+        message +=
+          `\n${result.temporary_password}`;
+        message +=
+          "\n\n⚠️ احتفظ بها وأرسلها للموظف بأمان.";
       }
+
       showMessage(
         message,
         "success"
       );
+
     } catch (error) {
       console.error(
         "Create staff error:",
         error
       );
+
       showMessage(
         `❌ تعذر إنشاء الموظف:\n${error?.message || "حدث خطأ."}`,
         "error"
       );
+
       if (submit) {
         submit.disabled =
           false;
+
         submit.textContent =
-          "➕ إنشاء الحساب";
+          "➕ إنشاء حساب الموظف";
       }
     }
   }
+
+  /* ==========================================================
+     STAFF ACTIONS
+     ========================================================== */
+
+  async function handleStaffAction(
+    action,
+    staffId
+  ) {
+    const staff =
+      state.staff.find(
+        function (item) {
+          return (
+            String(
+              item.id
+            ) ===
+            String(
+              staffId
+            )
+          );
+        }
+      );
+
+    if (!staff) {
+      showMessage(
+        "❌ الموظف غير موجود.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      !canManageTarget(
+        staff
+      )
+    ) {
+      showMessage(
+        "🛡️ لا توجد لديك صلاحية لإدارة هذا الموظف.",
+        "error"
+      );
+      return;
+    }
+
+    switch (
+      action
+    ) {
+      case "edit":
+        openEditStaffModal(
+          staff
+        );
+        break;
+
+      case "role":
+        openRoleModal(
+          staff
+        );
+        break;
+
+      case "password":
+        await resetStaffPassword(
+          staff
+        );
+        break;
+
+      case "disable":
+        await disableStaff(
+          staff
+        );
+        break;
+
+      case "enable":
+        await enableStaff(
+          staff
+        );
+        break;
+
+      default:
+        showMessage(
+          "❌ الإجراء غير معروف.",
+          "error"
+        );
+    }
+  }
+
   /* ==========================================================
      EDIT STAFF MODAL
      ========================================================== */
+
   function openEditStaffModal(
     staff
   ) {
-    const modal =
-      createModal(
-        "✍️ تعديل بيانات الموظف",
-        `
+    const currentRole =
+      getCurrentRole();
+
+    const currentLevel =
+      ROLE_LEVEL[
+        currentRole
+      ] || 0;
+
+    const staffLevel =
+      ROLE_LEVEL[
+        normalizeRole(
+          staff.role
+        )
+      ] || 0;
+
+    const roleOptions =
+      Object.entries(
+        ROLES
+      )
+        .filter(
+          function ([key]) {
+            if (
+              key ===
+              "OWNER"
+            ) {
+              return (
+                currentRole ===
+                "OWNER"
+              );
+            }
+
+            if (
+              currentRole ===
+              "OWNER"
+            ) {
+              return true;
+            }
+
+            return (
+              (
+                ROLE_LEVEL[
+                  key
+                ] || 0
+              ) <
+              currentLevel
+            );
+          }
+        )
+        .map(
+          function ([key, value]) {
+            return `
+              <option
+                value="${escapeHTML(
+                  key
+                )}"
+                ${
+                  normalizeRole(
+                    staff.role
+                  ) ===
+                  key
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${value.label}
+              </option>
+            `;
+          }
+        )
+        .join("");
+
+    createModal(
+      "staffEditModal",
+      `
+        <div
+          style="
+            width:min(650px,100%);
+            max-height:92vh;
+            overflow:auto;
+            background:#fff;
+            border-radius:22px;
+            padding:25px;
+          "
+        >
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:10px;
+              margin-bottom:20px;
+            "
+          >
+
+            <div>
+
+              <h2 style="margin:0">
+                ✍️ تعديل بيانات الموظف
+              </h2>
+
+              <div class="muted">
+                ${escapeHTML(
+                  staff.full_name ||
+                  ""
+                )}
+              </div>
+
+            </div>
+
+            <button
+              id="closeStaffEdit"
+              type="button"
+              class="btn btn-secondary"
+            >
+              ✖
+            </button>
+
+          </div>
+
           <form id="editStaffForm">
+
             <div
               style="
                 display:grid;
@@ -1666,21 +2214,24 @@ staff-management.js
                 gap:14px;
               "
             >
+
               <label>
                 👤 الاسم الكامل
+
                 <input
                   id="editStaffName"
                   type="text"
                   required
-                  maxlength="200"
                   value="${escapeHTML(
                     staff.full_name ||
                     ""
                   )}"
                 >
               </label>
+
               <label>
                 📧 Email
+
                 <input
                   id="editStaffEmail"
                   type="email"
@@ -1692,8 +2243,10 @@ staff-management.js
                   dir="ltr"
                 >
               </label>
+
               <label>
                 📱 الهاتف
+
                 <input
                   id="editStaffPhone"
                   type="tel"
@@ -1704,54 +2257,20 @@ staff-management.js
                   dir="ltr"
                 >
               </label>
+
               <label>
                 🎯 الوظيفة
+
                 <select
                   id="editStaffRole"
                   required
-                  ${
-                    normalizeRole(
-                      staff.role
-                    ) === "OWNER"
-                      ? "disabled"
-                      : ""
-                  }
                 >
-                  ${Object.entries(
-                    ROLES
-                  )
-                    .filter(
-                      function ([key]) {
-                        return (
-                          key !==
-                          "OWNER"
-                        );
-                      }
-                    )
-                    .map(
-                      function ([key, role]) {
-                        return `
-                          <option
-                            value="${escapeHTML(
-                              key
-                            )}"
-                            ${
-                              normalizeRole(
-                                staff.role
-                              ) === key
-                                ? "selected"
-                                : ""
-                            }
-                          >
-                            ${role.label}
-                          </option>
-                        `;
-                      }
-                    )
-                    .join("")}
+                  ${roleOptions}
                 </select>
               </label>
+
             </div>
+
             <div
               style="
                 margin-top:15px;
@@ -1761,31 +2280,54 @@ staff-management.js
                 line-height:1.8;
               "
             >
-              🔒 Username:
+
+              🔑 Username:
+
               <strong dir="ltr">
                 ${escapeHTML(
                   staff.username ||
                   "—"
                 )}
               </strong>
+
               <br>
-              🔐 كلمة المرور لا يتم تعديلها من هنا.
+
+              🔐 كلمة المرور لا يتم تعديلها
+              من هذه الشاشة.
+
               <br>
-              استخدم 🔐 Reset Password لتعيين
-              كلمة مرور جديدة.
-              ${
-                normalizeRole(
-                  staff.role
-                ) === "OWNER"
-                  ? `
-                    <br><br>
-                    👑 حساب Owner محمي.
-                    لا يمكن تغيير دوره أو تعطيله
-                    من هذه الشاشة.
-                  `
-                  : ""
-              }
+
+              استخدم زر Reset لإنشاء كلمة مرور جديدة.
+
             </div>
+
+            ${
+              normalizeRole(
+                staff.role
+              ) === "OWNER"
+                ? `
+                  <div
+                    style="
+                      margin-top:15px;
+                      padding:14px;
+                      border-radius:12px;
+                      background:#fff8e8;
+                      color:#765400;
+                      line-height:1.8;
+                    "
+                  >
+                    👑 هذا حساب Owner.
+
+                    <br>
+
+                    لا يمكن إزالة دور Owner
+                    إذا كان هذا آخر Owner نشط
+                    في النظام.
+                  </div>
+                `
+                : ""
+            }
+
             <div
               style="
                 display:flex;
@@ -1794,13 +2336,15 @@ staff-management.js
                 margin-top:20px;
               "
             >
+
               <button
+                id="cancelStaffEdit"
                 type="button"
                 class="btn btn-secondary"
-                data-staff-modal-close
               >
                 إلغاء
               </button>
+
               <button
                 id="saveStaffEdit"
                 type="submit"
@@ -1808,10 +2352,27 @@ staff-management.js
               >
                 💾 حفظ التعديلات
               </button>
+
             </div>
+
           </form>
-        `
+
+        </div>
+      `
+    );
+
+    $("closeStaffEdit")
+      ?.addEventListener(
+        "click",
+        closeModal
       );
+
+    $("cancelStaffEdit")
+      ?.addEventListener(
+        "click",
+        closeModal
+      );
+
     $("editStaffForm")
       ?.addEventListener(
         "submit",
@@ -1822,37 +2383,43 @@ staff-management.js
           );
         }
       );
-    return modal;
   }
+
   /* ==========================================================
-     SAVE EDIT
+     SAVE STAFF EDIT
      ========================================================== */
+
   async function saveStaffEdit(
     event,
     staff
   ) {
     event.preventDefault();
+
     const full_name =
       $("editStaffName")
         ?.value
         ?.trim();
+
     const email =
       $("editStaffEmail")
         ?.value
         ?.trim()
         .toLowerCase();
+
     const phone =
       $("editStaffPhone")
         ?.value
         ?.trim();
+
     const role =
-      $("editStaffRole")
-        ?.value ||
       normalizeRole(
-        staff.role
+        $("editStaffRole")
+          ?.value
       );
+
     const submit =
       $("saveStaffEdit");
+
     if (!full_name) {
       showMessage(
         "❌ الاسم مطلوب.",
@@ -1860,6 +2427,7 @@ staff-management.js
       );
       return;
     }
+
     if (!email) {
       showMessage(
         "❌ Email مطلوب.",
@@ -1867,6 +2435,7 @@ staff-management.js
       );
       return;
     }
+
     if (!role) {
       showMessage(
         "❌ الوظيفة مطلوبة.",
@@ -1874,52 +2443,472 @@ staff-management.js
       );
       return;
     }
+
+    if (
+      role === "OWNER" &&
+      !isOwner()
+    ) {
+      showMessage(
+        "❌ فقط Owner يمكنه تعيين Owner.",
+        "error"
+      );
+      return;
+    }
+
     if (submit) {
       submit.disabled =
         true;
+
       submit.textContent =
         "⏳ جاري الحفظ...";
     }
+
     try {
       await callStaffAdmin(
         "update",
         {
           staff_id:
             staff.id,
-          full_name,
-          email,
+
+          full_name:
+            full_name,
+
+          email:
+            email,
+
           phone:
-            phone || null,
-          role
+            phone ||
+            null,
+
+          role:
+            role
         }
       );
+
       closeModal();
+
       await loadStaff();
+
       showMessage(
         "✅ تم تحديث بيانات الموظف بنجاح.",
         "success"
       );
+
     } catch (error) {
       console.error(
         "Update staff error:",
         error
       );
+
       showMessage(
         `❌ تعذر تحديث الموظف:\n${error?.message || "حدث خطأ."}`,
         "error"
       );
+
       if (submit) {
         submit.disabled =
           false;
+
         submit.textContent =
           "💾 حفظ التعديلات";
       }
     }
   }
+
   /* ==========================================================
      ROLE MODAL
      ========================================================== */
+
   function openRoleModal(
+    staff
+  ) {
+    if (
+      normalizeRole(
+        staff.role
+      ) === "OWNER"
+    ) {
+      showMessage(
+        "👑 حساب Owner محمي ولا يمكن تغيير وظيفته من شاشة الموظفين.",
+        "error"
+      );
+      return;
+    }
+
+    const currentRole =
+      getCurrentRole();
+
+    const currentLevel =
+      ROLE_LEVEL[
+        currentRole
+      ] || 0;
+
+    const options =
+      Object.entries(
+        ROLES
+      )
+        .filter(
+          function ([key]) {
+            if (
+              key ===
+              "OWNER"
+            ) {
+              return (
+                currentRole ===
+                "OWNER"
+              );
+            }
+
+            if (
+              currentRole ===
+              "OWNER"
+            ) {
+              return true;
+            }
+
+            return (
+              (
+                ROLE_LEVEL[
+                  key
+                ] || 0
+              ) <
+              currentLevel
+            );
+          }
+        )
+        .map(
+          function ([key, value]) {
+            return `
+              <option
+                value="${escapeHTML(
+                  key
+                )}"
+                ${
+                  normalizeRole(
+                    staff.role
+                  ) ===
+                  key
+                    ? "selected"
+                    : ""
+                }
+              >
+                ${value.label}
+              </option>
+            `;
+          }
+        )
+        .join("");
+
+    createModal(
+      "staffActionModal",
+      `
+        <div
+          style="
+            width:min(500px,100%);
+            background:#fff;
+            border-radius:20px;
+            padding:24px;
+          "
+        >
+
+          <h2>
+            🎯 تغيير وظيفة الموظف
+          </h2>
+
+          <p>
+            👤
+            <strong>
+              ${escapeHTML(
+                staff.full_name ||
+                "-"
+              )}
+            </strong>
+          </p>
+
+          <label>
+            الوظيفة الجديدة
+
+            <select
+              id="changeStaffRole"
+            >
+              ${options}
+            </select>
+          </label>
+
+          <div
+            style="
+              margin-top:15px;
+              padding:12px;
+              border-radius:12px;
+              background:#f5f7fb;
+              line-height:1.7;
+            "
+          >
+
+            🔐 تغيير الوظيفة يتم من خلال
+            Edge Function الآمنة.
+
+            <br><br>
+
+            🛡️ الـ backend هو صاحب القرار
+            النهائي في الصلاحيات.
+
+          </div>
+
+          <div
+            style="
+              display:flex;
+              justify-content:flex-end;
+              gap:10px;
+              margin-top:20px;
+            "
+          >
+
+            <button
+              id="cancelRoleChange"
+              class="btn btn-secondary"
+              type="button"
+            >
+              إلغاء
+            </button>
+
+            <button
+              id="saveRoleChange"
+              class="btn btn-primary"
+              type="button"
+            >
+              💾 حفظ الوظيفة
+            </button>
+
+          </div>
+
+        </div>
+      `
+    );
+
+    $("cancelRoleChange")
+      ?.addEventListener(
+        "click",
+        closeModal
+      );
+
+    $("saveRoleChange")
+      ?.addEventListener(
+        "click",
+        async function () {
+          const role =
+            normalizeRole(
+              $("changeStaffRole")
+                ?.value
+            );
+
+          if (!role) {
+            showMessage(
+              "❌ اختر الوظيفة الجديدة.",
+              "error"
+            );
+            return;
+          }
+
+          if (
+            role ===
+              "OWNER" &&
+            !isOwner()
+          ) {
+            showMessage(
+              "❌ فقط Owner يمكنه تعيين Owner.",
+              "error"
+            );
+            return;
+          }
+
+          const button =
+            $("saveRoleChange");
+
+          if (button) {
+            button.disabled =
+              true;
+
+            button.textContent =
+              "⏳ جاري الحفظ...";
+          }
+
+          try {
+            await callStaffAdmin(
+              "update_role",
+              {
+                staff_id:
+                  staff.id,
+
+                role:
+                  role
+              }
+            );
+
+            closeModal();
+
+            await loadStaff();
+
+            showMessage(
+              "✅ تم تحديث وظيفة الموظف.",
+              "success"
+            );
+
+          } catch (error) {
+            console.error(
+              "Update role error:",
+              error
+            );
+
+            showMessage(
+              `❌ ${error?.message || "حدث خطأ."}`,
+              "error"
+            );
+
+            if (button) {
+              button.disabled =
+                false;
+
+              button.textContent =
+                "💾 حفظ الوظيفة";
+            }
+          }
+        }
+      );
+  }
+
+  /* ==========================================================
+     RESET PASSWORD
+     ========================================================== */
+
+  async function resetStaffPassword(
+    staff
+  ) {
+    if (
+      normalizeRole(
+        staff.role
+      ) === "OWNER" &&
+      !isOwner()
+    ) {
+      showMessage(
+        "👑 لا يمكنك إدارة كلمة مرور Owner.",
+        "error"
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `🔐 هل تريد إعادة تعيين كلمة مرور ${staff.full_name || "الموظف"}؟\n\nسيتم إنشاء كلمة مرور مؤقتة جديدة للحساب.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const result =
+        await callStaffAdmin(
+          "reset_password",
+          {
+            staff_id:
+              staff.id
+          }
+        );
+
+      let message =
+        "✅ تم إعادة تعيين كلمة المرور.";
+
+      if (
+        result?.temporary_password
+      ) {
+        message +=
+          "\n\n🔐 كلمة المرور المؤقتة:";
+        message +=
+          `\n${result.temporary_password}`;
+        message +=
+          "\n\n⚠️ احتفظ بها وأرسلها للموظف بأمان.";
+      }
+
+      showMessage(
+        message,
+        "success"
+      );
+
+    } catch (error) {
+      console.error(
+        "Reset password error:",
+        error
+      );
+
+      showMessage(
+        `❌ تعذر إعادة تعيين كلمة المرور:\n${error?.message || "حدث خطأ."}`,
+        "error"
+      );
+    }
+  }
+
+  /* ==========================================================
+     DISABLE STAFF
+     ========================================================== */
+
+  async function disableStaff(
+    staff
+  ) {
+    if (
+      normalizeRole(
+        staff.role
+      ) === "OWNER"
+    ) {
+      showMessage(
+        "🛡️ لا يمكن تعطيل حساب Owner من شاشة الموظفين.",
+        "error"
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `⛔ هل أنت متأكد من تعطيل ${staff.full_name || "هذا الموظف"}؟\n\nسيتم إلغاء وصوله مع الاحتفاظ بسجل الموظف والعمليات السابقة.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await callStaffAdmin(
+        "disable",
+        {
+          staff_id:
+            staff.id
+        }
+      );
+
+      await loadStaff();
+
+      showMessage(
+        "⛔ تم تعطيل حساب الموظف وإلغاء الوصول.",
+        "success"
+      );
+
+    } catch (error) {
+      console.error(
+        "Disable staff error:",
+        error
+      );
+
+      showMessage(
+        `❌ تعذر تعطيل الموظف:\n${error?.message || "حدث خطأ."}`,
+        "error"
+      );
+    }
+  }
+
+  /* ==========================================================
+     ENABLE STAFF
+     ========================================================== */
+
+  async function enableStaff(
     staff
   ) {
     if (
@@ -1933,412 +2922,16 @@ staff-management.js
       );
       return;
     }
-    const options =
-      Object.entries(ROLES)
-        .filter(
-          function ([key]) {
-            return (
-              key !==
-              "OWNER"
-            );
-          }
-        )
-        .map(
-          function ([key, role]) {
-            return `
-              <option
-                value="${escapeHTML(
-                  key
-                )}"
-                ${
-                  normalizeRole(
-                    staff.role
-                  ) === key
-                    ? "selected"
-                    : ""
-                }
-              >
-                ${role.label}
-              </option>
-            `;
-          }
-        )
-        .join("");
-    createModal(
-      "🎯 تغيير وظيفة الموظف",
-      `
-        <div
-          style="
-            margin-bottom:15px;
-            line-height:1.8;
-          "
-        >
-          👤
-          <strong>
-            ${escapeHTML(
-              staff.full_name ||
-              "-"
-            )}
-          </strong>
-          <br>
-          الوظيفة الحالية:
-          ${getRoleLabel(
-            staff.role
-          )}
-        </div>
-        <label>
-          🎯 الوظيفة الجديدة
-          <select
-            id="changeStaffRole"
-          >
-            ${options}
-          </select>
-        </label>
-        <div
-          id="roleChangeDescription"
-          style="
-            margin-top:15px;
-            padding:14px;
-            border-radius:12px;
-            background:#f5f7fb;
-            line-height:1.8;
-          "
-        ></div>
-        <div
-          style="
-            display:flex;
-            justify-content:flex-end;
-            gap:10px;
-            margin-top:20px;
-          "
-        >
-          <button
-            type="button"
-            class="btn btn-secondary"
-            data-staff-modal-close
-          >
-            إلغاء
-          </button>
-          <button
-            id="saveRoleChange"
-            type="button"
-            class="btn btn-primary"
-          >
-            💾 حفظ الوظيفة
-          </button>
-        </div>
-      `
-    );
-    const roleSelect =
-      $("changeStaffRole");
-    const description =
-      $("roleChangeDescription");
-    function updateDescription() {
-      const role =
-        normalizeRole(
-          roleSelect?.value
-        );
-      if (!description) {
-        return;
-      }
-      description.innerHTML = `
-        ${getRoleLabel(role)}
-        <br>
-        <span class="muted">
-          ${escapeHTML(
-            getRoleDescription(
-              role
-            )
-          )}
-        </span>
-      `;
-    }
-    roleSelect?.addEventListener(
-      "change",
-      updateDescription
-    );
-    updateDescription();
-    $("saveRoleChange")
-      ?.addEventListener(
-        "click",
-        async function () {
-          const role =
-            normalizeRole(
-              roleSelect?.value
-            );
-          if (!role) {
-            showMessage(
-              "❌ اختر الوظيفة.",
-              "error"
-            );
-            return;
-          }
-          if (
-            role ===
-            "OWNER"
-          ) {
-            showMessage(
-              "👑 لا يمكن نقل موظف إلى Owner من هذه الشاشة.",
-              "error"
-            );
-            return;
-          }
-          const button =
-            $("saveRoleChange");
-          if (button) {
-            button.disabled =
-              true;
-            button.textContent =
-              "⏳ جاري الحفظ...";
-          }
-          try {
-            await callStaffAdmin(
-              "update_role",
-              {
-                staff_id:
-                  staff.id,
-                role
-              }
-            );
-            closeModal();
-            await loadStaff();
-            showMessage(
-              "✅ تم تحديث وظيفة الموظف.",
-              "success"
-            );
-          } catch (error) {
-            console.error(
-              "Update role error:",
-              error
-            );
-            showMessage(
-              `❌ ${error?.message || "تعذر تحديث الوظيفة."}`,
-              "error"
-            );
-            if (button) {
-              button.disabled =
-                false;
-              button.textContent =
-                "💾 حفظ الوظيفة";
-            }
-          }
-        }
-      );
-  }
-  /* ==========================================================
-     RESET PASSWORD MODAL
-     ========================================================== */
-  async function resetStaffPassword(
-    staff
-  ) {
-    const confirmed =
-      window.confirm(
-        `🔐 هل تريد إعادة تعيين كلمة مرور ${staff.full_name || "هذا الموظف"}؟\n\nسيتم إنشاء كلمة مرور جديدة للحساب.`
-      );
-    if (!confirmed) {
-      return;
-    }
-    const modal =
-      createModal(
-        "🔐 إعادة تعيين كلمة المرور",
-        `
-          <form id="resetPasswordForm">
-            <div
-              style="
-                padding:14px;
-                border-radius:12px;
-                background:#f5f7fb;
-                line-height:1.8;
-                margin-bottom:15px;
-              "
-            >
-              👤
-              <strong>
-                ${escapeHTML(
-                  staff.full_name ||
-                  "-"
-                )}
-              </strong>
-              <br>
-              🔑
-              <span dir="ltr">
-                ${escapeHTML(
-                  staff.username ||
-                  "-"
-                )}
-              </span>
-              <br><br>
-              اترك الحقل فارغًا ليقوم النظام
-              بتوليد كلمة مرور آمنة تلقائيًا.
-            </div>
-            <label>
-              🔐 كلمة المرور الجديدة
-              <input
-                id="resetStaffPasswordInput"
-                type="password"
-                minlength="10"
-                autocomplete="new-password"
-                placeholder="اتركه فارغًا للتوليد التلقائي"
-                dir="ltr"
-              >
-            </label>
-            <div
-              style="
-                display:flex;
-                justify-content:flex-end;
-                gap:10px;
-                margin-top:20px;
-              "
-            >
-              <button
-                type="button"
-                class="btn btn-secondary"
-                data-staff-modal-close
-              >
-                إلغاء
-              </button>
-              <button
-                id="resetStaffPasswordSubmit"
-                type="submit"
-                class="btn btn-primary"
-              >
-                🔐 تغيير كلمة المرور
-              </button>
-            </div>
-          </form>
-        `
-      );
-    $("resetPasswordForm")
-      ?.addEventListener(
-        "submit",
-        async function (event) {
-          event.preventDefault();
-          const submit =
-            $("resetStaffPasswordSubmit");
-          const password =
-            $("resetStaffPasswordInput")
-              ?.value || "";
-          if (
-            password &&
-            password.length < 10
-          ) {
-            showMessage(
-              "❌ كلمة المرور يجب أن تكون 10 أحرف على الأقل.",
-              "error"
-            );
-            return;
-          }
-          if (submit) {
-            submit.disabled =
-              true;
-            submit.textContent =
-              "⏳ جاري التغيير...";
-          }
-          try {
-            const result =
-              await callStaffAdmin(
-                "reset_password",
-                {
-                  staff_id:
-                    staff.id,
-                  password:
-                    password || null
-                }
-              );
-            closeModal();
-            let message =
-              "✅ تم تغيير كلمة المرور بنجاح.";
-            if (
-              result?.temporary_password
-            ) {
-              message +=
-                `\n\n🔐 كلمة المرور الجديدة:\n${result.temporary_password}\n\n⚠️ احفظها الآن. لن يتم عرضها مرة أخرى.`;
-            }
-            showMessage(
-              message,
-              "success"
-            );
-          } catch (error) {
-            console.error(
-              "Reset password error:",
-              error
-            );
-            showMessage(
-              `❌ تعذر تغيير كلمة المرور:\n${error?.message || "حدث خطأ."}`,
-              "error"
-            );
-            if (submit) {
-              submit.disabled =
-                false;
-              submit.textContent =
-                "🔐 تغيير كلمة المرور";
-            }
-          }
-        }
-      );
-    return modal;
-  }
-  /* ==========================================================
-     DISABLE STAFF
-     ========================================================== */
-  async function disableStaff(
-    staff
-  ) {
-    if (
-      normalizeRole(
-        staff.role
-      ) === "OWNER"
-    ) {
-      showMessage(
-        "👑 لا يمكن تعطيل حساب Owner.",
-        "error"
-      );
-      return;
-    }
-    const confirmed =
-      window.confirm(
-        `⛔ هل أنت متأكد من تعطيل حساب ${staff.full_name || "هذا الموظف"}؟\n\nسيتم إلغاء وصول الحساب مع الاحتفاظ بسجل الموظف والعمليات السابقة.`
-      );
-    if (!confirmed) {
-      return;
-    }
-    try {
-      await callStaffAdmin(
-        "disable",
-        {
-          staff_id:
-            staff.id
-        }
-      );
-      await loadStaff();
-      showMessage(
-        "⛔ تم تعطيل حساب الموظف وإلغاء الوصول.",
-        "success"
-      );
-    } catch (error) {
-      console.error(
-        "Disable staff error:",
-        error
-      );
-      showMessage(
-        `❌ تعذر تعطيل الموظف:\n${error?.message || "حدث خطأ."}`,
-        "error"
-      );
-    }
-  }
-  /* ==========================================================
-     ENABLE STAFF
-     ========================================================== */
-  async function enableStaff(
-    staff
-  ) {
+
     const confirmed =
       window.confirm(
         `🟢 هل تريد إعادة تفعيل حساب ${staff.full_name || "هذا الموظف"}؟`
       );
+
     if (!confirmed) {
       return;
     }
+
     try {
       await callStaffAdmin(
         "enable",
@@ -2347,249 +2940,142 @@ staff-management.js
             staff.id
         }
       );
+
       await loadStaff();
+
       showMessage(
         "🟢 تم تفعيل حساب الموظف.",
         "success"
       );
+
     } catch (error) {
       console.error(
         "Enable staff error:",
         error
       );
+
       showMessage(
         `❌ تعذر تفعيل الموظف:\n${error?.message || "حدث خطأ."}`,
         "error"
       );
     }
   }
+
   /* ==========================================================
-     AUTH STATE LISTENER
+     AUTH LISTENER
      ========================================================== */
+
   async function setupAuthListener() {
     if (
       state.authListenerReady
     ) {
       return;
     }
+
     const client =
       await createSupabaseClient();
+
     if (
       !client?.auth ||
-      typeof client.auth.onAuthStateChange !==
+      typeof client.auth
+        .onAuthStateChange !==
         "function"
     ) {
       return;
     }
+
     state.authListenerReady =
       true;
+
     client.auth.onAuthStateChange(
       async function (
         event,
         session
       ) {
-        state.currentSession =
-          session || null;
-        state.currentUser =
-          session?.user ||
-          null;
         if (
           event ===
             "SIGNED_IN" ||
           event ===
-            "TOKEN_REFRESHED"
+            "TOKEN_REFRESHED" ||
+          event ===
+            "USER_UPDATED"
         ) {
           if (session) {
-            setTimeout(
-              function () {
-                initializeStaffCenter(
-                  true
-                );
-              },
-              0
-            );
+            state.currentSession =
+              session;
+
+            state.currentUser =
+              session.user ||
+              null;
+
+            state.currentRole =
+              normalizeRole(
+                session.user?.app_metadata?.role ||
+                session.user?.user_metadata?.role ||
+                state.currentRole
+              );
+
+            /*
+              Do not call loadStaff immediately
+              on every token refresh if another load
+              is already in progress.
+            */
+
+            if (
+              !state.loading
+            ) {
+              await loadStaff();
+            }
           }
         }
+
         if (
           event ===
           "SIGNED_OUT"
         ) {
+          state.staff =
+            [];
+
           state.currentSession =
             null;
+
           state.currentUser =
             null;
-          state.staff = [];
+
           state.currentRole =
             null;
-          const table =
-            $("staffTableContainer");
-          if (table) {
-            table.innerHTML = `
-              <div class="empty">
-                🔐 سجل الدخول لعرض إدارة الموظفين.
-              </div>
-            `;
-          }
+
+          renderStaffTable();
           updateStaffStats();
         }
       }
     );
   }
+
   /* ==========================================================
-     INITIALIZE STAFF CENTER
+     WAIT FOR SUPABASE
      ========================================================== */
-  async function initializeStaffCenter(
-    silent = false
-  ) {
-    try {
-      await createSupabaseClient();
-      const session =
-        await getSession();
-      if (!session) {
-        if (!silent) {
-          renderStaffManagement();
-          const table =
-            $("staffTableContainer");
-          if (table) {
-            table.innerHTML = `
-              <div class="empty">
-                🔐 إدارة الموظفين متاحة بعد تسجيل الدخول.
-              </div>
-            `;
-          }
-        }
-        return false;
-      }
-      state.currentSession =
-        session;
-      state.currentUser =
-        session.user || null;
-      renderStaffManagement();
-      /*
-        The backend performs the real authorization.
-      */
-      let result;
-      try {
-        result =
-          await callStaffAdmin(
-            "list"
-          );
-      } catch (error) {
-        const message =
-          String(
-            error?.message ||
-            ""
-          );
-        if (
-          /ليس لديك صلاحية|Unauthorized|غير نشط|غير مرتبط|إدارة الموظفين/i.test(
-            message
-          )
-        ) {
-          const table =
-            $("staffTableContainer");
-          if (table) {
-            table.innerHTML = `
-              <div
-                style="
-                  padding:20px;
-                  border-radius:14px;
-                  background:#fff0f2;
-                  color:#a32939;
-                  font-weight:700;
-                  line-height:1.8;
-                "
-              >
-                ⛔ ليس لديك صلاحية لإدارة الموظفين.
-                <br><br>
-                الصلاحيات الفعلية يتم تطبيقها
-                من النظام الآمن وليس من JavaScript.
-              </div>
-            `;
-            updateStaffStats();
-          }
-          return false;
-        }
-        throw error;
-      }
-      state.currentRole =
-        normalizeRole(
-          result?.currentRole ||
-          state.currentRole
-        );
-      const rows =
-        Array.isArray(
-          result?.staff
-        )
-          ? result.staff
-          : [];
-      state.staff =
-        rows.map(
-          function (item) {
-            const clean = {
-              ...item
-            };
-            delete clean.password;
-            delete clean.temp_password;
-            delete clean.temporary_password;
-            delete clean.encrypted_password;
-            delete clean.password_hash;
-            return clean;
-          }
-        );
-      renderStaffTable();
-      updateStaffStats();
-      state.initialized =
-        true;
-      return true;
-    } catch (error) {
-      console.error(
-        "Azaad Staff initialization error:",
-        error
-      );
-      if (!silent) {
-        const table =
-          $("staffTableContainer");
-        if (table) {
-          table.innerHTML = `
-            <div
-              style="
-                padding:20px;
-                border-radius:14px;
-                background:#fff0f2;
-                color:#a32939;
-                font-weight:700;
-                line-height:1.8;
-              "
-            >
-              ❌ تعذر تشغيل إدارة الموظفين.
-              <br><br>
-              ${escapeHTML(
-                error?.message ||
-                "حدث خطأ غير معروف."
-              )}
-            </div>
-          `;
-        }
-      }
-      return false;
-    }
-  }
-  /* ==========================================================
-     WAIT FOR EXISTING ADMIN PANEL
-     ========================================================== */
-  async function waitForStaffPanel(
-    maxAttempts = 80
-  ) {
-    for (
-      let attempt = 0;
-      attempt < maxAttempts;
-      attempt++
+
+  async function waitForSupabase() {
+    let attempts =
+      0;
+
+    while (
+      attempts < 80
     ) {
-      if (
-        getStaffPanel()
-      ) {
-        return true;
+      try {
+        const client =
+          await createSupabaseClient();
+
+        if (client) {
+          return client;
+        }
+      } catch (_) {
+        /*
+          Continue waiting.
+        */
       }
+
       await new Promise(
         function (resolve) {
           setTimeout(
@@ -2598,74 +3084,143 @@ staff-management.js
           );
         }
       );
+
+      attempts++;
     }
-    return false;
+
+    throw new Error(
+      "Supabase client unavailable."
+    );
   }
+
   /* ==========================================================
-     PUBLIC API
+     INITIALIZATION
      ========================================================== */
-  window.AZAAD_STAFF = {
-    init:
-      initializeStaffCenter,
-    load:
-      loadStaff,
-    refresh:
-      loadStaff,
-    openCreate:
-      openCreateStaffModal,
-    closeModal:
-      closeModal,
-    state
-  };
-  /* ==========================================================
-     START
-     ========================================================== */
-  async function start() {
+
+  async function initialize() {
+    if (
+      state.initialized
+    ) {
+      return;
+    }
+
     try {
-      await createSupabaseClient();
-      await setupAuthListener();
-      await waitForStaffPanel();
-      /*
-        Do not force a login.
-        admin.html owns authentication.
-      */
+      await waitForSupabase();
+
       const session =
         await getSession();
+
       if (session) {
-        await initializeStaffCenter(
-          true
+        state.currentSession =
+          session;
+
+        state.currentUser =
+          session.user ||
+          null;
+
+        state.currentRole =
+          normalizeRole(
+            session.user?.app_metadata?.role ||
+            session.user?.user_metadata?.role ||
+            ""
+          );
+      }
+
+      /*
+        admin.html already contains:
+
+        <section id="staff" class="panel">
+
+        Therefore we NEVER create another staff tab.
+      */
+
+      const panel =
+        getStaffPanel();
+
+      if (!panel) {
+        console.warn(
+          "Azaad Staff Management: #staff panel not found."
         );
+
+        return;
+      }
+
+      renderStaffManagement();
+
+      await setupAuthListener();
+
+      if (session) {
+        await loadStaff();
       } else {
-        renderStaffManagement();
         const table =
           $("staffTableContainer");
+
         if (table) {
           table.innerHTML = `
             <div class="empty">
-              🔐 سجل الدخول أولاً لعرض إدارة الموظفين.
+              🔐 قم بتسجيل الدخول أولاً.
             </div>
           `;
         }
       }
+
+      state.initialized =
+        true;
+
     } catch (error) {
       console.error(
-        "Azaad Staff start error:",
+        "Azaad Staff Management initialization error:",
         error
+      );
+
+      showMessage(
+        `❌ تعذر تشغيل إدارة الموظفين:\n${error?.message || "حدث خطأ."}`,
+        "error"
       );
     }
   }
+
+  /* ==========================================================
+     PUBLIC API
+     ========================================================== */
+
+  window.AZAAD_STAFF = {
+    init:
+      initialize,
+
+    load:
+      loadStaff,
+
+    refresh:
+      loadStaff,
+
+    openCreate:
+      openCreateStaffModal,
+
+    state:
+      state,
+
+    roles:
+      ROLES
+  };
+
+  /* ==========================================================
+     START
+     ========================================================== */
+
   if (
     document.readyState ===
     "loading"
   ) {
     document.addEventListener(
       "DOMContentLoaded",
-      start,
+      initialize,
       {
         once: true
       }
     );
   } else {
-    start();
+    initialize();
   }
+
 })();
