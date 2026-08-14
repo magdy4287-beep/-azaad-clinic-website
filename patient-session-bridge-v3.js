@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.0.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.1.0 */
 (() => {
   'use strict';
 
@@ -7,34 +7,26 @@
 
   function publish(session) {
     if (!session?.access_token) return;
-
     window.AZAAD = window.AZAAD || {};
     window.AZAAD.state = window.AZAAD.state || {};
     window.AZAAD.state.session = session;
-
-    try {
-      sessionStorage.setItem(SESSION_KEY, session.access_token);
-    } catch (_) {}
+    try { sessionStorage.setItem(SESSION_KEY, session.access_token); } catch (_) {}
   }
 
   async function syncAuth() {
     const controller = window.AZAAD;
     const client = controller?.supabase;
     if (!client?.auth) return null;
-
     try {
       const { data, error } = await client.auth.getSession();
       if (error || !data?.session?.access_token) return null;
       publish(data.session);
       return data.session;
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 
   async function restoreAdmin() {
     if (bootstrapped) return;
-
     const controller = window.AZAAD;
     const client = controller?.supabase;
     const state = controller?.state;
@@ -63,7 +55,6 @@
         DOCTOR: ['dashboard.view','bookings.view','patients.view','followups.view'],
         MARKETING: ['dashboard.view','marketing.view']
       };
-
       if (!permissionMap[role]) return;
 
       state.session = session;
@@ -73,21 +64,23 @@
       state.permissions = new Set(permissionMap[role]);
       state.initialized = true;
 
-      const loginPage = document.getElementById('loginPage');
-      const adminPage = document.getElementById('adminPage');
-      if (loginPage) loginPage.classList.add('hidden');
-      if (adminPage) adminPage.classList.remove('hidden');
+      document.getElementById('loginPage')?.classList.add('hidden');
+      document.getElementById('adminPage')?.classList.remove('hidden');
 
-      if (typeof controller.refresh === 'function') {
-        await controller.refresh();
-      }
+      if (typeof controller.refresh === 'function') await controller.refresh();
 
       bootstrapped = true;
+
+      // Patient Center may have initialized before the restored session was available.
+      // Trigger its existing refresh handler once the authenticated session is ready.
+      setTimeout(() => {
+        document.getElementById('refreshPatientsBtn')?.click();
+      }, 0);
     } catch (_) {}
   }
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '4.0.0',
+    version: '4.1.0',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
@@ -103,8 +96,5 @@
   };
 
   [0, 50, 150, 300, 600, 1000, 2000].forEach(ms => setTimeout(boot, ms));
-
-  window.addEventListener('storage', () => {
-    syncAuth();
-  });
+  window.addEventListener('storage', () => { syncAuth(); });
 })();
