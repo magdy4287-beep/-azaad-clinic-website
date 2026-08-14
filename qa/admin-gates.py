@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / "admin.html").read_text(encoding="utf-8")
 hardening = (ROOT / "admin-english-hardening.js").read_text(encoding="utf-8")
 patcher = (ROOT / ".github" / "patch-admin.py").read_text(encoding="utf-8")
+mrn_display = (ROOT / "patient-mrn-display-v2.js").read_text(encoding="utf-8")
 
 checks = []
 
@@ -22,7 +23,12 @@ check(
 check("Arabic/English direction switching exists", "document.documentElement.dir='ltr'" in hardening and "document.documentElement.lang='en'" in hardening)
 check("Language preference is persisted", "azaad_admin_lang" in hardening)
 check("Short patient number is canonicalized", "padStart(6,'0')" in hardening and "AZA-" in hardening)
-check("Patient display hides AZA/MRN prefix", "Patient ${String(Number(digits)).padStart(5,'0')}" in hardening)
+check("Legacy Patient 6-digit display is not the approved V2 format", "Patient ${String(Number(digits)).padStart(5,'0')}" in hardening)
+check("Patient MRN display V2 exists", "Patient ${m[1].slice(-5)}" in mrn_display)
+check("Patient MRN display V2 is injected", "patient-mrn-display-v2.js" in patcher)
+check("Patient display layer is display-only", "never mutates the database MRN" in mrn_display and "supabase" not in mrn_display.lower())
+check("Patient display accepts canonical AZA MRN", "^AZA-?(\\d{6})$" in mrn_display)
+check("Patient display produces five digits", "slice(-5)" in mrn_display)
 check("Dynamic DOM translation is enabled", "MutationObserver" in hardening)
 check("Service-role key is not embedded", "service_role" not in admin.lower() and "service_role" not in hardening.lower())
 check("Existing admin baseline remains present", 'id="adminPage"' in admin and 'id="loginPage"' in admin)
