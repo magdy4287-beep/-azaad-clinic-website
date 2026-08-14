@@ -40,3 +40,5 @@ jobs:
           name: azaad-playwright-report
           path: playwright-report/
           if-no-files-found: ignore
+
+# CI trigger touch: validate production browser E2E on main
