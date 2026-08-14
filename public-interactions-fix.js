@@ -34,29 +34,21 @@
     return true;
   }
 
-  function whatsappUrl(message) {
-    const number = wa();
-    if (!number) return '';
-    return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-  }
-
   function openWhatsApp(message) {
-    const url = whatsappUrl(message);
-    if (!url) return false;
+    const number = wa();
+    if (!number) return false;
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     const opened = window.open(url, '_blank', 'noopener,noreferrer');
     if (!opened) window.location.href = url;
     return true;
   }
 
-  function shareLocationMessage() {
+  function shareLocationViaWhatsApp() {
     const english = lang() === 'en';
-    return english
+    const message = english
       ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
       : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`;
-  }
-
-  function shareLocationViaWhatsApp() {
-    openWhatsApp(shareLocationMessage());
+    openWhatsApp(message);
   }
 
   function announceLanguageChange() {
@@ -124,17 +116,21 @@
 
     const share = document.getElementById('shareLocation');
     if (share) {
-      const href = whatsappUrl(shareLocationMessage());
-      if (href && share.getAttribute('href') !== href) share.href = href;
-      share.target = '_blank';
-      share.rel = 'noopener noreferrer';
-      share.setAttribute('role', 'button');
-      if (share.dataset.azaadInteractionBound !== 'true') {
+      const shareUrl = `https://wa.me/${wa()}?text=${encodeURIComponent(lang() === 'en'
+        ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
+        : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`)}`;
+      if (share.tagName === 'A') {
+        share.href = shareUrl;
+        share.target = '_blank';
+        share.rel = 'noopener noreferrer';
+      } else if (share.dataset.azaadInteractionBound !== 'true') {
         share.dataset.azaadInteractionBound = 'true';
         share.addEventListener('click', event => {
           event.preventDefault();
           event.stopPropagation();
-          shareLocationViaWhatsApp();
+          openWhatsApp(lang() === 'en'
+            ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
+            : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`);
         }, true);
       }
     }
