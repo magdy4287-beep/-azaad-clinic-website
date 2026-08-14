@@ -17,8 +17,8 @@ def patch_admin_html():
     return false;
   }
 
-  try{
-    const response = await fetch(
+  const request = async () => {
+    return fetch(
       `${SUPABASE_URL}/functions/v1/azaad-admin?api=account`,
       {
         method:"GET",
@@ -30,6 +30,26 @@ def patch_admin_html():
         cache:"no-store"
       }
     );
+  };
+
+  try{
+    let response = await request();
+
+    // A persisted access token can be expired while its refresh token is still valid.
+    // Refresh once before declaring the admin session invalid.
+    if(response.status === 401){
+      try{
+        const refreshed = await supabase.auth.refreshSession();
+        if(refreshed?.data?.session?.access_token){
+          state.session = refreshed.data.session;
+          state.user = refreshed.data.session.user;
+          try { sessionStorage.setItem('azaad_admin_token', refreshed.data.session.access_token); } catch (_) {}
+          response = await request();
+        }
+      }catch(refreshError){
+        console.warn("Admin auth refresh failed:", refreshError);
+      }
+    }
 
     let body = {};
     try { body = await response.json(); } catch(_) {}
@@ -91,19 +111,34 @@ def patch_admin_js():
     return false;
   }
 
+  const request = async () => fetch(
+    `${SUPABASE_URL}/functions/v1/azaad-admin?api=account`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${state.session.access_token}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY
+      },
+      cache: "no-store"
+    }
+  );
+
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/functions/v1/azaad-admin?api=account`,
-      {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${state.session.access_token}`,
-          apikey: SUPABASE_PUBLISHABLE_KEY
-        },
-        cache: "no-store"
+    let response = await request();
+
+    if (response.status === 401) {
+      try {
+        const refreshed = await supabase.auth.refreshSession();
+        if (refreshed?.data?.session?.access_token) {
+          state.session = refreshed.data.session;
+          state.user = refreshed.data.session.user;
+          response = await request();
+        }
+      } catch (refreshError) {
+        console.warn("Admin auth refresh failed:", refreshError);
       }
-    );
+    }
 
     let body = null;
     try {
