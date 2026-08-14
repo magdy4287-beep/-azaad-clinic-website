@@ -66,6 +66,8 @@ def finalize_admin_html():
     text, count = re.subn(r'async function restoreStaff\(\)\{.*?\n\}\n\nasync function logout\(\)', ADMIN_AUTH + "\n\nasync function logout()", text, count=1, flags=re.S)
     if count != 1: raise RuntimeError("Could not replace restoreStaff()")
 
+    # Auth state changes update local state only. They must never start another load()
+    # while the initial restore/load transaction is in progress.
     text = re.sub(r'supabase\.auth\.onAuthStateChange\(\s*async\s*\(\s*event,\s*session\s*\)\s*=>\s*\{.*?\n\s*\}\s*\);', '''supabase.auth.onAuthStateChange((event, session) => {
   if(event === "SIGNED_OUT"){
     state.session = null; state.user = null; state.staff = null; state.initialized = false;
@@ -77,8 +79,11 @@ def finalize_admin_html():
   }
 });''', text, count=1, flags=re.S)
 
-    text, count = re.subn(r'async function restore\(\)\{.*?\n\}\n\nasync function admin\(', '''async function restore(){
-  try{
+    text, count = re.subn(r'async function restore\(\)\{.*?\n\}\n\nasync function admin\(', '''let azaadStartupPromise = null;
+
+async function restore(){
+  if(azaadStartupPromise) return azaadStartupPromise;
+  azaadStartupPromise = (async () => {
     const { data } = await supabase.auth.getSession();
     if(!data?.session?.access_token) return false;
     state.session = data.session; state.user = data.session.user;
@@ -89,16 +94,14 @@ def finalize_admin_html():
     $("adminPage").classList.remove("hidden");
     await load();
     return true;
-  }catch(error){
-    console.error("Azaad admin restore failed:", error);
-    return false;
-  }
+  })();
+  try { return await azaadStartupPromise; }
+  catch(error){ console.error("Azaad admin restore failed:", error); return false; }
 }
 
 async function admin(''', text, count=1, flags=re.S)
     if count != 1: raise RuntimeError("Could not replace restore()")
 
-    # Make every admin API call recover once from an expired access token.
     text = re.sub(r'async function admin\(\n  query,\n  options = \{\}\n\)\{.*?\n\}\n\nasync function staffApi', '''async function admin(
   query,
   options = {}
@@ -136,9 +139,8 @@ async function admin(''', text, count=1, flags=re.S)
 
 async function staffApi''', text, count=1, flags=re.S)
 
-    if "window.AZAAD_REFRESH" not in text:
-        text = text.replace("window.AZAAD = {", "window.AZAAD_REFRESH = azaadEnsureFreshSession;\n\nwindow.AZAAD = {", 1)
-
+    # Idempotently expose the refresh coordinator and one startup promise.
+    text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*', '\n', text)
     marker = '''window.AZAAD = {
   supabase,
   state,
