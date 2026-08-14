@@ -8,7 +8,7 @@ def patch_admin_html():
     text = path.read_text(encoding="utf-8")
 
     pattern = re.compile(
-        r'async function restoreStaff\(\{.*?\n\}\n\nasync function logout\(\)',
+        r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)',
         re.S,
     )
 
