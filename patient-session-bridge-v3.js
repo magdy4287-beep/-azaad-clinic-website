@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.1.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.1.1 */
 (() => {
   'use strict';
 
@@ -71,8 +71,6 @@
 
       bootstrapped = true;
 
-      // Patient Center may have initialized before the restored session was available.
-      // Trigger its existing refresh handler once the authenticated session is ready.
       setTimeout(() => {
         document.getElementById('refreshPatientsBtn')?.click();
       }, 0);
@@ -80,7 +78,7 @@
   }
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '4.1.0',
+    version: '4.1.1',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
