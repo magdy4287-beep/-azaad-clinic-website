@@ -26,9 +26,19 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run production browser E2E
+      - name: Resolve browser test base URL
+        id: base-url
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "url=https://deploy-preview-${{ github.event.pull_request.number }}--azaadclinic.netlify.app" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=https://azaad-clinic-website.vercel.app" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run browser E2E
         env:
-          AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
+          AZAAD_BASE_URL: ${{ steps.base-url.outputs.url }}
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
@@ -41,4 +51,4 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI trigger: validate admin session restore and public browser UI on production
+# CI: production on main, immutable Netlify preview on pull requests
