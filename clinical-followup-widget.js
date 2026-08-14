@@ -1,0 +1,15 @@
+/* Doctor-side follow-up scheduler */
+(() => {
+  'use strict';
+  const API='https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-frontdesk';
+  const KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const token=()=>window.AZAAD?.state?.session?.access_token||'';
+  const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+  async function api(action,body){const r=await fetch(`${API}?action=${action}`,{method:'POST',headers:{Authorization:`Bearer ${token()}`,apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b.error||`HTTP ${r.status}`);return b}
+  function patientId(){return window.CURRENT_PATIENT_ID||window.patientId||document.body.dataset.patientId||''}
+  function install(){if(document.querySelector('#doctorFollowupWidget'))return;const host=document.querySelector('#clinicalAssessmentApp')||document.querySelector('main')||document.body;if(!host)return;const box=document.createElement('section');box.id='doctorFollowupWidget';box.className='card';box.style.marginTop='16px';box.innerHTML=`<div class="panel-head"><div><h3>📅 موعد المتابعة</h3><div class="muted">يمكن للطبيب تحديد الموعد القادم من نفس الملف ليظهر فورًا للاستقبال والإدارة.</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px"><input id="dfDate" type="date"><input id="dfTime" type="time"><button id="dfSuggest" class="btn btn-secondary">🤖 اقتراح</button><button id="dfSave" class="btn btn-primary">📅 حجز المتابعة</button></div><div id="dfState" class="muted" style="margin-top:10px"></div>`;host.appendChild(box);$('dfSuggest').onclick=suggest;$('dfSave').onclick=save}
+  const $=id=>document.getElementById(id);
+  async function suggest(){try{const r=await api('ai-followup-helper',{days_until_followup:14});$('dfDate').value=r.suggested_date;$('dfState').textContent='🤖 '+r.message}catch(e){$('dfState').textContent='❌ '+e.message}}
+  async function save(){const pid=patientId(),date=$('dfDate').value,time=$('dfTime').value;if(!pid)return $('dfState').textContent='❌ لم يتم تحديد المريض.';if(!date)return $('dfState').textContent='❌ حدد تاريخ المتابعة.';const doctorId=window.CURRENT_DOCTOR_ID||document.body.dataset.doctorId||'';const serviceId=window.CURRENT_SERVICE_ID||document.body.dataset.serviceId||'';const sourceBookingId=window.CURRENT_BOOKING_ID||document.body.dataset.bookingId||'';if(!doctorId||!serviceId)return $('dfState').textContent='❌ يجب أن تكون الزيارة مرتبطة بالطبيب والخدمة.';try{await api('followup-booking-create',{patient_id:pid,source_booking_id:sourceBookingId||null,appointment_date:date,appointment_time:time||'10:00',doctor_id:doctorId,service_id:serviceId,notes:'تم تحديد المتابعة من صفحة الطبيب.'});$('dfState').innerHTML='<strong style="color:#137333">📅 تم الحجز. ظهر الموعد للاستقبال والإدارة، وتم إنشاء تنبيه للموظفين.</strong>'}catch(e){$('dfState').textContent='❌ '+e.message}}
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',install):install();
+})();
