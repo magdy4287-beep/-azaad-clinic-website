@@ -684,47 +684,51 @@ async function logout() {
    ============================================================ */
 
 async function restoreSession() {
-  const {
-    data,
-    error
-  } =
-    await supabase.auth.getSession();
+  let sessionResult;
 
-  if (error) {
-    console.error(
-      "Session restore error:",
-      error
+  try {
+    sessionResult = await supabase.auth.getSession();
+  } catch (error) {
+    console.error("Session restore error:", error);
+    return false;
+  }
+
+  const session = sessionResult?.data?.session || null;
+
+  if (!session?.access_token || !session?.user?.id) {
+    return false;
+  }
+
+  state.session = session;
+  state.user = session.user;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const validStaff = await restoreStaffProfile();
+
+    if (validStaff) {
+      await initializeApplication();
+      return true;
+    }
+
+    await new Promise(resolve =>
+      setTimeout(resolve, attempt * 400)
     );
 
-    return;
+    try {
+      const refreshed = await supabase.auth.getSession();
+      const refreshedSession = refreshed?.data?.session;
+
+      if (refreshedSession?.access_token) {
+        state.session = refreshedSession;
+        state.user = refreshedSession.user;
+      }
+    } catch (error) {
+      console.warn("Session retry failed:", error);
+    }
   }
 
-  if (!data?.session) {
-    return;
-  }
-
-  state.session =
-    data.session;
-
-  state.user =
-    data.session.user;
-
-  const validStaff =
-    await restoreStaffProfile();
-
-  if (!validStaff) {
-    await supabase.auth.signOut();
-
-    state.session = null;
-    state.user = null;
-    state.staff = null;
-    state.currentRole = null;
-    state.permissions = new Set();
-
-    return;
-  }
-
-  await initializeApplication();
+  console.warn("Staff profile could not be restored during startup.");
+  return false;
 }
 
 /* ============================================================
@@ -2900,6 +2904,21 @@ document.addEventListener(
 /* ============================================================
    BOOTSTRAP SESSION ON EVERY PAGE LOAD
    ============================================================ */
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await restoreSession();
+  } catch (error) {
+    console.error("Admin bootstrap error:", error);
+  }
+});
+
+
+/* ============================================================
+   ADMIN BOOTSTRAP
+   ============================================================ */
+
+window.__AZAAD_ADMIN_BOOTSTRAP__ = true;
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
