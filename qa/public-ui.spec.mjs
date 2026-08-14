@@ -18,10 +18,19 @@ test('public website primary actions are wired and interactive', async ({ page }
     await expect(page.locator(target)).toBeInViewport();
   }
 
-  const popupPromise = page.waitForEvent('popup');
+  await page.evaluate(() => {
+    window.__AZAAD_TEST_OPENED_URL = '';
+    const originalOpen = window.open;
+    window.open = (url) => {
+      window.__AZAAD_TEST_OPENED_URL = String(url || '');
+      return { closed: false };
+    };
+    window.__AZAAD_TEST_RESTORE_OPEN = () => { window.open = originalOpen; };
+  });
+
   await page.locator('#shareLocation').click();
-  const popup = await popupPromise;
-  await expect(popup).toHaveURL(/https:\/\/wa\.me\//);
+  await expect.poll(() => page.evaluate(() => window.__AZAAD_TEST_OPENED_URL)).toMatch(/https:\/\/wa\.me\//);
+  await page.evaluate(() => window.__AZAAD_TEST_RESTORE_OPEN?.());
 });
 
 test('public English mode has English UI chrome with no Arabic navigation labels', async ({ page }) => {
