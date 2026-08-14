@@ -2895,3 +2895,16 @@ document.addEventListener(
     }
   }
 );
+
+
+/* ============================================================
+   BOOTSTRAP SESSION ON EVERY PAGE LOAD
+   ============================================================ */
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await restoreSession();
+  } catch (error) {
+    console.error("Admin bootstrap error:", error);
+  }
+});
