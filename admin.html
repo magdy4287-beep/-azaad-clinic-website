@@ -1181,6 +1181,11 @@ async function login(
     state.user =
       result.session.user;
 
+    /* AZAAD_PATIENT_SESSION_BRIDGE_V1 */
+    try {
+      sessionStorage.setItem('azaad_admin_token', result.session.access_token);
+    } catch (_) {}
+
     $("loginPage")
       .classList
       .add("hidden");
@@ -1289,6 +1294,10 @@ async function logout(){
 
   state.initialized =
     false;
+
+  try {
+    sessionStorage.removeItem('azaad_admin_token');
+  } catch (_) {}
 
   location.reload();
 }
