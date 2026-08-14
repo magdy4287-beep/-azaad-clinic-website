@@ -1,0 +1,47 @@
+name: Fix Admin Session Restore
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch admin session restore
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('admin.js')
+          s = p.read_text(encoding='utf-8')
+
+          if 'document.addEventListener("DOMContentLoaded", async () => {' not in s:
+              s += '''\n\n/* ============================================================\n   BOOTSTRAP SESSION ON EVERY PAGE LOAD\n   ============================================================ */\n\ndocument.addEventListener("DOMContentLoaded", async () => {\n  try {\n    await restoreSession();\n  } catch (error) {\n    console.error("Admin bootstrap error:", error);\n  }\n});\n'''
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('admin.html')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('value="azaadowner"', 'value="azaadadmin"', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add admin.js admin.html
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git commit -m "fix: restore admin auth session on reload"
+          git push
