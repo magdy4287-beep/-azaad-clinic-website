@@ -1,13 +1,14 @@
 from pathlib import Path
 import re
 
+# Session-restore patch: publish the single admin restore path and never sign out on transient restore failure.
 
 def patch_admin_html():
     path = Path("admin.html")
     text = path.read_text(encoding="utf-8")
 
     pattern = re.compile(
-        r'async function restoreStaff\(\)\{.*?\n\}\n\nasync function logout\(\)',
+        r'async function restoreStaff\(\{.*?\n\}\n\nasync function logout\(\)',
         re.S,
     )
 
@@ -35,8 +36,6 @@ def patch_admin_html():
   try{
     let response = await request();
 
-    // A persisted access token can be expired while its refresh token is still valid.
-    // Refresh once before declaring the admin session invalid.
     if(response.status === 401){
       try{
         const refreshed = await supabase.auth.refreshSession();
