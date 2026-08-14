@@ -1,1212 +1,274 @@
 (() => {
   'use strict';
 
-  const VERSION = '5.1.0';
-  const STATE_KEY = '__AZAAD_BOOKING_FIX_V5__';
+  /*
+   * AZAAD CLINIC — BOOKING LANGUAGE FIX
+   * v6.0.0
+   *
+   * app.js owns booking logic. This file only keeps dynamically
+   * generated booking UI synchronized with the selected language.
+   * It never changes booking payloads or security credentials.
+   */
 
+  const STATE_KEY = '__AZAAD_BOOKING_FIX_V6__';
   if (window[STATE_KEY]) return;
 
   const state = {
-    version: VERSION,
-    language: null,
-    observer: null,
-    scheduled: false,
     applying: false,
-    lastDataSignature: '',
-    lastDomSignature: ''
+    observer: null,
+    timer: null,
+    dataTimer: null,
+    lastLanguage: '',
+    lastDoctorSignature: '',
+    lastServiceSignature: '',
+    lastModeSignature: ''
   };
-
   window[STATE_KEY] = state;
 
-  const TEXT = {
-    ar: {
-      navHome: 'الرئيسية',
-      navAbout: 'عن العيادة',
-      navServices: 'الخدمات',
-      navDoctors: 'الأطباء',
-      navBooking: 'الحجز',
-      navContact: 'تواصل معنا',
-      bookNow: 'احجز موعدك',
-      heroBook: 'احجز جلستك الآن',
-      heroWhatsapp: 'تواصل عبر واتساب',
-      servicesTitle: 'خدماتنا',
-      servicesIntro: 'خدمات نفسية مصممة لتناسب احتياجات كل شخص.',
-      doctorsTitle: 'فريق العيادة',
-      doctorsIntro: 'متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.',
-      bookingTitle: 'احجز موعدك',
-      bookingIntro: 'اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.',
-      doctorLabel: 'الطبيب',
-      serviceLabel: 'الخدمة',
-      dateLabel: 'التاريخ',
-      modeLabel: 'نوع الجلسة',
-      clinicMode: 'داخل العيادة',
-      onlineMode: 'جلسة أونلاين',
-      slotsLabel: 'المواعيد المتاحة',
-      nameLabel: 'الاسم بالكامل',
-      phoneLabel: 'رقم الهاتف',
-      emailLabel: 'البريد الإلكتروني',
-      notesLabel: 'ملاحظات',
-      namePlaceholder: 'اكتب اسمك',
-      phonePlaceholder: 'رقم الهاتف',
-      notesPlaceholder: 'أي معلومات إضافية...',
-      confirmBooking: 'تأكيد طلب الحجز',
-      phoneContact: 'الهاتف',
-      emailContact: 'البريد الإلكتروني',
-      whatsappContact: 'واتساب',
-      startChat: 'ابدأ المحادثة',
-      contactTitle: 'تواصل معنا',
-      locationTitle: 'موقع العيادة',
-      openMaps: 'فتح الموقع على Google Maps',
-      shareLocation: 'مشاركة موقع العيادة عبر WhatsApp',
-      rights: 'جميع الحقوق محفوظة.'
-    },
+  const DATA_KEY = 'AZAAD_PUBLIC_CLINIC_DATA';
+  const LANGUAGE_KEY = 'azaadClinicLanguage';
 
-    en: {
-      navHome: 'Home',
-      navAbout: 'About',
-      navServices: 'Services',
-      navDoctors: 'Doctors',
-      navBooking: 'Booking',
-      navContact: 'Contact',
-      bookNow: 'Book Appointment',
-      heroBook: 'Book Your Session',
-      heroWhatsapp: 'Contact us on WhatsApp',
-      servicesTitle: 'Our Services',
-      servicesIntro: 'Mental health services designed around each person’s needs.',
-      doctorsTitle: 'Our Team',
-      doctorsIntro: 'Specialists working with you toward a more balanced life.',
-      bookingTitle: 'Book an Appointment',
-      bookingIntro: 'Choose your doctor, service, date, and preferred time.',
-      doctorLabel: 'Doctor',
-      serviceLabel: 'Service',
-      dateLabel: 'Date',
-      modeLabel: 'Session Type',
-      clinicMode: 'In-clinic',
-      onlineMode: 'Online session',
-      slotsLabel: 'Available appointments',
-      nameLabel: 'Full name',
-      phoneLabel: 'Phone number',
-      emailLabel: 'Email',
-      notesLabel: 'Notes',
-      namePlaceholder: 'Enter your name',
-      phonePlaceholder: 'Phone number',
-      notesPlaceholder: 'Any additional information...',
-      confirmBooking: 'Submit Booking Request',
-      phoneContact: 'Phone',
-      emailContact: 'Email',
-      whatsappContact: 'WhatsApp',
-      startChat: 'Start a conversation',
-      contactTitle: 'Contact Us',
-      locationTitle: 'Clinic Location',
-      openMaps: 'Open location in Google Maps',
-      shareLocation: 'Share clinic location via WhatsApp',
-      rights: 'All rights reserved.'
-    }
-  };
-
-  const EXACT = {
-    'غير محدد': 'Not specified',
-    'غير متوفر': 'Not available',
-    'داخل العيادة': 'In-clinic',
-    'جلسة أونلاين': 'Online session',
-    'أونلاين': 'Online',
-    'حضوري': 'In-person',
-    'جاري التحميل...': 'Loading...',
-    'جاري التحميل': 'Loading...',
-    'جاري تحميل المواعيد...': 'Loading appointments...',
-    'جاري تحميل المواعيد': 'Loading appointments...',
-    'جاري تحميل المواعيد المتاحة...': 'Loading available appointments...',
-    'لا توجد مواعيد متاحة لهذا اليوم.': 'No appointments are available for this day.',
-    'لا توجد مواعيد متاحة لهذا اليوم': 'No appointments are available for this day',
-    'لا توجد مواعيد متاحة في هذا اليوم': 'No appointments are available for this day',
-    'اختر الطبيب': 'Please select a doctor',
-    'اختر الخدمة': 'Please select a service',
-    'اختر التاريخ': 'Please select a date',
-    'اختر الوقت': 'Please select a time',
-    'من فضلك اختر الطبيب.': 'Please select a doctor.',
-    'من فضلك اختر الخدمة.': 'Please select a service.',
-    'من فضلك اختر التاريخ.': 'Please select a date.',
-    'من فضلك اختر أحد المواعيد المتاحة.':
-      'Please select one of the available appointments.',
-    'من فضلك اكتب الاسم بالكامل.':
-      'Please enter your full name.',
-    'من فضلك اكتب رقم الهاتف.':
-      'Please enter your phone number.',
-    'من فضلك أدخل رقم هاتف صحيح.':
-      'Please enter a valid phone number.',
-    'من فضلك أدخل بريدًا إلكترونيًا صحيحًا أو اترك الحقل فارغًا.':
-      'Please enter a valid email address or leave the field empty.',
-    'جاري تأكيد الحجز...':
-      'Confirming your booking...',
-    'تم إنشاء طلب الحجز بنجاح.':
-      'Your booking request was created successfully.',
-    'تم إنشاء الحجز بنجاح.':
-      'Booking created successfully.',
-    'رقم الحجز':
-      'Booking number',
-    'الطبيب':
-      'Doctor',
-    'الخدمة':
-      'Service',
-    'التاريخ':
-      'Date',
-    'الوقت':
-      'Time',
-    'نوع الجلسة':
-      'Session type',
-    'الاسم بالكامل':
-      'Full name',
-    'رقم الهاتف':
-      'Phone number',
-    'البريد الإلكتروني':
-      'Email',
-    'ملاحظات':
-      'Notes',
-    'تأكيد طلب الحجز':
-      'Submit Booking Request',
-    'إرسال الموعد إلى WhatsApp العيادة':
-      'Send appointment to clinic WhatsApp',
-    'إرسال الحجز إلى WhatsApp العيادة':
-      'Send booking to clinic WhatsApp',
-    'تواصل عبر واتساب':
-      'Contact us on WhatsApp',
-    'واتساب':
-      'WhatsApp',
-    'الهاتف':
-      'Phone',
-    'فتح الموقع على Google Maps':
-      'Open location in Google Maps',
-    'مشاركة موقع العيادة عبر WhatsApp':
-      'Share clinic location via WhatsApp',
-    'مشاركة موقع العيادة':
-      'Share clinic location',
-    'ابدأ المحادثة':
-      'Start a conversation',
-    'الرئيسية':
-      'Home',
-    'عن العيادة':
-      'About',
-    'الخدمات':
-      'Services',
-    'الأطباء':
-      'Doctors',
-    'الحجز':
-      'Booking',
-    'تواصل معنا':
-      'Contact',
-    'جاري الاتصال':
-      'Connecting...',
-    'تعذر الاتصال':
-      'Unable to connect',
-    'حدث خطأ':
-      'An error occurred',
-    'يرجى المحاولة مرة أخرى':
-      'Please try again'
-  };
-
-  const PHRASES = [
-    [
-      'تعذر الاتصال بخادم العيادة. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
-      'Unable to connect to the clinic server. Please check your internet connection and try again.'
-    ],
-    [
-      'انتهت مهلة الاتصال بالخادم. يرجى المحاولة مرة أخرى.',
-      'The connection timed out. Please try again.'
-    ],
-    [
-      'يرجى مراجعة توفر الطبيب وتأكيد الموعد مع المريض.',
-      'Please review the doctor availability and confirm the appointment with the patient.'
-    ],
-    [
-      'بعد فتح WhatsApp ستظهر الرسالة جاهزة.',
-      'After WhatsApp opens, the message will be ready to send.'
-    ],
-    [
-      'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
-      'To complete the booking process, click the button below to send the appointment details to the clinic WhatsApp.'
-    ],
-    [
-      'تم تسجيل طلب الحجز.',
-      'The booking request has been registered.'
-    ],
-    [
-      'يمكنك إرسال تفاصيل الموعد إلى WhatsApp العيادة من الزر أعلاه.',
-      'You can send the appointment details to the clinic WhatsApp using the button above.'
-    ]
-  ];
-
-  function getLanguage() {
+  function language() {
     try {
-      const saved =
-        localStorage.getItem('azaadClinicLanguage');
-
-      if (saved === 'ar' || saved === 'en') {
-        return saved;
-      }
+      const saved = localStorage.getItem(LANGUAGE_KEY);
+      if (saved === 'en' || saved === 'ar') return saved;
     } catch (_) {}
-
-    const lang =
-      String(
-        document.documentElement.lang || ''
-      )
-        .toLowerCase()
-        .trim();
-
-    return lang === 'en' || lang.startsWith('en-')
-      ? 'en'
-      : 'ar';
+    const html = String(document.documentElement.lang || '').toLowerCase();
+    return html === 'en' || html.startsWith('en-') ? 'en' : 'ar';
   }
 
-  function isEnglish() {
-    return getLanguage() === 'en';
+  function english() {
+    return language() === 'en';
   }
 
-  function getPublicData() {
-    return (
-      window.AZAAD_PUBLIC_CLINIC_DATA ||
-      {}
-    );
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[ch]));
   }
 
-  function getDoctors() {
-    const value =
-      getPublicData().doctors;
-
-    return Array.isArray(value)
-      ? value
-      : [];
+  function data() {
+    return window[DATA_KEY] || {};
   }
 
-  function getServices() {
-    const value =
-      getPublicData().services;
-
-    return Array.isArray(value)
-      ? value
-      : [];
+  function doctors() {
+    return Array.isArray(data().doctors) ? data().doctors : [];
   }
 
-  function getDoctorName(doctor) {
-    return isEnglish()
-      ? (
-          doctor?.name_en ||
-          doctor?.name ||
-          doctor?.full_name ||
-          doctor?.display_name ||
-          'Doctor'
-        )
-      : (
-          doctor?.name ||
-          doctor?.full_name ||
-          doctor?.display_name ||
-          'طبيب'
-        );
+  function services() {
+    return Array.isArray(data().services) ? data().services : [];
   }
 
-  function getDoctorTitle(doctor) {
-    return isEnglish()
-      ? (
-          doctor?.title_en ||
-          doctor?.title ||
-          doctor?.specialty ||
-          doctor?.specialization ||
-          'Mental health specialist'
-        )
-      : (
-          doctor?.title ||
-          doctor?.specialty ||
-          doctor?.specialization ||
-          'متخصص في الصحة النفسية'
-        );
+  function doctorName(d) {
+    return english()
+      ? (d?.name_en || d?.name || d?.full_name || d?.display_name || 'Doctor')
+      : (d?.name || d?.full_name || d?.display_name || 'طبيب');
   }
 
-  function getDoctorBio(doctor) {
-    return isEnglish()
-      ? (
-          doctor?.bio_en ||
-          doctor?.bio ||
-          doctor?.description ||
-          doctor?.short_bio ||
-          'Mental health specialist working with you toward a more balanced life.'
-        )
-      : (
-          doctor?.bio ||
-          doctor?.description ||
-          doctor?.short_bio ||
-          'متخصص يعمل معك للوصول إلى حياة أكثر توازنًا.'
-        );
+  function doctorTitle(d) {
+    return english()
+      ? (d?.title_en || d?.title || d?.specialty || d?.specialization || 'Mental health specialist')
+      : (d?.title || d?.specialty || d?.specialization || 'متخصص في الصحة النفسية');
   }
 
-  function getServiceName(service) {
-    return isEnglish()
-      ? (
-          service?.name_en ||
-          service?.name ||
-          service?.title ||
-          service?.service_name ||
-          'Mental health service'
-        )
-      : (
-          service?.name ||
-          service?.title ||
-          service?.service_name ||
-          'خدمة نفسية'
-        );
+  function doctorBio(d) {
+    return english()
+      ? (d?.bio_en || d?.bio || d?.description || d?.short_bio || 'Mental health specialist working with you toward a more balanced life.')
+      : (d?.bio || d?.description || d?.short_bio || 'متخصص يعمل معك للوصول إلى حياة أكثر توازنًا.');
   }
 
-  function getServiceDescription(service) {
-    return isEnglish()
-      ? (
-          service?.description_en ||
-          service?.description ||
-          service?.short_description ||
-          service?.details ||
-          'Mental health service designed around your needs.'
-        )
-      : (
-          service?.description ||
-          service?.short_description ||
-          service?.details ||
-          'خدمة نفسية مصممة لتناسب احتياجاتك.'
-        );
+  function serviceName(s) {
+    return english()
+      ? (s?.name_en || s?.name || s?.title || s?.service_name || 'Mental health service')
+      : (s?.name || s?.title || s?.service_name || 'خدمة نفسية');
   }
 
-  function translateText(value) {
-    const original =
-      String(value || '');
-
-    const trimmed =
-      original.trim();
-
-    if (!trimmed) {
-      return original;
-    }
-
-    if (
-      Object.prototype.hasOwnProperty.call(
-        EXACT,
-        trimmed
-      )
-    ) {
-      return original.replace(
-        trimmed,
-        EXACT[trimmed]
-      );
-    }
-
-    for (
-      const [ar, en] of PHRASES
-    ) {
-      if (trimmed.includes(ar)) {
-        return original.replace(
-          ar,
-          en
-        );
-      }
-    }
-
-    return original;
-  }
-
-  function applyI18nAttributes() {
-    const language =
-      getLanguage();
-
-    const dictionary =
-      TEXT[language] ||
-      TEXT.ar;
-
-    document
-      .querySelectorAll('[data-i18n]')
-      .forEach(
-        (element) => {
-          const key =
-            element.getAttribute(
-              'data-i18n'
-            );
-
-          if (
-            Object.prototype.hasOwnProperty.call(
-              dictionary,
-              key
-            )
-          ) {
-            element.textContent =
-              dictionary[key];
-          }
-        }
-      );
-
-    document
-      .querySelectorAll(
-        '[data-i18n-placeholder]'
-      )
-      .forEach(
-        (element) => {
-          const key =
-            element.getAttribute(
-              'data-i18n-placeholder'
-            );
-
-          if (
-            Object.prototype.hasOwnProperty.call(
-              dictionary,
-              key
-            )
-          ) {
-            element.setAttribute(
-              'placeholder',
-              dictionary[key]
-            );
-          }
-        }
-      );
-
-    document.documentElement.lang =
-      language;
-
-    document.documentElement.dir =
-      language === 'en'
-        ? 'ltr'
-        : 'rtl';
-  }
-
-  function updateDoctorCards() {
-    if (!isEnglish()) {
-      return;
-    }
-
-    const doctors =
-      getDoctors();
-
-    if (!doctors.length) {
-      return;
-    }
-
-    const cards =
-      document.querySelectorAll(
-        '#doctorsGrid .clinic-doctor-card'
-      );
-
-    cards.forEach(
-      (card, index) => {
-        const doctor =
-          doctors[index];
-
-        if (!doctor) {
-          return;
-        }
-
-        const heading =
-          card.querySelector('h3');
-
-        if (heading) {
-          heading.textContent =
-            getDoctorName(doctor);
-        }
-
-        const title =
-          card.querySelector(
-            'h3 + div'
-          );
-
-        if (title) {
-          title.textContent =
-            `🧑‍⚕️ ${getDoctorTitle(
-              doctor
-            )}`;
-        }
-
-        const paragraphs =
-          card.querySelectorAll('p');
-
-        if (paragraphs.length) {
-          paragraphs[
-            paragraphs.length - 1
-          ].textContent =
-            getDoctorBio(doctor);
-        }
-
-        const image =
-          card.querySelector('img');
-
-        if (image) {
-          image.alt =
-            getDoctorName(doctor);
-        }
-      }
-    );
-  }
-
-  function updateServiceCards() {
-    if (!isEnglish()) {
-      return;
-    }
-
-    const services =
-      getServices();
-
-    if (!services.length) {
-      return;
-    }
-
-    const cards =
-      document.querySelectorAll(
-        '#servicesGrid .clinic-service-card'
-      );
-
-    cards.forEach(
-      (card, index) => {
-        const service =
-          services[index];
-
-        if (!service) {
-          return;
-        }
-
-        const heading =
-          card.querySelector('h3');
-
-        if (heading) {
-          heading.textContent =
-            getServiceName(service);
-        }
-
-        const paragraph =
-          card.querySelector('p');
-
-        if (paragraph) {
-          paragraph.textContent =
-            getServiceDescription(
-              service
-            );
-        }
-
-        const duration =
-          Number(
-            service?.duration_minutes ||
-            service?.duration ||
-            0
-          );
-
-        const note =
-          card.querySelector(
-            '.small-note'
-          );
-
-        if (
-          note &&
-          duration
-        ) {
-          note.textContent =
-            `⏱️ ${duration} minutes`;
-        }
-      }
-    );
+  function serviceDescription(s) {
+    return english()
+      ? (s?.description_en || s?.description || s?.short_description || s?.details || 'Mental health service designed around your needs.')
+      : (s?.description || s?.short_description || s?.details || 'خدمة نفسية مصممة لتناسب احتياجاتك.');
   }
 
   function updateDoctorSelect() {
-    if (!isEnglish()) {
-      return;
-    }
+    if (!english()) return;
+    const select = document.getElementById('doctor');
+    const list = doctors();
+    if (!select || !list.length) return;
 
-    const select =
-      document.getElementById(
-        'doctor'
-      );
+    const signature = list.map(d => `${d.id}|${doctorName(d)}|${doctorTitle(d)}`).join('||');
+    if (signature === state.lastDoctorSignature && select.options.length === list.length + 1) return;
 
-    const doctors =
-      getDoctors();
+    const selected = select.value;
+    state.lastDoctorSignature = signature;
 
-    if (
-      !select ||
-      !doctors.length ||
-      select.dataset.azFix === '1'
-    ) {
-      return;
-    }
+    select.innerHTML = `<option value="">Select doctor</option>` + list.map(d => `
+      <option value="${esc(d.id)}">
+        ${esc(doctorName(d))}${doctorTitle(d) ? ` — ${esc(doctorTitle(d))}` : ''}
+      </option>`).join('');
 
-    const selected =
-      select.value;
-
-    const options =
-      doctors
-        .map(
-          (doctor) => `
-            <option value="${escapeHTML(
-              doctor.id
-            )}">
-              ${escapeHTML(
-                getDoctorName(doctor)
-              )}
-              ${
-                getDoctorTitle(doctor)
-                  ? ` — ${escapeHTML(
-                      getDoctorTitle(
-                        doctor
-                      )
-                    )}`
-                  : ''
-              }
-            </option>
-          `
-        )
-        .join('');
-
-    select.innerHTML =
-      `
-        <option value="">
-          Select doctor
-        </option>
-      ` +
-      options;
-
-    if (
-      [...select.options].some(
-        (option) =>
-          option.value === selected
-      )
-    ) {
-      select.value =
-        selected;
-    }
-
-    select.dataset.azFix =
-      '1';
+    if ([...select.options].some(o => o.value === selected)) select.value = selected;
   }
 
   function updateServiceSelect() {
-    if (!isEnglish()) {
-      return;
-    }
+    if (!english()) return;
+    const select = document.getElementById('service');
+    const list = services();
+    if (!select || !list.length) return;
 
-    const select =
-      document.getElementById(
-        'service'
-      );
+    const signature = list.map(s => `${s.id}|${serviceName(s)}|${s.duration_minutes ?? s.duration ?? ''}`).join('||');
+    if (signature === state.lastServiceSignature && select.options.length === list.length + 1) return;
 
-    const services =
-      getServices();
+    const selected = select.value;
+    state.lastServiceSignature = signature;
 
-    if (
-      !select ||
-      !services.length ||
-      select.dataset.azFix === '1'
-    ) {
-      return;
-    }
+    select.innerHTML = `<option value="">Select service</option>` + list.map(s => {
+      const duration = Number(s?.duration_minutes ?? s?.duration ?? 0);
+      return `<option value="${esc(s.id)}">${esc(serviceName(s))}${duration ? ` — ${duration} minutes` : ''}</option>`;
+    }).join('');
 
-    const selected =
-      select.value;
-
-    const options =
-      services
-        .map(
-          (service) => {
-            const duration =
-              Number(
-                service?.duration_minutes ||
-                service?.duration ||
-                0
-              );
-
-            return `
-              <option value="${escapeHTML(
-                service.id
-              )}">
-                ${escapeHTML(
-                  getServiceName(
-                    service
-                  )
-                )}
-                ${
-                  duration
-                    ? ` — ${duration} minutes`
-                    : ''
-                }
-              </option>
-            `;
-          }
-        )
-        .join('');
-
-    select.innerHTML =
-      `
-        <option value="">
-          Select service
-        </option>
-      ` +
-      options;
-
-    if (
-      [...select.options].some(
-        (option) =>
-          option.value === selected
-      )
-    ) {
-      select.value =
-        selected;
-    }
-
-    select.dataset.azFix =
-      '1';
+    if ([...select.options].some(o => o.value === selected)) select.value = selected;
   }
 
   function updateModeSelect() {
-    if (!isEnglish()) {
-      return;
-    }
-
-    const select =
-      document.getElementById(
-        'mode'
-      );
-
-    if (!select) {
-      return;
-    }
-
-    const clinic =
-      select.querySelector(
-        'option[value="clinic"]'
-      );
-
-    const online =
-      select.querySelector(
-        'option[value="online"]'
-      );
-
-    if (clinic) {
-      clinic.textContent =
-        'In-clinic';
-    }
-
-    if (online) {
-      online.textContent =
-        'Online session';
-    }
+    if (!english()) return;
+    const select = document.getElementById('mode');
+    if (!select) return;
+    const signature = `${select.value}|${select.options.length}`;
+    if (signature === state.lastModeSignature) return;
+    state.lastModeSignature = signature;
+    const clinic = select.querySelector('option[value="clinic"]');
+    const online = select.querySelector('option[value="online"]');
+    if (clinic) clinic.textContent = 'In-clinic';
+    if (online) online.textContent = 'Online session';
   }
 
-  function translateRoot(root) {
-    if (
-      !root ||
-      !isEnglish()
-    ) {
-      return;
-    }
+  function updateCards() {
+    if (!english()) return;
+    const ds = doctors();
+    const ss = services();
 
-    const walker =
-      document.createTreeWalker(
-        root,
-        NodeFilter.SHOW_TEXT,
-        {
-          acceptNode(node) {
-            const parent =
-              node.parentElement;
+    document.querySelectorAll('#doctorsGrid .clinic-doctor-card').forEach((card, i) => {
+      const d = ds[i];
+      if (!d) return;
+      const h = card.querySelector('h3');
+      if (h) h.textContent = doctorName(d);
+      const title = card.querySelector('h3 + div');
+      if (title) title.textContent = `🧑‍⚕️ ${doctorTitle(d)}`;
+      const ps = card.querySelectorAll('p');
+      if (ps.length) ps[ps.length - 1].textContent = doctorBio(d);
+      const img = card.querySelector('img');
+      if (img) img.alt = doctorName(d);
+    });
 
-            if (
-              !parent ||
-              parent.closest(
-                'script,style,input,textarea,option'
-              )
-            ) {
-              return NodeFilter.FILTER_REJECT;
-            }
+    document.querySelectorAll('#servicesGrid .clinic-service-card').forEach((card, i) => {
+      const s = ss[i];
+      if (!s) return;
+      const h = card.querySelector('h3');
+      if (h) h.textContent = serviceName(s);
+      const p = card.querySelector('p');
+      if (p) p.textContent = serviceDescription(s);
+      const duration = Number(s?.duration_minutes ?? s?.duration ?? 0);
+      const note = card.querySelector('.small-note');
+      if (note && duration) note.textContent = `⏱️ ${duration} minutes`;
+    });
+  }
 
-            return NodeFilter.FILTER_ACCEPT;
-          }
-        }
-      );
+  function translateKnownDynamicText() {
+    if (!english()) return;
+    const exact = new Map([
+      ['اختر الطبيب', 'Select doctor'],
+      ['اختر الخدمة', 'Select service'],
+      ['اختر التاريخ', 'Select date'],
+      ['اختر الوقت', 'Select time'],
+      ['جاري التحميل...', 'Loading...'],
+      ['جاري تحميل المواعيد...', 'Loading appointments...'],
+      ['لا توجد مواعيد متاحة لهذا اليوم.', 'No appointments are available for this day.'],
+      ['اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.', 'Select a doctor, service, date, and session type to view available appointments.'],
+      ['تم تسجيل طلب الحجز.', 'The booking request has been registered.'],
+      ['تعذر تحميل المواعيد. يرجى المحاولة مرة أخرى.', 'Unable to load appointments. Please try again.']
+    ]);
 
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     const nodes = [];
-
-    let node;
-
-    while (
-      (node =
-        walker.nextNode())
-    ) {
-      nodes.push(node);
-    }
-
-    nodes.forEach(
-      (textNode) => {
-        const before =
-          textNode.nodeValue || '';
-
-        const after =
-          translateText(before);
-
-        if (
-          after !== before
-        ) {
-          textNode.nodeValue =
-            after;
-        }
-      }
-    );
-  }
-
-  function updatePlaceholders() {
-    if (!isEnglish()) {
-      return;
-    }
-
-    const map = {
-      'اكتب اسمك':
-        'Enter your name',
-
-      'رقم الهاتف':
-        'Phone number',
-
-      'أي معلومات إضافية...':
-        'Any additional information...'
-    };
-
-    document
-      .querySelectorAll(
-        'input,textarea'
-      )
-      .forEach(
-        (element) => {
-          const value =
-            element.getAttribute(
-              'placeholder'
-            );
-
-          if (
-            value &&
-            map[value]
-          ) {
-            element.setAttribute(
-              'placeholder',
-              map[value]
-            );
-          }
-        }
-      );
-  }
-
-  function updateButtons() {
-    if (!isEnglish()) {
-      return;
-    }
-
-    document
-      .querySelectorAll(
-        'button,a'
-      )
-      .forEach(
-        (element) => {
-          if (
-            element.children.length
-          ) {
-            return;
-          }
-
-          const before =
-            element.textContent || '';
-
-          const after =
-            translateText(before);
-
-          if (
-            after !== before
-          ) {
-            element.textContent =
-              after;
-          }
-        }
-      );
-  }
-
-  function escapeHTML(value) {
-    return String(
-      value ?? ''
-    ).replace(
-      /[&<>"']/g,
-      (char) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-      }[char])
-    );
-  }
-
-  function getWhatsAppNumber() {
-    const settings =
-      getPublicData().settings ||
-      {};
-
-    const raw =
-      settings.whatsapp ||
-      settings.whatsapp_number ||
-      settings.whatsapp_phone ||
-      '201140526294';
-
-    return String(
-      raw
-    ).replace(
-      /\D/g,
-      ''
-    );
-  }
-
-  function updateWhatsAppLinks() {
-    const number =
-      getWhatsAppNumber();
-
-    if (!number) {
-      return;
-    }
-
-    document
-      .querySelectorAll(
-        '#waHero,#waLink'
-      )
-      .forEach(
-        (link) => {
-          if (
-            link &&
-            (
-              !link.href ||
-              link.getAttribute(
-                'href'
-              ) === '#'
-            )
-          ) {
-            link.href =
-              `https://wa.me/${number}`;
-          }
-        }
-      );
-  }
-
-  function dataSignature() {
-    try {
-      return JSON.stringify({
-        doctors:
-          getDoctors(),
-        services:
-          getServices()
-      });
-    } catch (_) {
-      return '';
-    }
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      if (!node.parentElement || node.parentElement.closest('script,style,input,textarea,select,option')) return;
+      const value = String(node.nodeValue || '').trim();
+      const translated = exact.get(value);
+      if (!translated) return;
+      node.nodeValue = node.nodeValue.replace(value, translated);
+    });
   }
 
   function apply() {
-    if (
-      state.applying ||
-      !isEnglish()
-    ) {
-      return;
-    }
-
-    state.applying =
-      true;
-
+    if (state.applying) return;
+    state.applying = true;
     try {
-      applyI18nAttributes();
-
-      updateDoctorCards();
-      updateServiceCards();
-
-      updateDoctorSelect();
-      updateServiceSelect();
-
-      updateModeSelect();
-
-      updatePlaceholders();
-      updateButtons();
-
-      updateWhatsAppLinks();
-
-      translateRoot(
-        document.getElementById(
-          'slots'
-        )
-      );
-
-      translateRoot(
-        document.getElementById(
-          'message'
-        )
-      );
-
-      translateRoot(
-        document.getElementById(
-          'whatsappBookingStep'
-        )
-      );
-
-      state.lastDataSignature =
-        dataSignature();
-
+      const lang = language();
+      if (lang !== state.lastLanguage) {
+        state.lastLanguage = lang;
+        state.lastDoctorSignature = '';
+        state.lastServiceSignature = '';
+        state.lastModeSignature = '';
+      }
+      if (english()) {
+        updateDoctorSelect();
+        updateServiceSelect();
+        updateModeSelect();
+        updateCards();
+        translateKnownDynamicText();
+      }
     } finally {
-      state.applying =
-        false;
+      state.applying = false;
     }
   }
 
   function schedule() {
-    if (
-      state.scheduled
-    ) {
-      return;
-    }
-
-    state.scheduled =
-      true;
-
-    requestAnimationFrame(
-      () => {
-        state.scheduled =
-          false;
-
-        apply();
-      }
-    );
+    if (state.timer) return;
+    state.timer = setTimeout(() => {
+      state.timer = null;
+      apply();
+    }, 30);
   }
 
-  function watchLanguage() {
-    state.language =
-      getLanguage();
-
-    let last =
-      state.language;
-
-    setInterval(
-      () => {
-        const current =
-          getLanguage();
-
-        if (
-          current !== last
-        ) {
-          last =
-            current;
-
-          state.language =
-            current;
-
-          document
-            .querySelectorAll(
-              '[data-az-fix]'
-            )
-            .forEach(
-              (element) =>
-                delete element.dataset.azFix
-            );
-
-          schedule();
-        }
-      },
-      500
-    );
-  }
-
-  function watchDOM() {
-    if (
-      state.observer ||
-      !document.body
-    ) {
-      return;
-    }
-
-    state.observer =
-      new MutationObserver(
-        (mutations) => {
-          if (
-            !isEnglish() ||
-            state.applying
-          ) {
-            return;
-          }
-
-          let relevant =
-            false;
-
-          for (
-            const mutation of mutations
-          ) {
-            if (
-              mutation.type ===
-                'childList' &&
-              mutation.addedNodes.length
-            ) {
-              relevant =
-                true;
-              break;
-            }
-
-            if (
-              mutation.type ===
-                'characterData' &&
-              mutation.target.parentElement?.closest(
-                '#slots,#message,#whatsappBookingStep'
-              )
-            ) {
-              relevant =
-                true;
-              break;
-            }
-          }
-
-          if (relevant) {
-            schedule();
-          }
-        }
-      );
-
-    state.observer.observe(
-      document.body,
-      {
-        subtree: true,
-        childList: true,
-        characterData: true
-      }
-    );
+  function startDataPolling() {
+    if (state.dataTimer) return;
+    state.dataTimer = setInterval(() => {
+      if (doctors().length || services().length) apply();
+    }, 300);
   }
 
   function init() {
-    state.language =
-      getLanguage();
+    apply();
+    startDataPolling();
 
-    watchLanguage();
-    watchDOM();
+    try {
+      state.observer = new MutationObserver(() => schedule());
+      state.observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    } catch (_) {}
 
-    setTimeout(
-      schedule,
-      150
-    );
+    window.addEventListener('storage', event => {
+      if (event.key === LANGUAGE_KEY) {
+        state.lastLanguage = '';
+        schedule();
+      }
+    });
 
-    setTimeout(
-      schedule,
-      600
-    );
+    document.documentElement.addEventListener?.('langchange', schedule);
 
-    setTimeout(
-      schedule,
-      1500
-    );
+    setInterval(() => {
+      const current = language();
+      if (current !== state.lastLanguage) schedule();
+    }, 250);
   }
 
-  if (
-    document.readyState ===
-    'loading'
-  ) {
-    document.addEventListener(
-      'DOMContentLoaded',
-      init,
-      {
-        once: true
-      }
-    );
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
   } else {
     init();
   }
-
 })();
