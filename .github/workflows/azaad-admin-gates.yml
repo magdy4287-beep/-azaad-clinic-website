@@ -1,11 +1,11 @@
 name: Azaad Admin Acceptance Gates
 
-# Free-first acceptance gate: every development push and every PR to main is verified.
+# Free-first acceptance gate: every main push and every PR to main is verified.
 
 on:
   push:
     branches:
-      - feat/azaad-admin-suite-free-first
+      - main
   pull_request:
     branches:
       - main
@@ -25,3 +25,6 @@ jobs:
 
       - name: Run scheduling contract gate
         run: python3 qa/scheduling-contract-gate.py
+
+      - name: Run marketing workspace gate
+        run: python3 qa/marketing-workspace-v2-gate.py
