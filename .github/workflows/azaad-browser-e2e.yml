@@ -11,6 +11,9 @@ jobs:
   browser-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      deployments: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -39,18 +42,24 @@ jobs:
             url=""
 
             for attempt in {1..12}; do
-              url="$(gh api \
+              deployment_ids="$(gh api \
                 -H 'Accept: application/vnd.github+json' \
-                "repos/${GITHUB_REPOSITORY}/deployments?sha=${sha}&per_page=20" \
-                --jq '.[] | select(.environment == "Preview") | .id' \
-                | while read -r deployment_id; do
-                    gh api \
-                      -H 'Accept: application/vnd.github+json' \
-                      "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses?per_page=20" \
-                      --jq '.[] | select(.state == "success") | (.environment_url // .target_url)' \
-                      | head -n 1
-                  done \
-                | head -n 1)"
+                "repos/${GITHUB_REPOSITORY}/deployments?sha=${sha}&per_page=100" \
+                --jq '.[].id')"
+
+              while read -r deployment_id; do
+                [[ -z "$deployment_id" ]] && continue
+                candidate="$(gh api \
+                  -H 'Accept: application/vnd.github+json' \
+                  "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses?per_page=100" \
+                  --jq '.[] | select(.state == "success") | (.environment_url // .target_url)' \
+                  | head -n 1)"
+
+                if [[ -n "$candidate" && "$candidate" == http* ]]; then
+                  url="$candidate"
+                  break
+                fi
+              done <<< "$deployment_ids"
 
               if [[ -n "$url" ]]; then
                 break
@@ -59,12 +68,13 @@ jobs:
             done
 
             if [[ -z "$url" ]]; then
-              echo "No successful Vercel Preview deployment URL found for ${sha}." >&2
+              echo "No successful deployment URL found for PR commit ${sha}." >&2
+              echo "This workflow deliberately stops here rather than testing the wrong deployment." >&2
               exit 1
             fi
 
             echo "url=$url" >> "$GITHUB_OUTPUT"
-            echo "Testing Vercel Preview: $url"
+            echo "Testing deployed PR URL: $url"
           else
             echo "url=https://azaad-clinic-website.vercel.app" >> "$GITHUB_OUTPUT"
             echo "Testing production: https://azaad-clinic-website.vercel.app"
@@ -85,4 +95,4 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI: production on main, Vercel Preview deployment on pull requests
+# CI: production on main, deployed PR URL on pull requests
