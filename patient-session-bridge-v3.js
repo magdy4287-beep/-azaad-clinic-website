@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.3.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.4.0 */
 (() => {
   'use strict';
 
@@ -11,7 +11,7 @@
     OWNER: ['dashboard.view','bookings.view','patients.view','followups.view','marketing.view','finance.view','staff.view'],
     ADMIN: ['dashboard.view','bookings.view','patients.view','followups.view','marketing.view','finance.view','staff.view'],
     MANAGER: ['dashboard.view','bookings.view','patients.view','followups.view','marketing.view','finance.view','staff.view'],
-    SECRETARY: ['dashboard.view','bookings.view','patients.view','followups.view'],
+    SECRETARY: ['dashboard.view','bookings.view','followups.view','patients.view'],
     CASHIER: ['dashboard.view','finance.view'],
     RECEPTION: ['dashboard.view','bookings.view','followups.view','patients.view'],
     DOCTOR: ['dashboard.view','bookings.view','patients.view','followups.view'],
@@ -35,9 +35,7 @@
       if (error || !data?.session?.access_token) return null;
       publish(data.session);
       return data.session;
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 
   async function restoreAdminInternal() {
@@ -46,10 +44,8 @@
     const client = controller?.supabase;
     const state = controller?.state;
     if (!client?.auth || !state) return false;
-
     const session = await syncAuth();
     if (!session?.access_token || !session?.user?.id) return false;
-
     try {
       const response = await fetch(`${ADMIN_FUNCTION}?api=account`, {
         method: 'GET',
@@ -58,15 +54,10 @@
       });
       let body = null;
       try { body = await response.json(); } catch (_) {}
-      if (!response.ok || !body?.admin) {
-        console.warn('Admin session restore failed:', body?.error || `HTTP ${response.status}`);
-        return false;
-      }
-
+      if (!response.ok || !body?.admin) return false;
       const staff = body.admin;
       const role = String(staff.role || '').toUpperCase().trim();
       if (!staff.active || !permissionMap[role]) return false;
-
       state.session = session;
       state.user = session.user;
       state.staff = staff;
@@ -92,7 +83,7 @@
   }
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '4.3.0',
+    version: '4.4.0',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
@@ -103,7 +94,16 @@
     restoreAdmin
   };
 
-  const boot = () => { if (!booted) restoreAdmin(); };
+  const loadAdminEnhancements = () => {
+    if (!/admin\.html$/i.test(location.pathname)) return;
+    if (window.__AZAAD_ADMIN_ENHANCEMENTS__) return;
+    const script = document.createElement('script');
+    script.src = './admin-enhancements-v1.js?v=2026.08.14.1';
+    script.defer = true;
+    document.head.appendChild(script);
+  };
+
+  const boot = () => { if (!booted) restoreAdmin(); loadAdminEnhancements(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })();
