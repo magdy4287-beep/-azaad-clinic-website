@@ -24,23 +24,32 @@ jobs:
           path = Path("admin.html")
           text = path.read_text(encoding="utf-8")
 
-          bridge = '<script type="module" src="./patient-session-bridge.js?v=1.0.0"></script>\n'
+          # Classic script is intentional: it must publish the bridge
+          # synchronously before patients-center.js executes.
+          bridge = '<script src="./patient-session-bridge.js?v=2.0.0"></script>\n'
 
-          # Insert exactly once, immediately before the Patient Center script.
-          text = re.sub(r'^[ \t]*<script[^>]+patients-center\\.js[^>]*></script>\s*$',
-                        lambda m: bridge + m.group(0) if bridge.strip() not in text else m.group(0),
-                        text,
-                        count=1,
-                        flags=re.MULTILINE)
-
-          # Also support the case where the Patient Center tag has type=module.
-          if bridge.strip() not in text:
-              marker = 'patients-center.js'
+          marker = 'patients-center.js'
+          if marker in text and bridge.strip() not in text:
               pos = text.find(marker)
-              if pos >= 0:
-                  start = text.rfind('<script', 0, pos)
-                  if start >= 0:
-                      text = text[:start] + bridge + text[start:]
+              start = text.rfind('<script', 0, pos)
+              if start >= 0:
+                  text = text[:start] + bridge + text[start:]
+
+          # Remove an older module bridge if one was inserted previously.
+          text = re.sub(
+              r'\s*<script\s+type=["\']module["\']\s+src=["\']\./patient-session-bridge\.js\?v=[^"\']+["\']\s*></script>\s*',
+              '\n',
+              text,
+              flags=re.IGNORECASE
+          )
+
+          # Ensure the v2 classic bridge exists immediately before Patient Center.
+          bridge = '<script src="./patient-session-bridge.js?v=2.0.0"></script>\n'
+          if bridge.strip() not in text and marker in text:
+              pos = text.find(marker)
+              start = text.rfind('<script', 0, pos)
+              if start >= 0:
+                  text = text[:start] + bridge + text[start:]
 
           path.write_text(text, encoding="utf-8")
 
@@ -54,5 +63,5 @@ jobs:
             echo "No changes required."
             exit 0
           fi
-          git commit -m "Fix Patient Center shared auth session bridge"
+          git commit -m "Load patient auth bridge synchronously"
           git push
