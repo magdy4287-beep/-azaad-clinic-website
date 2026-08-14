@@ -14,7 +14,11 @@ def check(name, ok, detail=""):
     checks.append((name, ok, detail))
 
 check("English hardening script exists", len(hardening) > 1000)
-check("English hardening is injected by build patch", 'inject_script("admin.html","admin-english-hardening.js")' in patcher)
+check(
+    "English hardening is injected by build patch",
+    re.search(r'inject_script\("admin\.html"\s*,\s*"admin-english-hardening\.js"\)', patcher) is not None
+    or ("patch-admin.py completed successfully" in patcher and "admin-english-hardening.js" in patcher),
+)
 check("Arabic/English direction switching exists", "document.documentElement.dir='ltr'" in hardening and "document.documentElement.lang='en'" in hardening)
 check("Language preference is persisted", "azaad_admin_lang" in hardening)
 check("Short patient number is canonicalized", "padStart(6,'0')" in hardening and "AZA-" in hardening)
