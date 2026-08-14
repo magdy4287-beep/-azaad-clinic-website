@@ -62,15 +62,12 @@ def finalize_admin_html():
 
     text, count = re.subn(r'\nasync function restoreStaff\(\{', "\n" + AUTH_REFRESH_COORDINATOR + "\n\nasync function restoreStaff{", text, count=1)
     if count != 1:
-        # The source uses restoreStaff(){; support that exact form too.
         text, count = re.subn(r'\nasync function restoreStaff\(\)', "\n" + AUTH_REFRESH_COORDINATOR + "\n\nasync function restoreStaff()", text, count=1)
     if count != 1: raise RuntimeError("Could not locate restoreStaff()")
 
     text, count = re.subn(r'async function restoreStaff\(\)\{.*?\n\}\n\nasync function logout\(\)', ADMIN_AUTH + "\n\nasync function logout()", text, count=1, flags=re.S)
     if count != 1: raise RuntimeError("Could not replace restoreStaff()")
 
-    # Keep the auth-state callback synchronous. Supabase documents that async Supabase
-    # calls inside onAuthStateChange can deadlock the client. Startup is owned by AZAAD_READY.
     listener = '''supabase.auth.onAuthStateChange((event, session) => {
   if(event === "SIGNED_OUT"){
     state.session = null; state.user = null; state.staff = null; state.initialized = false;
@@ -107,7 +104,7 @@ async function restore(){
 async function admin(''', text, count=1, flags=re.S)
     if count != 1: raise RuntimeError("Could not replace restore()")
 
-    text = re.sub(r'async function admin\(\n  query,\n  options = \{\}\n\)\{.*?\n\}\n\nasync function staffApi', '''async function admin(
+    admin_block = '''async function admin(
   query,
   options = {}
 ){
@@ -120,7 +117,6 @@ async function admin(''', text, count=1, flags=re.S)
         Accept:"application/json",
         ...(options.body ? {"Content-Type":"application/json"} : {}),
         Authorization:`Bearer ${session.access_token}`,
-        apikey:SUPABASE_PUBLISHABLE_KEY,
         ...(options.headers || {})
       },
       cache:"no-store"
@@ -142,10 +138,10 @@ async function admin(''', text, count=1, flags=re.S)
   return result.body;
 }
 
-async function staffApi''', text, count=1, flags=re.S)
+async function staffApi'''
+    text, count = re.subn(r'async function admin\(\n  query,\n  options = \{\}\n\)\{.*?\n\}\n\nasync function staffApi', admin_block, text, count=1, flags=re.S)
+    if count != 1: raise RuntimeError("Could not replace admin()")
 
-    # The previous build patch (patch-admin.py) already creates AZAAD_READY and starts restore().
-    # Never start a second restore() here. Reuse the existing readiness promise when present.
     text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*', '\n', text)
     text = re.sub(r'\nwindow\.AZAAD_READY\s*=\s*\(async\s*\(\)\s*=>\s*\{.*?\n\}\)\(\);', '', text, count=1, flags=re.S)
 
@@ -159,8 +155,6 @@ async function staffApi''', text, count=1, flags=re.S)
     if marker not in text: raise RuntimeError("Could not find window.AZAAD marker")
     tail = "window.AZAAD_REFRESH = azaadEnsureFreshSession;\n\n" + marker + '''
 
-// One startup owner. patch-admin.py creates AZAAD_READY before this finalizer runs;
-// if it is absent, create it here. AZAAD_AUTH_READY is only an alias, never a second restore.
 if(!window.AZAAD_READY){
   window.AZAAD_READY = restore().then((ok) => !!ok);
 }
@@ -168,7 +162,7 @@ window.AZAAD_AUTH_READY = window.AZAAD_READY;
 '''
     text = re.sub(re.escape(marker) + r'.*?(?=</script>)', tail, text, count=1, flags=re.S)
     path.write_text(text, encoding="utf-8")
-    print("Finalized single-owner admin auth without duplicate startup restore")
+    print("Finalized single-owner admin auth; admin Edge fetch no longer sends unnecessary apikey header")
 
 
 finalize_admin_html()
