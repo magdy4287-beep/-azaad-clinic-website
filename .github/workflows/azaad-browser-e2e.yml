@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "url=https://deploy-preview-${{ github.event.pull_request.number }}--azaadclinic.netlify.app" >> "$GITHUB_OUTPUT"
+            echo "url=https://deploy-preview-${{ github.event.pull_request.number }}--jazzy-lebkuchen-f42de0.netlify.app" >> "$GITHUB_OUTPUT"
           else
             echo "url=https://azaad-clinic-website.vercel.app" >> "$GITHUB_OUTPUT"
           fi
@@ -51,4 +51,4 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI: production on main, immutable Netlify preview on pull requests
+# CI: production on main, accessible PR preview mirror on pull requests
