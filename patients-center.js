@@ -4,7 +4,7 @@
   /* ============================================================
      AZAAD CLINIC - PATIENT CENTER
      Production Patient Management Center
-     v7.1.0
+     v7.2.0
 
      SECURITY:
      - No Service Role Key in browser.
@@ -12,20 +12,17 @@
      - Patient authorization is enforced server-side by azaad-patients.
      ============================================================ */
 
-  const SUPABASE_URL =
-    'https://derofsthjivlkcdnojww.supabase.co';
-
-  const SUPABASE_PUBLISHABLE_KEY =
-    'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
-
-  const PATIENTS_API =
-    `${SUPABASE_URL}/functions/v1/azaad-patients`;
+  const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const PATIENTS_API = `${SUPABASE_URL}/functions/v1/azaad-patients`;
+  const SESSION_KEY = 'azaad_admin_token';
 
   const state = {
     patients: [],
     search: '',
     loading: false,
-    initialized: false
+    initialized: false,
+    authListenerBound: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -45,9 +42,7 @@
     const date = new Date(`${raw}T00:00:00`);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleDateString('ar-EG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
@@ -62,7 +57,6 @@
       window.showToast(message, type);
       return;
     }
-
     let toast = $('patientsToast');
     if (!toast) {
       toast = document.createElement('div');
@@ -70,7 +64,6 @@
       toast.className = 'toast';
       document.body.appendChild(toast);
     }
-
     toast.textContent = message;
     toast.style.background = type === 'error' ? '#a32939' : type === 'success' ? '#167345' : '#17214f';
     toast.classList.add('show');
@@ -78,19 +71,41 @@
     window.__patientsToastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
   };
 
+  function rememberToken(token) {
+    if (!token) return;
+    try { sessionStorage.setItem(SESSION_KEY, token); } catch (_) {}
+    if (window.AZAAD?.state) {
+      if (!window.AZAAD.state.session) window.AZAAD.state.session = {};
+      window.AZAAD.state.session.access_token = token;
+    }
+  }
+
   async function getAccessToken() {
-    // admin.html exposes the live Auth state through window.AZAAD.state.
-    // Prefer that token first; this avoids a race between setSession()
-    // and a fresh getSession() call on mobile Safari.
+    // 1) Live token supplied by the admin controller.
     const liveToken = window.AZAAD?.state?.session?.access_token;
-    if (liveToken) return liveToken;
+    if (liveToken) {
+      rememberToken(liveToken);
+      return liveToken;
+    }
 
+    // 2) Explicit session bridge, when present.
+    try {
+      const bridgeToken = await window.AZAAD_PATIENT_SESSION?.getAccessToken?.();
+      if (bridgeToken) {
+        rememberToken(bridgeToken);
+        return bridgeToken;
+      }
+    } catch (error) {
+      console.warn('Patient Center bridge error:', error);
+    }
+
+    // 3) The exact Supabase client already used by admin.html.
     const supabase = window.AZAAD?.supabase;
-
     if (supabase?.auth) {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (!error && data?.session?.access_token) {
+          rememberToken(data.session.access_token);
           return data.session.access_token;
         }
       } catch (error) {
@@ -98,16 +113,41 @@
       }
     }
 
+    // 4) Last-resort browser session bridge.
     try {
-      return sessionStorage.getItem('azaad_admin_token') || '';
-    } catch (_) {
-      return '';
+      const stored = sessionStorage.getItem(SESSION_KEY) || '';
+      if (stored) return stored;
+    } catch (_) {}
+
+    return '';
+  }
+
+  function bindAuthListener() {
+    if (state.authListenerBound) return;
+    const supabase = window.AZAAD?.supabase;
+    if (!supabase?.auth) return;
+
+    state.authListenerBound = true;
+    try {
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (session?.access_token) {
+          rememberToken(session.access_token);
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            setTimeout(() => loadPatients(), 0);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          try { sessionStorage.removeItem(SESSION_KEY); } catch (_) {}
+          state.patients = [];
+          renderPatients();
+        }
+      });
+    } catch (error) {
+      console.warn('Patient Center auth listener:', error);
     }
   }
 
   async function api(query, options = {}) {
     const token = await getAccessToken();
-
     if (!token) {
       throw new Error('جلسة الإدارة غير موجودة أو منتهية. يرجى تسجيل الدخول مرة أخرى.');
     }
@@ -127,22 +167,16 @@
     });
 
     let body = {};
-    try {
-      body = await response.json();
-    } catch (_) {
-      body = {};
-    }
+    try { body = await response.json(); } catch (_) {}
 
     if (!response.ok) {
       throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
     }
-
     return body;
   }
 
   function injectStyles() {
     if ($('patientsCenterStyles')) return;
-
     const style = document.createElement('style');
     style.id = 'patientsCenterStyles';
     style.textContent = `
@@ -226,7 +260,6 @@
         renderPatients();
       });
     }
-
     return true;
   }
 
@@ -250,10 +283,8 @@
     const list = $('patientsList');
     const count = $('patientsCount');
     if (!list) return;
-
     const rows = filteredPatients();
     if (count) count.textContent = `👥 ${rows.length} ملف من أصل ${state.patients.length}`;
-
     if (!rows.length) {
       list.innerHTML = `<div class="empty patient-empty">📭 لا توجد ملفات مطابقة للبحث.</div>`;
       return;
@@ -269,7 +300,6 @@
       const updated = escapeHTML(formatDate(patient.updated_at));
       const bookingCount = Number(patient.booking_count || 0);
       const active = patient.active !== false;
-
       return `
         <article class="patient-card">
           <div class="patient-main">
@@ -353,14 +383,12 @@
       </form>`;
 
     modal.classList.add('show');
-
     $('cancelPatientBtn')?.addEventListener('click', closePatientModal);
     $('patientEditForm')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const button = $('savePatientBtn');
       const name = String($('editPatientName')?.value || '').trim();
       const phone = String($('editPatientPhone')?.value || '').trim();
-
       if (!name) {
         showToast('🤢 اسم المريض مطلوب.', 'error');
         $('editPatientName')?.focus();
@@ -371,25 +399,21 @@
         $('editPatientPhone')?.focus();
         return;
       }
-
       if (button) {
         button.disabled = true;
         button.dataset.originalText = button.textContent;
         button.textContent = '⏳ جاري الحفظ...';
       }
-
       try {
         const result = await api('?api=patient', {
           method: 'PUT',
           body: JSON.stringify({ id: patient.id, patient_name: name, patient_phone: phone })
         });
-
         const updatedPatient = result?.patient;
         if (updatedPatient) {
           const index = state.patients.findIndex(item => String(item.id) === String(patient.id));
           if (index >= 0) state.patients[index] = { ...state.patients[index], ...updatedPatient };
         }
-
         closePatientModal();
         renderPatients();
         showToast(`✅ تم تحديث ملف ${updatedPatient?.mrn || patient.mrn || ''} بنجاح.`, 'success');
@@ -425,17 +449,29 @@
     });
   }
 
-  function init() {
-    if (state.initialized) return true;
+  async function init() {
+    if (state.initialized) {
+      bindAuthListener();
+      return true;
+    }
     injectStyles();
     if (!injectUI()) return false;
     bindExistingTabs();
     state.initialized = true;
+    bindAuthListener();
+
+    // If the admin session is already live when this script initializes,
+    // load immediately. This removes the mobile-Safari race where the
+    // panel opened before the session bridge had finished.
+    const token = await getAccessToken();
+    if (token && $('patientsPanel')?.classList.contains('active')) {
+      setTimeout(() => loadPatients(), 0);
+    }
     return true;
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+    document.addEventListener('DOMContentLoaded', () => { init(); }, { once: true });
   } else {
     init();
   }
