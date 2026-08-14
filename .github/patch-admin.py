@@ -144,5 +144,33 @@ def patch_admin_js():
     print("Patched admin.js restoreStaffProfile")
 
 
+def patch_startup_restore():
+    path = Path("admin.html")
+    text = path.read_text(encoding="utf-8")
+    marker = '''window.AZAAD = {
+  supabase,
+  state,
+  hasPermission,
+  refresh:load,
+  logout
+};'''
+    replacement = marker + '''
+
+// IMPORTANT: the inline module owns startup restoration.
+// The legacy bridge script is loaded before this module and cannot safely
+// discover window.AZAAD yet, so restore() must be started explicitly here.
+void restore().catch(error => {
+  console.error("Admin startup restore failed:", error);
+});'''
+    if marker not in text:
+        raise SystemExit("window.AZAAD export marker was not found")
+    if 'Admin startup restore failed:' in text:
+        print("Startup restore already patched")
+        return
+    path.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
+    print("Patched admin.html startup restore")
+
+
 patch_admin_html()
 patch_admin_js()
+patch_startup_restore()
