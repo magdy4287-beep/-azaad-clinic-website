@@ -22,8 +22,8 @@
 
   function syncStorage(lang) {
     try {
-      localStorage.setItem(KEY, lang);
-      if (/admin\.html$/i.test(location.pathname)) localStorage.setItem(ADMIN_KEY, lang);
+      if (localStorage.getItem(KEY) !== lang) localStorage.setItem(KEY, lang);
+      if (/admin\.html$/i.test(location.pathname) && localStorage.getItem(ADMIN_KEY) !== lang) localStorage.setItem(ADMIN_KEY, lang);
     } catch (_) {}
   }
 
@@ -48,8 +48,9 @@
   function apply() {
     const lang = getLang();
     syncStorage(lang);
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+    if (document.documentElement.lang !== lang) document.documentElement.lang = lang;
+    const dir = lang === 'en' ? 'ltr' : 'rtl';
+    if (document.documentElement.dir !== dir) document.documentElement.dir = dir;
     injectAdminSwitch();
     if (lang !== 'en') return;
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -59,12 +60,12 @@
       if (!node.parentElement || node.parentElement.closest('script,style,textarea,input,select,option,[data-no-i18n]')) return;
       const raw = normalize(node.nodeValue);
       const translated = ENGLISH[raw];
-      if (translated) node.nodeValue = node.nodeValue.replace(raw, translated);
+      if (translated && node.nodeValue !== node.nodeValue.replace(raw, translated)) node.nodeValue = node.nodeValue.replace(raw, translated);
     });
     document.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => {
       ['placeholder','title','aria-label'].forEach(attr => {
         const value = normalize(el.getAttribute(attr));
-        if (ENGLISH[value]) el.setAttribute(attr, ENGLISH[value]);
+        if (ENGLISH[value] && el.getAttribute(attr) !== ENGLISH[value]) el.setAttribute(attr, ENGLISH[value]);
       });
     });
     window.AZAAD_ADMIN_ENGLISH_HARDENING?.run?.();
@@ -77,7 +78,7 @@
     window.addEventListener('storage', event => { if (event.key === KEY || event.key === ADMIN_KEY) apply(); });
     window.addEventListener('azaadLanguageChanged', apply);
     window.setInterval(apply, 1000);
-    window.AZAAD_I18N = { version:'1.1.0', apply, language:getLang, dictionary:ENGLISH };
+    window.AZAAD_I18N = { version:'1.2.0', apply, language:getLang, dictionary:ENGLISH };
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once:true });
