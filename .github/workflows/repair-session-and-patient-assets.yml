@@ -1,0 +1,109 @@
+name: Repair session and patient assets
+
+on:
+  push:
+    paths:
+      - '.github/workflows/repair-session-and-patient-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repair admin session bootstrap and patient scripts
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          # --- admin.js: keep the real START bootstrap only ---
+          p = Path('admin.js')
+          s = p.read_text(encoding='utf-8')
+
+          # Remove the two duplicate bootstrap blocks at the end.
+          marker = '/* ============================================================\n   BOOTSTRAP SESSION ON EVERY PAGE LOAD'
+          idx = s.find(marker)
+          if idx != -1:
+              s = s[:idx].rstrip() + '\n'
+
+          # Never sign out merely because staff restoration temporarily fails.
+          s = re.sub(
+              r'else\s*\{\s*await supabase\.auth\.signOut\(\);\s*\}',
+              'else {\n            console.warn("Staff session restore is pending; keeping the Auth session.");\n          }',
+              s,
+              count=1,
+          )
+          s = re.sub(
+              r'catch \(error\) \{\s*console\.error\(\s*"Auth staff restore error:",\s*error\s*\);\s*await supabase\.auth\.signOut\(\);\s*\}',
+              'catch (error) {\n          console.error("Auth staff restore error:", error);\n        }',
+              s,
+              count=1,
+              flags=re.S,
+          )
+
+          p.write_text(s, encoding='utf-8')
+
+          # --- admin.html: exactly one patient session bridge ---
+          p = Path('admin.html')
+          s = p.read_text(encoding='utf-8')
+
+          s = re.sub(
+              r'\s*<script[^>]+patient-session-bridge(?:-v3)?\.js[^>]*></script>',
+              '',
+              s,
+              flags=re.I,
+          )
+          s = re.sub(
+              r'\s*<script[^>]+patients-center\.js[^>]*></script>',
+              '',
+              s,
+              flags=re.I,
+          )
+
+          anchor = '</body>'
+          inject = '''\n<script src="./patient-session-bridge-v3.js?v=4.2.0"></script>\n<script type="module" src="./patients-center.js?v=7.6.0"></script>\n'''
+          if anchor in s:
+              s = s.replace(anchor, inject + anchor, 1)
+          else:
+              s += inject
+
+          # Correct the harmless UI default username.
+          s = s.replace('value="azaadowner"', 'value="azaadadmin"')
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Validate the repaired files
+        shell: bash
+        run: |
+          test "$(grep -o 'patient-session-bridge-v3.js' admin.html | wc -l)" -eq 1
+          test "$(grep -o 'patients-center.js' admin.html | wc -l)" -eq 1
+          test "$(grep -c 'BOOTSTRAP SESSION ON EVERY PAGE LOAD' admin.js || true)" -eq 0
+          test "$(grep -c 'ADMIN BOOTSTRAP' admin.js || true)" -eq 0
+          node --check admin.js
+
+      - name: Commit and push with rebase retry
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add admin.js admin.html
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git commit -m "fix: stabilize admin session and patient center assets"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort || true
+            sleep 3
+          done
+          echo "Unable to push after retries"
+          exit 1
