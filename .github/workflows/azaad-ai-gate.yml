@@ -1,0 +1,22 @@
+name: Azaad AI Operating System Gate
+
+on:
+  push:
+    branches:
+      - feat/ai-operating-system-20260815
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ai-operating-system:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate AI operating contract
+        run: python3 qa/ai-operating-system-gate.py
