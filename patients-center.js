@@ -4,7 +4,7 @@
   /* ============================================================
      AZAAD CLINIC - PATIENT CENTER
      Production Patient Management Center
-     v7.0.0
+     v7.1.0
 
      SECURITY:
      - No Service Role Key in browser.
@@ -31,11 +31,11 @@
   const $ = (id) => document.getElementById(id);
 
   const escapeHTML = (value) =>
-    String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    String(value ?? '').replace(/[&<>\"']/g, (char) => ({
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',
-      '"': '&quot;',
+      '\"': '&quot;',
       "'": '&#039;'
     }[char]));
 
@@ -79,6 +79,12 @@
   };
 
   async function getAccessToken() {
+    // admin.html exposes the live Auth state through window.AZAAD.state.
+    // Prefer that token first; this avoids a race between setSession()
+    // and a fresh getSession() call on mobile Safari.
+    const liveToken = window.AZAAD?.state?.session?.access_token;
+    if (liveToken) return liveToken;
+
     const supabase = window.AZAAD?.supabase;
 
     if (supabase?.auth) {
