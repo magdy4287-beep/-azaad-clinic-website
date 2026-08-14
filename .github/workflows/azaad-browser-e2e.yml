@@ -11,9 +11,6 @@ jobs:
   browser-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: read
-      deployments: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -29,49 +26,25 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Resolve browser test base URL
-        id: base-url
+      - name: Start local PR build server
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            sha="${{ github.event.pull_request.head.sha }}"
-            url=""
-
-            for attempt in {1..18}; do
-              # Prefer a public Netlify preview status. Vercel previews for this project
-              # are protected, while the Netlify preview is intentionally public for QA.
-              url="$(gh api \
-                -H 'Accept: application/vnd.github+json' \
-                "repos/${GITHUB_REPOSITORY}/commits/${sha}/statuses?per_page=100" \
-                --jq '.[] | select(.state == "success" and (.context | startswith("netlify/"))) | .target_url' \
-                | grep '^https://deploy-preview-' \
-                | head -n 1 || true)"
-
-              if [[ -n "$url" ]]; then
-                break
-              fi
-              sleep 5
-            done
-
-            if [[ -z "$url" ]]; then
-              echo "No public Netlify preview found for PR commit ${sha}." >&2
-              exit 1
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
+          echo $! > /tmp/azaad-http.pid
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "Local Azaad PR build is ready."
+              exit 0
             fi
+            sleep 1
+          done
+          cat /tmp/azaad-http.log || true
+          exit 1
 
-            echo "url=$url" >> "$GITHUB_OUTPUT"
-            echo "Testing public Netlify PR preview: $url"
-          else
-            echo "url=https://azaad-clinic-website.vercel.app" >> "$GITHUB_OUTPUT"
-            echo "Testing production: https://azaad-clinic-website.vercel.app"
-          fi
-
-      - name: Run browser E2E
+      - name: Run browser E2E against checked-out PR code
         env:
-          AZAAD_BASE_URL: ${{ steps.base-url.outputs.url }}
+          AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
@@ -84,4 +57,13 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI: public Netlify Preview browser gate on PRs; public Vercel production browser gate on main
+      - name: Stop local server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/azaad-http.pid ]]; then
+            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
+          fi
+
+# Browser E2E intentionally tests the exact checked-out PR files locally.
+# This avoids provider-specific preview access controls and makes PR validation deterministic.
