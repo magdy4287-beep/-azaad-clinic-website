@@ -15,60 +15,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Patch Patient Center session handling
-        shell: python
+      - name: Patch session handoff
+        shell: bash
         run: |
+          python3 <<'PY'
           from pathlib import Path
 
           p = Path('patients-center.js')
           s = p.read_text(encoding='utf-8')
 
-          old = '''  async function getAccessToken() {
-    // 1) Live token supplied by the admin controller.
-    const liveToken = window.AZAAD?.state?.session?.access_token;
-    if (liveToken) {
-      rememberToken(liveToken);
-      return liveToken;
-    }
+          s = s.replace("    authListenerBound: false\n", "    authListenerBound: false,\n    sessionReadyBound: false\n", 1)
 
-    // 2) Explicit session bridge, when present.
-    try {
-      const bridgeToken = await window.AZAAD_PATIENT_SESSION?.getAccessToken?.();
-      if (bridgeToken) {
-        rememberToken(bridgeToken);
-        return bridgeToken;
-      }
-    } catch (error) {
-      console.warn('Patient Center bridge error:', error);
-    }
-
-    // 3) The exact Supabase client already used by admin.html.
-    const supabase = window.AZAAD?.supabase;
-    if (supabase?.auth) {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (!error && data?.session?.access_token) {
-          rememberToken(data.session.access_token);
-          return data.session.access_token;
-        }
-      } catch (error) {
-        console.error('Patient Center session error:', error);
-      }
-    }
-
-    // 4) Last-resort browser session bridge.
-    try {
-      const stored = sessionStorage.getItem(SESSION_KEY) || '';
-      if (stored) return stored;
-    } catch (_) {}
-
-    return '';
-  }
-'''
-
+          start = s.index('  async function getAccessToken() {')
+          end = s.index('\n  function bindAuthListener()', start)
           new = '''  async function getAccessToken() {
-    // 1) The admin login explicitly persists this short-lived access token.
-    // Read it first so Patient Center does not depend on module timing.
+    // The admin login explicitly persists this short-lived access token.
+    // Read it first so Patient Center is independent of module timing.
     try {
       const stored = sessionStorage.getItem(SESSION_KEY) || '';
       if (stored) {
@@ -77,14 +39,12 @@ jobs:
       }
     } catch (_) {}
 
-    // 2) Live token supplied by the admin controller.
     const liveToken = window.AZAAD?.state?.session?.access_token;
     if (liveToken) {
       rememberToken(liveToken);
       return liveToken;
     }
 
-    // 3) Explicit session bridge, when present.
     try {
       const bridgeToken = await window.AZAAD_PATIENT_SESSION?.getAccessToken?.();
       if (bridgeToken) {
@@ -95,7 +55,6 @@ jobs:
       console.warn('Patient Center bridge error:', error);
     }
 
-    // 4) The exact Supabase client already used by admin.html.
     const supabase = window.AZAAD?.supabase;
     if (supabase?.auth) {
       try {
@@ -112,41 +71,46 @@ jobs:
     return '';
   }
 '''
+          s = s[:start] + new + s[end:]
 
-          if old not in s:
-            raise SystemExit('Expected getAccessToken block was not found')
-          p.write_text(s.replace(old, new), encoding='utf-8')
+          marker = '  function bindAuthListener() {\n'
+          if 'function bindSessionReadyListener()' not in s:
+            insertion = '''  function bindSessionReadyListener() {
+    if (state.sessionReadyBound) return;
+    state.sessionReadyBound = true;
+    window.addEventListener('azaad:session-ready', (event) => {
+      const token = event?.detail?.access_token || '';
+      if (token) {
+        rememberToken(token);
+        setTimeout(() => loadPatients(), 0);
+      }
+    });
+  }
 
-          p = Path('admin.html')
-          s = p.read_text(encoding='utf-8')
-
-          marker = """    try {\n      sessionStorage.setItem('azaad_admin_token', result.session.access_token);\n    } catch (_) {}\n"""
-          replacement = marker + """\n    // Notify Patient Center immediately in the same tab.\n    try {\n      window.dispatchEvent(new CustomEvent('azaad:session-ready', {\n        detail: { access_token: result.session.access_token }\n      }));\n    } catch (_) {}\n"""
-          if marker not in s:
-            raise SystemExit('Expected admin session marker was not found')
-          s = s.replace(marker, replacement, 1)
-
-          s = s.replace('value=\"azaadowner\"', 'value=\"azaadadmin\"', 1)
-          p.write_text(s, encoding='utf-8')
-
-      - name: Add same-tab session listener and retry handling
-        shell: python
-        run: |
-          from pathlib import Path
-          p = Path('patients-center.js')
-          s = p.read_text(encoding='utf-8')
-
-          marker = """  function bindAuthListener() {\n"""
-          insertion = """  function bindSessionReadyListener() {\n    if (state.sessionReadyBound) return;\n    state.sessionReadyBound = true;\n    window.addEventListener('azaad:session-ready', (event) => {\n      const token = event?.detail?.access_token || '';\n      if (token) {\n        rememberToken(token);\n        setTimeout(() => loadPatients(), 0);\n      }\n    });\n  }\n\n"""
-          if insertion not in s:
-            if marker not in s:
-              raise SystemExit('Auth listener marker not found')
+'''
             s = s.replace(marker, insertion + marker, 1)
 
-          s = s.replace("    authListenerBound: false\n", "    authListenerBound: false,\n    sessionReadyBound: false\n", 1)
           s = s.replace("    bindAuthListener();\n\n    // If the admin session", "    bindAuthListener();\n    bindSessionReadyListener();\n\n    // If the admin session", 1)
           s = s.replace("      bindAuthListener();\n      return true;", "      bindAuthListener();\n      bindSessionReadyListener();\n      return true;", 1)
           p.write_text(s, encoding='utf-8')
+
+          p = Path('admin.html')
+          s = p.read_text(encoding='utf-8')
+          marker = "    try {\n      sessionStorage.setItem('azaad_admin_token', result.session.access_token);\n    } catch (_) {}\n"
+          if "azaad:session-ready" not in s:
+            replacement = marker + """
+    try {
+      window.dispatchEvent(new CustomEvent('azaad:session-ready', {
+        detail: { access_token: result.session.access_token }
+      }));
+    } catch (_) {}
+"""
+            if marker not in s:
+              raise SystemExit('admin session marker not found')
+            s = s.replace(marker, replacement, 1)
+          s = s.replace('value="azaadowner"', 'value="azaadadmin"', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
 
       - name: Commit and push
         shell: bash
