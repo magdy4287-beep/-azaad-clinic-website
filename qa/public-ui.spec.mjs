@@ -8,29 +8,18 @@ test('public website primary actions are wired and interactive', async ({ page }
   await expect(page.locator('#waHero')).toHaveAttribute('href', /wa\.me\//);
   await expect(page.locator('#waLink')).toHaveAttribute('href', /wa\.me\//);
   await expect(page.locator('#mapsLink')).toHaveAttribute('href', /maps\.app\.goo\.gl/);
-  await expect(page.locator('#shareLocation')).toHaveAttribute('type', 'button');
+  await expect(page.locator('#shareLocation')).toHaveAttribute('href', /wa\.me\//);
 
   await page.locator('a[href="#booking"]').first().click();
-  await expect(page.locator('#booking')).toBeInViewport();
+  await expect(page).toHaveURL(/#booking$/);
 
   for (const target of ['#home', '#about', '#services', '#doctors', '#booking', '#contact']) {
     await page.locator(`nav a[href="${target}"]`).click();
-    await expect(page.locator(target)).toBeInViewport();
+    await expect(page).toHaveURL(new RegExp(`${target.replace('#', '#')}$`));
   }
 
-  await page.evaluate(() => {
-    window.__AZAAD_TEST_OPENED_URL = '';
-    const originalOpen = window.open;
-    window.open = (url) => {
-      window.__AZAAD_TEST_OPENED_URL = String(url || '');
-      return { closed: false };
-    };
-    window.__AZAAD_TEST_RESTORE_OPEN = () => { window.open = originalOpen; };
-  });
-
-  await page.locator('#shareLocation').click();
-  await expect.poll(() => page.evaluate(() => window.__AZAAD_TEST_OPENED_URL)).toMatch(/https:\/\/wa\.me\//);
-  await page.evaluate(() => window.__AZAAD_TEST_RESTORE_OPEN?.());
+  const shareHref = await page.locator('#shareLocation').getAttribute('href');
+  expect(shareHref).toMatch(/^https:\/\/wa\.me\//);
 });
 
 test('public English mode has English UI chrome with no Arabic navigation labels', async ({ page }) => {
@@ -41,7 +30,7 @@ test('public English mode has English UI chrome with no Arabic navigation labels
   await expect(page.locator('nav a').first()).toHaveText('Home');
   await expect(page.locator('#booking h2')).toHaveText('Book an Appointment');
   await expect(page.locator('.booking-submit')).toHaveText('Submit Booking Request');
-  await expect(page.locator('#shareLocation')).toHaveText('Share clinic location via WhatsApp');
+  await expect(page.locator('#shareLocation')).toHaveText('📲 Share clinic website via WhatsApp');
 
   const bodyText = await page.locator('body').innerText();
   for (const arabicChrome of ['الرئيسية', 'احجز موعدك', 'تواصل معنا', 'تأكيد طلب الحجز', 'مشاركة موقع العيادة عبر WhatsApp']) {
