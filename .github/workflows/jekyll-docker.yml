@@ -59,6 +59,18 @@ jobs:
           PY
       - name: 🧭 Finalize single-owner admin auth
         run: python3 .github/finalize-auth.py
+      - name: 🧪 Synchronize Patient Center with admin auth promise
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("patients-center.js")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace(
+              "if (window.AZAAD_READY) await window.AZAAD_READY;",
+              "if (window.AZAAD_AUTH_READY) await window.AZAAD_AUTH_READY;"
+          )
+          path.write_text(text, encoding="utf-8")
+          PY
       - name: ⚙️ Setup GitHub Pages
         uses: actions/configure-pages@v5
       - name: 📦 Upload website
