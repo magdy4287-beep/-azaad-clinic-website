@@ -1,0 +1,35 @@
+name: Cache bust patient center
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.author.name != 'Azaad Clinic Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update patient center script version
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('admin.html')
+          s = p.read_text(encoding='utf-8')
+          old = '<script src="./patients-center.js?v=7.1.0"></script>'
+          new = '<script src="./patients-center.js?v=7.2.0"></script>'
+          if old in s:
+              p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          elif new in s:
+              print('already patched')
+          else:
+              raise SystemExit('patient center script tag not found')
+      - name: Commit
+        run: |
+          git config user.name 'Azaad Clinic Bot'
+          git config user.email 'actions@github.com'
+          git add admin.html
+          git diff --cached --quiet || (git commit -m 'Cache bust patient center v7.2' && git push)
