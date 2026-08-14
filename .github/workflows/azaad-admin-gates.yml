@@ -1,0 +1,27 @@
+name: Azaad Admin Acceptance Gates
+
+on:
+  push:
+    branches:
+      - feat/azaad-admin-suite-free-first
+  pull_request:
+    paths:
+      - 'admin.html'
+      - 'admin*.js'
+      - 'patients-center.js'
+      - '.github/patch-admin.py'
+      - 'qa/admin-gates.py'
+      - '.github/workflows/azaad-admin-gates.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  admin-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run free structural acceptance gates
+        run: python3 qa/admin-gates.py
