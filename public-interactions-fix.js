@@ -115,24 +115,13 @@
     }
 
     const share = document.getElementById('shareLocation');
-    if (share) {
-      const shareUrl = `https://wa.me/${wa()}?text=${encodeURIComponent(lang() === 'en'
-        ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
-        : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`)}`;
-      if (share.tagName === 'A') {
-        share.href = shareUrl;
-        share.target = '_blank';
-        share.rel = 'noopener noreferrer';
-      } else if (share.dataset.azaadInteractionBound !== 'true') {
-        share.dataset.azaadInteractionBound = 'true';
-        share.addEventListener('click', event => {
-          event.preventDefault();
-          event.stopPropagation();
-          openWhatsApp(lang() === 'en'
-            ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
-            : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`);
-        }, true);
-      }
+    if (share && share.dataset.azaadInteractionBound !== 'true') {
+      share.dataset.azaadInteractionBound = 'true';
+      share.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        shareLocationViaWhatsApp();
+      }, true);
     }
 
     const phone = document.getElementById('phoneLink');
