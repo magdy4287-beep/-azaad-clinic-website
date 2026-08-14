@@ -27,7 +27,7 @@ jobs:
           old = './patient-session-bridge-v3.js?v=3.0.0'
           new = './patient-session-bridge-v3.js?v=4.1.0'
           if old not in s:
-              raise SystemExit('Expected bridge reference not found')
+              raise SystemExit('Bridge reference already updated or not found')
           p.write_text(s.replace(old, new), encoding='utf-8')
           PY
 
