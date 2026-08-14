@@ -49,6 +49,62 @@ async function restoreStaff(){
 }
 '''.strip()
 
+STAFF_API = '''
+async function staffApi(
+  action,
+  payload = {}
+){
+  if(!requirePermission("staff.view")){
+    throw new Error("ليس لديك صلاحية.");
+  }
+
+  async function request(){
+    const session = state.session || (await supabase.auth.getSession()).data.session;
+    if(!session?.access_token) throw new Error("جلسة الإدارة غير موجودة.");
+
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/staff-admin`,
+      {
+        method:"POST",
+        cache:"no-store",
+        headers:{
+          Accept:"application/json",
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${session.access_token}`,
+          apikey:SUPABASE_PUBLISHABLE_KEY
+        },
+        body:JSON.stringify({
+          action,
+          ...(payload || {})
+        })
+      }
+    );
+
+    let body = {};
+    try { body = await response.json(); } catch(_) {}
+    return { response, body };
+  }
+
+  let result = await request();
+
+  if(result.response.status === 401){
+    try { await azaadEnsureFreshSession(); }
+    catch (_) { throw new Error("جلسة الإدارة منتهية."); }
+    result = await request();
+  }
+
+  if(!result.response.ok){
+    throw new Error(
+      result.body?.error ||
+      result.body?.message ||
+      `HTTP ${result.response.status}`
+    );
+  }
+
+  return result.body;
+}
+'''.strip()
+
 
 def finalize_admin_html():
     path = Path("admin.html")
@@ -142,6 +198,9 @@ async function staffApi'''
     text, count = re.subn(r'async function admin\(\n  query,\n  options = \{\}\n\)\{.*?\n\}\n\nasync function staffApi', admin_block, text, count=1, flags=re.S)
     if count != 1: raise RuntimeError("Could not replace admin()")
 
+    text, count = re.subn(r'async function staffApi\(\n  action,\n  payload = \{\}\n\)\{.*?\n\}\n\nlet data =', STAFF_API + "\n\nlet data =", text, count=1, flags=re.S)
+    if count != 1: raise RuntimeError("Could not replace staffApi()")
+
     text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*', '\n', text)
     text = re.sub(r'\nwindow\.AZAAD_READY\s*=\s*\(async\s*\(\)\s*=>\s*\{.*?\n\}\)\(\);', '', text, count=1, flags=re.S)
 
@@ -162,7 +221,7 @@ window.AZAAD_AUTH_READY = window.AZAAD_READY;
 '''
     text = re.sub(re.escape(marker) + r'.*?(?=</script>)', tail, text, count=1, flags=re.S)
     path.write_text(text, encoding="utf-8")
-    print("Finalized single-owner admin auth; admin Edge fetch no longer sends unnecessary apikey header")
+    print("Finalized admin auth and routed staff management through staff-admin")
 
 
 finalize_admin_html()
