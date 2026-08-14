@@ -29,11 +29,45 @@ jobs:
       - name: Resolve browser test base URL
         id: base-url
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "url=https://deploy-preview-${{ github.event.pull_request.number }}--jazzy-lebkuchen-f42de0.netlify.app" >> "$GITHUB_OUTPUT"
+            sha="${{ github.event.pull_request.head.sha }}"
+            url=""
+
+            for attempt in {1..12}; do
+              url="$(gh api \
+                -H 'Accept: application/vnd.github+json' \
+                "repos/${GITHUB_REPOSITORY}/deployments?sha=${sha}&per_page=20" \
+                --jq '.[] | select(.environment == "Preview") | .id' \
+                | while read -r deployment_id; do
+                    gh api \
+                      -H 'Accept: application/vnd.github+json' \
+                      "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses?per_page=20" \
+                      --jq '.[] | select(.state == "success") | (.environment_url // .target_url)' \
+                      | head -n 1
+                  done \
+                | head -n 1)"
+
+              if [[ -n "$url" ]]; then
+                break
+              fi
+              sleep 5
+            done
+
+            if [[ -z "$url" ]]; then
+              echo "No successful Vercel Preview deployment URL found for ${sha}." >&2
+              exit 1
+            fi
+
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+            echo "Testing Vercel Preview: $url"
           else
             echo "url=https://azaad-clinic-website.vercel.app" >> "$GITHUB_OUTPUT"
+            echo "Testing production: https://azaad-clinic-website.vercel.app"
           fi
 
       - name: Run browser E2E
@@ -51,4 +85,4 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI: production on main, accessible PR preview mirror on pull requests
+# CI: production on main, Vercel Preview deployment on pull requests
