@@ -19,7 +19,7 @@ def patch_admin_html():
 
   const request = async () => {
     return fetch(
-      `${SUPABASE_URL}/functions/v1/azaad-admin?api=account`,
+      `${SUPABASE_URL}/functions/v1/azaad-admin-auth`,
       {
         method:"GET",
         headers:{
@@ -112,7 +112,7 @@ def patch_admin_js():
   }
 
   const request = async () => fetch(
-    `${SUPABASE_URL}/functions/v1/azaad-admin?api=account`,
+    `${SUPABASE_URL}/functions/v1/azaad-admin-auth`,
     {
       method: "GET",
       headers: {
