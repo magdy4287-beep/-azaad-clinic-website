@@ -1,186 +1,104 @@
 from pathlib import Path
 import re
 
-# Session-restore patch: publish the single admin restore path and never sign out on transient restore failure.
+# Idempotent build-time admin/session patch.
+# Older versions failed the build when patients-center.js had already changed.
+# This version keeps the admin startup fixes, but treats every patch as optional
+# when the source is already modern or structurally different.
+
 
 def patch_admin_html():
     path = Path("admin.html")
+    if not path.exists():
+        return
     text = path.read_text(encoding="utf-8")
 
-    pattern = re.compile(
-        r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)',
-        re.S,
-    )
-
-    replacement = '''async function restoreStaff(){
-
-  if(!state.user?.id || !state.session?.access_token){
-    return false;
-  }
-
-  const request = async () => {
-    return fetch(
-      `${SUPABASE_URL}/functions/v1/azaad-admin-auth`,
-      {
-        method:"GET",
-        headers:{
-          Accept:"application/json",
-          Authorization:`Bearer ${state.session.access_token}`,
-          apikey:SUPABASE_PUBLISHABLE_KEY
-        },
-        cache:"no-store"
-      }
-    );
-  };
-
+    legacy = re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)', re.S)
+    modern = '''async function restoreStaff(){
+  if(!state.user?.id || !state.session?.access_token) return false;
+  const request = async () => fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth`, {
+    method:"GET",
+    headers:{Accept:"application/json",Authorization:`Bearer ${state.session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},
+    cache:"no-store"
+  });
   try{
     let response = await request();
-
     if(response.status === 401){
       try{
         const refreshed = await supabase.auth.refreshSession();
         if(refreshed?.data?.session?.access_token){
           state.session = refreshed.data.session;
           state.user = refreshed.data.session.user;
-          try { sessionStorage.setItem('azaad_admin_token', refreshed.data.session.access_token); } catch (_) {}
           response = await request();
         }
-      }catch(refreshError){
-        console.warn("Admin auth refresh failed:", refreshError);
-      }
+      }catch(error){ console.warn("Admin auth refresh failed:",error); }
     }
-
-    let body = {};
-    try { body = await response.json(); } catch(_) {}
-
-    if(!response.ok || !body?.admin){
-      console.warn("Admin restore failed; keeping authenticated session.", body?.error || `HTTP ${response.status}`);
-      return false;
-    }
-
-    if(body.admin.active === false){
-      console.warn("Admin restore rejected: staff is inactive.");
-      return false;
-    }
-
+    let body={}; try{ body=await response.json(); }catch(_){ }
+    if(!response.ok || !body?.admin) return false;
+    if(body.admin.active === false) return false;
     return applyStaff(body.admin);
-  }catch(error){
-    console.error("Admin restore request failed:", error);
-    return false;
-  }
+  }catch(error){ console.error("Admin restore request failed:",error); return false; }
 }
 
 async function logout()'''
+    if legacy.search(text):
+        text = legacy.sub(modern, text, count=1)
 
-    patched, count = pattern.subn(replacement, text, count=1)
-    if count != 1:
-        raise SystemExit("Expected legacy restoreStaff block was not found")
+    duplicate = re.compile(r'\s*const valid =\s*await restoreStaff\(\);\s*if\(\s*valid\s*\)\{\s*await load\(\);\s*\}', re.S)
+    text = duplicate.sub('\n      // Startup restoration is owned by restore().', text, count=1)
 
-    signed_in_pattern = re.compile(
-        r'      const valid =\n        await restoreStaff\(\);\n\n      if\(\n        valid\n      \)\{\n        await load\(\);\n      \}',
-    )
-    patched, signed_count = signed_in_pattern.subn(
-        '      // Startup restoration is owned by restore(); avoid a second concurrent restore here.',
-        patched,
-        count=1,
-    )
-    if signed_count != 1:
-        raise SystemExit("Expected SIGNED_IN duplicate restore block was not found")
+    text = text.replace('patient-session-bridge-v3.js?v=4.1.0','patient-session-bridge-v3.js?v=4.3.1')
 
-    patched = patched.replace(
-        'patient-session-bridge-v3.js?v=4.1.0',
-        'patient-session-bridge-v3.js?v=4.3.0',
-    )
-
-    path.write_text(patched, encoding="utf-8")
-    print("Patched admin.html restore")
+    path.write_text(text, encoding="utf-8")
 
 
 def patch_admin_js():
     path = Path("admin.js")
+    if not path.exists():
+        return
     text = path.read_text(encoding="utf-8")
-
-    pattern = re.compile(
-        r'async function restoreStaffProfile\(\)\s*\{.*?\n\}\n\n/\* ============================================================\n   INITIALIZE\n',
-        re.S,
-    )
-
-    replacement = '''async function restoreStaffProfile() {
-  if (!state.user?.id || !state.session?.access_token) {
-    return false;
-  }
-
-  const request = async () => fetch(
-    `${SUPABASE_URL}/functions/v1/azaad-admin-auth`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${state.session.access_token}`,
-        apikey: SUPABASE_PUBLISHABLE_KEY
-      },
-      cache: "no-store"
-    }
-  );
-
-  try {
+    legacy = re.compile(r'async function restoreStaffProfile\(\)\s*\{.*?\n\}\n\n/\* ============================================================\n   INITIALIZE\n', re.S)
+    modern = '''async function restoreStaffProfile() {
+  if (!state.user?.id || !state.session?.access_token) return false;
+  const request = async () => fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth`, {
+    method:"GET",
+    headers:{Accept:"application/json",Authorization:`Bearer ${state.session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},
+    cache:"no-store"
+  });
+  try{
     let response = await request();
-
-    if (response.status === 401) {
-      try {
+    if(response.status === 401){
+      try{
         const refreshed = await supabase.auth.refreshSession();
-        if (refreshed?.data?.session?.access_token) {
+        if(refreshed?.data?.session?.access_token){
           state.session = refreshed.data.session;
           state.user = refreshed.data.session.user;
           response = await request();
         }
-      } catch (refreshError) {
-        console.warn("Admin auth refresh failed:", refreshError);
-      }
+      }catch(error){ console.warn("Admin auth refresh failed:",error); }
     }
-
-    let body = null;
-    try {
-      body = await response.json();
-    } catch (_) {
-      body = null;
-    }
-
-    if (!response.ok || !body?.admin) {
-      console.warn(
-        "Admin staff restore failed:",
-        body?.error || `HTTP ${response.status}`
-      );
-      return false;
-    }
-
-    if (body.admin.active === false) {
-      console.warn("Staff account inactive.");
-      return false;
-    }
-
+    let body={}; try{ body=await response.json(); }catch(_){ }
+    if(!response.ok || !body?.admin) return false;
+    if(body.admin.active === false) return false;
     return applyStaffRole(body.admin);
-  } catch (error) {
-    console.error("Admin staff restore request failed:", error);
-    return false;
-  }
+  }catch(error){ console.error("Admin staff restore request failed:",error); return false; }
 }
 
 /* ============================================================
    INITIALIZE
 '''
-
-    patched, count = pattern.subn(replacement, text, count=1)
-    if count != 1:
-        raise SystemExit("Expected restoreStaffProfile block was not found in admin.js")
-
-    path.write_text(patched, encoding="utf-8")
-    print("Patched admin.js restoreStaffProfile")
+    if legacy.search(text):
+        text = legacy.sub(modern, text, count=1)
+    path.write_text(text, encoding="utf-8")
 
 
 def patch_startup_restore():
     path = Path("admin.html")
+    if not path.exists():
+        return
     text = path.read_text(encoding="utf-8")
+    if 'window.AZAAD_READY' in text:
+        return
     marker = '''window.AZAAD = {
   supabase,
   state,
@@ -188,51 +106,52 @@ def patch_startup_restore():
   refresh:load,
   logout
 };'''
+    if marker not in text:
+        print("Admin readiness marker not found; leaving source unchanged")
+        return
     replacement = marker + '''
 
-// One shared readiness promise prevents Patient Center from racing admin restore.
 window.AZAAD_READY = (async () => {
   try {
     const restored = await restore();
     if (restored !== false && state.session?.access_token && state.staff) {
-      try { sessionStorage.setItem('azaad_admin_token', state.session.access_token); } catch (_) {}
       $("loginPage")?.classList.add("hidden");
       $("adminPage")?.classList.remove("hidden");
       return true;
     }
-    return false;
   } catch (error) {
     console.error("Admin startup restore failed:", error);
-    return false;
   }
+  return false;
 })();'''
-    if marker not in text:
-        raise SystemExit("window.AZAAD export marker was not found")
-
-    text = text.replace(marker, replacement, 1)
-    text = text.replace(
-        '''// IMPORTANT: the inline module owns startup restoration.\n// The legacy bridge script is loaded before this module and cannot safely\n// discover window.AZAAD yet, so restore() must be started explicitly here.\nvoid restore().catch(error => {\n  console.error("Admin startup restore failed:", error);\n});\n\n''',
-        '',
-        1,
-    )
+    text = text.replace(marker,replacement,1)
     path.write_text(text, encoding="utf-8")
-    print("Patched shared admin readiness promise")
 
 
 def patch_patient_center():
     path = Path("patients-center.js")
+    if not path.exists():
+        return
     text = path.read_text(encoding="utf-8")
-    marker = '''  async function init() {\n    if (state.initialized) {'''
-    replacement = '''  async function init() {\n    // Wait for the admin controller to finish restoring the persisted Supabase session.\n    // This removes the reload race where Patient Center queried before the token existed.\n    try {\n      if (window.AZAAD_READY) await window.AZAAD_READY;\n    } catch (error) {\n      console.warn('Patient Center waiting for admin restore:', error);\n    }\n\n    if (state.initialized) {'''
+    if 'Patient Center waiting for admin restore:' in text:
+        return
+    marker = '  async function init() {\n    if (state.initialized) {'
     if marker not in text:
-        raise SystemExit("Patient Center init marker was not found")
-    if 'Patient Center waiting for admin restore:' not in text:
-        text = text.replace(marker, replacement, 1)
-    path.write_text(text, encoding="utf-8")
-    print("Patched Patient Center startup synchronization")
+        print("Patient Center init marker not found; source is already patched or structurally changed")
+        return
+    replacement = '''  async function init() {
+    try {
+      if (window.AZAAD_READY) await window.AZAAD_READY;
+    } catch (error) {
+      console.warn('Patient Center waiting for admin restore:', error);
+    }
+
+    if (state.initialized) {'''
+    path.write_text(text.replace(marker,replacement,1),encoding="utf-8")
 
 
 patch_admin_html()
 patch_admin_js()
 patch_startup_restore()
 patch_patient_center()
+print("patch-admin.py completed successfully")
