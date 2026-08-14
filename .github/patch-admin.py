@@ -72,4 +72,5 @@ patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center
 inject_script("admin.html","frontdesk-workflow.js")
 inject_script("admin.html","patient-merge-tool.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
+inject_script("clinical-assessment.html","clinician-transfer-widget.js")
 print("patch-admin.py completed successfully")
