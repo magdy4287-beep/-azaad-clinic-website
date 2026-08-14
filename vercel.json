@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Azaad Clinic static site - no build required'",
+  "buildCommand": "python3 .github/patch-admin.py",
   "outputDirectory": ".",
   "cleanUrls": false,
   "trailingSlash": false
