@@ -26,19 +26,25 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Resolve browser test base URL
-        id: base-url
+      - name: Start local PR build server
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "url=https://deploy-preview-${{ github.event.pull_request.number }}--jazzy-lebkuchen-f42de0.netlify.app" >> "$GITHUB_OUTPUT"
-          else
-            echo "url=https://azaad-clinic-website.vercel.app" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
+          echo $! > /tmp/azaad-http.pid
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "Local Azaad PR build is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/azaad-http.log || true
+          exit 1
 
-      - name: Run browser E2E
+      - name: Run browser E2E against checked-out PR code
         env:
-          AZAAD_BASE_URL: ${{ steps.base-url.outputs.url }}
+          AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
@@ -51,4 +57,13 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI: production on main, accessible PR preview mirror on pull requests
+      - name: Stop local server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/azaad-http.pid ]]; then
+            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
+          fi
+
+# Browser E2E intentionally tests the exact checked-out PR files locally.
+# This avoids provider-specific preview access controls and makes PR validation deterministic.
