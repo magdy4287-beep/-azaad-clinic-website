@@ -1,0 +1,19 @@
+name: Azaad Appointment Contract Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  appointment-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Appointment contract gate
+        run: python3 qa/appointment-contract-gate.py
