@@ -8,14 +8,14 @@ paths = [
 ]
 text = "\n".join((ROOT / p).read_text(encoding="utf-8") for p in paths if (ROOT / p).exists())
 
-# High-confidence secret checks only: detect concrete secret formats/assignments,
-# not explanatory comments or generic words such as "service role".
+# Security-only checks. Patient/MRN behavior is covered by the dedicated
+# Patient 360 and Appointment contract gates; this gate must not require
+# production/sample patient identifiers to be embedded in UI source files.
 checks = {
     "no service-role secret assignment": r"SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*['\"](?:eyJ|sb_secret_)[A-Za-z0-9._-]+",
     "no service-role JWT assignment": r"service_role\s*[:=]\s*['\"]eyJ[A-Za-z0-9._-]+",
     "no hardcoded OpenAI secret": r"sk-[A-Za-z0-9_-]{20,}",
     "audit/security terminology": r"audit|security|permission|role",
-    "patient identifier contract": r"AZA-\d{6}|Patient 0",
 }
 for name, pattern in checks.items():
     hits = re.findall(pattern, text, re.I)
