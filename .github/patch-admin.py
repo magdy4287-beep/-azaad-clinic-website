@@ -55,5 +55,11 @@ patched, count = pattern.subn(replacement, text, count=1)
 if count != 1:
     raise SystemExit("Expected legacy restoreStaff block was not found")
 
+# Force a fresh browser resource for the current bridge implementation.
+patched = patched.replace(
+    'patient-session-bridge-v3.js?v=4.1.0',
+    'patient-session-bridge-v3.js?v=4.3.0',
+)
+
 path.write_text(patched, encoding="utf-8")
-print("Legacy admin restore logout path removed for Pages artifact")
+print("Legacy restore logout path removed and session bridge cache-busted")
