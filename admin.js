@@ -2777,7 +2777,7 @@ supabase.auth.onAuthStateChange(
           ) {
             await initializeApplication();
           } else {
-            await supabase.auth.signOut();
+            console.warn("Auth session exists but staff profile is not ready; keeping session intact.");
           }
         } catch (error) {
           console.error(
@@ -2785,7 +2785,7 @@ supabase.auth.onAuthStateChange(
             error
           );
 
-          await supabase.auth.signOut();
+          console.warn("Auth staff restore failed; keeping the authenticated session for retry.");
         }
       }
 
@@ -2899,31 +2899,3 @@ document.addEventListener(
     }
   }
 );
-
-
-/* ============================================================
-   BOOTSTRAP SESSION ON EVERY PAGE LOAD
-   ============================================================ */
-
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await restoreSession();
-  } catch (error) {
-    console.error("Admin bootstrap error:", error);
-  }
-});
-
-
-/* ============================================================
-   ADMIN BOOTSTRAP
-   ============================================================ */
-
-window.__AZAAD_ADMIN_BOOTSTRAP__ = true;
-
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await restoreSession();
-  } catch (error) {
-    console.error("Admin bootstrap error:", error);
-  }
-});
