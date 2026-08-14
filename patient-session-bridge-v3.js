@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.3.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v4.3.1 */
 (() => {
   'use strict';
 
@@ -92,12 +92,8 @@
   }
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '4.3.0',
-    getAccessToken: async () => {
-      const session = await syncAuth();
-      if (session?.access_token) return session.access_token;
-      try { return sessionStorage.getItem(SESSION_KEY) || ''; } catch (_) { return ''; }
-    },
+    version: '4.3.1',
+    getAccessToken: async () => (await syncAuth())?.access_token || '',
     getSession: syncAuth,
     refresh: syncAuth,
     restoreAdmin
