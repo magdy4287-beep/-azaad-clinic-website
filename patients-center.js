@@ -4,7 +4,7 @@
   /* ============================================================
      AZAAD CLINIC - PATIENT CENTER
      Production Patient Management Center
-     v7.2.0
+     v7.2.1
 
      SECURITY:
      - No Service Role Key in browser.
@@ -81,14 +81,12 @@
   }
 
   async function getAccessToken() {
-    // 1) Live token supplied by the admin controller.
     const liveToken = window.AZAAD?.state?.session?.access_token;
     if (liveToken) {
       rememberToken(liveToken);
       return liveToken;
     }
 
-    // 2) Explicit session bridge, when present.
     try {
       const bridgeToken = await window.AZAAD_PATIENT_SESSION?.getAccessToken?.();
       if (bridgeToken) {
@@ -99,7 +97,6 @@
       console.warn('Patient Center bridge error:', error);
     }
 
-    // 3) The exact Supabase client already used by admin.html.
     const supabase = window.AZAAD?.supabase;
     if (supabase?.auth) {
       try {
@@ -113,7 +110,6 @@
       }
     }
 
-    // 4) Last-resort browser session bridge.
     try {
       const stored = sessionStorage.getItem(SESSION_KEY) || '';
       if (stored) return stored;
@@ -454,15 +450,25 @@
       bindAuthListener();
       return true;
     }
+
+    // Auth is the gate for Patient Center. Wait for the admin controller
+    // to finish restoring/validating the Supabase session before creating
+    // the UI or attempting any patient API request. This prevents the
+    // mobile-Safari race where Patient Center initialized before Auth.
+    try {
+      if (window.AZAAD_AUTH_READY && typeof window.AZAAD_AUTH_READY.then === 'function') {
+        await window.AZAAD_AUTH_READY;
+      }
+    } catch (error) {
+      console.warn('Patient Center auth-ready wait:', error);
+    }
+
     injectStyles();
     if (!injectUI()) return false;
     bindExistingTabs();
     state.initialized = true;
     bindAuthListener();
 
-    // If the admin session is already live when this script initializes,
-    // load immediately. This removes the mobile-Safari race where the
-    // panel opened before the session bridge had finished.
     const token = await getAccessToken();
     if (token && $('patientsPanel')?.classList.contains('active')) {
       setTimeout(() => loadPatients(), 0);
