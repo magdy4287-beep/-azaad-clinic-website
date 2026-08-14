@@ -1,0 +1,25 @@
+name: Azaad Patient 360 Contract Gate
+
+# Free-first contract verification. No patient data is created or mutated.
+
+on:
+  push:
+    branches:
+      - main
+      - feat/azaad-admin-suite-free-first
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  patient-360-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Patient 360 contract gate
+        run: python3 qa/patient-360-contract-gate.py
