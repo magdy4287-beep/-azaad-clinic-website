@@ -25,6 +25,45 @@ jobs:
         uses: actions/checkout@v4
       - name: 🔐 Patch legacy admin restore
         run: python3 .github/patch-admin.py
+      - name: 🔒 Isolate browser auth storage and session bridge
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          for filename in ("admin.html", "admin.js"):
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              text = text.replace(
+                  "detectSessionInUrl:true",
+                  "detectSessionInUrl:false"
+              )
+              text = text.replace(
+                  "detectSessionInUrl: true",
+                  "detectSessionInUrl: false"
+              )
+              text = text.replace(
+                  "auth:{\n        persistSession:true,",
+                  "auth:{\n        storageKey:\"azaad-clinic-admin-auth\",\n        persistSession:true,"
+              )
+              text = text.replace(
+                  "auth: {\n        autoRefreshToken: true,",
+                  "auth: {\n        storageKey: \"azaad-clinic-admin-auth\",\n        autoRefreshToken: true,"
+              )
+              path.write_text(text, encoding="utf-8")
+
+          bridge = Path("patient-session-bridge-v3.js")
+          text = bridge.read_text(encoding="utf-8")
+          text = text.replace(
+              "const ADMIN_FUNCTION = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin';",
+              "const ADMIN_FUNCTION = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin-auth';"
+          )
+          text = text.replace(
+              "const boot = () => { if (!booted) restoreAdmin(); };",
+              "const boot = async () => {\n    if (booted) return;\n    try {\n      if (window.AZAAD_READY) await window.AZAAD_READY;\n    } catch (_) {}\n    await restoreAdmin();\n  };"
+          )
+          bridge.write_text(text, encoding="utf-8")
+          PY
       - name: ⚙️ Setup GitHub Pages
         uses: actions/configure-pages@v5
       - name: 📦 Upload website
