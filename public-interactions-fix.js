@@ -34,21 +34,29 @@
     return true;
   }
 
-  function openWhatsApp(message) {
+  function whatsappUrl(message) {
     const number = wa();
-    if (!number) return false;
-    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    if (!number) return '';
+    return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  }
+
+  function openWhatsApp(message) {
+    const url = whatsappUrl(message);
+    if (!url) return false;
     const opened = window.open(url, '_blank', 'noopener,noreferrer');
     if (!opened) window.location.href = url;
     return true;
   }
 
-  function shareLocationViaWhatsApp() {
+  function shareLocationMessage() {
     const english = lang() === 'en';
-    const message = english
+    return english
       ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
       : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`;
-    openWhatsApp(message);
+  }
+
+  function shareLocationViaWhatsApp() {
+    openWhatsApp(shareLocationMessage());
   }
 
   function announceLanguageChange() {
@@ -115,13 +123,20 @@
     }
 
     const share = document.getElementById('shareLocation');
-    if (share && share.dataset.azaadInteractionBound !== 'true') {
-      share.dataset.azaadInteractionBound = 'true';
-      share.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        shareLocationViaWhatsApp();
-      }, true);
+    if (share) {
+      const href = whatsappUrl(shareLocationMessage());
+      if (href && share.getAttribute('href') !== href) share.href = href;
+      share.target = '_blank';
+      share.rel = 'noopener noreferrer';
+      share.setAttribute('role', 'button');
+      if (share.dataset.azaadInteractionBound !== 'true') {
+        share.dataset.azaadInteractionBound = 'true';
+        share.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          shareLocationViaWhatsApp();
+        }, true);
+      }
     }
 
     const phone = document.getElementById('phoneLink');
