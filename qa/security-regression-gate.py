@@ -3,10 +3,11 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
+# Scan application/runtime files only. Test scripts themselves intentionally
+# contain security-pattern strings and must not create false positives.
 paths = [
     "admin.html", "app.js", "admin-enhancements-v1.js", "public-ui.js",
-    "supabase-config.js", "qa/patient-360-contract-gate.py", "qa/appointment-contract-gate.py",
-    "qa/rcm-contract-gate.py", "qa/payments-reporting-contract-gate.py"
+    "supabase-config.js"
 ]
 text = "\n".join((ROOT / p).read_text(encoding="utf-8") for p in paths if (ROOT / p).exists())
 checks = {
