@@ -13,23 +13,100 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix Patient Center module timing and cache
+
+      - name: Harden Patient Center session and cache
         shell: python
         run: |
           from pathlib import Path
+
+          p = Path('patients-center.js')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("    authListenerBound: false\n", "    authListenerBound: false,\n    sessionReadyBound: false\n", 1)
+
+          start = s.index('  async function getAccessToken() {')
+          end = s.index('\n  function bindAuthListener()', start)
+          new = '''  async function getAccessToken() {
+    try {
+      const stored = sessionStorage.getItem(SESSION_KEY) || '';
+      if (stored) {
+        rememberToken(stored);
+        return stored;
+      }
+    } catch (_) {}
+
+    const liveToken = window.AZAAD?.state?.session?.access_token;
+    if (liveToken) {
+      rememberToken(liveToken);
+      return liveToken;
+    }
+
+    try {
+      const bridgeToken = await window.AZAAD_PATIENT_SESSION?.getAccessToken?.();
+      if (bridgeToken) {
+        rememberToken(bridgeToken);
+        return bridgeToken;
+      }
+    } catch (error) {
+      console.warn('Patient Center bridge error:', error);
+    }
+
+    const supabase = window.AZAAD?.supabase;
+    if (supabase?.auth) {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!error && data?.session?.access_token) {
+          rememberToken(data.session.access_token);
+          return data.session.access_token;
+        }
+      } catch (error) {
+        console.error('Patient Center session error:', error);
+      }
+    }
+
+    return '';
+  }
+'''
+          s = s[:start] + new + s[end:]
+
+          if 'function bindSessionReadyListener()' not in s:
+              marker = '  function bindAuthListener() {\n'
+              insertion = '''  function bindSessionReadyListener() {
+    if (state.sessionReadyBound) return;
+    state.sessionReadyBound = true;
+    window.addEventListener('azaad:session-ready', (event) => {
+      const token = event?.detail?.access_token || '';
+      if (token) {
+        rememberToken(token);
+        setTimeout(() => loadPatients(), 0);
+      }
+    });
+  }
+
+'''
+              s = s.replace(marker, insertion + marker, 1)
+
+          s = s.replace("    bindAuthListener();\n\n    // If the admin session", "    bindAuthListener();\n    bindSessionReadyListener();\n\n    // If the admin session", 1)
+          s = s.replace("      bindAuthListener();\n      return true;", "      bindAuthListener();\n      bindSessionReadyListener();\n      return true;", 1)
+          p.write_text(s, encoding='utf-8')
+
           p = Path('admin.html')
           s = p.read_text(encoding='utf-8')
-          old = '<script src="./patients-center.js?v=7.2.0"></script>'
-          new = '<script type="module" src="./patients-center.js?v=7.3.0"></script>'
-          if old in s:
-              p.write_text(s.replace(old, new, 1), encoding='utf-8')
-          elif new in s:
-              print('already patched')
-          else:
-              raise SystemExit('patient center script tag not found')
+          marker = "    try {\n      sessionStorage.setItem('azaad_admin_token', result.session.access_token);\n    } catch (_) {}\n"
+          if "azaad:session-ready" not in s and marker in s:
+              replacement = marker + """
+    try {
+      window.dispatchEvent(new CustomEvent('azaad:session-ready', {
+        detail: { access_token: result.session.access_token }
+      }));
+    } catch (_) {}
+"""
+              s = s.replace(marker, replacement, 1)
+          s = s.replace('value="azaadowner"', 'value="azaadadmin"', 1)
+          p.write_text(s, encoding='utf-8')
+
       - name: Commit
         run: |
           git config user.name 'Azaad Clinic Bot'
           git config user.email 'actions@github.com'
-          git add admin.html
-          git diff --cached --quiet || (git commit -m 'Fix Patient Center module timing v7.3' && git push)
+          git add patients-center.js admin.html
+          git diff --cached --quiet || (git commit -m 'Fix Patient Center session handoff' && git push)
