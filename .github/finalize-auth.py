@@ -60,15 +60,18 @@ def finalize_admin_html():
     text = text.replace("detectSessionInUrl: true", "detectSessionInUrl: false")
     text = re.sub(r'\n?\s*<script\s+src=["\']\./patient-session-bridge-v3\.js[^>]*></script>\s*', "\n", text, count=1, flags=re.I)
 
-    text, count = re.subn(r'\nasync function restoreStaff\(\)\{', "\n" + AUTH_REFRESH_COORDINATOR + "\n\nasync function restoreStaff(){", text, count=1)
+    text, count = re.subn(r'\nasync function restoreStaff\(\{', "\n" + AUTH_REFRESH_COORDINATOR + "\n\nasync function restoreStaff{", text, count=1)
+    if count != 1:
+        # The source uses restoreStaff(){; support that exact form too.
+        text, count = re.subn(r'\nasync function restoreStaff\(\)', "\n" + AUTH_REFRESH_COORDINATOR + "\n\nasync function restoreStaff()", text, count=1)
     if count != 1: raise RuntimeError("Could not locate restoreStaff()")
 
     text, count = re.subn(r'async function restoreStaff\(\)\{.*?\n\}\n\nasync function logout\(\)', ADMIN_AUTH + "\n\nasync function logout()", text, count=1, flags=re.S)
     if count != 1: raise RuntimeError("Could not replace restoreStaff()")
 
-    # Auth state changes update local state only. They must never start another load()
-    # while the initial restore/load transaction is in progress.
-    text = re.sub(r'supabase\.auth\.onAuthStateChange\(\s*async\s*\(\s*event,\s*session\s*\)\s*=>\s*\{.*?\n\s*\}\s*\);', '''supabase.auth.onAuthStateChange((event, session) => {
+    # Keep the auth-state callback synchronous. Supabase documents that async Supabase
+    # calls inside onAuthStateChange can deadlock the client. Startup is owned by AZAAD_READY.
+    listener = '''supabase.auth.onAuthStateChange((event, session) => {
   if(event === "SIGNED_OUT"){
     state.session = null; state.user = null; state.staff = null; state.initialized = false;
     try { sessionStorage.removeItem("azaad_admin_token"); } catch (_) {}
@@ -77,7 +80,9 @@ def finalize_admin_html():
     state.session = session; state.user = session.user;
     try { sessionStorage.setItem("azaad_admin_token", session.access_token); } catch (_) {}
   }
-});''', text, count=1, flags=re.S)
+});'''
+    text, count = re.subn(r'supabase\.auth\.onAuthStateChange\(.*?\n\s*\}\s*\);', listener, text, count=1, flags=re.S)
+    if count != 1: raise RuntimeError("Could not normalize onAuthStateChange()")
 
     text, count = re.subn(r'async function restore\(\)\{.*?\n\}\n\nasync function admin\(', '''let azaadStartupPromise = null;
 
@@ -139,8 +144,11 @@ async function admin(''', text, count=1, flags=re.S)
 
 async function staffApi''', text, count=1, flags=re.S)
 
-    # Idempotently expose the refresh coordinator and one startup promise.
+    # The previous build patch (patch-admin.py) already creates AZAAD_READY and starts restore().
+    # Never start a second restore() here. Reuse the existing readiness promise when present.
     text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*', '\n', text)
+    text = re.sub(r'\nwindow\.AZAAD_READY\s*=\s*\(async\s*\(\)\s*=>\s*\{.*?\n\}\)\(\);', '', text, count=1, flags=re.S)
+
     marker = '''window.AZAAD = {
   supabase,
   state,
@@ -151,15 +159,16 @@ async function staffApi''', text, count=1, flags=re.S)
     if marker not in text: raise RuntimeError("Could not find window.AZAAD marker")
     tail = "window.AZAAD_REFRESH = azaadEnsureFreshSession;\n\n" + marker + '''
 
-window.AZAAD_READY = false;
-window.AZAAD_AUTH_READY = restore().then((ok) => {
-  window.AZAAD_READY = ok;
-  return ok;
-});
+// One startup owner. patch-admin.py creates AZAAD_READY before this finalizer runs;
+// if it is absent, create it here. AZAAD_AUTH_READY is only an alias, never a second restore.
+if(!window.AZAAD_READY){
+  window.AZAAD_READY = restore().then((ok) => !!ok);
+}
+window.AZAAD_AUTH_READY = window.AZAAD_READY;
 '''
     text = re.sub(re.escape(marker) + r'.*?(?=</script>)', tail, text, count=1, flags=re.S)
     path.write_text(text, encoding="utf-8")
-    print("Finalized single-owner admin auth with coordinated refresh and 401 retry")
+    print("Finalized single-owner admin auth without duplicate startup restore")
 
 
 finalize_admin_html()
