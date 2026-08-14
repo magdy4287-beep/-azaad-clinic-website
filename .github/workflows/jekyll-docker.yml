@@ -29,19 +29,12 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           for filename in ("admin.html", "admin.js"):
               path = Path(filename)
               text = path.read_text(encoding="utf-8")
-              text = text.replace(
-                  "detectSessionInUrl:true",
-                  "detectSessionInUrl:false"
-              )
-              text = text.replace(
-                  "detectSessionInUrl: true",
-                  "detectSessionInUrl: false"
-              )
+              text = text.replace("detectSessionInUrl:true", "detectSessionInUrl:false")
+              text = text.replace("detectSessionInUrl: true", "detectSessionInUrl: false")
               text = text.replace(
                   "auth:{\n        persistSession:true,",
                   "auth:{\n        storageKey:\"azaad-clinic-admin-auth\",\n        persistSession:true,"
@@ -64,6 +57,8 @@ jobs:
           )
           bridge.write_text(text, encoding="utf-8")
           PY
+      - name: 🧭 Finalize single-owner admin auth
+        run: python3 .github/finalize-auth.py
       - name: ⚙️ Setup GitHub Pages
         uses: actions/configure-pages@v5
       - name: 📦 Upload website
