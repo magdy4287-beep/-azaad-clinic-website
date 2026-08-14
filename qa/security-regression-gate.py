@@ -15,7 +15,7 @@ checks = {
     "no service-role JWT assignment": r"service_role\s*[:=]\s*['\"]eyJ[A-Za-z0-9._-]+",
     "no hardcoded OpenAI secret": r"sk-[A-Za-z0-9_-]{20,}",
     "audit/security terminology": r"audit|security|permission|role",
-    "patient identifier contract": r"AZA-\\d{6}|Patient 0",
+    "patient identifier contract": r"AZA-\d{6}|Patient 0",
 }
 for name, pattern in checks.items():
     hits = re.findall(pattern, text, re.I)
