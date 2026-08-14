@@ -156,21 +156,49 @@ def patch_startup_restore():
 };'''
     replacement = marker + '''
 
-// IMPORTANT: the inline module owns startup restoration.
-// The legacy bridge script is loaded before this module and cannot safely
-// discover window.AZAAD yet, so restore() must be started explicitly here.
-void restore().catch(error => {
-  console.error("Admin startup restore failed:", error);
-});'''
+// One shared readiness promise prevents Patient Center from racing admin restore.
+window.AZAAD_READY = (async () => {
+  try {
+    const restored = await restore();
+    if (restored !== false && state.session?.access_token && state.staff) {
+      try { sessionStorage.setItem('azaad_admin_token', state.session.access_token); } catch (_) {}
+      $("loginPage")?.classList.add("hidden");
+      $("adminPage")?.classList.remove("hidden");
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Admin startup restore failed:", error);
+    return false;
+  }
+})();'''
     if marker not in text:
         raise SystemExit("window.AZAAD export marker was not found")
-    if 'Admin startup restore failed:' in text:
-        print("Startup restore already patched")
-        return
-    path.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
-    print("Patched admin.html startup restore")
+
+    text = text.replace(marker, replacement, 1)
+    text = text.replace(
+        '''// IMPORTANT: the inline module owns startup restoration.\n// The legacy bridge script is loaded before this module and cannot safely\n// discover window.AZAAD yet, so restore() must be started explicitly here.\nvoid restore().catch(error => {\n  console.error("Admin startup restore failed:", error);\n});\n\n''',
+        '',
+        1,
+    )
+    path.write_text(text, encoding="utf-8")
+    print("Patched shared admin readiness promise")
+
+
+def patch_patient_center():
+    path = Path("patients-center.js")
+    text = path.read_text(encoding="utf-8")
+    marker = '''  async function init() {\n    if (state.initialized) {'''
+    replacement = '''  async function init() {\n    // Wait for the admin controller to finish restoring the persisted Supabase session.\n    // This removes the reload race where Patient Center queried before the token existed.\n    try {\n      if (window.AZAAD_READY) await window.AZAAD_READY;\n    } catch (error) {\n      console.warn('Patient Center waiting for admin restore:', error);\n    }\n\n    if (state.initialized) {'''
+    if marker not in text:
+        raise SystemExit("Patient Center init marker was not found")
+    if 'Patient Center waiting for admin restore:' not in text:
+        text = text.replace(marker, replacement, 1)
+    path.write_text(text, encoding="utf-8")
+    print("Patched Patient Center startup synchronization")
 
 
 patch_admin_html()
 patch_admin_js()
 patch_startup_restore()
+patch_patient_center()
