@@ -5,10 +5,9 @@
 (() => {
   'use strict';
   const API='https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-booking-ai';
-  const KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const token=()=>window.AZAAD?.state?.session?.access_token||'';
   const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
-  async function call(body){const r=await fetch(API,{method:'POST',headers:{Authorization:`Bearer ${token()}`,apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify(body||{})});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b.error||`HTTP ${r.status}`);return b}
+  async function call(body){const accessToken=token();if(!accessToken)throw Error('يجب تسجيل الدخول قبل استخدام مساعد الحجز.');const r=await fetch(API,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(body||{})});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b.error||`HTTP ${r.status}`);return b}
   function slotsFromDom(){return [...document.querySelectorAll('[data-booking-slot],[data-slot-time].azaad-booking-slot')].map((x,i)=>({id:x.dataset.slotId||String(i),date:x.dataset.date||'',time:x.dataset.slotTime||x.dataset.time||'',available:x.dataset.available!=='false'})).filter(x=>x.available)}
   function rank(slots,preferredDate,preferredTime){return slots.map((s,i)=>{let score=0;if(preferredDate&&s.date===preferredDate)score+=100;if(preferredTime&&s.time===preferredTime)score+=60;score+=Math.max(0,30-i);return {...s,score}}).sort((a,b)=>b.score-a.score)}
   async function suggest(input){
