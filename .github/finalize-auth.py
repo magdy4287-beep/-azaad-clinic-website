@@ -1,9 +1,6 @@
 from pathlib import Path
 import re
 
-ADMIN_AUTH = '''
-# Single-flight refresh coordinator: every caller shares one refreshSession()
-# promise so Supabase refresh-token rotation cannot race during startup.
 AUTH_REFRESH_COORDINATOR = '''
 let azaadRefreshPromise = null;
 
@@ -23,11 +20,8 @@ async function azaadEnsureFreshSession(){
     return refreshed.data.session;
   })();
 
-  try {
-    return await azaadRefreshPromise;
-  } finally {
-    azaadRefreshPromise = null;
-  }
+  try { return await azaadRefreshPromise; }
+  finally { azaadRefreshPromise = null; }
 }
 '''.strip()
 
@@ -60,11 +54,8 @@ async function restoreStaff(){
   let result = await requestAccount();
 
   if(result.response?.status === 401){
-    try {
-      await azaadEnsureFreshSession();
-    } catch (_) {
-      return false;
-    }
+    try { await azaadEnsureFreshSession(); }
+    catch (_) { return false; }
     result = await requestAccount();
   }
 
@@ -98,28 +89,20 @@ def finalize_admin_html():
 
     text = re.sub(
         r'\n?\s*<script\s+src=["\']\./patient-session-bridge-v3\.js[^>]*></script>\s*',
-        "\n",
-        text,
-        count=1,
-        flags=re.I,
+        "\n", text, count=1, flags=re.I
     )
 
-    # Inject the single-flight refresh coordinator before restoreStaff().
     text, count = re.subn(
-        r'(\nasync function restoreStaff\(\)\{)',
-        "\n" + AUTH_REFRESH_COORDINATOR + "\1",
-        text,
-        count=1,
+        r'\nasync function restoreStaff\(\)\{',
+        "\n" + AUTH_REFRESH_COORDINATOR + "\n\nasync function restoreStaff(){",
+        text, count=1
     )
     if count != 1:
         raise RuntimeError("Could not locate restoreStaff() for refresh coordinator")
 
     text, count = re.subn(
         r'async function restoreStaff\(\)\{.*?\n\}\n\nasync function logout\(\)',
-        ADMIN_AUTH + "\n\nasync function logout()",
-        text,
-        count=1,
-        flags=re.S,
+        ADMIN_AUTH + "\n\nasync function logout()", text, count=1, flags=re.S
     )
     if count != 1:
         raise RuntimeError("Could not replace restoreStaff()")
@@ -139,10 +122,7 @@ def finalize_admin_html():
     state.user = session.user;
     try { sessionStorage.setItem("azaad_admin_token", session.access_token); } catch (_) {}
   }
-});''',
-        text,
-        count=1,
-        flags=re.S,
+});''', text, count=1, flags=re.S
     )
 
     text, count = re.subn(
@@ -151,13 +131,10 @@ def finalize_admin_html():
   try{
     const { data } = await supabase.auth.getSession();
     if(!data?.session?.access_token) return false;
-
     state.session = data.session;
     state.user = data.session.user;
-
     const valid = await restoreStaff();
     if(!valid) return false;
-
     state.initialized = true;
     $("loginPage").classList.add("hidden");
     $("adminPage").classList.remove("hidden");
@@ -169,10 +146,7 @@ def finalize_admin_html():
   }
 }
 
-async function admin(''',
-        text,
-        count=1,
-        flags=re.S,
+async function admin(''', text, count=1, flags=re.S
     )
     if count != 1:
         raise RuntimeError("Could not replace restore()")
@@ -187,12 +161,10 @@ async function admin(''',
     if(!restored){
       throw new Error("تعذر استعادة جلسة الإدارة.");
     }
-
     state.initialized = true;
     await load();
 
-    toast(''',
-        1,
+    toast(''', 1
     )
 
     marker = '''window.AZAAD = {
@@ -205,9 +177,6 @@ async function admin(''',
     if marker not in text:
         raise RuntimeError("Could not find window.AZAAD marker")
 
-    # Canonicalize everything after window.AZAAD. Previous build-time patches
-    # could append multiple restore promises, causing concurrent refreshSession()
-    # calls and refresh-token rotation races. There must be exactly ONE restore.
     tail = marker + '''
 
 window.AZAAD_READY = false;
@@ -216,13 +185,7 @@ window.AZAAD_AUTH_READY = restore().then((ok) => {
   return ok;
 });
 '''
-    text = re.sub(
-        re.escape(marker) + r'.*?(?=</script>)',
-        tail,
-        text,
-        count=1,
-        flags=re.S,
-    )
+    text = re.sub(re.escape(marker) + r'.*?(?=</script>)', tail, text, count=1, flags=re.S)
 
     path.write_text(text, encoding="utf-8")
     print("Finalized single-owner admin auth with serialized refresh coordinator")
