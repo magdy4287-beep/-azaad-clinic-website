@@ -16,6 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Sync with latest main
+        shell: bash
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
       - name: Patch admin session restore
         shell: bash
         run: |
@@ -101,7 +107,7 @@ jobs:
           p.write_text(text, encoding='utf-8')
           PY
 
-      - name: Commit patch
+      - name: Commit and push patch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -112,4 +118,4 @@ jobs:
             exit 0
           fi
           git commit -m "fix: restore admin session safely [admin-session-fix]"
-          git push
+          git push origin HEAD:main
