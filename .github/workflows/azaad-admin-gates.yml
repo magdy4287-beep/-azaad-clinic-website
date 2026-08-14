@@ -5,14 +5,8 @@ on:
     branches:
       - feat/azaad-admin-suite-free-first
   pull_request:
-    paths:
-      - 'admin.html'
-      - 'admin*.js'
-      - 'patients-center.js'
-      - '.github/patch-admin.py'
-      - 'qa/admin-gates.py'
-      - 'qa/scheduling-contract-gate.py'
-      - '.github/workflows/azaad-admin-gates.yml'
+    branches:
+      - main
 
 permissions:
   contents: read
