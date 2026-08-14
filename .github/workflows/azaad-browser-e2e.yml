@@ -31,7 +31,7 @@ jobs:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
 
       - name: Upload Playwright report
         if: always()
@@ -41,4 +41,4 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# CI trigger touch: validate production browser E2E on main
+# CI trigger: validate admin session restore and public browser UI on production
