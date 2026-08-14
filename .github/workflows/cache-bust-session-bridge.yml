@@ -1,0 +1,42 @@
+name: Cache bust session bridge
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, 'ci: bump session bridge cache version')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Bump bridge cache version
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('admin.html')
+          s = p.read_text(encoding='utf-8')
+          old = './patient-session-bridge-v3.js?v=3.0.0'
+          new = './patient-session-bridge-v3.js?v=4.1.0'
+          if old not in s:
+              raise SystemExit('Expected bridge reference not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'ci: bump session bridge cache version'
+          git push origin main
