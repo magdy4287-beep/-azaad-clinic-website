@@ -2,6 +2,36 @@ from pathlib import Path
 import re
 
 ADMIN_AUTH = '''
+# Single-flight refresh coordinator: every caller shares one refreshSession()
+# promise so Supabase refresh-token rotation cannot race during startup.
+AUTH_REFRESH_COORDINATOR = '''
+let azaadRefreshPromise = null;
+
+async function azaadEnsureFreshSession(){
+  if(azaadRefreshPromise) return azaadRefreshPromise;
+
+  azaadRefreshPromise = (async () => {
+    const refreshed = await supabase.auth.refreshSession();
+    if(refreshed.error || !refreshed.data?.session){
+      throw refreshed.error || new Error("Session refresh failed");
+    }
+    state.session = refreshed.data.session;
+    state.user = refreshed.data.session.user;
+    try {
+      sessionStorage.setItem("azaad_admin_token", refreshed.data.session.access_token);
+    } catch (_) {}
+    return refreshed.data.session;
+  })();
+
+  try {
+    return await azaadRefreshPromise;
+  } finally {
+    azaadRefreshPromise = null;
+  }
+}
+'''.strip()
+
+ADMIN_AUTH = '''
 async function restoreStaff(){
   if(!state.user?.id) return false;
 
@@ -30,10 +60,11 @@ async function restoreStaff(){
   let result = await requestAccount();
 
   if(result.response?.status === 401){
-    const refreshed = await supabase.auth.refreshSession();
-    if(refreshed.error || !refreshed.data?.session) return false;
-    state.session = refreshed.data.session;
-    state.user = refreshed.data.session.user;
+    try {
+      await azaadEnsureFreshSession();
+    } catch (_) {
+      return false;
+    }
     result = await requestAccount();
   }
 
@@ -73,6 +104,16 @@ def finalize_admin_html():
         flags=re.I,
     )
 
+    # Inject the single-flight refresh coordinator before restoreStaff().
+    text, count = re.subn(
+        r'(\nasync function restoreStaff\(\)\{)',
+        "\n" + AUTH_REFRESH_COORDINATOR + "\1",
+        text,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError("Could not locate restoreStaff() for refresh coordinator")
+
     text, count = re.subn(
         r'async function restoreStaff\(\)\{.*?\n\}\n\nasync function logout\(\)',
         ADMIN_AUTH + "\n\nasync function logout()",
@@ -85,7 +126,7 @@ def finalize_admin_html():
 
     text = re.sub(
         r'supabase\.auth\.onAuthStateChange\(\s*async\s*\(\s*event,\s*session\s*\)\s*=>\s*\{.*?\n\s*\}\s*\);',
-        '''supabase.auth.onAuthStateChange((event) => {
+        '''supabase.auth.onAuthStateChange((event, session) => {
   if(event === "SIGNED_OUT"){
     state.session = null;
     state.user = null;
@@ -93,14 +134,10 @@ def finalize_admin_html():
     state.initialized = false;
     try { sessionStorage.removeItem("azaad_admin_token"); } catch (_) {}
   }
-  if(event === "TOKEN_REFRESHED"){
-    supabase.auth.getSession().then(({data}) => {
-      if(data?.session){
-        state.session = data.session;
-        state.user = data.session.user;
-        try { sessionStorage.setItem("azaad_admin_token", data.session.access_token); } catch (_) {}
-      }
-    }).catch(() => {});
+  if(event === "TOKEN_REFRESHED" && session){
+    state.session = session;
+    state.user = session.user;
+    try { sessionStorage.setItem("azaad_admin_token", session.access_token); } catch (_) {}
   }
 });''',
         text,
@@ -188,7 +225,7 @@ window.AZAAD_AUTH_READY = restore().then((ok) => {
     )
 
     path.write_text(text, encoding="utf-8")
-    print("Finalized single-owner admin auth with exactly one reload restore")
+    print("Finalized single-owner admin auth with serialized refresh coordinator")
 
 
 finalize_admin_html()
