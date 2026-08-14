@@ -1,0 +1,45 @@
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+
+admin = (ROOT / "admin.html").read_text(encoding="utf-8")
+hardening = (ROOT / "admin-english-hardening.js").read_text(encoding="utf-8")
+patcher = (ROOT / ".github" / "patch-admin.py").read_text(encoding="utf-8")
+
+checks = []
+
+def check(name, ok, detail=""):
+    checks.append((name, ok, detail))
+
+check("English hardening script exists", len(hardening) > 1000)
+check("English hardening is injected by build patch", 'inject_script("admin.html","admin-english-hardening.js")' in patcher)
+check("Arabic/English direction switching exists", "document.documentElement.dir='ltr'" in hardening and "document.documentElement.lang='en'" in hardening)
+check("Language preference is persisted", "azaad_admin_lang" in hardening)
+check("Short patient number is canonicalized", "padStart(6,'0')" in hardening and "AZA-" in hardening)
+check("Patient display hides AZA/MRN prefix", "Patient ${String(Number(digits)).padStart(5,'0')}" in hardening)
+check("Dynamic DOM translation is enabled", "MutationObserver" in hardening)
+check("Service-role key is not embedded", "service_role" not in admin.lower() and "service_role" not in hardening.lower())
+check("Existing admin baseline remains present", 'id="adminPage"' in admin and 'id="loginPage"' in admin)
+check("Patient Center is part of the startup patch", "patch_patient_center" in patcher and "patients-center.js" in patcher)
+
+# Guard against accidentally losing the major navigation surfaces.
+for panel, label in {
+    "bookings": "الحجوزات",
+    "doctors": "الأطباء",
+    "services": "الخدمات",
+    "schedules": "جداول الأطباء",
+    "staff": "الموظفون",
+    "settings": "الإعدادات",
+}.items():
+    check(f"Admin panel: {panel}", f'data-panel="{panel}"' in admin and label in admin)
+
+failed = False
+for name, ok, detail in checks:
+    mark = "PASS" if ok else "FAIL"
+    print(f"[{mark}] {name}" + (f" — {detail}" if detail else ""))
+    failed |= not ok
+
+print(f"\nAZAAD admin gate checks: {len(checks)} total, {sum(ok for _, ok, _ in checks)} passed, {sum(not ok for _, ok, _ in checks)} failed.")
+sys.exit(1 if failed else 0)
