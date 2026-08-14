@@ -14,7 +14,6 @@
     } catch (_) {}
     return String(document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
   };
-
   const data = () => window.AZAAD_PUBLIC_CLINIC_DATA || {};
   const settings = () => data().settings || {};
   const setting = (...keys) => {
@@ -49,6 +48,14 @@
       ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
       : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`;
     openWhatsApp(message);
+  }
+
+  function shareLocationHref() {
+    const english = lang() === 'en';
+    const message = english
+      ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
+      : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`;
+    return `https://wa.me/${wa()}?text=${encodeURIComponent(message)}`;
   }
 
   function announceLanguageChange() {
@@ -86,14 +93,10 @@
     bindLanguageSwitch();
     announceLanguageChange();
 
-    document.querySelectorAll('a[href="#booking"], a[href="./#booking"], a[href="index.html#booking"]').forEach(link => {
-      bindAnchor(link, '#booking');
-    });
-
+    document.querySelectorAll('a[href="#booking"], a[href="./#booking"], a[href="index.html#booking"]').forEach(link => bindAnchor(link, '#booking'));
     document.querySelectorAll('nav a[href^="#"]').forEach(link => {
       const href = link.getAttribute('href');
-      if (!href || href === '#') return;
-      bindAnchor(link, href);
+      if (href && href !== '#') bindAnchor(link, href);
     });
 
     const heroWa = document.getElementById('waHero');
@@ -101,9 +104,7 @@
       heroWa.dataset.azaadInteractionBound = 'true';
       heroWa.addEventListener('click', event => {
         event.preventDefault();
-        openWhatsApp(lang() === 'en'
-          ? 'Hello Azaad Clinic, I would like to ask about an appointment.'
-          : 'مرحبًا عيادة أزاد، أود الاستفسار عن حجز موعد.');
+        openWhatsApp(lang() === 'en' ? 'Hello Azaad Clinic, I would like to ask about an appointment.' : 'مرحبًا عيادة أزاد، أود الاستفسار عن حجز موعد.');
       });
     }
 
@@ -115,13 +116,20 @@
     }
 
     const share = document.getElementById('shareLocation');
-    if (share && share.dataset.azaadInteractionBound !== 'true') {
-      share.dataset.azaadInteractionBound = 'true';
-      share.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        shareLocationViaWhatsApp();
-      }, true);
+    if (share) {
+      share.href = shareLocationHref();
+      share.target = '_blank';
+      share.rel = 'noopener noreferrer';
+      share.setAttribute('role', 'button');
+      share.removeAttribute('type');
+      if (share.dataset.azaadInteractionBound !== 'true') {
+        share.dataset.azaadInteractionBound = 'true';
+        share.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          openWhatsApp(lang() === 'en' ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}` : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`);
+        }, true);
+      }
     }
 
     const phone = document.getElementById('phoneLink');
@@ -147,9 +155,7 @@
     const observer = new MutationObserver(() => normalizeActions());
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     window.addEventListener('hashchange', () => setTimeout(normalizeActions, 50));
-    window.addEventListener('storage', event => {
-      if (event.key === 'azaadClinicLanguage') setTimeout(normalizeActions, 20);
-    });
+    window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') setTimeout(normalizeActions, 20); });
     window.addEventListener('azaadLanguageChanged', () => setTimeout(normalizeActions, 20));
     setInterval(normalizeActions, 1000);
   }
