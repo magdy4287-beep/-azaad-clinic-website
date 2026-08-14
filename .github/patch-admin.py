@@ -150,8 +150,27 @@ def patch_patient_center():
     path.write_text(text.replace(marker,replacement,1),encoding="utf-8")
 
 
+def patch_patient_center_auth():
+    path = Path("patients-center.js")
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    legacy = '''  function token(){const live=window.AZAAD?.state?.session?.access_token;if(live){try{sessionStorage.setItem(SESSION_KEY,live)}catch(_){ }return live}try{return sessionStorage.getItem(SESSION_KEY)||''}catch(_){return ''}}'''
+    modern = '''  function token(){
+    const live=window.AZAAD?.state?.session?.access_token;
+    return live||'';
+  }'''
+    if legacy in text:
+        text=text.replace(legacy,modern,1)
+    # Remove the obsolete storage key defensively without touching other session data.
+    marker="  const SESSION_KEY='azaad_admin_token';"
+    text=text.replace(marker,"  const SESSION_KEY='azaad_admin_token';\n  try{sessionStorage.removeItem(SESSION_KEY)}catch(_){ }",1)
+    path.write_text(text,encoding="utf-8")
+
+
 patch_admin_html()
 patch_admin_js()
 patch_startup_restore()
 patch_patient_center()
+patch_patient_center_auth()
 print("patch-admin.py completed successfully")
