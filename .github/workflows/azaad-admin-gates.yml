@@ -1,5 +1,7 @@
 name: Azaad Admin Acceptance Gates
 
+# Free-first acceptance gate: every development push and every PR to main is verified.
+
 on:
   push:
     branches:
