@@ -1,8 +1,6 @@
 from pathlib import Path
 import re
 
-# Idempotent build-time admin/session patch plus feature script injection.
-
 def patch_admin_html():
     path=Path("admin.html")
     if not path.exists(): return
@@ -29,7 +27,7 @@ def patch_admin_js():
     modern='''async function restoreStaffProfile() {
   if (!state.user?.id || !state.session?.access_token) return false;
   const request=async()=>fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth`,{method:"GET",headers:{Accept:"application/json",Authorization:`Bearer ${state.session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},cache:"no-store"});
-  try{let response=await request();if(response.status===401){try{const refreshed=await supabase.auth.refreshSession();if(refreshed?.data?.session?.access_token){state.session=refreshed.data.session;state.user=refreshed.data.session.user;response=await request();}}catch(error){console.warn("Admin auth refresh failed:",error);}}let body={};try{body=await response.json();}catch(_){ }if(!response.ok||!body?.admin||body.admin.active===false)return false;return applyStaffRole(body.admin);}catch(error){console.error("Admin staff restore request failed:",error);return false;}
+  try{let response=await request();if(response.status===401){try{const refreshed=await supabase.auth.refreshSession();if(refreshed?.data?.session?.access_token){state.session=refreshed.data.session;state.user=refreshed.data.session.user;response=await request();}}catch(error){console.warn("Admin staff restore failed:",error);}}let body={};try{body=await response.json();}catch(_){ }if(!response.ok||!body?.admin||body.admin.active===false)return false;return applyStaffRole(body.admin);}catch(error){console.error("Admin staff restore request failed:",error);return false;}
 }
 
 /* ============================================================
@@ -69,9 +67,8 @@ def inject_script(path_name,script_name):
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-inject_script("admin.html","frontdesk-workflow.js")
-inject_script("admin.html","patient-merge-tool.js")
-inject_script("admin.html","patient-clinical-history.js")
+for script in ("frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js"):
+    inject_script("admin.html",script)
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
 inject_script("clinical-assessment.html","clinician-transfer-widget.js")
 print("patch-admin.py completed successfully")

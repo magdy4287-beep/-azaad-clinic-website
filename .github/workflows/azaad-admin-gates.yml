@@ -1,0 +1,27 @@
+name: Azaad Admin Acceptance Gates
+
+# Free-first acceptance gate: every development push and every PR to main is verified.
+
+on:
+  push:
+    branches:
+      - feat/azaad-admin-suite-free-first
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  admin-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run free structural acceptance gates
+        run: python3 qa/admin-gates.py
+
+      - name: Run scheduling contract gate
+        run: python3 qa/scheduling-contract-gate.py
