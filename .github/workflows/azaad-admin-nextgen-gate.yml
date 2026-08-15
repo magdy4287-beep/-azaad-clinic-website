@@ -53,7 +53,7 @@ jobs:
         run: |
           grep -q 'Name / Phone / MRN / Booking Number' admin-nextgen-v2.js
           grep -q 'from:d,to:d' admin-nextgen-v2.js
-          grep -q 'set(\x27mrn\x27' admin-nextgen-v2.js
+          grep -q "set('mrn'" admin-nextgen-v2.js
           grep -q 'booking_code' patients-center.js
           grep -q 'bookingDateFilter' patients-center.js
       - name: Validate bilingual and session safety
