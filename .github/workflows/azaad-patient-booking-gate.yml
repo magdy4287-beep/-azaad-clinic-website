@@ -1,0 +1,30 @@
+name: Azaad Patient Booking Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'patient-booking-gate.js'
+      - 'qa/patient-booking-gate.py'
+      - '.github/workflows/azaad-patient-booking-gate.yml'
+  push:
+    branches: [feat/ai-operating-system-20260815]
+    paths:
+      - 'index.html'
+      - 'patient-booking-gate.js'
+      - 'qa/patient-booking-gate.py'
+      - '.github/workflows/azaad-patient-booking-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JavaScript syntax
+        run: node --check patient-booking-gate.js
+      - name: Validate patient-first booking contract
+        run: python3 qa/patient-booking-gate.py
