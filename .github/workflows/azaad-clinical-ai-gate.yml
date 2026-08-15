@@ -5,16 +5,20 @@ on:
     paths:
       - 'clinician-ai-session-cockpit.js'
       - 'clinician-longitudinal-dashboard.js'
+      - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
+      - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
   push:
     branches: [main]
     paths:
       - 'clinician-ai-session-cockpit.js'
       - 'clinician-longitudinal-dashboard.js'
+      - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
+      - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
 
 permissions:
@@ -47,6 +51,17 @@ jobs:
           grep -q "safety_review_required" clinician-longitudinal-dashboard.js
           grep -q "improving" clinician-longitudinal-dashboard.js
           grep -q "worsening" clinician-longitudinal-dashboard.js
+      - name: Validate evidence and question library
+        run: |
+          test -s clinical-evidence-library.js
+          grep -q "source_url" clinical-evidence-library.js
+          grep -q "evidence_type" clinical-evidence-library.js
+          grep -q "is_favorite" clinical-evidence-library.js
+          grep -q "reviewed_at" clinical-evidence-library.js
+          grep -q "discuss_with_team" clinical-evidence-library.js
+          grep -q "AI candidate" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
+          grep -q "license" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
+          grep -q "provenance" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
       - name: Validate safety boundary
         run: |
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-ai-session-cockpit.js
