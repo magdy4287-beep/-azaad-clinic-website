@@ -1,0 +1,42 @@
+name: Azaad Cross-Module Integration Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'patient-booking-gate.js'
+      - 'patients-center.js'
+      - 'admin.html'
+      - '.github/patch-admin.py'
+      - 'ai-operating-center.js'
+      - 'qa/azaad-integration-contract.py'
+  push:
+    branches: [feat/ai-operating-system-20260815]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'patient-booking-gate.js'
+      - 'patients-center.js'
+      - 'admin.html'
+      - '.github/patch-admin.py'
+      - 'ai-operating-center.js'
+      - 'qa/azaad-integration-contract.py'
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JavaScript syntax
+        run: |
+          node --check app.js
+          node --check patient-booking-gate.js
+          node --check patients-center.js
+          node --check ai-operating-center.js
+      - name: Validate cross-module contract
+        run: python3 qa/azaad-integration-contract.py
