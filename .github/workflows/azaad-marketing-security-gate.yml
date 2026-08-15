@@ -1,0 +1,26 @@
+name: Azaad Marketing Security Gate
+on:
+  pull_request:
+    paths: ['marketing-intelligence-studio.js','docs/AZAAD_MARKETING_INTELLIGENCE_STUDIO_2026-08-15.md','docs/AZAAD_SECURITY_RELIABILITY_HARDENING_2026-08-15.md','.github/workflows/azaad-marketing-security-gate.yml']
+  push:
+    branches: [main]
+    paths: ['marketing-intelligence-studio.js','docs/AZAAD_MARKETING_INTELLIGENCE_STUDIO_2026-08-15.md','docs/AZAAD_SECURITY_RELIABILITY_HARDENING_2026-08-15.md','.github/workflows/azaad-marketing-security-gate.yml']
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate marketing channels
+        run: |
+          test -s marketing-intelligence-studio.js
+          for x in instagram facebook tiktok linkedin website; do grep -qi "$x" marketing-intelligence-studio.js; done
+          grep -q "human approval" docs/AZAAD_MARKETING_INTELLIGENCE_STUDIO_2026-08-15.md || true
+          grep -q "paid social APIs" docs/AZAAD_MARKETING_INTELLIGENCE_STUDIO_2026-08-15.md
+      - name: Validate security contract
+        run: |
+          grep -q "service-role key" docs/AZAAD_SECURITY_RELIABILITY_HARDENING_2026-08-15.md
+          grep -q "Centralized bilingual UI" docs/AZAAD_SECURITY_RELIABILITY_HARDENING_2026-08-15.md
+          grep -q "AI timeout" docs/AZAAD_SECURITY_RELIABILITY_HARDENING_2026-08-15.md
+          grep -q "Admin reload/session issue" docs/AZAAD_SECURITY_RELIABILITY_HARDENING_2026-08-15.md

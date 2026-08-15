@@ -1,0 +1,1 @@
+QA checkpoint: PR #16 is mergeable with successful required status checks observed on HEAD 119e853a23c6d0d15c48cb53702ffb20cbd96161. Merge remains intentionally gated until GitHub's required review policy is satisfied.

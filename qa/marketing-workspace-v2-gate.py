@@ -16,7 +16,7 @@ checks = {
     'lazy media rendering': 'loading="lazy"' in marketing,
     'Instagram channel': 'instagram' in marketing,
     'Facebook channel': 'facebook' in marketing,
-    'draft workflow': "effectiveStatus='scheduled'" in marketing and 'mktSaveDraft' in marketing,
+    'draft workflow': 'mktSaveDraft' in marketing and "save(post,'draft')" in marketing,
     'scheduled workflow': "effectiveStatus==='scheduled'" in marketing,
     'published workflow': "effectiveStatus==='published'" in marketing,
     'existing marketing table': 'clinic_marketing_posts' in marketing,
