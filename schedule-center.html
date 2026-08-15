@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Azaad Clinic | Central Scheduling</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#18213d;font-family:Arial,Tahoma,sans-serif}button,input,select{font:inherit}.wrap{max-width:1500px;margin:auto;padding:16px}.card{background:#fff;border-radius:16px;box-shadow:0 7px 25px rgba(0,0,0,.05);padding:18px;margin-bottom:15px}.head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.title{font-size:24px;font-weight:900}.muted{color:#6c758c}.actions,.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #d9deea;background:#fff;color:#17214f;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.btn.primary{background:#17214f;color:#fff}.btn.active{background:#b38a42;color:#fff;border-color:#b38a42}.btn:disabled{opacity:.55;cursor:not-allowed}.filters input,.filters select{padding:10px 12px;border:1px solid #d9deea;border-radius:10px;background:#fff}.range{display:flex;align-items:center;gap:8px}.legend{display:flex;gap:8px;flex-wrap:wrap}.badge{padding:5px 9px;border-radius:20px;font-size:12px;font-weight:700}.available{background:#e7f7ed;color:#167345}.confirmed{background:#e5efff;color:#2457a6}.pending{background:#fff4cc;color:#755c00}.no_show{background:#fff0df;color:#9a5b00}.cancelled{background:#ffecef;color:#a32939}.closed{background:#ececf1;color:#444}.calendar{overflow:auto;border:1px solid #e1e5ed;border-radius:14px}.grid{min-width:1000px}.doctor-row{display:grid;grid-template-columns:230px 1fr;border-bottom:1px solid #e5e8ef}.doctor-row:last-child{border-bottom:0}.doctor{padding:14px;background:#fafbfe;border-left:1px solid #e5e8ef}.doctor strong{display:block;font-size:15px}.timeline{position:relative;display:grid;grid-template-columns:repeat(24,minmax(70px,1fr));min-height:92px;background:repeating-linear-gradient(90deg,#fff 0,#fff calc(4.166% - 1px),#edf0f5 calc(4.166% - 1px),#edf0f5 4.166%)}.hour{position:relative;border-left:1px solid #edf0f5;padding:7px;font-size:11px;color:#7a8294;min-height:34px}.slots{position:absolute;inset:34px 0 0;display:flex;align-items:flex-start}.slot{min-width:92px;margin:8px 4px 0;border:1px solid #dfe4ee;border-radius:10px;padding:8px;background:#fff;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.04)}.slot strong{display:block;font-size:12px}.slot small{display:block;margin-top:3px;color:#6c758c}.empty{padding:40px;text-align:center;color:#7a8294}.error{background:#fff0f2;color:#a32939;padding:12px;border-radius:10px}.loading{padding:30px;text-align:center}.patient{font-weight:800}.panel{display:none}.panel.show{display:block}.notice{padding:11px 13px;border-radius:10px;background:#eef4ff;color:#234c8e;margin-top:10px}@media(max-width:800px){.wrap{padding:10px}.title{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <div><div class="title">📅 Central Scheduling</div><div class="muted">Azaad Clinic — مصدر العرض هو Booking/Schedule الحالي، بدون إنشاء مصدر مواعيد موازٍ.</div></div>
+      <div class="actions"><button class="btn" id="back">← لوحة الإدارة</button><button class="btn" id="refresh">🔄 تحديث</button></div>
+    </div>
+    <div class="filters" style="margin-top:15px">
+      <div class="actions"><button class="btn active" data-view="day">يوم</button><button class="btn" data-view="week">أسبوع</button><button class="btn" data-view="month">شهر</button></div>
+      <div class="range"><button class="btn" id="prev">‹</button><input id="date" type="date"><button class="btn" id="next">›</button></div>
+      <select id="doctor"><option value="">🧑‍⚕️ كل الأطباء</option></select>
+      <input id="search" placeholder="🔎 اسم / MRN / هاتف">
+    </div>
+    <div class="legend" style="margin-top:12px"><span class="badge available">🟢 متاح</span><span class="badge confirmed">🔵 مؤكد</span><span class="badge pending">🟡 بانتظار التأكيد</span><span class="badge no_show">🟠 No-show</span><span class="badge cancelled">🔴 ملغي</span><span class="badge closed">⚫ مغلق</span></div>
+    <div id="notice" class="notice hidden"></div>
+  </div>
+  <div id="root" class="card"><div class="loading">⏳ جاري تحميل الجدول...</div></div>
+</div>
+<script type="module">
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL='https://derofsthjivlkcdnojww.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_0aJj6AqJp8hWvXqvR3Q7YQ';
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const STATUS={available:{icon:'🟢',label:'متاح'},confirmed:{icon:'🔵',label:'مؤكد'},pending:{icon:'🟡',label:'بانتظار التأكيد'},no_show:{icon:'🟠',label:'No-show'},cancelled:{icon:'🔴',label:'ملغي'},closed:{icon:'⚫',label:'مغلق'}};
+const $=id=>document.getElementById(id);let state={view:'day',date:new Date(),doctor:'',search:'',rows:[],doctors:[]};
+function key(d){return new Date(d).toISOString().slice(0,10)}
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function normStatus(v){v=String(v||'').toLowerCase();if(['booked','scheduled','confirmed'].includes(v))return'confirmed';if(['pending_confirmation','awaiting_confirmation'].includes(v))return'pending';if(['no-show','noshow'].includes(v))return'no_show';if(['cancelled','canceled'].includes(v))return'cancelled';if(['closed','holiday','blocked'].includes(v))return'closed';return v||'available'}
+async function admin(query){const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('جلسة الدخول غير موجودة. افتح لوحة الإدارة وسجل الدخول أولًا.');const r=await fetch(`${SUPABASE_URL}/functions/v1/azaad-admin${query}`,{headers:{Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY}});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||j.message||`HTTP ${r.status}`);return j}
+function extractDashboard(j){return j?.data||j?.dashboard||j||{}}
+async function load(){try{$('root').innerHTML='<div class="loading">⏳ جاري تحميل الجدول...</div>';const result=extractDashboard(await admin('?api=dashboard'));state.rows=Array.isArray(result.bookings)?result.bookings:[];state.doctors=Array.isArray(result.doctors)?result.doctors:[];populateDoctors();render();$('notice').classList.add('hidden')}catch(e){$('root').innerHTML=`<div class="error">⚠️ ${esc(e.message)}</div>`}}
+function populateDoctors(){const s=$('doctor');const current=state.doctor;s.innerHTML='<option value="">🧑‍⚕️ كل الأطباء</option>'+state.doctors.map(d=>`<option value="${esc(d.id)}">${esc(d.full_name||d.name||'طبيب')}</option>`).join('');s.value=current}
+function rowDate(r){return r.appointment_date||r.date||r.booking_date||r.scheduled_date||''}
+function rowTime(r){return r.appointment_time||r.time||r.start_time||''}
+function doctorId(r){return r.doctor_id||r.doctorId||''}
+function doctorName(r){return r.doctor_name||r.doctor||state.doctors.find(d=>String(d.id)===String(doctorId(r)))?.full_name||'غير محدد'}
+function patientName(r){return r.patient_name||r.patient?.full_name||r.name||'مريض'}
+function visibleRows(){const q=state.search.trim().toLowerCase();return state.rows.filter(r=>{const d=rowDate(r);if(!d)return false; if(state.view==='day'&&d!==key(state.date))return false;if(state.doctor&&String(doctorId(r))!==String(state.doctor))return false;if(q&&!`${patientName(r)} ${r.patient_mrn||r.mrn||''} ${r.patient_phone||r.phone||''} ${r.booking_code||''}`.toLowerCase().includes(q))return false;return true})}
+function slotHTML(r){const st=normStatus(r.status);const meta=STATUS[st]||STATUS.available;return `<div class="slot ${st}" title="${esc(meta.label)}"><strong>${esc(rowTime(r)||'—')} · ${meta.icon} ${esc(meta.label)}</strong><span class="patient">${esc(patientName(r))}</span><small>${esc(r.patient_mrn||r.mrn||r.booking_code||'')}</small></div>`}
+function render(){const rows=visibleRows();const doctors=state.doctors.filter(d=>d.active!==false&&(!state.doctor||String(d.id)===String(state.doctor)));if(!doctors.length){$('root').innerHTML='<div class="empty">لا توجد بيانات أطباء متاحة ضمن الصلاحية الحالية.</div>';return}if(state.view==='month'){renderMonth(rows,doctors);return}const days=state.view==='week'?weekDays(state.date):[new Date(state.date)];$('root').innerHTML=days.map(d=>renderDay(d,doctors,rows)).join('')}
+function weekDays(d){const x=new Date(d),day=x.getDay(),s=new Date(x);s.setDate(x.getDate()-(day===0?6:day-1));return Array.from({length:7},(_,i)=>{const z=new Date(s);z.setDate(s.getDate()+i);return z})}
+function renderDay(d,doctors,rows){const dk=key(d);return `<div class="panel show" style="margin-bottom:18px"><div class="head" style="margin-bottom:10px"><h2 style="margin:0">📅 ${esc(d.toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'}))}</h2><span class="muted">${rows.filter(r=>rowDate(r)===dk).length} حجز</span></div><div class="calendar"><div class="grid">${doctors.map(doc=>{const rr=rows.filter(r=>rowDate(r)===dk&&String(doctorId(r))===String(doc.id));return `<div class="doctor-row"><div class="doctor"><strong>🧑‍⚕️ ${esc(doc.full_name||doc.name||'طبيب')}</strong><span class="muted">${esc(doc.specialty||doc.specialization||'')}</span></div><div class="timeline">${Array.from({length:24},(_,h)=>`<div class="hour">${h===0?'12':h>12?h-12:h}:00 ${h<12?'AM':'PM'}</div>`).join('')}<div class="slots">${rr.length?rr.map(slotHTML).join(''):'<span class="muted" style="padding:10px">لا توجد حجوزات — يمكن للـBooking Engine اعتبار الخانات المتاحة حسب جدول الطبيب.</span>'}</div></div></div>`}).join('')}</div></div></div>`}
+function renderMonth(rows,doctors){const map={};rows.forEach(r=>{const d=rowDate(r);(map[d]??=[]).push(r)});const days=Object.keys(map).sort();$('root').innerHTML=days.length?days.map(d=>renderDay(new Date(d+'T00:00:00'),doctors,map[d])).join(''):'<div class="empty">لا توجد حجوزات في الشهر المحدد ضمن الصلاحية الحالية.</div>'}
+function move(delta){const d=new Date(state.date);if(state.view==='day')d.setDate(d.getDate()+delta);else if(state.view==='week')d.setDate(d.getDate()+delta*7);else d.setMonth(d.getMonth()+delta);state.date=d;$('date').value=key(d);render()}
+$('date').value=key(state.date);$('refresh').onclick=load;$('prev').onclick=()=>move(-1);$('next').onclick=()=>move(1);$('back').onclick=()=>location.href='./admin.html';$('doctor').onchange=e=>{state.doctor=e.target.value;render()};$('search').oninput=e=>{state.search=e.target.value;render()};$('date').onchange=e=>{state.date=new Date(e.target.value+'T00:00:00');render()};document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{state.view=b.dataset.view;document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x===b));render()});load();
+</script>
+</body></html>
