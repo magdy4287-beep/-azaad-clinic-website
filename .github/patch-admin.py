@@ -69,6 +69,7 @@ def inject_script(path_name,script_name):
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
 for script in ("frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js"):
     inject_script("admin.html",script)
+inject_script("admin.html","patient-financial-summary.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
 inject_script("clinical-assessment.html","clinician-transfer-widget.js")
 inject_script("clinical-assessment.html","clinician-ai-session-cockpit.js")
