@@ -67,7 +67,7 @@ def inject_script(path_name,script_name):
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","ai-operating-center.js"):
+for script in ("frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","ai-operating-center.js","admin-nextgen-fixes.js"):
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
 inject_script("clinical-assessment.html","clinician-transfer-widget.js")
