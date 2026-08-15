@@ -1,0 +1,67 @@
+name: Azaad Admin Next-Gen Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin-nextgen-fixes.js'
+      - 'admin-patient-icon-guard.js'
+      - '.github/patch-admin.py'
+      - 'admin.html'
+      - 'admin.js'
+      - 'patients-center.js'
+      - 'frontdesk-workflow.js'
+      - 'central-i18n.js'
+      - 'admin-english-hardening.js'
+  push:
+    branches: [feat/ai-operating-system-20260815]
+    paths:
+      - 'admin-nextgen-fixes.js'
+      - 'admin-patient-icon-guard.js'
+      - '.github/patch-admin.py'
+      - 'admin.html'
+      - 'admin.js'
+      - 'patients-center.js'
+      - 'frontdesk-workflow.js'
+      - 'central-i18n.js'
+      - 'admin-english-hardening.js'
+
+permissions:
+  contents: read
+
+jobs:
+  admin-nextgen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JavaScript syntax
+        run: |
+          node --check admin-nextgen-fixes.js
+          node --check admin-patient-icon-guard.js
+          node --check admin.js
+          node --check patients-center.js
+          node --check frontdesk-workflow.js
+          node --check central-i18n.js
+          node --check admin-english-hardening.js
+      - name: Validate patch injection
+        run: |
+          grep -q 'admin-nextgen-fixes.js' .github/patch-admin.py
+          grep -q 'admin-patient-icon-guard.js' .github/patch-admin.py
+          grep -q 'doctors-center-v2.js' .github/patch-admin.py
+          grep -q 'services-center-v2.js' .github/patch-admin.py
+      - name: Validate universal search contract
+        run: |
+          grep -q 'Name / Phone / MRN / Booking Number' admin-nextgen-fixes.js
+          grep -q 'from:date, to:date' admin-nextgen-fixes.js
+          grep -q 'mrn' admin-nextgen-fixes.js
+          grep -q 'booking_code' patients-center.js
+          grep -q 'bookingDateFilter' patients-center.js
+      - name: Validate bilingual and session safety
+        run: |
+          grep -q 'azaadClinicLanguage' admin-nextgen-fixes.js
+          grep -q 'azaad_admin_lang' admin-nextgen-fixes.js
+          grep -q 'without reload/sign-out' admin-nextgen-fixes.js
+          ! grep -Eqi 'signOut\(|auth\.signOut\(' admin-nextgen-fixes.js
+      - name: Validate no service-role key
+        run: |
+          ! grep -Eqi 'service_role|service-role' admin-nextgen-fixes.js
