@@ -1,0 +1,51 @@
+name: Azaad Clinical AI Gate
+
+on:
+  pull_request:
+    paths:
+      - 'clinician-ai-session-cockpit.js'
+      - 'clinical-followup-widget.js'
+      - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
+      - '.github/workflows/azaad-clinical-ai-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'clinician-ai-session-cockpit.js'
+      - 'clinical-followup-widget.js'
+      - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
+      - '.github/workflows/azaad-clinical-ai-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  clinical-ai-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate clinician cockpit source
+        run: |
+          test -s clinician-ai-session-cockpit.js
+          grep -q "clinical_assessment_templates" clinician-ai-session-cockpit.js
+          grep -q "clinical_assessment_questions" clinician-ai-session-cockpit.js
+          grep -q "clinical_assessment_sessions" clinician-ai-session-cockpit.js
+          grep -q "clinical_assessment_answers" clinician-ai-session-cockpit.js
+          grep -q "previous_score_percent" clinician-ai-session-cockpit.js
+          grep -q "baseline_score_percent" clinician-ai-session-cockpit.js
+          grep -q "safety_review_required" clinician-ai-session-cockpit.js
+          grep -q "is_favorite" clinician-ai-session-cockpit.js
+          grep -q "is_ai_candidate" clinician-ai-session-cockpit.js
+      - name: Validate safety boundary
+        run: |
+          ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-ai-session-cockpit.js
+          grep -q "decision" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
+          grep -q "licensed\|licensing" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
+      - name: Validate bilingual clinician UX
+        run: |
+          grep -q "startsWith('en')" clinician-ai-session-cockpit.js
+          grep -q "المساعد الذكي للجلسة" clinician-ai-session-cockpit.js
+          grep -q "AI Session Copilot" clinician-ai-session-cockpit.js
+      - name: Validate follow-up and transfer integration
+        run: |
+          grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
+          grep -q "clinicianTransferWidget" clinician-ai-session-cockpit.js
