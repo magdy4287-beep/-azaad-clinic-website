@@ -1,0 +1,30 @@
+name: Azaad Booking UI Final Fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'booking-ui-final-fix.js'
+      - 'qa/booking-ui-final-fix.py'
+      - '.github/workflows/azaad-booking-ui-final-fix.yml'
+  push:
+    branches: [feat/ai-operating-system-20260815]
+    paths:
+      - 'index.html'
+      - 'booking-ui-final-fix.js'
+      - 'qa/booking-ui-final-fix.py'
+      - '.github/workflows/azaad-booking-ui-final-fix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  booking-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JavaScript syntax
+        run: node --check booking-ui-final-fix.js
+      - name: Validate booking UI contract
+        run: python3 qa/booking-ui-final-fix.py
