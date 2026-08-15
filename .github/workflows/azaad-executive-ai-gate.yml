@@ -1,0 +1,28 @@
+name: Azaad Executive AI Gate
+on:
+  pull_request:
+    paths: ['executive-ai-dashboard.js','docs/AZAAD_EXECUTIVE_ANALYTICS_PLAN_2026-08-15.md','.github/workflows/azaad-executive-ai-gate.yml']
+  push:
+    branches: [main]
+    paths: ['executive-ai-dashboard.js','docs/AZAAD_EXECUTIVE_ANALYTICS_PLAN_2026-08-15.md','.github/workflows/azaad-executive-ai-gate.yml']
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate executive dashboard
+        run: |
+          test -s executive-ai-dashboard.js
+          grep -q "completionRate" executive-ai-dashboard.js
+          grep -q "outstanding" executive-ai-dashboard.js
+          grep -q "recommendations" executive-ai-dashboard.js
+          grep -q "verified clinic records remain authoritative" executive-ai-dashboard.js
+      - name: Validate safety boundaries
+        run: |
+          ! grep -Eqi "auto refund|automatic refund|auto write-off|change payroll automatically|change price automatically" executive-ai-dashboard.js
+      - name: Validate bilingual output
+        run: |
+          grep -q "startsWith('en')" executive-ai-dashboard.js
+          grep -q "الذكاء الاصطناعي للإدارة" executive-ai-dashboard.js
