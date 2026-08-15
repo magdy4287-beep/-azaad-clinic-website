@@ -27,7 +27,7 @@ required = {
     "security guardrail": "never the firewall",
     "traceability": "underlying metrics/signals",
     "Arabic and English": "Arabic and English are supported",
-    "AI-off fallback": "core clinic workflow still works with AI disabled.",
+    "AI-off fallback": "Core clinic workflow still works with AI disabled.",
 }
 
 missing = [name for name, needle in required.items() if needle not in text]
