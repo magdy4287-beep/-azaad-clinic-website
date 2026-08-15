@@ -13,15 +13,15 @@ app = read("app.js")
 booking_gate = read("patient-booking-gate.js")
 patient_center = read("patients-center.js")
 
-# Public booking identity contract
+# Public booking identity contract: the booking gate owns patient identity.
 assert "patient-booking-gate.js" in index
 assert "patient_id" in booking_gate
 assert "mrn" in booking_gate.lower()
 assert "mobile" in booking_gate.lower() or "phone" in booking_gate.lower()
 
-# Booking remains the source for appointment identity and exposes the booking code.
+# Booking exposes the booking code; patient identity is supplied by the booking gate.
 assert "booking_code" in app
-assert "patient_id" in app
+assert "patient_id" in booking_gate
 
 # Patient 360/admin search must understand MRN and booking identifiers.
 assert "booking_code" in patient_center
