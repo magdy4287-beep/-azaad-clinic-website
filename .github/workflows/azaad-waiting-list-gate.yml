@@ -1,0 +1,24 @@
+name: Azaad Waiting List Gate
+
+on:
+  pull_request:
+    paths:
+      - 'waiting-list-center.js'
+      - '.github/patch-admin.py'
+      - 'supabase/migrations/**'
+      - 'qa/waiting-list-contract-gate.py'
+  push:
+    branches: [main]
+    paths:
+      - 'waiting-list-center.js'
+      - '.github/patch-admin.py'
+      - 'supabase/migrations/**'
+      - 'qa/waiting-list-contract-gate.py'
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Waiting List contract
+        run: python3 qa/waiting-list-contract-gate.py
