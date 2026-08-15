@@ -1,107 +1,39 @@
-/* Azaad Clinic — Clinician AI Session Cockpit
- * Safe UI-first layer: clinician remains the decision maker.
- * Validated instruments must be wired to their official scoring/licensing rules before production use.
- */
+/* Azaad Clinic — Clinician AI Session Cockpit v2 */
 (() => {
   'use strict';
   if (window.__AZAAD_CLINICIAN_AI_COCKPIT__) return;
   window.__AZAAD_CLINICIAN_AI_COCKPIT__ = true;
-
-  const $ = (id) => document.getElementById(id);
-  const esc = (v) => String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
-  const patientId = () => window.CURRENT_PATIENT_ID || new URLSearchParams(location.search).get('patient_id') || document.body.dataset.patientId || '';
-  const visitId = () => window.CURRENT_VISIT_ID || new URLSearchParams(location.search).get('visit_id') || document.body.dataset.visitId || '';
-  const lang = () => (localStorage.getItem('azaadClinicLanguage') || document.documentElement.lang || 'ar').startsWith('en') ? 'en' : 'ar';
-
-  const COPY = {
-    ar: {
-      title:'🧠 المساعد الذكي للجلسة', sub:'لوحة سريرية سريعة للطبيب/المعالج أثناء الجلسة — القرار السريري للطبيب دائمًا.',
-      start:'بدء التقييم', finish:'إنهاء الجلسة', save:'حفظ المسودة', add:'➕ إضافة سؤال', fav:'⭐ المفضلة', source:'📚 المصدر', note:'ملاحظة الطبيب', yes:'✅ نعم / موجود', no:'❌ لا / غير موجود', skip:'تخطي / غير مُقيّم', score:'النسبة الحالية', trend:'الاتجاه', baseline:'خط الأساس', previous:'الزيارة السابقة', next:'الجلسة القادمة', suggest:'🤖 اقتراح موعد', transfer:'🔁 تحويل لطبيب آخر', improving:'🟢 مؤشرات تحسن', stable:'🟡 المؤشرات مستقرة/مختلطة', worsening:'🔴 توجد مؤشرات تراجع', insufficient:'⚪ بيانات غير كافية', ai:'🤖 اقتراح AI', approve:'اعتماد السؤال', reject:'رفض', clinical:'قرار سريري', draft:'مسودة محفوظة محليًا لهذه الجلسة فقط', safety:'⚠️ أي تنبيه أمان يحتاج مراجعة الطبيب واتباع بروتوكول العيادة المعتمد.'
-    },
-    en: {
-      title:'🧠 AI Session Copilot', sub:'A focused clinician workspace — the clinician remains responsible for clinical decisions.',
-      start:'Start assessment', finish:'Finish session', save:'Save draft', add:'➕ Add question', fav:'⭐ Favorites', source:'📚 Source', note:'Clinician note', yes:'✅ Yes / Present', no:'❌ No / Absent', skip:'Skip / Not assessed', score:'Current score', trend:'Trend', baseline:'Baseline', previous:'Previous visit', next:'Next session', suggest:'🤖 Suggest time', transfer:'🔁 Transfer patient', improving:'🟢 Improving indicators', stable:'🟡 Stable / mixed indicators', worsening:'🔴 Worsening indicators', insufficient:'⚪ Insufficient data', ai:'🤖 AI candidate', approve:'Approve question', reject:'Reject', clinical:'Clinical decision', draft:'Draft saved locally for this session only', safety:'⚠️ Safety alerts require clinician review and the clinic-approved safety protocol.'
-    }
-  };
-
-  const QUESTIONS = [
-    {id:'mood', domain:'Mood', text:{ar:'خلال الفترة منذ الزيارة السابقة، كيف تصف مزاجك بشكل عام؟',en:'Since the previous visit, how would you describe your overall mood?'}, source:'Clinic clinician-authored starter question', ai:false},
-    {id:'anxiety', domain:'Anxiety', text:{ar:'هل أثرت مشاعر القلق على نشاطك اليومي؟',en:'Have anxiety symptoms affected your daily activities?'}, source:'Clinic clinician-authored starter question', ai:false},
-    {id:'sleep', domain:'Sleep', text:{ar:'هل حدث تغير ملحوظ في النوم منذ الزيارة السابقة؟',en:'Has there been a noticeable change in sleep since the previous visit?'}, source:'Clinic clinician-authored starter question', ai:false},
-    {id:'function', domain:'Function', text:{ar:'هل ترى تحسنًا في قدرتك على أداء مهامك اليومية؟',en:'Do you notice improvement in your ability to perform daily activities?'}, source:'Clinic clinician-authored starter question', ai:false},
-    {id:'engagement', domain:'Therapy', text:{ar:'هل استطعت تطبيق المهارات أو التمارين التي اتفقت عليها مع المعالج؟',en:'Were you able to practice the skills or exercises agreed with your therapist?'}, source:'Clinic clinician-authored starter question', ai:false}
-  ];
-
-  let state = {answers:{}, notes:'', started:false, approvedAI:[]};
-  const storageKey = () => `azaad_clinical_session_draft:${patientId()}:${visitId() || 'new'}`;
-
-  function loadDraft(){
-    try { const raw=sessionStorage.getItem(storageKey()); if(raw) state={...state,...JSON.parse(raw)}; } catch (_) {}
-  }
-  function saveDraft(){
-    try { sessionStorage.setItem(storageKey(), JSON.stringify(state)); toast(COPY[lang()].draft); } catch (_) { toast('Draft storage unavailable'); }
-  }
-  function toast(message){
-    let t=$('azaadAiToast'); if(!t){t=document.createElement('div');t.id='azaadAiToast';t.style.cssText='position:fixed;bottom:18px;left:18px;right:18px;max-width:520px;margin:auto;background:#18213d;color:#fff;padding:12px 16px;border-radius:12px;z-index:9999;text-align:center;box-shadow:0 12px 35px rgba(0,0,0,.2)';document.body.appendChild(t)}
-    t.textContent=message; t.hidden=false; clearTimeout(t.__timer); t.__timer=setTimeout(()=>t.hidden=true,2600);
-  }
-
-  function score(){
-    const vals=Object.values(state.answers).filter(v=>v==='yes'||v==='no');
-    if(!vals.length) return null;
-    return Math.round(vals.filter(v=>v==='yes').length / vals.length * 100);
-  }
-  function trend(s){ if(s===null) return COPY[lang()].insufficient; if(s>=70) return COPY[lang()].improving; if(s>=45) return COPY[lang()].stable; return COPY[lang()].worsening; }
-
-  function render(){
-    const host=document.querySelector('#clinicalAssessmentApp') || document.querySelector('#patient360') || document.querySelector('main');
-    if(!host || $('azaadClinicianAICockpit')) return;
-    loadDraft();
-    const c=COPY[lang()];
-    const box=document.createElement('section'); box.id='azaadClinicianAICockpit';
-    box.style.cssText='margin:18px 0;border-radius:20px;padding:18px;background:linear-gradient(135deg,#f7fbff,#ffffff);border:1px solid #dbe6f4;box-shadow:0 10px 35px rgba(24,33,61,.07)';
-    box.innerHTML=`
-      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-        <div><h2 style="margin:0 0 6px">${c.title}</h2><div style="color:#68738a">${c.sub}</div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button id="aiStart" class="btn btn-primary">${c.start}</button><button id="aiSave" class="btn btn-secondary">${c.save}</button></div>
-      </div>
-      <div id="aiMetrics" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0">
-        <div class="card"><b>${c.score}</b><div id="aiScore" style="font-size:30px;font-weight:900">—</div></div>
-        <div class="card"><b>${c.trend}</b><div id="aiTrend">${c.insufficient}</div></div>
-        <div class="card"><b>${c.baseline}</b><div>—</div></div>
-        <div class="card"><b>${c.previous}</b><div>—</div></div>
-      </div>
-      <div id="aiQuestions"></div>
-      <div style="margin-top:12px"><label style="display:block;font-weight:700">${c.note}<textarea id="aiNote" rows="3" style="width:100%;margin-top:7px"></textarea></label></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="aiAdd" class="btn btn-secondary">${c.add}</button><button id="aiSuggest" class="btn btn-secondary">${c.suggest}</button><button id="aiTransfer" class="btn btn-secondary">${c.transfer}</button><button id="aiFinish" class="btn btn-primary">${c.finish}</button></div>
-      <div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff8e6;color:#6b5700">${c.safety}</div>`;
-    host.prepend(box);
-    $('aiNote').value=state.notes||'';
-    $('aiStart').onclick=()=>{state.started=true;renderQuestions();toast(c.start)};
-    $('aiSave').onclick=()=>{state.notes=$('aiNote').value;saveDraft()};
-    $('aiFinish').onclick=()=>{state.notes=$('aiNote').value;saveDraft();toast(c.finish+' — review before submission')};
-    $('aiAdd').onclick=addQuestion;
-    $('aiSuggest').onclick=()=>toast(lang()==='en'?'Scheduling suggestion will use clinic availability and approved rules.':'سيستخدم اقتراح الموعد توافر العيادة والقواعد المعتمدة.');
-    $('aiTransfer').onclick=()=>{document.querySelector('#clinicianTransferWidget')?.scrollIntoView({behavior:'smooth',block:'center'});toast(lang()==='en'?'Transfer workspace opened below.':'تم فتح مساحة تحويل المريض بالأسفل.')};
-    renderQuestions(); updateMetrics();
-  }
-
-  function renderQuestions(){
-    const wrap=$('aiQuestions'); if(!wrap)return;
-    const c=COPY[lang()];
-    wrap.innerHTML=QUESTIONS.map(q=>{const a=state.answers[q.id]||'';return `<article style="border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin:10px 0;background:#fff"><div style="display:flex;justify-content:space-between;gap:10px"><div><span style="font-size:11px;background:#edf3ff;padding:4px 8px;border-radius:12px">${esc(q.domain)}</span><h3 style="margin:9px 0">${esc(q.text[lang()])}</h3><div style="font-size:12px;color:#7a8498">${c.source}: ${esc(q.source)}</div></div><div style="font-size:12px">${q.ai?c.ai:''}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ${a==='yes'?'success':'secondary'}" data-answer="yes" data-q="${q.id}">${c.yes}</button><button class="btn ${a==='no'?'danger':'secondary'}" data-answer="no" data-q="${q.id}">${c.no}</button><button class="btn ${!a?'secondary':''}" data-answer="skip" data-q="${q.id}">${c.skip}</button></div></article>`}).join('');
-    wrap.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>{const q=b.dataset.q,v=b.dataset.answer; if(v==='skip')delete state.answers[q]; else state.answers[q]=v; updateMetrics(); renderQuestions();});
-  }
-  function updateMetrics(){const s=score(); if($('aiScore'))$('aiScore').textContent=s===null?'—':s+'%'; if($('aiTrend'))$('aiTrend').textContent=trend(s);}
-  function addQuestion(){
-    const c=COPY[lang()];
-    const text=prompt(lang()==='en'?'Enter a clinician-authored question:':'اكتب سؤالًا من تأليف الطبيب/المعالج:');
-    if(!text?.trim())return;
-    const q={id:'custom_'+Date.now(),domain:'Custom',text:{ar:text.trim(),en:text.trim()},source:'Clinician-authored — not a validated instrument',ai:false}; QUESTIONS.push(q); renderQuestions(); toast(c.approve+' ✓');
-  }
-  function observeLanguage(){
-    const obs=new MutationObserver(()=>{if($('azaadClinicianAICockpit')){const old=$('azaadClinicianAICockpit');old.remove();render();}}); obs.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
-  }
-  function init(){setTimeout(()=>{render();observeLanguage();},250);}
+  const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+  const API='https://derofsthjivlkcdnojww.supabase.co/rest/v1', KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const token=()=>window.AZAAD?.state?.session?.access_token||'';
+  const patientId=()=>window.CURRENT_PATIENT_ID||window.patientId||new URLSearchParams(location.search).get('patient_id')||document.body.dataset.patientId||'';
+  const visitId=()=>window.CURRENT_VISIT_ID||new URLSearchParams(location.search).get('visit_id')||document.body.dataset.visitId||'';
+  const doctorId=()=>window.CURRENT_DOCTOR_ID||document.body.dataset.doctorId||'';
+  const lang=()=>((localStorage.getItem('azaadClinicLanguage')||document.documentElement.lang||'ar').startsWith('en')?'en':'ar');
+  const COPY={ar:{title:'🧠 المساعد الذكي للجلسة',sub:'مساحة سريرية سريعة للطبيب/المعالج — القرار السريري للطبيب دائمًا.',start:'بدء التقييم',finish:'إنهاء الجلسة',save:'حفظ',add:'➕ إضافة سؤال',source:'📚 المصدر',note:'ملاحظة الطبيب/المعالج',yes:'✅ نعم / موجود',no:'❌ لا / غير موجود',skip:'⚪ غير مُقيّم',score:'النسبة الحالية',trend:'الاتجاه',baseline:'خط الأساس',previous:'الزيارة السابقة',suggest:'🤖 اقتراح موعد',transfer:'🔁 تحويل لطبيب آخر',improving:'🟢 مؤشرات تحسن',stable:'🟡 مستقرة/مختلطة',worsening:'🔴 توجد مؤشرات تراجع',insufficient:'⚪ بيانات غير كافية',approve:'اعتماد',reject:'رفض',favorite:'⭐ مفضل',unfavorite:'☆ إزالة المفضلة',aiCandidate:'🤖 سؤال مقترح من AI — يحتاج اعتماد الطبيب قبل إدخاله للمكتبة المشتركة.',safety:'⚠️ تنبيهات الأمان تحتاج مراجعة الطبيب واتباع بروتوكول العيادة المعتمد.',saved:'✅ تم الحفظ',loading:'جاري تحميل الأسئلة...',failed:'تعذر تحميل التقييم.',noPatient:'لم يتم تحديد المريض.',complete:'اكتمل التقييم'},en:{title:'🧠 AI Session Copilot',sub:'A focused clinician workspace — the clinician remains responsible for clinical decisions.',start:'Start assessment',finish:'Finish session',save:'Save',add:'➕ Add question',source:'📚 Source',note:'Clinician note',yes:'✅ Yes / Present',no:'❌ No / Absent',skip:'⚪ Not assessed',score:'Current score',trend:'Trend',baseline:'Baseline',previous:'Previous visit',suggest:'🤖 Suggest time',transfer:'🔁 Transfer patient',improving:'🟢 Improving',stable:'🟡 Stable / mixed',worsening:'🔴 Worsening',insufficient:'⚪ Insufficient data',approve:'Approve',reject:'Reject',favorite:'⭐ Favorite',unfavorite:'☆ Remove favorite',aiCandidate:'🤖 AI candidate — clinician approval is required before entering the shared library.',safety:'⚠️ Safety alerts require clinician review and the clinic-approved safety protocol.',saved:'✅ Saved',loading:'Loading questions...',failed:'Unable to load assessment.',noPatient:'Patient is not selected.',complete:'Assessment complete'}};
+  let state={answers:{},notes:'',started:false,sessionId:'',templateId:'',templateName:'',questions:[],baseline:null,previous:null};
+  const storageKey=()=>`azaad_clinical_session_draft:${patientId()}:${visitId()||'new'}`;
+  const headers=extra=>({Authorization:`Bearer ${token()}`,apikey:KEY,'Content-Type':'application/json',...extra});
+  async function rest(path,opt={}){const r=await fetch(`${API}/${path}`,{...opt,headers:headers(opt.headers||{})});const t=await r.text();let b={};try{b=t?JSON.parse(t):{}}catch(_){}if(!r.ok)throw Error(b.message||b.error||`HTTP ${r.status}`);return b;}
+  function toast(m){let t=$('azaadAiToast');if(!t){t=document.createElement('div');t.id='azaadAiToast';t.style.cssText='position:fixed;bottom:18px;left:18px;right:18px;max-width:560px;margin:auto;background:#18213d;color:#fff;padding:12px 16px;border-radius:12px;z-index:9999;text-align:center';document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(t.__timer);t.__timer=setTimeout(()=>t.hidden=true,2600)}
+  function localLoad(){try{const x=sessionStorage.getItem(storageKey());if(x)state={...state,...JSON.parse(x)}}catch(_){} }
+  function localSave(){try{sessionStorage.setItem(storageKey(),JSON.stringify(state))}catch(_){} }
+  async function loadData(){const c=COPY[lang()];if(!patientId())throw Error(c.noPatient);const ts=await rest('clinical_assessment_templates?active=eq.true&specialty=eq.mental_health&order=created_at.desc&limit=1');if(!ts.length)throw Error(c.failed);state.templateId=state.templateId||ts[0].id;state.templateName=lang()==='en'?ts[0].name:(ts[0].name_ar||ts[0].name);state.questions=await rest(`clinical_assessment_questions?template_id=eq.${state.templateId}&active=eq.true&approved=eq.true&order=question_order.asc`);const h=await rest(`clinical_assessment_patient_history?patient_id=eq.${patientId()}&order=started_at.desc&limit=3`);const prior=(h||[]).filter(x=>x.session_id!==state.sessionId);state.previous=prior[0]?.score_percent??null;state.baseline=prior.length?prior[prior.length-1]?.score_percent??null:null;}
+  function score(){const a=Object.values(state.answers).filter(v=>v==='yes'||v==='no');return a.length?Math.round(a.filter(v=>v==='yes').length/a.length*100):null}
+  function trend(s){if(s==null)return COPY[lang()].insufficient;const p=state.previous;if(p==null)return s>=70?COPY[lang()].improving:s>=45?COPY[lang()].stable:COPY[lang()].worsening;const d=s-p;return d>=10?COPY[lang()].improving:d<=-10?COPY[lang()].worsening:COPY[lang()].stable}
+  function trendCode(s){if(s==null)return'insufficient';if(state.previous==null)return s>=70?'improving':s>=45?'stable':'worsening';const d=s-state.previous;return d>=10?'improving':d<=-10?'worsening':'stable'}
+  async function start(){if(state.sessionId){state.started=true;return renderQuestions()}try{const x=await rest('clinical_assessment_sessions',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({patient_id:patientId(),clinical_visit_id:visitId()||null,template_id:state.templateId,doctor_id:doctorId()||null,total_questions:state.questions.length,baseline_score_percent:state.baseline,previous_score_percent:state.previous})});state.sessionId=x?.[0]?.id||'';state.started=true;localSave();renderQuestions();updateMetrics();toast(COPY[lang()].saved)}catch(e){toast(`❌ ${e.message}`)}}
+  async function persistAnswer(qid,v){if(!state.sessionId)await start();if(!state.sessionId)return;const old=await rest(`clinical_assessment_answers?session_id=eq.${state.sessionId}&question_id=eq.${qid}&limit=1`);const p={response_boolean:v==='yes'?true:v==='no'?false:null,response_text:null,answered_at:v?new Date().toISOString():null};if(old?.length)await rest(`clinical_assessment_answers?id=eq.${old[0].id}`,{method:'PATCH',body:JSON.stringify(p)});else await rest('clinical_assessment_answers',{method:'POST',body:JSON.stringify({session_id:state.sessionId,question_id:qid,...p})})}
+  async function metrics(done=false){if(!state.sessionId)return;const s=score(),answered=Object.values(state.answers).filter(v=>v==='yes'||v==='no').length;await rest(`clinical_assessment_sessions?id=eq.${state.sessionId}`,{method:'PATCH',body:JSON.stringify({answered_questions:answered,score_percent:s,interpretation:trend(s),clinician_notes:state.notes||null,baseline_score_percent:state.baseline,previous_score_percent:state.previous,trend_state:trendCode(s),follow_up_recommended:state.answers.follow_up==='yes',safety_review_required:state.answers.safety==='yes',completed_at:done?new Date().toISOString():null})})}
+  async function answer(q,v){if(!state.started)await start();if(v==='skip')delete state.answers[q];else state.answers[q]=v;localSave();updateMetrics();renderQuestions();try{await persistAnswer(q,v==='skip'?null:v);await metrics(false);toast(COPY[lang()].saved)}catch(e){toast(`❌ ${e.message}`)}}
+  async function finish(){state.notes=$('aiNote')?.value||'';localSave();try{await metrics(true);toast(`${COPY[lang()].complete} — ${score()??'—'}%`)}catch(e){toast(`❌ ${e.message}`)}}
+  async function favorite(q){if(!q||q.localOnly)return;try{await rest(`clinical_assessment_questions?id=eq.${q.id}`,{method:'PATCH',body:JSON.stringify({is_favorite:!q.is_favorite})});q.is_favorite=!q.is_favorite;renderQuestions()}catch(e){toast(`❌ ${e.message}`)}}
+  async function candidate(id,ok){const q=state.questions.find(x=>x.id===id);if(!q)return;try{await rest(`clinical_assessment_questions?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({approved:ok,active:ok,approved_at:ok?new Date().toISOString():null})});q.approved=ok;q.active=ok;renderQuestions();toast(COPY[lang()].saved)}catch(e){toast(`❌ ${e.message}`)}}
+  function add(){const text=prompt(lang()==='en'?'Enter a clinician-authored question:':'اكتب سؤالًا من تأليف الطبيب/المعالج:');if(!text?.trim())return;state.questions.push({id:`local_${Date.now()}`,question_text:text.trim(),question_text_ar:text.trim(),category:'custom',source_title:'Clinician-authored',source_url:'',is_favorite:false,approved:true,active:true,localOnly:true});renderQuestions()}
+  function render(){const host=document.querySelector('#clinicalAssessmentApp')||document.querySelector('#patient360')||document.querySelector('main');if(!host||$('azaadClinicianAICockpit'))return;localLoad();const c=COPY[lang()],box=document.createElement('section');box.id='azaadClinicianAICockpit';box.style.cssText='margin:18px 0;border-radius:20px;padding:18px;background:linear-gradient(135deg,#f7fbff,#fff);border:1px solid #dbe6f4;box-shadow:0 10px 35px rgba(24,33,61,.07)';box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2 style="margin:0 0 6px">${c.title}</h2><div style="color:#68738a">${c.sub}</div><div id="aiTemplateName" style="margin-top:6px;font-weight:700"></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="aiStart" class="btn btn-primary">${c.start}</button><button id="aiSave" class="btn btn-secondary">${c.save}</button></div></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0"><div class="card"><b>${c.score}</b><div id="aiScore" style="font-size:30px;font-weight:900">—</div></div><div class="card"><b>${c.trend}</b><div id="aiTrend">${c.insufficient}</div></div><div class="card"><b>${c.baseline}</b><div id="aiBaseline">—</div></div><div class="card"><b>${c.previous}</b><div id="aiPrevious">—</div></div></div><div id="aiQuestions"><div style="padding:20px;text-align:center">${c.loading}</div></div><label style="display:block;font-weight:700">${c.note}<textarea id="aiNote" rows="3" style="width:100%;margin-top:7px"></textarea></label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="aiAdd" class="btn btn-secondary">${c.add}</button><button id="aiSuggest" class="btn btn-secondary">${c.suggest}</button><button id="aiTransfer" class="btn btn-secondary">${c.transfer}</button><button id="aiFinish" class="btn btn-primary">${c.finish}</button></div><div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff8e6;color:#6b5700">${c.safety}</div>`;host.prepend(box);$('aiNote').value=state.notes||'';$('aiStart').onclick=start;$('aiSave').onclick=async()=>{state.notes=$('aiNote').value;localSave();try{await metrics(false);toast(c.saved)}catch(e){toast(`❌ ${e.message}`)}};$('aiFinish').onclick=finish;$('aiAdd').onclick=add;$('aiSuggest').onclick=()=>document.querySelector('#doctorFollowupWidget')?.scrollIntoView({behavior:'smooth',block:'center'});$('aiTransfer').onclick=()=>document.querySelector('#clinicianTransferWidget')?.scrollIntoView({behavior:'smooth',block:'center'});loadData().then(()=>{$('aiTemplateName').textContent=state.templateName||'';renderQuestions();updateMetrics()}).catch(e=>{$('aiQuestions').innerHTML=`<div style="padding:20px;text-align:center;color:#a32939">❌ ${esc(e.message||c.failed)}</div>`})}
+  function renderQuestions(){const w=$('aiQuestions');if(!w)return;const c=COPY[lang()];w.innerHTML=state.questions.map(q=>{const a=state.answers[q.id]||'',ai=q.is_ai_candidate&&!q.approved,text=lang()==='en'?(q.question_text||q.question_text_ar):(q.question_text_ar||q.question_text);return `<article style="border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin:10px 0;background:#fff"><div style="display:flex;justify-content:space-between;gap:10px"><div><span style="font-size:11px;background:#edf3ff;padding:4px 8px;border-radius:12px">${esc(q.category||'Clinical')}</span>${q.is_favorite?` <span style="font-size:11px;color:#a47700">${c.favorite}</span>`:''}<h3 style="margin:9px 0">${esc(text)}</h3><div style="font-size:12px;color:#7a8498">${c.source}: ${esc(q.source_title||'Azaad Clinic clinical library')} ${q.source_url?` · <a href="${esc(q.source_url)}" target="_blank" rel="noopener noreferrer">${esc(q.source_url)}</a>`:''}</div>${ai?`<div style="margin-top:8px;padding:8px;border-radius:10px;background:#eef7ff;color:#185a8d;font-size:12px">${c.aiCandidate}</div>`:''}</div>${!q.localOnly?`<button class="btn secondary" data-fav="${q.id}">${q.is_favorite?c.unfavorite:c.favorite}</button>`:''}</div>${ai?`<div style="display:flex;gap:8px;margin-top:10px"><button class="btn success" data-approve="${q.id}">${c.approve}</button><button class="btn danger" data-reject="${q.id}">${c.reject}</button></div>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ${a==='yes'?'success':'secondary'}" data-answer="yes" data-q="${q.id}">${c.yes}</button><button class="btn ${a==='no'?'danger':'secondary'}" data-answer="no" data-q="${q.id}">${c.no}</button><button class="btn secondary" data-answer="skip" data-q="${q.id}">${c.skip}</button></div></article>`}).join('');w.querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>answer(b.dataset.q,b.dataset.answer));w.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>favorite(state.questions.find(q=>q.id===b.dataset.fav)));w.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>candidate(b.dataset.approve,true));w.querySelectorAll('[data-reject]').forEach(b=>b.onclick=()=>candidate(b.dataset.reject,false))}
+  function updateMetrics(){const s=score();if($('aiScore'))$('aiScore').textContent=s==null?'—':`${s}%`;if($('aiTrend'))$('aiTrend').textContent=trend(s);if($('aiBaseline'))$('aiBaseline').textContent=state.baseline==null?'—':`${state.baseline}%`;if($('aiPrevious'))$('aiPrevious').textContent=state.previous==null?'—':`${state.previous}%`)}
+  function observe(){new MutationObserver(()=>{if($('azaadClinicianAICockpit')){$('azaadClinicianAICockpit').remove();render()}}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']})}
+  function init(){setTimeout(()=>{render();observe()},250)}
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init,{once:true}):init();
 })();
