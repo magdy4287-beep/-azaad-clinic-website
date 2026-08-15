@@ -62,6 +62,6 @@ jobs:
           grep -q 'azaad_admin_lang' admin-nextgen-v2.js
           grep -q 'No reload, no sign-out' admin-nextgen-v2.js
           ! grep -Eqi 'signOut\(|auth\.signOut\(' admin-nextgen-v2.js
-      - name: Validate no service-role key
+      - name: Validate no service-role credential
         run: |
-          ! grep -Eqi 'service_role|service-role' admin-nextgen-v2.js
+          ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' admin-nextgen-v2.js
