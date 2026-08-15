@@ -1,0 +1,42 @@
+name: Azaad Department AI Gate
+
+on:
+  pull_request:
+    paths:
+      - 'rcm-finance-hr-ai.js'
+      - 'docs/AZAAD_RCM_FINANCE_HR_AI_TEAM_PLAN_2026-08-15.md'
+      - '.github/workflows/azaad-department-ai-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'rcm-finance-hr-ai.js'
+      - 'docs/AZAAD_RCM_FINANCE_HR_AI_TEAM_PLAN_2026-08-15.md'
+      - '.github/workflows/azaad-department-ai-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate department AI foundation
+        run: |
+          test -s rcm-finance-hr-ai.js
+          grep -q "RCM Clerk" rcm-finance-hr-ai.js
+          grep -q "RCM Director" rcm-finance-hr-ai.js
+          grep -q "Finance Manager" rcm-finance-hr-ai.js
+          grep -q "HR Manager" rcm-finance-hr-ai.js
+          grep -q "outstanding" rcm-finance-hr-ai.js
+          grep -q "completionRate" rcm-finance-hr-ai.js
+          grep -q "operatingResult" rcm-finance-hr-ai.js
+      - name: Validate safety and deterministic totals
+        run: |
+          grep -q "authoritative" rcm-finance-hr-ai.js
+          ! grep -Eqi "auto refund|automatic refund|auto write-off|terminate staff automatically|change compensation automatically" rcm-finance-hr-ai.js
+      - name: Validate bilingual UI
+        run: |
+          grep -q "startsWith('en')" rcm-finance-hr-ai.js
+          grep -q "مشرفو الأقسام بالذكاء الاصطناعي" rcm-finance-hr-ai.js
+          grep -q "AI Department Supervisors" rcm-finance-hr-ai.js
