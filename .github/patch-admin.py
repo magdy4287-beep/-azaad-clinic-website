@@ -71,4 +71,6 @@ for script in ("frontdesk-workflow.js","patient-merge-tool.js","patient-clinical
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
 inject_script("clinical-assessment.html","clinician-transfer-widget.js")
+inject_script("clinical-assessment.html","clinician-ai-session-cockpit.js")
+inject_script("clinical-assessment.html","clinician-longitudinal-dashboard.js")
 print("patch-admin.py completed successfully")
