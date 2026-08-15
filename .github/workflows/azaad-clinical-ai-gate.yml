@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'clinician-ai-session-cockpit.js'
+      - 'clinician-longitudinal-dashboard.js'
       - 'clinical-followup-widget.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'clinician-ai-session-cockpit.js'
+      - 'clinician-longitudinal-dashboard.js'
       - 'clinical-followup-widget.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
@@ -35,17 +37,31 @@ jobs:
           grep -q "safety_review_required" clinician-ai-session-cockpit.js
           grep -q "is_favorite" clinician-ai-session-cockpit.js
           grep -q "is_ai_candidate" clinician-ai-session-cockpit.js
+      - name: Validate longitudinal dashboard
+        run: |
+          test -s clinician-longitudinal-dashboard.js
+          grep -q "clinical_assessment_sessions" clinician-longitudinal-dashboard.js
+          grep -q "score_percent" clinician-longitudinal-dashboard.js
+          grep -q "baseline_score_percent" clinician-longitudinal-dashboard.js
+          grep -q "previous_score_percent" clinician-longitudinal-dashboard.js
+          grep -q "safety_review_required" clinician-longitudinal-dashboard.js
+          grep -q "improving" clinician-longitudinal-dashboard.js
+          grep -q "worsening" clinician-longitudinal-dashboard.js
       - name: Validate safety boundary
         run: |
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-ai-session-cockpit.js
+          ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-longitudinal-dashboard.js
           grep -q "decision" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
           grep -q "licensed\|licensing" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
       - name: Validate bilingual clinician UX
         run: |
           grep -q "startsWith('en')" clinician-ai-session-cockpit.js
+          grep -q "startsWith('en')" clinician-longitudinal-dashboard.js
           grep -q "المساعد الذكي للجلسة" clinician-ai-session-cockpit.js
           grep -q "AI Session Copilot" clinician-ai-session-cockpit.js
       - name: Validate follow-up and transfer integration
         run: |
           grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
           grep -q "clinicianTransferWidget" clinician-ai-session-cockpit.js
+          grep -q "clinical-followup-widget.js" .github/patch-admin.py
+          grep -q "clinician-longitudinal-dashboard.js" .github/patch-admin.py
