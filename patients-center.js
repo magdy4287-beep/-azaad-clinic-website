@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  const cancellationLoader=document.createElement('script'); cancellationLoader.src='./appointment-cancellation-ui.js?v=1.0.0'; cancellationLoader.defer=true; document.head.appendChild(cancellationLoader);
 
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
