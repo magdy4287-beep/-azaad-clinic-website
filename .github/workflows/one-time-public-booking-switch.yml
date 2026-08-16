@@ -1,0 +1,6 @@
+# disabled after the public booking gateway migration
+name: Public booking gateway migration (completed)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read

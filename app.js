@@ -30,7 +30,11 @@
    * =========================================================
    */
   const API =
-    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
+    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-booking';
+  const PUBLIC_API =
+    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data';
+  const PUBLIC_SCHEDULING_API =
+    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-scheduling';
   const DEFAULT_WHATSAPP_NUMBER =
     '201140526294';
   const $ = (id) =>
@@ -733,8 +737,7 @@
 ${notes}`;
     }
     message +=
-`
-⚠️ ${t('reviewAvailability')}
+`\n⚠️ ${t('reviewAvailability')}
 ${t('sentFromWebsite')}`;
     return message;
   }
@@ -1017,7 +1020,7 @@ ${t('sentFromWebsite')}`;
     try {
       const result =
         await request(
-          API +
+          PUBLIC_API +
           '?api=data&_=' +
           Date.now()
         );
@@ -1107,7 +1110,7 @@ ${t('sentFromWebsite')}`;
     `;
     try {
       const url =
-        API +
+        PUBLIC_SCHEDULING_API +
         '?api=slots' +
         '&doctor=' +
         encodeURIComponent(
