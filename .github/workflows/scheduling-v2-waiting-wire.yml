@@ -4,6 +4,7 @@ on:
   push:
     branches: [feat/scheduling-v2-ui]
     paths:
+      - 'scheduling-v2.js'
       - 'scheduling-v2-waiting.js'
       - '.github/workflows/scheduling-v2-waiting-wire.yml'
 
