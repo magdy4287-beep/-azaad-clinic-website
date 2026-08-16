@@ -2341,6 +2341,7 @@ async function scheduleLoad(
               <div
                 class="schedule-day"
                 data-schedule-id="${esc(x.id)}"
+                data-weekday="${esc(x.weekday)}"
               >
 
                 <div class="schedule-head">
@@ -2462,6 +2463,11 @@ async function scheduleLoad(
                 id:
                   card.dataset
                     .scheduleId,
+
+                weekday:
+                  Number(
+                    card.dataset.weekday
+                  ),
 
                 enabled:
                   card.querySelector(
