@@ -516,6 +516,31 @@ function applyStaffRole(
 }
 
 /* ============================================================
+   DOCTOR ROUTING
+   ------------------------------------------------------------
+   DOCTOR accounts must never land in the Admin UI.
+   They authenticate through the same staff login form, then
+   continue directly to the doctor dashboard.
+   ============================================================ */
+
+function redirectDoctorIfNeeded() {
+  const role = String(
+    state.currentRole || state.staff?.role || ''
+  ).toUpperCase().trim();
+
+  if (role !== 'DOCTOR') {
+    return false;
+  }
+
+  const target = 'doctor-dashboard.html';
+  if (!window.location.pathname.endsWith('/' + target)) {
+    window.location.replace(target);
+  }
+
+  return true;
+}
+
+/* ============================================================
    LOGIN
    ============================================================ */
 
@@ -652,6 +677,10 @@ async function login(
     result.staff
   );
 
+  if (redirectDoctorIfNeeded()) {
+    return;
+  }
+
   await initializeApplication();
 }
 
@@ -706,6 +735,10 @@ async function restoreSession() {
     const validStaff = await restoreStaffProfile();
 
     if (validStaff) {
+      if (redirectDoctorIfNeeded()) {
+        return true;
+      }
+
       await initializeApplication();
       return true;
     }
