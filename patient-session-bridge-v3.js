@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.3.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.4.0 */
 (() => {
   'use strict';
 
@@ -7,6 +7,8 @@
   const I18N_STABILITY_SCRIPT = './central-i18n-stability.js?v=2026.08.16.1';
   const I18N_SCRIPT = './central-i18n.js?v=2026.08.14.2';
   const ENHANCEMENTS_SCRIPT = './admin-enhancements-v1.js?v=2026.08.14.2';
+  const CANCELLATION_SCRIPT = './appointment-cancellation-ui.js?v=1.2.0';
+  const REFUND_SCRIPT = './refund-workflow-ui.js?v=1.0.0';
   let restorePromise = null;
   let booted = false;
 
@@ -75,11 +77,7 @@
     try {
       const response = await fetch(`${ADMIN_FUNCTION}?api=account&_=${Date.now()}`, {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-          apikey: 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa'
-        },
+        headers: { Accept: 'application/json', Authorization: `Bearer ${session.access_token}`, apikey: 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa' },
         cache: 'no-store'
       });
       let body = null;
@@ -88,31 +86,19 @@
         console.warn('Admin session validation failed:', response.status, body?.error || 'unknown');
         return false;
       }
-
       const staff = body.admin;
       const role = String(staff.role || '').toUpperCase().trim();
       if (!staff.active || !permissionMap[role]) return false;
-
       state.session = session;
       state.user = session.user;
       state.staff = staff;
       state.role = role;
       state.currentRole = role;
       state.permissions = new Set(permissionMap[role]);
-
-      if (routeDoctor(staff)) {
-        booted = true;
-        return true;
-      }
-
+      if (routeDoctor(staff)) { booted = true; return true; }
       document.getElementById('loginPage')?.classList.add('hidden');
       document.getElementById('adminPage')?.classList.remove('hidden');
-
-      if (typeof controller.refresh === 'function') {
-        try { await controller.refresh(); }
-        catch (error) { console.warn('Admin refresh after restore:', error); }
-      }
-
+      if (typeof controller.refresh === 'function') { try { await controller.refresh(); } catch (error) { console.warn('Admin refresh after restore:', error); } }
       state.initialized = true;
       booted = true;
       return true;
@@ -154,7 +140,7 @@
   window.AZAAD_AUTH_READY = restoreAdmin();
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '5.3.0',
+    version: '5.4.0',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
@@ -179,7 +165,11 @@
     if (window.__AZAAD_ADMIN_ENHANCEMENTS__) return;
     loadScriptOnce(ENHANCEMENTS_SCRIPT, '__AZAAD_ADMIN_ENHANCEMENTS__');
   };
-
+  const loadWorkflows = () => {
+    if (!/admin\.html$/i.test(location.pathname)) return;
+    loadScriptOnce(CANCELLATION_SCRIPT, '__AZAAD_CANCELLATION_WORKFLOW__');
+    loadScriptOnce(REFUND_SCRIPT, '__AZAAD_REFUND_WORKFLOW__');
+  };
   const loadI18nStability = () => loadScriptOnce(I18N_STABILITY_SCRIPT, '__AZAAD_CENTRAL_I18N_STABILITY__');
   const loadCentralI18n = () => loadScriptOnce(I18N_SCRIPT, '__AZAAD_CENTRAL_I18N__');
 
@@ -187,27 +177,23 @@
     loadI18nStability();
     loadCentralI18n();
     loadAdminEnhancements();
+    loadWorkflows();
     protectStartupSignOut();
     const ready = await waitForAzaad();
     if (!ready) return;
-
     const auth = window.AZAAD?.supabase?.auth;
     if (auth && !auth.__azaadDoctorRouteListener) {
       auth.__azaadDoctorRouteListener = true;
       auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session?.access_token) {
-          window.setTimeout(() => { restoreAdmin(); }, 0);
-        }
+        if (event === 'SIGNED_IN' && session?.access_token) window.setTimeout(() => { restoreAdmin(); }, 0);
       });
     }
-
     await restoreAdmin();
     try { await window.AZAAD_AUTH_READY; } catch (_) {}
+    loadWorkflows();
   };
 
   window.addEventListener('pageshow', () => { if (!booted) restoreAdmin(); });
   window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !booted) restoreAdmin(); });
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
-  else boot();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();
 })();
