@@ -4,6 +4,7 @@
 
   const SESSION_KEY = 'azaad_admin_token';
   const ADMIN_FUNCTION = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin';
+  const I18N_STABILITY_SCRIPT = './central-i18n-stability.js?v=2026.08.16.1';
   const I18N_SCRIPT = './central-i18n.js?v=2026.08.14.2';
   const ENHANCEMENTS_SCRIPT = './admin-enhancements-v1.js?v=2026.08.14.2';
   let restorePromise = null;
@@ -165,9 +166,13 @@
     loadScriptOnce(ENHANCEMENTS_SCRIPT, '__AZAAD_ADMIN_ENHANCEMENTS__');
   };
 
+  const loadI18nStability = () => loadScriptOnce(I18N_STABILITY_SCRIPT, '__AZAAD_CENTRAL_I18N_STABILITY__');
   const loadCentralI18n = () => loadScriptOnce(I18N_SCRIPT, '__AZAAD_CENTRAL_I18N__');
 
   const boot = async () => {
+    /* Stability guard MUST load before central-i18n because the central runtime
+       historically installed a 1-second polling timer and reload-based switch. */
+    loadI18nStability();
     loadCentralI18n();
     loadAdminEnhancements();
     protectStartupSignOut();
