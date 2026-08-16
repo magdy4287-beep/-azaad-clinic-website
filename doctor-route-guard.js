@@ -1,48 +1,65 @@
-/* AZAAD CLINIC — DOCTOR ROUTE GUARD */
+/* AZAAD CLINIC — DOCTOR ROUTE GUARD v2 */
 (() => {
   'use strict';
-  if (!/admin\.html$/i.test(location.pathname)) return;
+  if (!/\/admin\.html$/i.test(location.pathname)) return;
+
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
-  const KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const SUPABASE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const STORAGE_KEY = 'azaad-clinic-admin-auth';
   let redirected = false;
-  const route = async () => {
+  let clientPromise = null;
+
+  async function getClient() {
+    if (!clientPromise) {
+      clientPromise = import('https://esm.sh/@supabase/supabase-js@2').then(({ createClient }) =>
+        createClient(SUPABASE_URL, SUPABASE_KEY, {
+          auth: {
+            storageKey: STORAGE_KEY,
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false
+          }
+        })
+      );
+    }
+    return clientPromise;
+  }
+
+  async function routeDoctor() {
     if (redirected) return;
-    const client = window.AZAAD?.supabase;
-    if (!client?.auth) return;
     try {
-      const { data, error } = await client.auth.getSession();
-      if (error || !data?.session?.access_token) return;
-      const token = data.session.access_token;
+      const supabase = await getClient();
+      const { data, error } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (error || !token) return;
+
       const response = await fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth?_=${Date.now()}`, {
         method: 'GET',
         cache: 'no-store',
-        headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, apikey: KEY }
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: SUPABASE_KEY
+        }
       });
+
       const body = await response.json().catch(() => ({}));
-      const role = String(body?.admin?.role || '').toUpperCase().trim();
-      if (response.ok && body?.admin?.active !== false && role === 'DOCTOR') {
+      const admin = body?.admin || body?.staff || {};
+      const role = String(admin.role || '').trim().toUpperCase();
+      const active = admin.active !== false;
+
+      if (response.ok && active && role === 'DOCTOR') {
         redirected = true;
-        location.replace('./doctor-dashboard.html');
+        location.replace('./doctor-dashboard.html?from=admin');
       }
-    } catch (e) {
-      console.warn('Azaad doctor route guard:', e);
+    } catch (error) {
+      console.warn('Azaad doctor route guard v2:', error);
     }
-  };
-  const boot = () => {
-    route();
-    const auth = window.AZAAD?.supabase?.auth;
-    if (auth && !auth.__azaadDoctorGuardBound) {
-      auth.__azaadDoctorGuardBound = true;
-      auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') setTimeout(route, 0);
-      });
-    }
-    let attempts = 0;
-    const timer = setInterval(() => {
-      route();
-      if (++attempts >= 30 || redirected) clearInterval(timer);
-    }, 500);
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
-  else boot();
+  }
+
+  routeDoctor();
+  setTimeout(routeDoctor, 250);
+  setTimeout(routeDoctor, 750);
+  setTimeout(routeDoctor, 1500);
+  setTimeout(routeDoctor, 3000);
 })();
