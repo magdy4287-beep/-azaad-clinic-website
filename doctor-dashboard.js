@@ -5,9 +5,9 @@ const SUPABASE_KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
 const API=`${SUPABASE_URL}/functions/v1/azaad-doctor-dashboard`;
 const START=`${SUPABASE_URL}/functions/v1/azaad-doctor-start-visit`;
 const $=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
 let client=null,session=null,cache=[],appointmentsCache=[];
-async function initClient(){if(client)return client;const mod=await import('https://esm.sh/@supabase/supabase-js@2');client=mod.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:'azaad-clinic-admin-auth',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});return client}
+async function initClient(){if(client)return client;const mod=await import('https://esm.sh/@supabase/supabase-js@2');client=mod.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});return client}
 async function getSession(){if(window.AZAAD?.state?.session)return window.AZAAD.state.session;const c=await initClient();return (await c.auth.getSession()).data.session||null}
 async function call(payload={}){if(!session?.access_token)throw new Error('جلسة الطبيب غير موجودة أو منتهية.');const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_KEY},body:JSON.stringify(payload),cache:'no-store'});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b?.error||b?.message||`HTTP ${r.status}`);return b}
 async function startVisit(id){const r=await fetch(START,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_KEY},body:JSON.stringify({booking_id:id}),cache:'no-store'});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b?.error||b?.message||`HTTP ${r.status}`);return b}
