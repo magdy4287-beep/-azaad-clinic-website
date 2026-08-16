@@ -1,0 +1,32 @@
+name: Azaad Admin Schedule Weekday Fix
+on:
+  push:
+    branches: [fix/admin-schedule-weekday]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch schedule editor payload
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('admin.html'); s=p.read_text(encoding='utf-8')
+          old='data-schedule-id="${esc(x.id)}"\n              >'
+          new='data-schedule-id="${esc(x.id)}"\n                data-weekday="${esc(x.weekday)}"\n              >'
+          if old in s and 'data-weekday="${esc(x.weekday)}"' not in s: s=s.replace(old,new,1)
+          old2='id:\n                  card.dataset\n                    .scheduleId,\n\n                enabled:'
+          new2='id:\n                  card.dataset\n                    .scheduleId,\n\n                weekday:\n                  Number(\n                    card.dataset.weekday\n                  ),\n\n                enabled:'
+          if old2 in s and 'weekday:\n                  Number(\n                    card.dataset.weekday' not in s: s=s.replace(old2,new2,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Verify patch
+        run: python3 qa/doctor-schedule-save-contract-gate.py
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add admin.html
+          git diff --cached --quiet || git commit -m "fix(admin): persist doctor schedule weekday"
+          git push
