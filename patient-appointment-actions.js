@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — Patient 360 Appointment Actions V6 */
+/* AZAAD CLINIC — Patient 360 Appointment Actions V7 */
 (() => {
   'use strict';
   const $=id=>document.getElementById(id);
@@ -9,15 +9,15 @@
   const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
   const token=()=>window.AZAAD?.state?.session?.access_token||sessionStorage.getItem('azaad_admin_token')||'';
   const toast=(m,error=false)=>window.showToast?window.showToast(m,error?'error':'success'):alert(m);
-  async function request(url,options={}){const t=token();if(!t)throw Error(tr('جلسة الإدارة غير موجودة أو منتهية.','The admin session is missing or expired.'));const r=await fetch(url,{...options,cache:'no-store',headers:{Authorization:`Bearer ${t}`,apikey:KEY,Accept:'application/json','Content-Type':'application/json',...(options.headers||{})}});const b=await r.json().catch(()=>null);if(!r.ok)throw Error(b?.message||b?.hint||b?.details||b?.error||`HTTP ${r.status}`);return b;}
+  async function request(url,options={}){const t=token();if(!t)throw Error(tr('جلسة الإدارة غير موجودة أو منتهية.','The admin session is missing or expired.'));const r=await fetch(url,{...options,cache:'no-store',headers:{Authorization:`Bearer ${t}`,apikey:KEY,Accept:'application/json',...(options.method&&options.method!=='GET'?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});const b=await r.json().catch(()=>null);if(!r.ok)throw Error(b?.message||b?.hint||b?.details||b?.error||`HTTP ${r.status}`);return b;}
   async function rpc(fn,args){return request(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',body:JSON.stringify(args)});}
   async function checkIn(booking){return request(CHECKIN_API,{method:'POST',body:JSON.stringify({booking_id:booking.id})});}
   async function findInvoice(booking){
     if(booking?.invoice_id)return {id:booking.invoice_id,number:booking.invoice_number,total:booking.invoice_total||booking.total||300,status:booking.invoice_status||booking.payment_status||'unpaid'};
+    if(!booking?.id)return null;
     const q=new URLSearchParams({select:'id,invoice_number,total,status,booking_id',booking_id:`eq.${booking.id}`,order:'created_at.desc',limit:'1'});
-    const rows=await request(`${SUPABASE_URL}/rest/v1/clinic_invoices?${q.toString()}`,{method:'GET',headers:{'Content-Type':undefined}});
-    const inv=Array.isArray(rows)?rows[0]:null;
-    return inv||null;
+    const rows=await request(`${SUPABASE_URL}/rest/v1/clinic_invoices?${q.toString()}`);
+    return Array.isArray(rows)?rows[0]||null:null;
   }
   function addStyle(){if($('patientAppointmentActionsStyle'))return;const s=document.createElement('style');s.id='patientAppointmentActionsStyle';s.textContent='.p360-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;padding:12px;background:#f7f8fb;border:1px solid #e4e7ee;border-radius:12px}.p360-action-title{width:100%;font-weight:900;color:#17214f}.p360-action-status{font-size:12px;color:#5f6880;width:100%}.p360-actions button{min-height:42px}.p360-pay-box{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;width:100%;margin-top:8px}.p360-pay-box input,.p360-pay-box select{padding:9px;border:1px solid #d9deea;border-radius:9px}.p360-pay-box .pay-note{grid-column:1/-1;font-size:12px;color:#5f6880}@media(max-width:700px){.p360-pay-box{grid-template-columns:1fr}}';document.head.appendChild(s);}
   function appointmentFromRow(row){const code=row.textContent.match(/AZD-[A-Z0-9-]+/)?.[0]||'';const rows=Array.isArray(window.AZAAD_PATIENTS?.state?.bookings)?window.AZAAD_PATIENTS.state.bookings:[];return rows.find(x=>String(x.booking_code||'')===code)||null;}
@@ -43,23 +43,26 @@
       add(`🩺 ${tr('تحويل للطبيب','Send to Doctor')}`,'btn-gold',()=>{const ready=['checked_in','checked_in_late','in_progress'].includes(String(booking.status||'').toLowerCase());if(!ready){toast(tr('🟡 يجب تنفيذ Check-in أولًا قبل تحويل المريض للطبيب.','🟡 Check-in must be completed before sending the patient to the Doctor Queue.'),true);return;}findInvoice(booking).then(inv=>{if(!inv||String(inv.status).toLowerCase()!=='paid'){toast(tr('💳 يجب تسوية الفاتورة قبل دخول المريض للطبيب.','💳 The invoice must be paid before Doctor access.'),true);return;}window.location.href=doctorUrl(booking);}).catch(e=>toast(e.message,true));});
     });
   }
+  function invoiceRowCandidates(root,invoiceNumber){
+    const nodes=[];const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;
+    while(n=walker.nextNode()){if((n.nodeValue||'').includes(invoiceNumber)){let el=n.parentElement;while(el&&el!==root){const text=(el.textContent||'').trim();if(text.includes(invoiceNumber)&&text.length<=600){nodes.push(el);break;}el=el.parentElement;}}}
+    return nodes.filter((el,i,a)=>a.indexOf(el)===i).sort((a,b)=>(a.textContent.length-b.textContent.length));
+  }
   async function renderInvoiceActions(){
-    const content=$('p360Content');if(!content)return;
-    [...content.querySelectorAll('.p360-row')].filter(r=>/🧾/.test(r.textContent||'')&&/INV-/.test(r.textContent||'')).forEach(async row=>{
-      if(row.dataset.invoiceActionBound==='1')return;row.dataset.invoiceActionBound='1';
-      const match=row.textContent.match(/INV-[0-9-]+/);if(!match){row.dataset.invoiceActionBound='';return;}
-      const invoiceNumber=match[0];
+    const root=document.body;if(!root)return;
+    const text=root.textContent||'';const matches=text.match(/INV-[0-9-]+/g)||[];const invoiceNumbers=[...new Set(matches)];
+    for(const invoiceNumber of invoiceNumbers){
+      const candidates=invoiceRowCandidates(root,invoiceNumber);const row=candidates[0];if(!row||row.dataset.invoiceActionBound==='1')continue;
+      row.dataset.invoiceActionBound='1';
       try{
         const q=new URLSearchParams({select:'id,invoice_number,total,status,booking_id',invoice_number:`eq.${invoiceNumber}`,order:'created_at.desc',limit:'1'});
-        const rows=await request(`${SUPABASE_URL}/rest/v1/clinic_invoices?${q.toString()}`,{method:'GET',headers:{'Content-Type':undefined}});
-        const invoice=Array.isArray(rows)?rows[0]:null;if(!invoice)return;
-        const bookings=Array.isArray(window.AZAAD_PATIENTS?.state?.bookings)?window.AZAAD_PATIENTS.state.bookings:[];
-        const booking=bookings.find(x=>String(x.id)===String(invoice.booking_id));
+        const rows=await request(`${SUPABASE_URL}/rest/v1/clinic_invoices?${q.toString()}`);const invoice=Array.isArray(rows)?rows[0]:null;if(!invoice){row.dataset.invoiceActionBound='';continue;}
+        const bookings=Array.isArray(window.AZAAD_PATIENTS?.state?.bookings)?window.AZAAD_PATIENTS.state.bookings:[];const booking=bookings.find(x=>String(x.id)===String(invoice.booking_id));
         const bar=document.createElement('div');bar.className='p360-actions';bar.innerHTML=`<div class="p360-action-title">💳 ${tr('الدفع','Payment')}</div><div class="p360-action-status" data-action-state>${String(invoice.status).toLowerCase()==='paid'?'🟢':'🟠'} ${esc(invoice.invoice_number)} · ${Number(invoice.total||0).toFixed(2)} · ${esc(invoice.status||'unpaid')}</div>`;row.appendChild(bar);
         if(String(invoice.status).toLowerCase()!=='paid')paymentBox(invoice,bar,booking);
       }catch(e){console.warn('Patient 360 invoice action:',e);row.dataset.invoiceActionBound='';}
-    });
+    }
   }
-  function install(){addStyle();new MutationObserver(()=>{renderActions();renderInvoiceActions();}).observe(document.body,{childList:true,subtree:true});renderActions();renderInvoiceActions();}
+  function install(){addStyle();const rerender=()=>{renderActions();renderInvoiceActions();};new MutationObserver(rerender).observe(document.body,{childList:true,subtree:true});rerender();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,500),{once:true});else setTimeout(install,500);
 })();
