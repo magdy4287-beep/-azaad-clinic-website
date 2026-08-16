@@ -9,25 +9,26 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Inject doctor route guard into admin.html
+      - name: Ensure current doctor route guard is loaded with cache-busted URL
         shell: bash
         run: |
           set -euo pipefail
-          if grep -q 'doctor-route-guard.js' admin.html; then
-            echo 'Doctor route guard already present.'
-            exit 0
-          fi
           python - <<'PY'
           from pathlib import Path
           p = Path('admin.html')
           s = p.read_text(encoding='utf-8')
-          marker = '</body>'
-          tag = '<script src="./doctor-route-guard.js?v=1.0.0" defer></script>\n'
-          if marker not in s:
-              raise SystemExit('admin.html has no </body> marker')
-          p.write_text(s.replace(marker, tag + marker, 1), encoding='utf-8')
+          old = '<script src="./doctor-route-guard.js?v=1.0.0" defer></script>'
+          new = '<script src="./doctor-route-guard.js?v=2.0.0" defer></script>'
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif './doctor-route-guard.js' not in s:
+              marker = '</body>'
+              if marker not in s:
+                  raise SystemExit('admin.html has no </body> marker')
+              s = s.replace(marker, new + '\n' + marker, 1)
+          p.write_text(s, encoding='utf-8')
           PY
-      - name: Commit and push
+      - name: Commit and push only if changed
         shell: bash
         run: |
           set -euo pipefail
@@ -38,5 +39,5 @@ jobs:
           git config user.name 'Azaad Clinic Automation'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add admin.html
-          git commit -m 'fix: load doctor route guard in admin panel'
+          git commit -m 'fix: cache-bust doctor route guard'
           git push
