@@ -60,14 +60,13 @@ async function durationsFor(rows: Array<{ service_id?: string }>) {
 
 async function resolveSchedule(doctorId: string, date: string, mode: "clinic" | "online") {
   const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
-  const [{ data: clinic, error: clinicError }, { data: doctorRows, error: doctorError },
+  const [{ data: doctorRows, error: doctorError },
     { data: holidays, error: holidayError }, { data: override, error: overrideError }] = await Promise.all([
-      db.from("clinic_working_hours").select("weekday,enabled,start_time,end_time,break_start,break_end").eq("weekday", weekday).maybeSingle(),
       db.from("doctor_weekly_schedules").select("*").eq("doctor_id", doctorId).eq("weekday", weekday).eq("enabled", true),
       db.from("clinic_holidays").select("applies_to,doctor_id,closed").lte("start_date", date).gte("end_date", date),
       db.from("doctor_schedule_overrides").select("*").eq("doctor_id", doctorId).eq("override_date", date).maybeSingle(),
     ]);
-  if (clinicError || doctorError || holidayError || overrideError) throw clinicError || doctorError || holidayError || overrideError;
+  if (doctorError || holidayError || overrideError) throw doctorError || holidayError || overrideError;
 
   for (const holiday of holidays ?? []) {
     if (holiday.closed && (holiday.applies_to === "clinic" || holiday.applies_to === "all" ||
@@ -79,10 +78,9 @@ async function resolveSchedule(doctorId: string, date: string, mode: "clinic" | 
   const compatible = (doctorRows ?? []).find((row) =>
     row.mode === "both" || row.mode === mode || (mode === "clinic" && row.mode === "in_clinic"),
   );
-  let base = compatible ?? clinic;
-  if (!base || base.enabled === false) return null;
+  if (!compatible) return null;
 
-  base = { ...base };
+  const base = { ...compatible };
   if (override) {
     for (const key of ["start_time", "end_time", "break_start", "break_end", "slot_minutes", "buffer_minutes", "max_daily_bookings"]) {
       if (override[key] !== null && override[key] !== undefined) base[key] = override[key];
@@ -133,7 +131,6 @@ Deno.serve(async (req) => {
       .select("appointment_time,service_id,status,mode")
       .eq("doctor_id", doctorId)
       .eq("appointment_date", date)
-      .eq("mode", mode)
       .in("status", ["pending", "confirmed"]);
     if (bookingsError) throw bookingsError;
 
@@ -154,7 +151,8 @@ Deno.serve(async (req) => {
       const conflict = (bookings ?? []).some((booking) => {
         const bookedAt = toMinutes(booking.appointment_time);
         const bookedDuration = bookingDurations.get(String(booking.service_id ?? "")) ?? 30;
-        return minute < bookedAt + bookedDuration + buffer && minute + duration + buffer > bookedAt;
+        const sameMode = String(booking.mode ?? "clinic").toLowerCase() === mode;
+        return sameMode && minute < bookedAt + bookedDuration + buffer && minute + duration + buffer > bookedAt;
       });
       if (!conflict) slots.push(`${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`);
     }
