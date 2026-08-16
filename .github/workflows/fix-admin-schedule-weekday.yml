@@ -1,7 +1,7 @@
 name: Azaad Admin Schedule Weekday Fix
 on:
   push:
-    branches: [main]
+    branches: [fix/admin-schedule-weekday]
 permissions:
   contents: write
 jobs:
