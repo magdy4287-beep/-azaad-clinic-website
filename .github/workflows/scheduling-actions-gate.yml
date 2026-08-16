@@ -1,0 +1,30 @@
+name: Azaad Scheduling Actions Gate
+
+on:
+  pull_request:
+    paths:
+      - 'scheduling-actions-contract.js'
+      - 'qa/scheduling-actions-contract-gate.py'
+      - '.github/workflows/scheduling-actions-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scheduling-actions-contract.js'
+      - 'qa/scheduling-actions-contract-gate.py'
+      - '.github/workflows/scheduling-actions-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scheduling-actions-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate Scheduling Actions contract
+        run: python qa/scheduling-actions-contract-gate.py
