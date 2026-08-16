@@ -1,0 +1,43 @@
+name: Azaad Scheduling V2 Wire
+
+on:
+  push:
+    branches: [feat/scheduling-v2-ui]
+    paths:
+      - 'scheduling-v2.js'
+      - '.github/workflows/scheduling-v2-wire.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Inject Scheduling V2 script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('admin.html')
+          text = p.read_text(encoding='utf-8')
+          tag = '<script src="./scheduling-v2.js?v=1.0.0"></script>'
+          if tag not in text:
+              marker = '<script src="./patient-session-bridge-v3.js?v=4.1.0"></script>'
+              if marker not in text:
+                  raise SystemExit('Admin script insertion marker not found')
+              text = text.replace(marker, tag + '\n' + marker, 1)
+              p.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit wiring
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin.html
+          if git diff --cached --quiet; then
+            echo 'Scheduling V2 already wired.'
+            exit 0
+          fi
+          git commit -m 'feat(scheduling): wire V2 UI into admin'
+          git push
