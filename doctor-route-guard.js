@@ -1,11 +1,8 @@
-/* AZAAD CLINIC — DOCTOR ROUTE GUARD v3
+/* AZAAD CLINIC — DOCTOR ROUTE GUARD v4
  *
- * IMPORTANT:
- * - Never redirect to the Doctor Dashboard merely because a doctor session
- *   already exists in storage.
- * - Redirect only immediately after an explicit SIGNED_IN event.
- * - This prevents the admin page from becoming an automatic doctor-login loop
- *   after logout or browser restore.
+ * Doctor login must transition directly to the Doctor Dashboard.
+ * A Doctor session must never expose the Admin Dashboard, even briefly.
+ * A stored session alone must never trigger an automatic redirect.
  */
 (() => {
   'use strict';
@@ -16,6 +13,13 @@
   const STORAGE_KEY = 'azaad-clinic-admin-auth';
   let clientPromise = null;
   let redirectInProgress = false;
+
+  function setAdminVisibility(show) {
+    const adminPage = document.getElementById('adminPage');
+    const loginPage = document.getElementById('loginPage');
+    if (adminPage) adminPage.classList.toggle('hidden', !show);
+    if (loginPage) loginPage.classList.toggle('hidden', !!show);
+  }
 
   async function getClient() {
     if (!clientPromise) {
@@ -62,12 +66,23 @@
     // cause an automatic redirect when the browser/page is opened.
     if (event !== 'SIGNED_IN' || redirectInProgress) return;
 
+    // Hide the Admin Dashboard immediately while the role is verified.
+    // This prevents a Doctor login from briefly rendering Admin data.
+    setAdminVisibility(false);
+
     try {
-      if (!await isDoctorSession(session)) return;
-      redirectInProgress = true;
-      location.replace('./doctor-dashboard.html?from=login');
+      if (await isDoctorSession(session)) {
+        redirectInProgress = true;
+        location.replace('./doctor-dashboard.html?from=login');
+        return;
+      }
+
+      // Non-doctor staff remain in the Admin Panel.
+      setAdminVisibility(true);
     } catch (error) {
-      console.warn('Azaad doctor route guard v3:', error);
+      // If role verification fails, do not expose Admin data from this event.
+      // The normal login flow can remain responsible for its own error state.
+      console.warn('Azaad doctor route guard v4:', error);
     }
   }
 
@@ -79,7 +94,7 @@
         setTimeout(() => handleAuthEvent(event, session), 0);
       });
     } catch (error) {
-      console.warn('Azaad doctor route guard v3 init:', error);
+      console.warn('Azaad doctor route guard v4 init:', error);
     }
   })();
 })();
