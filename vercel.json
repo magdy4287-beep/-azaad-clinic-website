@@ -3,5 +3,8 @@
   "buildCommand": "python3 .github/patch-admin.py && python3 .github/finalize-auth.py && python3 .github/inject-patient-actions.py && python3 .github/inject-doctor-actions.py",
   "outputDirectory": ".",
   "cleanUrls": false,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "git": {
+    "deploymentEnabled": true
+  }
 }
