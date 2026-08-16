@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" dir="auto">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azaad Clinic — Doctor Dashboard</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}.top{background:#fff;border-bottom:1px solid #e5e9f2;padding:18px 24px;display:flex;justify-content:space-between;gap:16px;align-items:center}.brand{font-size:20px;font-weight:800}.muted{color:#667085}.wrap{max-width:1280px;margin:auto;padding:24px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{background:#fff;border:1px solid #e5e9f2;border-radius:16px;padding:18px;box-shadow:0 2px 10px #1720330a}.stat{font-size:28px;font-weight:800;margin-top:8px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.tab{border:1px solid #d8deea;background:#fff;border-radius:10px;padding:10px 14px;cursor:pointer}.tab.active{font-weight:700;border-color:#172033}.panel{display:none}.panel.active{display:block}.row{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #edf0f5}.search{width:100%;padding:12px;border:1px solid #d8deea;border-radius:10px;font-size:16px;margin-bottom:12px}.error{padding:14px;border-radius:10px;background:#fff0f0;color:#a21c1c}@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:520px){.grid{grid-template-columns:1fr}.wrap{padding:14px}}
+</style></head>
+<body>
+<header class="top"><div><div class="brand">🏥 AZAAD · 🧑‍⚕️ Doctor Dashboard</div><div id="identity" class="muted">جاري التحقق من هوية الطبيب...</div></div><button id="logout" class="tab">خروج</button></header>
+<main class="wrap">
+<section class="grid"><div class="card">📅 مواعيد اليوم<div id="todayCount" class="stat">—</div></div><div class="card">👥 مرضاي<div id="patientCount" class="stat">—</div></div><div class="card">⏳ Waiting List<div id="waitingCount" class="stat">—</div></div><div class="card">🟢 الحالة<div id="status" class="stat">—</div></div></section>
+<nav class="tabs"><button class="tab active" data-panel="schedule">📅 My Schedule</button><button class="tab" data-panel="patients">👥 My Patients</button><button class="tab" data-panel="search">🔎 Patient Search</button><button class="tab" data-panel="waiting">⏳ Waiting List</button></nav>
+<section id="schedule" class="panel active card"><h2>📅 My Schedule</h2><div id="scheduleList">جاري التحميل...</div></section>
+<section id="patients" class="panel card"><h2>👥 My Patients</h2><div id="patientsList">جاري التحميل...</div></section>
+<section id="search" class="panel card"><h2>🔎 Patient Search</h2><input id="patientSearch" class="search" placeholder="MRN / name / phone"><div id="searchResults"></div></section>
+<section id="waiting" class="panel card"><h2>⏳ Waiting List</h2><div id="waitingList">جاري التحميل...</div></section>
+<div id="error" class="error" hidden></div>
+</main>
+<script src="doctor-dashboard.js" defer></script>
+</body></html>
