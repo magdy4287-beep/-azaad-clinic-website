@@ -1,51 +1,6 @@
-name: One-time public booking switch
-
+# disabled after the public booking gateway migration
+name: Public booking gateway migration (completed)
 on:
-  push:
-    branches:
-      - test/integration-gate
-
+  workflow_dispatch:
 permissions:
-  contents: write
-
-jobs:
-  switch:
-    if: ${{ !contains(github.event.head_commit.message, 'chore: switch public booking to gateway') }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: test/integration-gate
-      - name: Switch booking endpoint
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('app.js')
-          s = p.read_text()
-          old = "  const PUBLIC_SCHEDULING_API =\n    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-scheduling';"
-          new = old + "\n  const PUBLIC_BOOKING_API =\n    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-booking';"
-          if "const PUBLIC_BOOKING_API" not in s:
-              if old not in s:
-                  raise SystemExit('PUBLIC_SCHEDULING_API anchor not found')
-              s = s.replace(old, new, 1)
-          old_call = "          API +\n          '?api=book',"
-          new_call = "          PUBLIC_BOOKING_API,"
-          if old_call not in s:
-              raise SystemExit('legacy booking call not found')
-          s = s.replace(old_call, new_call, 1)
-          p.write_text(s)
-          PY
-          git diff --check
-          grep -n "PUBLIC_BOOKING_API\|PUBLIC_SCHEDULING_API\|API +" app.js
-      - name: Commit switch and remove one-time workflow
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app.js
-          git commit -m "chore: switch public booking to gateway"
-          git rm .github/workflows/one-time-public-booking-switch.yml
-          git commit -m "chore: remove one-time booking switch workflow"
-          git push origin test/integration-gate
+  contents: read
