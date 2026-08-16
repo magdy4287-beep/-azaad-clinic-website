@@ -1,4 +1,12 @@
-/* AZAAD CLINIC — DOCTOR ROUTE GUARD v2 */
+/* AZAAD CLINIC — DOCTOR ROUTE GUARD v3
+ *
+ * IMPORTANT:
+ * - Never redirect to the Doctor Dashboard merely because a doctor session
+ *   already exists in storage.
+ * - Redirect only immediately after an explicit SIGNED_IN event.
+ * - This prevents the admin page from becoming an automatic doctor-login loop
+ *   after logout or browser restore.
+ */
 (() => {
   'use strict';
   if (!/\/admin\.html$/i.test(location.pathname)) return;
@@ -6,8 +14,8 @@
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const STORAGE_KEY = 'azaad-clinic-admin-auth';
-  let redirected = false;
   let clientPromise = null;
+  let redirectInProgress = false;
 
   async function getClient() {
     if (!clientPromise) {
@@ -25,15 +33,13 @@
     return clientPromise;
   }
 
-  async function routeDoctor() {
-    if (redirected) return;
-    try {
-      const supabase = await getClient();
-      const { data, error } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      if (error || !token) return;
+  async function isDoctorSession(session) {
+    const token = session?.access_token;
+    if (!token) return false;
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth?_=${Date.now()}`, {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/azaad-admin-auth?_=${Date.now()}`,
+      {
         method: 'GET',
         cache: 'no-store',
         headers: {
@@ -41,25 +47,39 @@
           Authorization: `Bearer ${token}`,
           apikey: SUPABASE_KEY
         }
-      });
-
-      const body = await response.json().catch(() => ({}));
-      const admin = body?.admin || body?.staff || {};
-      const role = String(admin.role || '').trim().toUpperCase();
-      const active = admin.active !== false;
-
-      if (response.ok && active && role === 'DOCTOR') {
-        redirected = true;
-        location.replace('./doctor-dashboard.html?from=admin');
       }
+    );
+
+    const body = await response.json().catch(() => ({}));
+    const admin = body?.admin || body?.staff || {};
+    const role = String(admin.role || '').trim().toUpperCase();
+    const active = admin.active !== false;
+    return response.ok && active && role === 'DOCTOR';
+  }
+
+  async function handleAuthEvent(event, session) {
+    // INITIAL_SESSION is intentionally ignored. A stored session must NOT
+    // cause an automatic redirect when the browser/page is opened.
+    if (event !== 'SIGNED_IN' || redirectInProgress) return;
+
+    try {
+      if (!await isDoctorSession(session)) return;
+      redirectInProgress = true;
+      location.replace('./doctor-dashboard.html?from=login');
     } catch (error) {
-      console.warn('Azaad doctor route guard v2:', error);
+      console.warn('Azaad doctor route guard v3:', error);
     }
   }
 
-  routeDoctor();
-  setTimeout(routeDoctor, 250);
-  setTimeout(routeDoctor, 750);
-  setTimeout(routeDoctor, 1500);
-  setTimeout(routeDoctor, 3000);
+  (async () => {
+    try {
+      const supabase = await getClient();
+      supabase.auth.onAuthStateChange((event, session) => {
+        // Avoid awaiting Supabase calls directly inside the auth callback.
+        setTimeout(() => handleAuthEvent(event, session), 0);
+      });
+    } catch (error) {
+      console.warn('Azaad doctor route guard v3 init:', error);
+    }
+  })();
 })();
