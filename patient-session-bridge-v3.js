@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.1.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.2.0 */
 (() => {
   'use strict';
 
@@ -52,6 +52,14 @@
     }
   }
 
+  function routeDoctor(staff) {
+    const role = String(staff?.role || '').toUpperCase().trim();
+    if (role !== 'DOCTOR') return false;
+    if (/\/doctor-dashboard\.html$/i.test(location.pathname)) return false;
+    location.replace('./doctor-dashboard.html');
+    return true;
+  }
+
   async function restoreAdminInternal() {
     if (booted) return true;
     const ready = await waitForAzaad();
@@ -91,6 +99,12 @@
       state.role = role;
       state.currentRole = role;
       state.permissions = new Set(permissionMap[role]);
+
+      if (routeDoctor(staff)) {
+        booted = true;
+        return true;
+      }
+
       document.getElementById('loginPage')?.classList.add('hidden');
       document.getElementById('adminPage')?.classList.remove('hidden');
 
@@ -140,7 +154,7 @@
   window.AZAAD_AUTH_READY = restoreAdmin();
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '5.1.0',
+    version: '5.2.0',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
@@ -170,8 +184,6 @@
   const loadCentralI18n = () => loadScriptOnce(I18N_SCRIPT, '__AZAAD_CENTRAL_I18N__');
 
   const boot = async () => {
-    /* Stability guard MUST load before central-i18n because the central runtime
-       historically installed a 1-second polling timer and reload-based switch. */
     loadI18nStability();
     loadCentralI18n();
     loadAdminEnhancements();
