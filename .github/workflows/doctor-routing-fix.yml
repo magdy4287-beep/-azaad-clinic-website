@@ -1,0 +1,92 @@
+name: Azaad Doctor Routing Fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/doctor-routing-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch doctor routing
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          p = Path('admin.js')
+          s = p.read_text(encoding='utf-8')
+
+          helper = '''/* ============================================================
+             DOCTOR ROUTING
+             ------------------------------------------------------------
+             DOCTOR accounts must never land in the Admin UI.
+             They authenticate through the same staff login form, then
+             continue directly to the doctor dashboard.
+             ============================================================ */
+
+          function redirectDoctorIfNeeded() {
+            const role = String(
+              state.currentRole || state.staff?.role || ''
+            ).toUpperCase().trim();
+
+            if (role !== 'DOCTOR') {
+              return false;
+            }
+
+            const target = 'doctor-dashboard.html';
+            if (!window.location.pathname.endsWith('/' + target)) {
+              window.location.replace(target);
+            }
+
+            return true;
+          }
+
+          '''
+
+          if 'function redirectDoctorIfNeeded()' not in s:
+              marker = '/* ============================================================\n   LOGIN\n   ============================================================ */'
+              if marker not in s:
+                  raise SystemExit('LOGIN marker not found in admin.js')
+              s = s.replace(marker, helper + marker, 1)
+
+          old_login = '''  applyStaffRole(\n    result.staff\n  );\n\n  await initializeApplication();'''
+          new_login = '''  applyStaffRole(\n    result.staff\n  );\n\n  if (redirectDoctorIfNeeded()) {\n    return;\n  }\n\n  await initializeApplication();'''
+          if old_login in s and new_login not in s:
+              s = s.replace(old_login, new_login, 1)
+
+          old_restore = '''    if (validStaff) {\n      await initializeApplication();\n      return true;\n    }'''
+          new_restore = '''    if (validStaff) {\n      if (redirectDoctorIfNeeded()) {\n        return true;\n      }\n\n      await initializeApplication();\n      return true;\n    }'''
+          if old_restore in s and new_restore not in s:
+              s = s.replace(old_restore, new_restore, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          if git diff --quiet -- admin.js; then
+            echo 'No admin.js change required.'
+            exit 0
+          fi
+
+          git config user.name 'Azaad Clinic Automation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin.js
+          git commit -m 'fix: route doctor staff accounts to doctor dashboard'
+          git push origin HEAD:main
+
+      - name: Remove one-time workflow
+        if: success()
+        shell: bash
+        run: |
+          git config user.name 'Azaad Clinic Automation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/doctor-routing-fix.yml
+          git commit -m 'chore: remove one-time doctor routing workflow'
+          git push origin HEAD:main
