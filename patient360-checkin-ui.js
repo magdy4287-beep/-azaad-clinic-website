@@ -10,6 +10,11 @@
   function token(){ const live=window.AZAAD?.state?.session?.access_token; if(live)return live; try{return sessionStorage.getItem('azaad_admin_token')||'';}catch(_){return '';} }
   function roleAllowed(){const role=String(window.AZAAD?.state?.role||window.AZAAD?.state?.currentRole||'').toUpperCase();return allowedRoles.has(role);}
   function findBookingCode(text){return (text.match(/🔖\s*([^\s<]+)/)||[])[1]||'';}
+  function toast(message){
+    let el=document.getElementById('p360ActionToast');
+    if(!el){el=document.createElement('div');el.id='p360ActionToast';el.style.cssText='position:fixed;bottom:20px;left:20px;right:20px;max-width:620px;margin:auto;z-index:9999;background:#17214f;color:#fff;padding:12px 16px;border-radius:12px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.18)';document.body.appendChild(el);}
+    el.textContent=message;el.style.display='block';clearTimeout(el.__timer);el.__timer=setTimeout(()=>{el.style.display='none';},2600);
+  }
   async function resolveBookingId(bookingCode){
     const t=token(); if(!t) throw new Error('جلسة الإدارة غير موجودة أو منتهية.');
     const params=new URLSearchParams({q:bookingCode,limit:'10'});
@@ -28,11 +33,13 @@
       const code=findBookingCode(row.textContent||''); if(!code)return;
       const action=document.createElement('div'); action.className='p360-checkin-action';
       action.innerHTML=`<button type="button" class="btn btn-success" data-p360-checkin="${esc(code)}">🟢 Check-in</button>`;
-      row.appendChild(action); action.querySelector('button').onclick=()=>checkin(code,action.querySelector('button'));
+      row.appendChild(action);
+      const button=action.querySelector('button');
+      button.addEventListener('click',(event)=>{event.preventDefault();event.stopPropagation();checkin(code,button);},{capture:true});
     });
   }
   async function checkin(bookingCode,button){
-    const t=token(); if(!t){alert('جلسة الإدارة غير موجودة أو منتهية.');return;}
+    const t=token(); if(!t){toast('جلسة الإدارة غير موجودة أو منتهية.');return;}
     const original=button.innerHTML;button.disabled=true;button.innerHTML='⏳ جاري تسجيل الحضور...';
     try{
       const appointment=await resolveBookingId(bookingCode);
@@ -40,9 +47,14 @@
       let body={};try{body=await response.json();}catch(_){ }
       if(!response.ok)throw new Error(body?.error||body?.message||`HTTP ${response.status}`);
       button.className='btn btn-secondary';button.innerHTML='✅ Checked-in';button.disabled=true;
-      const host=button.closest('.p360-row'); if(host&&!host.querySelector('.p360-checkin-success')){const note=document.createElement('div');note.className='p360-checkin-success muted';note.textContent='🛡️ تم تسجيل الحضور عبر Front Desk مع الصلاحيات والتدقيق.';host.appendChild(note);}
+      const host=button.closest('.p360-row');
+      if(host&&!host.querySelector('.p360-checkin-success')){
+        const note=document.createElement('div');note.className='p360-checkin-success muted';
+        note.textContent='🧾 تم تسجيل الحضور وإنشاء/تأكيد الفاتورة. اضغط على الفاتورة لعرضها.';host.appendChild(note);
+      }
       window.dispatchEvent(new CustomEvent('azaad:patient360-checkin-complete',{detail:{bookingId:appointment.id,bookingCode,data:body?.data||null}}));
-    }catch(error){button.disabled=false;button.innerHTML=original;alert(`تعذر تسجيل الحضور: ${error.message}`);}
+      toast('تم Check-in وإنشاء/تأكيد الفاتورة بنجاح.');
+    }catch(error){button.disabled=false;button.innerHTML=original;toast(`تعذر تسجيل الحضور: ${error.message}`);}
   }
   function observe(){const modalContent=document.getElementById('modalContent');if(!modalContent||modalContent.__p360CheckinObserver)return;modalContent.__p360CheckinObserver=true;new MutationObserver(()=>setTimeout(injectButtons,0)).observe(modalContent,{childList:true,subtree:true});setTimeout(injectButtons,0);}
   function boot(){if(!/admin\.html$/i.test(location.pathname))return;observe();setInterval(injectButtons,1200);}
