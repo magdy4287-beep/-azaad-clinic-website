@@ -1,0 +1,16 @@
+name: Locale Stability Contract
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  locale-stability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run locale stability contract
+        run: python qa/locale-stability-contract.py
