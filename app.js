@@ -31,6 +31,8 @@
    */
   const API =
     'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
+  const PUBLIC_API =
+    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data';
   const DEFAULT_WHATSAPP_NUMBER =
     '201140526294';
   const $ = (id) =>
@@ -733,8 +735,7 @@
 ${notes}`;
     }
     message +=
-`
-⚠️ ${t('reviewAvailability')}
+`\n⚠️ ${t('reviewAvailability')}
 ${t('sentFromWebsite')}`;
     return message;
   }
@@ -1017,7 +1018,7 @@ ${t('sentFromWebsite')}`;
     try {
       const result =
         await request(
-          API +
+          PUBLIC_API +
           '?api=data&_=' +
           Date.now()
         );
