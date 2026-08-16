@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 base = (ROOT / "supabase/migrations/20260816_harden_doctor_staff_identity_mapping.sql").read_text(encoding="utf-8")
 contract = (ROOT / "supabase/migrations/20260816_enforce_doctor_staff_binding.sql").read_text(encoding="utf-8")
 binding = (ROOT / "doctor-staff-binding.js").read_text(encoding="utf-8")
+convert = (ROOT / "doctor-staff-convert.js").read_text(encoding="utf-8")
 
 checks = {
     "active doctor uniqueness": "clinic_staff_active_doctor_unique" in base,
@@ -17,6 +18,9 @@ checks = {
     "binding UI uses staff-admin": "staff-admin" in binding,
     "binding UI sends doctor_id": "doctor_id:doctorId" in binding,
     "binding UI does not create doctors": "لا يتم إنشاء طبيب جديد" in binding,
+    "existing staff conversion uses staff-admin": "staff-admin" in convert,
+    "existing staff conversion sets DOCTOR": "role:'DOCTOR'" in convert,
+    "existing staff conversion sends doctor_id": "doctor_id:doctorId" in convert,
 }
 
 for name, ok in checks.items():
