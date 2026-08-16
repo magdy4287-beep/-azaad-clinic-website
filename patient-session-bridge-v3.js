@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.2.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.3.0 */
 (() => {
   'use strict';
 
@@ -154,7 +154,7 @@
   window.AZAAD_AUTH_READY = restoreAdmin();
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '5.2.0',
+    version: '5.3.0',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
@@ -190,6 +190,17 @@
     protectStartupSignOut();
     const ready = await waitForAzaad();
     if (!ready) return;
+
+    const auth = window.AZAAD?.supabase?.auth;
+    if (auth && !auth.__azaadDoctorRouteListener) {
+      auth.__azaadDoctorRouteListener = true;
+      auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.access_token) {
+          window.setTimeout(() => { restoreAdmin(); }, 0);
+        }
+      });
+    }
+
     await restoreAdmin();
     try { await window.AZAAD_AUTH_READY; } catch (_) {}
   };
