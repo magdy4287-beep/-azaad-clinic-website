@@ -1,0 +1,1 @@
+Public booking frontend migration verified on test/integration-gate: app.js uses azaad-public-booking.
