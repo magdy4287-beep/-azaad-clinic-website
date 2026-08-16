@@ -42,4 +42,12 @@
   async function init(){if(state.initialized)return;try{if(window.AZAAD_AUTH_READY?.then)await window.AZAAD_AUTH_READY}catch(_){}styles();if(!inject())return;state.initialized=true;bind();if(token()){loadPatients();loadAppointments()}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
   window.AZAAD_PATIENTS={init,load:loadPatients,refresh:loadPatients,get patients(){return [...state.patients]},get state(){return {...state,patients:[...state.patients]}}};
+  // Load the Patient 360 payment UI only after the authenticated Patient Center exists.
+  if (!document.querySelector('script[data-azaad-p360-payment]')) {
+    const paymentScript = document.createElement('script');
+    paymentScript.src = './patient360-payment-ui.js?v=20260816-1';
+    paymentScript.dataset.azaadP360Payment = '1';
+    paymentScript.defer = true;
+    document.head.appendChild(paymentScript);
+  }
 })();
