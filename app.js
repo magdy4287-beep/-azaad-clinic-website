@@ -30,7 +30,7 @@
    * =========================================================
    */
   const API =
-    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinic';
+    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-booking';
   const PUBLIC_API =
     'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data';
   const PUBLIC_SCHEDULING_API =
