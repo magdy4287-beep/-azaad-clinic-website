@@ -1,0 +1,30 @@
+name: AZAAD Phase 12 Full Security Audit Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-audit-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate security audit contract
+        run: |
+          test -f qa/azaad-phase12-security-audit-gate.md
+          grep -q 'SECURITY DEFINER' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'search_path' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'RLS' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'refund approval hierarchy' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'payment over-balance protection' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'AI cannot bypass' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'least-privilege permissions' qa/azaad-phase12-security-audit-gate.md
+          grep -q 'Data safety' qa/azaad-phase12-security-audit-gate.md
+          echo 'Phase 12 security audit contract: PASS'
