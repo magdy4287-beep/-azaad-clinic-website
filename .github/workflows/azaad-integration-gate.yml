@@ -13,7 +13,7 @@ on:
       - 'ai-operating-center.js'
       - 'qa/azaad-integration-contract.py'
   push:
-    branches: [feat/ai-operating-system-20260815]
+    branches: [main]
     paths:
       - 'index.html'
       - 'app.js'
