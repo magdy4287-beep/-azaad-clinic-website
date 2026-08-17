@@ -3,6 +3,7 @@ name: Azaad AI Operating System Gate
 on:
   push:
     branches:
+      - main
       - feat/ai-operating-system-20260815
   pull_request:
     branches:
