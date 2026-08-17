@@ -1,0 +1,1 @@
+Deployment sync marker for Azaad Clinic. Clinical Assessment fix is already present on main; this file exists only to trigger the connected Vercel production deployment.
