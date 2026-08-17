@@ -29,6 +29,11 @@
     style.id = 'azaadPatientProfileBookingStyles';
     style.textContent = `
       #azaadPatientProfileFields{margin:12px 0 0;padding:16px;border:1px solid #dfe5f2;border-radius:14px;background:#fbfcff;grid-column:1/-1}
+      .azaad-patient-brand{display:flex;align-items:center;gap:12px;margin:0 0 12px;min-width:0}
+      .azaad-patient-brand img{width:58px;height:58px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 8px 22px rgba(16,27,86,.12);border:3px solid #fff}
+      .azaad-patient-brand-copy{min-width:0}
+      .azaad-patient-brand-title{margin:0;color:#101b56;font-size:17px;font-weight:800;line-height:1.3}
+      .azaad-patient-brand-subtitle{margin:3px 0 0;color:#df847d;font-size:11px;font-weight:700;letter-spacing:.8px}
       #azaadPatientProfileFields h3{margin:0 0 6px;color:#101b56;font-size:18px}
       #azaadPatientProfileFields .profile-note{margin:0 0 14px;color:#68738b;font-size:13px;line-height:1.7}
       .azaad-profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -38,7 +43,7 @@
       .azaad-required{color:#b32939}
       .azaad-existing-note{padding:14px;border:1px solid #cfe0f4;background:#f5f9ff;border-radius:12px;line-height:1.8;color:#33415f}
       .azaad-existing-note strong{color:#101b56}
-      @media(max-width:700px){.azaad-profile-grid{grid-template-columns:1fr}#azaadPatientProfileFields{grid-column:auto}}
+      @media(max-width:700px){.azaad-patient-brand img{width:50px;height:50px}.azaad-patient-brand-title{font-size:15px}.azaad-profile-grid{grid-template-columns:1fr}#azaadPatientProfileFields{grid-column:auto}}
     `;
     document.head.appendChild(style);
   }
@@ -52,10 +57,16 @@
     if (!form || $('azaadPatientProfileFields')) return;
     const grid = form.querySelector('.form-grid');
     if (!grid) return;
-    const email = $('email')?.closest('label');
     const wrap = document.createElement('div');
     wrap.id = 'azaadPatientProfileFields';
     wrap.innerHTML = `
+      <div class="azaad-patient-brand" aria-label="Azaad Psychotherapy">
+        <img src="azaad-profile-logo.svg" alt="Azaad Psychotherapy" width="58" height="58" loading="lazy">
+        <div class="azaad-patient-brand-copy">
+          <p class="azaad-patient-brand-title">${t('عيادة أزاد للعلاج النفسي','Azaad Psychotherapy Clinic')}</p>
+          <p class="azaad-patient-brand-subtitle">AZAAD PSYCHOTHERAPY</p>
+        </div>
+      </div>
       <h3>👤 ${t('بيانات المريض','Patient details')}</h3>
       <p class="profile-note">${t('رقم الموبايل والاسم الثلاثي إلزاميان. باقي البيانات اختيارية، والعمر يُحسب تلقائيًا من تاريخ الميلاد.','Mobile number and three-part name are required. Other fields are optional; age is calculated automatically from date of birth.')}</p>
       <div class="azaad-profile-grid">
