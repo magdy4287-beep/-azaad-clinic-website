@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">Azaad Psychotherapy</title>
+  <desc id="desc">Azaad Psychotherapy and Mental Health clinic logo</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffaf1"/>
+      <stop offset="0.48" stop-color="#fff0f6"/>
+      <stop offset="1" stop-color="#e9fbf5"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ef8f87"/>
+      <stop offset="1" stop-color="#e5a39d"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" rx="96" fill="url(#bg)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M250 315 C285 260 330 235 380 255 C410 267 425 292 420 320 C412 363 355 385 310 365 C280 352 260 334 250 315Z" stroke="url(#mark)" stroke-width="12"/>
+    <path d="M420 320 C465 285 520 286 553 315 C579 338 574 370 551 391 C517 421 459 405 426 373" stroke="#334a7c" stroke-width="12"/>
+    <path d="M318 345 C349 318 384 310 414 320" stroke="#334a7c" stroke-width="12"/>
+    <path d="M448 226 C472 201 501 190 528 194 C512 218 492 238 463 249" stroke="#334a7c" stroke-width="10"/>
+  </g>
+  <g font-family="Cairo, Arial, sans-serif" text-anchor="middle">
+    <text x="400" y="470" font-size="78" font-weight="800" fill="#334a7c">أزاد</text>
+    <text x="400" y="550" font-size="66" font-weight="500" letter-spacing="10" fill="#df847d">Azaad</text>
+    <text x="400" y="605" font-size="28" font-weight="600" letter-spacing="5" fill="#df847d">PSYCHOTHERAPY</text>
+    <text x="400" y="642" font-size="20" font-weight="500" letter-spacing="3" fill="#66708b">MENTAL HEALTH</text>
+  </g>
+</svg>

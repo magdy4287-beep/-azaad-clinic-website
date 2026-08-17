@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "python3 .github/patch-admin.py && python3 .github/finalize-auth.py && python3 .github/inject-patient-actions.py && python3 .github/inject-doctor-actions.py",
+  "buildCommand": "python3 .github/patch-admin.py && python3 .github/finalize-auth.py && python3 .github/inject-patient-actions.py && python3 .github/inject-patient-profile-booking.py && python3 .github/inject-doctor-actions.py && python3 .github/inject-doctor-reliability.py",
   "outputDirectory": ".",
   "cleanUrls": false,
   "trailingSlash": false,
