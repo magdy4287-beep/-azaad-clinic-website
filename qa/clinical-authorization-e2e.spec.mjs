@@ -44,6 +44,17 @@ function expectDenied(response) {
   expect([401, 403, 409, 422]).toContain(response.status());
 }
 
+async function readSafeRpcError(response) {
+  const body = await response.text().catch(() => '');
+  let parsed = null;
+  try { parsed = JSON.parse(body); } catch {}
+  return {
+    status: response.status(),
+    code: parsed?.code || parsed?.error_code || null,
+    message: parsed?.message || parsed?.error || body.slice(0, 500),
+  };
+}
+
 async function createControlledHappyPathFixture(request, token) {
   const response = await rpc(
     request,
@@ -51,7 +62,10 @@ async function createControlledHappyPathFixture(request, token) {
     {},
     token,
   );
-  expect(response.ok()).toBeTruthy();
+  if (!response.ok()) {
+    const diagnostic = await readSafeRpcError(response);
+    throw new Error(`Controlled clinical fixture creation failed: HTTP ${diagnostic.status}; code=${diagnostic.code || 'none'}; message=${diagnostic.message || 'empty response'}`);
+  }
   const payload = await response.json();
   const bookingId = payload?.booking_id;
   expect(typeof bookingId).toBe('string');
@@ -113,13 +127,19 @@ test.describe('Clinical authorization boundary', () => {
 
     const checkin = await rpc(request, 'clinic_frontdesk_checkin', {
       p_booking_id: bookingId,
-      p_notes: 'security-negative-e2e-happy-path',
+      p_notes: 'controlled-clinical-e2e-happy-path',
     }, tokens.frontdesk);
-    expect(checkin.ok()).toBeTruthy();
+    if (!checkin.ok()) {
+      const diagnostic = await readSafeRpcError(checkin);
+      throw new Error(`Controlled fixture check-in failed: HTTP ${diagnostic.status}; code=${diagnostic.code || 'none'}; message=${diagnostic.message || 'empty response'}`);
+    }
 
     const visit = await rpc(request, 'clinic_start_clinical_visit', {
       p_booking_id: bookingId,
     }, tokens.doctorB);
-    expect(visit.ok()).toBeTruthy();
+    if (!visit.ok()) {
+      const diagnostic = await readSafeRpcError(visit);
+      throw new Error(`Controlled clinical visit failed: HTTP ${diagnostic.status}; code=${diagnostic.code || 'none'}; message=${diagnostic.message || 'empty response'}`);
+    }
   });
 });
