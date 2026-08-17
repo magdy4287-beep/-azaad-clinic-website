@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-function normalizeEnv(name) {
+function normalizeEnv(name, mode = 'scalar') {
   const value = process.env[name];
   if (value == null) return value;
-  const normalized = value.trim();
-  if (/\r|\n/.test(normalized)) {
+  const normalized = mode === 'token'
+    ? value.replace(/\s+/g, '')
+    : value.trim();
+  if (mode !== 'token' && /\r|\n/.test(normalized)) {
     throw new Error(`Invalid controlled-E2E secret/env contains a line break: ${name}`);
   }
   return normalized;
@@ -14,10 +16,10 @@ const supabaseUrl = normalizeEnv('AZAAD_SUPABASE_URL');
 const anonKey = normalizeEnv('AZAAD_SUPABASE_ANON_KEY');
 
 const tokens = {
-  frontdesk: normalizeEnv('AZAAD_E2E_FRONTDESK_TOKEN'),
-  nonStaff: normalizeEnv('AZAAD_E2E_NONSTAFF_TOKEN'),
-  doctorA: normalizeEnv('AZAAD_E2E_DOCTOR_A_TOKEN'),
-  doctorB: normalizeEnv('AZAAD_E2E_DOCTOR_B_TOKEN'),
+  frontdesk: normalizeEnv('AZAAD_E2E_FRONTDESK_TOKEN', 'token'),
+  nonStaff: normalizeEnv('AZAAD_E2E_NONSTAFF_TOKEN', 'token'),
+  doctorA: normalizeEnv('AZAAD_E2E_DOCTOR_A_TOKEN', 'token'),
+  doctorB: normalizeEnv('AZAAD_E2E_DOCTOR_B_TOKEN', 'token'),
 };
 
 const bookings = {
