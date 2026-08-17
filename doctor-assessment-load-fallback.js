@@ -7,12 +7,9 @@
   const originalFetch = window.fetch.bind(window);
   let installed = false;
 
-  function sessionToken() {
-    return window.AZAAD?.state?.session?.access_token || null;
-  }
-
-  async function loadAssessmentCatalog() {
-    const token = sessionToken();
+  async function loadAssessmentCatalog(init = {}) {
+    const authHeader = init?.headers?.Authorization || init?.headers?.authorization || '';
+    const token = String(authHeader).replace(/^Bearer\s+/i, '').trim() || window.AZAAD?.state?.session?.access_token || null;
     if (!token) throw new Error('جلسة الطبيب غير موجودة أو منتهية.');
     const headers = {
       Accept: 'application/json',
@@ -21,7 +18,7 @@
     };
     const [templatesRes, questionsRes] = await Promise.all([
       originalFetch(`${REST}/clinical_assessment_templates?select=id,name,name_ar,active&active=eq.true&order=name`, { headers, cache: 'no-store' }),
-      originalFetch(`${REST}/clinical_assessment_questions?select=id,template_id,question_order,question_text,question_text_ar,category,response_type,active,approved&active=eq.true&approved=eq.true&archived_at=is.null&order=question_order`, { headers, cache: 'no-store' })
+      originalFetch(`${REST}/clinical_assessment_questions?select=id,template_id,question_order,question_text,question_text_ar,category,response_type,active,approved,archived_at&active=eq.true&approved=eq.true&archived_at=is.null&order=question_order`, { headers, cache: 'no-store' })
     ]);
     const templates = await templatesRes.json().catch(() => []);
     const questions = await questionsRes.json().catch(() => []);
@@ -37,12 +34,11 @@
     try {
       const url = typeof input === 'string' ? input : input?.url || '';
       const method = String(init.method || (typeof input !== 'string' && input?.method) || 'GET').toUpperCase();
-      if (!installed && url.startsWith(ASSESS) && method === 'GET') {
+      if (url.startsWith(ASSESS) && method === 'GET') {
         const u = new URL(url);
         if (u.searchParams.get('action') === 'templates') {
-          installed = true;
-          try { return await loadAssessmentCatalog(); }
-          catch (e) { installed = false; return Response.json({ error: e.message }, { status: 500 }); }
+          try { return await loadAssessmentCatalog(init); }
+          catch (e) { return Response.json({ error: e.message }, { status: 500 }); }
         }
       }
     } catch (_) {}
