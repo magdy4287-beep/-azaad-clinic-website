@@ -5,7 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '17 3 * * 1'
   workflow_dispatch:
+
+concurrency:
+  group: azaad-production-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   browser-e2e:
@@ -101,4 +110,5 @@ jobs:
           fi
 
 # Main pushes validate the deployed production surface; pull requests validate the exact checked-out code.
+# Weekly scheduled certification revalidates production without requiring paid monitoring.
 # Authenticated E2E remains gated behind dedicated CI secrets and is never bypassed by fake credentials.
