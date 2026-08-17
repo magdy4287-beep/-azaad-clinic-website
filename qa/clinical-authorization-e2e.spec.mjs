@@ -4,14 +4,23 @@ const supabaseUrl = process.env.AZAAD_SUPABASE_URL;
 const anonKey = process.env.AZAAD_SUPABASE_ANON_KEY;
 
 function normalizeSecret(value) {
-  return typeof value === 'string' ? value.replace(/\s+/g, '') : value;
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+function requireJwtSecret(name, value) {
+  if (!value) throw new Error(`Missing required controlled-E2E secret/env: ${name}`);
+  const compact = normalizeSecret(value);
+  if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(compact)) {
+    throw new Error(`Controlled-E2E secret ${name} is not a JWT. Replace the repository secret with a real Supabase Auth access token for the dedicated E2E identity.`);
+  }
+  return compact;
 }
 
 const tokens = {
-  frontdesk: normalizeSecret(process.env.AZAAD_E2E_FRONTDESK_TOKEN),
-  nonStaff: normalizeSecret(process.env.AZAAD_E2E_NONSTAFF_TOKEN),
-  doctorA: normalizeSecret(process.env.AZAAD_E2E_DOCTOR_A_TOKEN),
-  doctorB: normalizeSecret(process.env.AZAAD_E2E_DOCTOR_B_TOKEN),
+  frontdesk: requireJwtSecret('AZAAD_E2E_FRONTDESK_TOKEN', process.env.AZAAD_E2E_FRONTDESK_TOKEN),
+  nonStaff: requireJwtSecret('AZAAD_E2E_NONSTAFF_TOKEN', process.env.AZAAD_E2E_NONSTAFF_TOKEN),
+  doctorA: requireJwtSecret('AZAAD_E2E_DOCTOR_A_TOKEN', process.env.AZAAD_E2E_DOCTOR_A_TOKEN),
+  doctorB: requireJwtSecret('AZAAD_E2E_DOCTOR_B_TOKEN', process.env.AZAAD_E2E_DOCTOR_B_TOKEN),
 };
 
 const bookings = {
@@ -54,7 +63,6 @@ test.describe('Clinical authorization boundary', () => {
   });
 
   test('non-staff start-visit is denied', async ({ request }) => {
-    requireEnv('AZAAD_E2E_NONSTAFF_TOKEN', tokens.nonStaff);
     requireEnv('AZAAD_E2E_INVALID_STATE_BOOKING_ID', bookings.invalidState);
     const response = await rpc(request, 'clinic_start_clinical_visit', {
       p_booking_id: bookings.invalidState,
@@ -63,7 +71,6 @@ test.describe('Clinical authorization boundary', () => {
   });
 
   test('staff without clinical permission is denied', async ({ request }) => {
-    requireEnv('AZAAD_E2E_FRONTDESK_TOKEN', tokens.frontdesk);
     requireEnv('AZAAD_E2E_INVALID_STATE_BOOKING_ID', bookings.invalidState);
     const response = await rpc(request, 'clinic_start_clinical_visit', {
       p_booking_id: bookings.invalidState,
@@ -72,7 +79,6 @@ test.describe('Clinical authorization boundary', () => {
   });
 
   test('doctor scope mismatch is denied', async ({ request }) => {
-    requireEnv('AZAAD_E2E_DOCTOR_A_TOKEN', tokens.doctorA);
     requireEnv('AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID', bookings.wrongDoctor);
     const response = await rpc(request, 'clinic_start_clinical_visit', {
       p_booking_id: bookings.wrongDoctor,
@@ -81,7 +87,6 @@ test.describe('Clinical authorization boundary', () => {
   });
 
   test('invalid workflow state is denied', async ({ request }) => {
-    requireEnv('AZAAD_E2E_DOCTOR_A_TOKEN', tokens.doctorA);
     requireEnv('AZAAD_E2E_INVALID_STATE_BOOKING_ID', bookings.invalidState);
     const response = await rpc(request, 'clinic_start_clinical_visit', {
       p_booking_id: bookings.invalidState,
@@ -90,8 +95,6 @@ test.describe('Clinical authorization boundary', () => {
   });
 
   test('authorized clinical path is allowed in controlled environment', async ({ request }) => {
-    requireEnv('AZAAD_E2E_FRONTDESK_TOKEN', tokens.frontdesk);
-    requireEnv('AZAAD_E2E_DOCTOR_B_TOKEN', tokens.doctorB);
     requireEnv('AZAAD_E2E_HAPPY_PATH_BOOKING_ID', bookings.happyPath);
 
     const checkin = await rpc(request, 'clinic_frontdesk_checkin', {
