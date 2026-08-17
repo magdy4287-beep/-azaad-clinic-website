@@ -38,7 +38,9 @@ checks = {
     "patient progress": "patientProgress" in html,
     "follow-up date": "nextVisitDate" in html,
     "AI is assistive": "مساعد قرار سريري فقط" in html,
-    "HTML escaping": "function esc" in js,
+    # The implementation defines esc as an arrow-function constant, not a
+    # function declaration. Validate the actual escaping helper shape.
+    "HTML escaping": bool(re.search(r"(?:const|let|var)\s+esc\s*=", js)) and all(x in js for x in ["&amp;", "&lt;", "&gt;", "&quot;", "&#039;"]),
 }
 
 for name, ok in checks.items():
