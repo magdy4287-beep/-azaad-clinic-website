@@ -4,6 +4,7 @@
   "outputDirectory": ".",
   "cleanUrls": false,
   "trailingSlash": false,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!*.md' ':!docs/**' ':!.github/workflows/**'",
   "git": {
     "deploymentEnabled": true
   }
