@@ -12,7 +12,7 @@
   const load=()=>{
     loadScript('clinical-patient360.js?v=2','__AZAAD_PATIENT360_LOADED__');
     loadScript('patient-appointment-actions.js?v=3','__AZAAD_PATIENT_APPOINTMENT_ACTIONS_LOADED__');
-    loadScript('patient360-checkin-bridge.js?v=1','__AZAAD_PATIENT360_CHECKIN_BRIDGE_LOADED__');
+    loadScript('patient360-checkin-bridge.js?v=2','__AZAAD_PATIENT360_CHECKIN_BRIDGE_LOADED__');
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load,{once:true});else load();
 })();
