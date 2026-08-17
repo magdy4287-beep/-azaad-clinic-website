@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     const { data: patient, error } = await db
       .from("clinic_patients")
-      .select("id,mrn,patient_name,patient_phone,patient_phone_normalized,active")
+      .select("id,active")
       .eq("patient_phone_normalized", normalized)
       .eq("active", true)
       .order("created_at", { ascending: true })
@@ -70,30 +70,16 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    if (!patient) return json(req, { found: false, normalized_phone: normalized });
+    if (!patient) {
+      return json(req, { found: false });
+    }
 
-    const { data: bookings, error: bookingError } = await db
-      .from("clinic_bookings")
-      .select("booking_code,appointment_date,appointment_time,status,doctor_id,service_id,mode")
-      .eq("patient_id", patient.id)
-      .gte("appointment_date", new Date().toISOString().slice(0, 10))
-      .in("status", ["pending", "confirmed"])
-      .order("appointment_date", { ascending: true })
-      .order("appointment_time", { ascending: true })
-      .limit(5);
-
-    if (bookingError) throw bookingError;
-
+    // Privacy boundary: public lookup reveals only existence and an opaque internal
+    // patient reference required by the booking flow. Never return MRN, name,
+    // phone, email, DOB, bookings, or clinical/financial data to an unauthenticated visitor.
     return json(req, {
       found: true,
-      patient: {
-        id: patient.id,
-        mrn: patient.mrn,
-        patient_name: patient.patient_name,
-        patient_phone: patient.patient_phone,
-        active: patient.active,
-      },
-      upcoming_bookings: bookings || [],
+      patient: { id: patient.id },
     });
   } catch (error) {
     console.error("azaad-patient-lookup:", error);
