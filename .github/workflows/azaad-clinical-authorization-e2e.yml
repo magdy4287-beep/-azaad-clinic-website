@@ -39,7 +39,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Verify controlled E2E configuration
+      - name: Verify controlled E2E configuration and JWT shape
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
@@ -63,7 +63,23 @@ jobs:
             AZAAD_E2E_INVALID_STATE_BOOKING_ID; do
             test -n "${!name:-}" || { echo "Missing required controlled-E2E secret: $name" >&2; exit 1; }
           done
-          echo "Controlled clinical authorization E2E configuration is present."
+
+          # Validate only JWT structure; never print token contents.
+          for name in \
+            AZAAD_E2E_FRONTDESK_TOKEN \
+            AZAAD_E2E_NONSTAFF_TOKEN \
+            AZAAD_E2E_DOCTOR_A_TOKEN \
+            AZAAD_E2E_DOCTOR_B_TOKEN; do
+            token="${!name}"
+            IFS='.' read -r -a parts <<< "$token"
+            if [ "${#parts[@]}" -ne 3 ] || [ -z "${parts[0]}" ] || [ -z "${parts[1]}" ] || [ -z "${parts[2]}" ]; then
+              echo "Invalid JWT shape for $name: expected header.payload.signature (3 segments)." >&2
+              exit 1
+            fi
+            echo "$name: JWT_SHAPE_OK"
+          done
+
+          echo "Controlled clinical authorization E2E configuration is present and JWT-shaped."
 
       - name: Run clinical authorization E2E
         env:
@@ -85,5 +101,5 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
 
-# This gate deliberately fails when controlled test credentials/data are absent.
+# This gate deliberately fails when controlled test credentials/data are absent or malformed.
 # It never falls back to fake credentials and never weakens RLS/RPC authorization.
