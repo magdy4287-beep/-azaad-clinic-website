@@ -31,23 +31,32 @@ jobs:
           test -s .github/workflows/azaad-release-governance-gate.yml
           test -s .github/workflows/azaad-browser-e2e.yml
 
-      - name: Verify free-only production constraint
+      - name: Verify free-only AI-first production constraint
         shell: bash
         run: |
           set -euo pipefail
-          grep -F "AZAAD is a **100% free-only project**." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AZAAD is a **100% free-only project** and an **AI-first clinic platform**." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "Never upgrade a provider plan to make a gate pass." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -F "Never introduce a paid API or service as a hidden dependency." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Never introduce a paid API, paid AI model, paid credit pool, or paid service as a hidden dependency." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI assistance is expected across the clinic platform" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "the Patient Dashboard" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI is assistive and must not become a single point of failure for core operations." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Every AI-assisted workflow must have a safe free fallback" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "NOT PROVEN ON FREE-ONLY STACK" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "Paid-only recovery resources are prohibited." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          echo "Free-only production constraint: PASS"
+          echo "Free-only AI-first production constraint: PASS"
 
-      - name: Verify financial and evidence controls remain documented
+      - name: Verify financial, clinical, AI, and evidence controls remain documented
         shell: bash
         run: |
           set -euo pipefail
           grep -F "Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "AI cannot approve, impersonate, bypass, or execute around this chain." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI must never:" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI financial approval" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI privilege escalation" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI authorization bypass" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI/fallback result when the change affects an AI-assisted surface" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "If evidence is missing, status is **NOT PROVEN**, not PASS." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "A backup that has never been restored is not considered proven recovery capability." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
