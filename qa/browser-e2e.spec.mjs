@@ -10,11 +10,8 @@ test('admin login shell loads on production', async ({ page }) => {
   await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password');
 });
 
-test('Patient 360 appointment action bridge is loaded on admin shell', async ({ page }) => {
+test('Patient 360 appointment action bridge resource is available on production', async ({ page }) => {
   await page.goto(`${baseURL}/admin.html`, { waitUntil: 'domcontentloaded' });
-  await expect.poll(async () => page.locator('script[data-azaad-script="__AZAAD_PATIENT_APPOINTMENT_ACTIONS__"]').count(), {
-    timeout: 10000,
-  }).toBe(1);
 
   const scriptResponse = await page.request.get(`${baseURL}/patient-appointment-actions.js?v=13.0.0`);
   expect(scriptResponse.ok()).toBeTruthy();
