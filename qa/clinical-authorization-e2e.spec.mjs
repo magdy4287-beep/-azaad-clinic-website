@@ -3,11 +3,15 @@ import { test, expect } from '@playwright/test';
 const supabaseUrl = process.env.AZAAD_SUPABASE_URL;
 const anonKey = process.env.AZAAD_SUPABASE_ANON_KEY;
 
+function normalizeSecret(value) {
+  return typeof value === 'string' ? value.replace(/\s+/g, '') : value;
+}
+
 const tokens = {
-  frontdesk: process.env.AZAAD_E2E_FRONTDESK_TOKEN,
-  nonStaff: process.env.AZAAD_E2E_NONSTAFF_TOKEN,
-  doctorA: process.env.AZAAD_E2E_DOCTOR_A_TOKEN,
-  doctorB: process.env.AZAAD_E2E_DOCTOR_B_TOKEN,
+  frontdesk: normalizeSecret(process.env.AZAAD_E2E_FRONTDESK_TOKEN),
+  nonStaff: normalizeSecret(process.env.AZAAD_E2E_NONSTAFF_TOKEN),
+  doctorA: normalizeSecret(process.env.AZAAD_E2E_DOCTOR_A_TOKEN),
+  doctorB: normalizeSecret(process.env.AZAAD_E2E_DOCTOR_B_TOKEN),
 };
 
 const bookings = {
