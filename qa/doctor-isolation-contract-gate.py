@@ -9,11 +9,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
 def read(path):
     p = ROOT / path
     if not p.exists():
         raise SystemExit(f"MISSING: {path}")
     return p.read_text(encoding="utf-8")
+
 
 migration = read("supabase/migrations/20260816_enforce_doctor_staff_binding.sql")
 identity = read("supabase/migrations/20260816_harden_doctor_staff_identity_mapping.sql")
@@ -27,7 +29,10 @@ checks = {
     "dashboard requires access token": "session?.access_token" in dashboard,
     "dashboard calls scoped backend": "azaad-doctor-dashboard" in dashboard,
     "dashboard does not submit doctor_id": "doctor_id:" not in dashboard,
-    "patient search is locally limited to scoped response": "cache.filter" in dashboard,
+    # The backend is responsible for doctor scoping. The dashboard may only
+    # render the already-scoped patient collection returned in b.patients.
+    "patient search is limited to scoped backend response": "patientCache=b.patients||[]" in dashboard,
+    "patient search renders only scoped cache": "patientCache.map(patientRow)" in dashboard,
 }
 
 failed = []
