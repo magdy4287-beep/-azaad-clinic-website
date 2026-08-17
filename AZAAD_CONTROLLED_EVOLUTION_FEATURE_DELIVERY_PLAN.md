@@ -19,7 +19,32 @@ This plan governs all feature development after the production certification bas
 - No paid dependency may be introduced to close a gate.
 - Missing evidence is `NOT PROVEN`, not PASS.
 
-## 3. Feature Lifecycle
+## 3. Free-Only Build Governance
+
+Production application deployments must not consume the free Vercel build budget for documentation/control-plane-only changes.
+
+The repository `vercel.json` uses an `ignoreCommand` based on the exact parent/child commit diff. It excludes Markdown documentation, the documentation directory, and GitHub workflow definitions from the application-impacting diff. When the application-impacting diff is empty, Vercel is instructed to skip the application build; when application files change, the build proceeds normally.
+
+This control is intentionally free-only: **no Vercel plan upgrade is permitted to satisfy this gate**.
+
+Important boundary:
+
+- Documentation/control-plane-only changes are not production application releases.
+- Changes to application build scripts, runtime files, configuration that affects the deployed application, or security/clinical/financial code remain deployment-impacting and must not be hidden by the ignore rule.
+- The `ignoreCommand` itself is configuration that must be reviewed whenever deployment boundaries change.
+- The first commit that introduces or changes the ignore rule may itself require a Vercel deployment because the deployment configuration changed; that is expected and is not evidence of a failure of the rule on later documentation-only commits.
+
+### Build Governance Evidence — 2026-08-17
+
+Compared against the certified production baseline `619f82b1d4fca117200e55c399f38b9cace2237e`, the current `main` branch contains four later commits whose changed files are limited to controlled-evolution documentation/evidence plus the `vercel.json` deployment-governance change. The current `vercel.json` ignore rule is therefore now present on `main` and is the mechanism for preventing future documentation-only application builds.
+
+The earlier Vercel `FAIL — upgradeToPro=build-rate-limit` on the documentation-plan commit is recorded as a **free-tier capacity event**, not as a reason to purchase an upgrade. The certified production baseline remains unchanged.
+
+**Governance state: IMPLEMENTED / FREE-ONLY**.
+
+The first subsequent documentation-only commit must be observed for the expected Vercel `Skipped / Ignored Build Step` behavior. Until that observation exists, the behavior is **IMPLEMENTED but NOT PROVEN in a fresh post-configuration Vercel run**.
+
+## 4. Feature Lifecycle
 
 Every feature follows:
 
@@ -27,7 +52,7 @@ Every feature follows:
 
 No feature skips a stage because it appears small.
 
-## 4. Scope Before Code
+## 5. Scope Before Code
 
 For every feature define:
 
@@ -45,7 +70,7 @@ For every feature define:
 - rollback strategy
 - acceptance criteria
 
-## 5. Risk Classification
+## 6. Risk Classification
 
 ### Low
 
@@ -61,7 +86,7 @@ Changes involving clinical records, financial transactions/refunds, authenticati
 
 High-risk changes require explicit evidence for the affected control domains before release.
 
-## 6. AI Feature Contract
+## 7. AI Feature Contract
 
 Every AI feature must document:
 
@@ -80,7 +105,7 @@ Required failure tests:
 
 AI must fail safely and leave authoritative records unchanged unless the normal authorized workflow explicitly permits the action.
 
-## 7. Financial Feature Contract
+## 8. Financial Feature Contract
 
 Any financial feature must preserve:
 
@@ -94,7 +119,7 @@ This includes Cash → Cash and all other supported methods.
 
 AI cannot approve or impersonate an approver.
 
-## 8. Clinical Feature Contract
+## 9. Clinical Feature Contract
 
 Clinical changes must preserve:
 
@@ -108,7 +133,7 @@ Clinical changes must preserve:
 
 No AI output becomes a final clinical decision without the required human workflow.
 
-## 9. Security Contract
+## 10. Security Contract
 
 Every changed authorization boundary must test:
 
@@ -122,7 +147,7 @@ Every changed authorization boundary must test:
 - session expiration
 - sensitive error leakage
 
-## 10. UAT Contract
+## 11. UAT Contract
 
 ### Reception
 
@@ -144,7 +169,7 @@ Every changed authorization boundary must test:
 
 Unauthorized access, invalid state transitions, duplicate transactions, unsafe AI actions, expired sessions, and direct financial bypasses must be rejected.
 
-## 11. Release Gate
+## 12. Release Gate
 
 A feature is release-ready only when:
 
@@ -159,11 +184,11 @@ A feature is release-ready only when:
 - rollback is understood
 - no paid dependency is required
 
-## 12. Change Freeze
+## 13. Change Freeze
 
 After release certification, the certified commit is frozen. Additional changes create a new release candidate and require fresh evidence.
 
-## 13. Operations
+## 14. Operations
 
 After deployment monitor:
 
@@ -179,7 +204,7 @@ After deployment monitor:
 
 Avoid sensitive logging.
 
-## 14. Evidence Record
+## 15. Evidence Record
 
 Each feature release records:
 
@@ -199,17 +224,31 @@ Each feature release records:
 
 Missing required evidence = `NOT PROVEN`.
 
-## 15. Definition of Done
+## 16. Definition of Done
 
 A feature is DONE only when it is:
 
 **Implemented + Authorized + Tested + UAT-verified + Production-verified + Evidenced + Operable + Free-only compliant.**
 
-## 16. First Controlled-Evolution Workstream
+## 17. First Controlled-Evolution Workstream
 
-The next implementation work should be selected from the highest-value remaining clinic workflow gap, not from cosmetic expansion.
+The first implementation workstream is **Patient Safety / Authorization**, classified as **HIGH RISK**.
 
-Priority order:
+It must begin with evidence-first discovery of the actual patient-data authorization boundary before application changes are made. The workstream acceptance contract is:
+
+1. Identify every patient/clinical table, RPC, Edge Function, and UI path touched.
+2. Prove authenticated identity and role enforcement.
+3. Prove cross-patient isolation and IDOR resistance.
+4. Prove doctor scope and authorized clinical linkage.
+5. Prove direct RPC/endpoint access cannot bypass the same authorization boundary.
+6. Prove SECURITY DEFINER functions have a constrained `search_path` and least-privilege execution semantics.
+7. Run negative authorization tests before declaring the workstream complete.
+8. Produce exact-commit production browser/UAT evidence.
+9. Release only when the applicable Security + Clinical Safety + Release gates are fresh and PASS.
+
+Current structural database evidence for the active Supabase project has already established the intended RLS boundary. That evidence is a starting point, not final certification; the exact production browser/UAT gate remains mandatory.
+
+Priority order after this workstream:
 
 1. patient safety and authorization gaps
 2. clinical workflow completeness
