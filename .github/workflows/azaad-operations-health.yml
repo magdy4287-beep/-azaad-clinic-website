@@ -50,12 +50,13 @@ jobs:
           import re
           failures = []
           for path in Path('.github/workflows').glob('*.y*ml'):
+              if not re.search(r'(?i)(one-time|once)', path.name):
+                  continue
               text = path.read_text(encoding='utf-8', errors='replace')
-              if re.search(r'(?i)(one-time|once)', path.name + '\n' + text):
-                  on_block = text.split('\njobs:', 1)[0]
-                  for trigger in ('push:', 'schedule:', 'pull_request:', 'pull_request_target:'):
-                      if trigger in on_block:
-                          failures.append(f'{path}: automatic trigger {trigger}')
+              on_block = text.split('\njobs:', 1)[0]
+              for trigger in ('push:', 'schedule:', 'pull_request:', 'pull_request_target:'):
+                  if trigger in on_block:
+                      failures.append(f'{path}: automatic trigger {trigger}')
           if failures:
               raise SystemExit('\n'.join(failures))
           print('One-time workflow safety: PASS')
