@@ -73,11 +73,12 @@ jobs:
         run: |
           set -euo pipefail
           plan=$(find . -maxdepth 2 -type f -iname '*ENGINEERING_CONTROL_PLAN.md' -print -quit)
+          security_gate='qa/azaad-phase12-security-audit-gate.md'
           test -n "$plan"
           grep -Fq 'GitHub' "$plan"
           grep -Fq 'Supabase' "$plan"
           grep -Fq 'Codex Security' "$plan"
           grep -Fq 'Frontend Testing' "$plan"
           grep -Fq 'Production Gates' "$plan"
-          grep -Fq 'AI must never approve a refund' "$plan"
+          grep -Fq 'AI cannot bypass clinical/financial authorization' "$security_gate"
           echo 'Production gate contract: PASS'
