@@ -1,0 +1,26 @@
+name: AZAAD Phase 8 Billing Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  billing-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate billing gate evidence contract
+        run: |
+          test -f qa/azaad-phase8-billing-gate.md
+          grep -q "invoice row locking" qa/azaad-phase8-billing-gate.md
+          grep -q "prevention of payment totals exceeding invoice balance" qa/azaad-phase8-billing-gate.md
+          grep -q "anonymous execution denied" qa/azaad-phase8-billing-gate.md
+          grep -q "Data safety" qa/azaad-phase8-billing-gate.md
+          echo "Phase 8 Billing contract: PASS"
