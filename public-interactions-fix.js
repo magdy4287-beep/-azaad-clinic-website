@@ -7,6 +7,61 @@
   let initialized = false;
   let lastLanguage = '';
 
+  function installPublicResponsiveStyles() {
+    if (document.getElementById('azaad-public-responsive-v1')) return;
+    const style = document.createElement('style');
+    style.id = 'azaad-public-responsive-v1';
+    style.textContent = `
+      html, body { max-width: 100%; overflow-x: hidden; }
+      .container, .booking-form, .card, .contact-grid a, .hero-content { min-width: 0; }
+      .btn, .slot, .lang-btn, .menu-btn { touch-action: manipulation; }
+      .btn, .slot, .menu-btn { min-height: 44px; }
+      input, select, textarea { font-size: 16px; }
+      .hero-buttons .btn, .location-actions .btn, .booking-submit { min-height: 48px; }
+
+      @media (max-width: 768px) {
+        .header { position: sticky; }
+        .nav { min-height: 64px; }
+        .nav-actions { min-width: 0; }
+        .language-switch { flex: 0 0 auto; }
+        .hero-grid { gap: 24px; }
+        .hero-card { width: 100%; }
+        .booking-form { width: 100%; }
+        .slots { overflow-wrap: anywhere; }
+        .slot { min-width: 72px; margin: 3px 2px; }
+        .contact-grid a { padding: 16px; }
+      }
+
+      @media (max-width: 520px) {
+        .container { width: calc(100% - 24px); }
+        .section { padding: 48px 0; }
+        .hero-grid { padding: 34px 0; }
+        .hero-card { height: 220px; border-radius: 22px; }
+        .hero-card-inner { width: 74%; border-radius: 18px; }
+        .hero-buttons { width: 100%; }
+        .hero-buttons .btn { width: 100%; }
+        .booking-form { padding: 14px; border-radius: 16px; }
+        .form-grid { gap: 12px; }
+        .slots { padding: 7px; }
+        .slot { width: calc(50% - 8px); min-width: 0; }
+        .contact-grid { gap: 10px; }
+        .location-actions { gap: 8px; }
+        .footer { gap: 8px; }
+      }
+
+      @media (max-width: 380px) {
+        .container { width: calc(100% - 18px); }
+        .logo { font-size: 15px; }
+        .hero h1 { font-size: 34px; }
+        h2 { font-size: 28px; }
+        .slot { width: 100%; }
+        .booking-form { padding: 11px; }
+        .lang-btn { min-height: 36px; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   const lang = () => {
     try {
       const saved = localStorage.getItem('azaadClinicLanguage');
@@ -151,6 +206,7 @@
   function init() {
     if (initialized) return;
     initialized = true;
+    installPublicResponsiveStyles();
     normalizeActions();
     const observer = new MutationObserver(() => normalizeActions());
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
