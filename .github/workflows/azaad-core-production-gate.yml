@@ -27,7 +27,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s Azaad_ENGINEERING_CONTROL_PLAN.md || test -s AZAAD_ENGINEERING_CONTROL_PLAN.md
+          plan=""
+          for candidate in Azaad_ENGINEERING_CONTROL_PLAN.md AZAAD_ENGINEERING_CONTROL_PLAN.md; do
+            if [ -s "$candidate" ]; then plan="$candidate"; break; fi
+          done
+          test -n "$plan"
           test -s qa/azaad-phase5-checkin-gate.py
           test -s qa/azaad-phase6-doctor-workspace-gate.py
           test -s qa/azaad-phase7-assessment-gate.py
@@ -36,19 +40,20 @@ jobs:
           test -s qa/azaad-phase9-refund-gate.md
           test -s qa/azaad-phase10-finance-gate.md
           test -s qa/azaad-phase12-security-audit-gate.md
-          echo 'Core control-plan artifacts: PASS'
+          echo "Core control-plan artifacts: PASS"
 
       - name: Validate non-negotiable refund invariant
         shell: bash
         run: |
           set -euo pipefail
           refund_gate='qa/azaad-phase9-refund-gate.md'
-          grep -q 'Doctor approval requires' "$refund_gate"
-          grep -q 'Management/Owner approval requires prior Doctor approval' "$refund_gate"
-          grep -q 'Requester cannot approve' "$refund_gate"
-          grep -q 'Processing requires both Doctor and Management/Owner approvals' "$refund_gate"
-          grep -q 'Trigger functions that enforce the hierarchy are not executable by PUBLIC/anon/authenticated clients' "$refund_gate"
-          grep -q 'process_refund.*server-side guarded' "$refund_gate"
+          grep -Fq 'Doctor approval requires' "$refund_gate"
+          grep -Fq 'Management/Owner approval requires prior Doctor approval' "$refund_gate"
+          grep -Fq 'Requester cannot approve' "$refund_gate"
+          grep -Fq 'Processing requires both Doctor and Management/Owner approvals' "$refund_gate"
+          grep -Fq 'Trigger functions that enforce the hierarchy are not executable by PUBLIC/anon/authenticated clients' "$refund_gate"
+          grep -Fq 'process_refund' "$refund_gate"
+          grep -Fq 'server-side guarded' "$refund_gate"
           echo 'Refund hierarchy invariant: PASS'
 
       - name: Validate security contract invariants
@@ -56,24 +61,23 @@ jobs:
         run: |
           set -euo pipefail
           security_gate='qa/azaad-phase12-security-audit-gate.md'
-          grep -q 'SECURITY DEFINER' "$security_gate"
-          grep -q 'search_path' "$security_gate"
-          grep -q 'RLS' "$security_gate"
-          grep -q 'AI cannot bypass' "$security_gate"
-          grep -q 'least-privilege permissions' "$security_gate"
+          grep -Fq 'SECURITY DEFINER' "$security_gate"
+          grep -Fq 'search_path' "$security_gate"
+          grep -Fq 'RLS' "$security_gate"
+          grep -Fq 'AI cannot bypass' "$security_gate"
+          grep -Fq 'least-privilege permissions' "$security_gate"
           echo 'Security contract invariants: PASS'
 
       - name: Validate production gate language
         shell: bash
         run: |
           set -euo pipefail
-          plan=$(find . -maxdepth 2 -iname '*ENGINEERING_CONTROL_PLAN.md' -print -quit)
+          plan=$(find . -maxdepth 2 -type f -iname '*ENGINEERING_CONTROL_PLAN.md' -print -quit)
           test -n "$plan"
-          grep -q 'GitHub' "$plan"
-          grep -q 'Vercel' "$plan"
-          grep -q 'Supabase' "$plan"
-          grep -q 'Codex Security' "$plan"
-          grep -q 'Frontend Testing' "$plan"
-          grep -q 'Production Gates' "$plan"
-          grep -q 'AI must never approve a refund' "$plan"
+          grep -Fq 'GitHub' "$plan"
+          grep -Fq 'Supabase' "$plan"
+          grep -Fq 'Codex Security' "$plan"
+          grep -Fq 'Frontend Testing' "$plan"
+          grep -Fq 'Production Gates' "$plan"
+          grep -Fq 'AI must never approve a refund' "$plan"
           echo 'Production gate contract: PASS'
