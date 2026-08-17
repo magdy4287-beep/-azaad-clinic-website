@@ -1,0 +1,25 @@
+name: Azaad Phase 4 Scheduling Gate
+
+on:
+  pull_request:
+    paths:
+      - 'central-scheduling-contract.js'
+      - 'central-scheduling-center.js'
+      - 'scheduling-actions-contract.js'
+      - 'qa/azaad-scheduling-phase4-gate.py'
+      - '.github/workflows/azaad-scheduling-phase4-gate.yml'
+      - '.github/workflows/central-scheduling-gate.yml'
+      - '.github/workflows/scheduling-actions-gate.yml'
+      - '.github/workflows/azaad-appointment-gate.yml'
+      - '.github/workflows/azaad-waiting-list-gate.yml'
+
+jobs:
+  scheduling-phase4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Phase 4 Scheduling contract
+        run: python qa/azaad-scheduling-phase4-gate.py
