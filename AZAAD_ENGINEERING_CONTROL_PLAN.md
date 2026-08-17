@@ -9,12 +9,23 @@ This document is the operating contract for production work on AZAAD Clinic. A f
 ```text
 GitHub
   ↓
-Vercel
+Production Deployment Provider
   ↓
 Supabase
   ↓
 AZAAD
 ```
+
+### Deployment-provider contract
+
+Vercel remains a required Level-1 production gate in the intended AZAAD Core Stack, but the current repository evidence for commit `baf9c9488eeebcd418fdc0fcda053fc7e064320f` shows a successful **Cloudflare Workers production build** and a production Version ID. Therefore the deployment-provider identity is currently **OPEN / RECONCILIATION REQUIRED** rather than being marked as Vercel PASS by assumption.
+
+Required closure evidence:
+
+1. Identify the single production source of truth for the application.
+2. If Vercel is the production provider, prove the checked commit has a READY Vercel production deployment and verify its URL/runtime health.
+3. If Cloudflare Workers is the production provider, explicitly migrate the deployment contract from Vercel to Cloudflare in this document and in the relevant gates.
+4. Do not mark the deployment gate PASS merely because a build succeeded.
 
 The product acceptance path is:
 
@@ -80,9 +91,10 @@ Refund Request
 
 AI must never approve a refund.
 
-### 3. Vercel
+### 3. Vercel / Production Provider
 - A GitHub commit is not production proof.
-- Production gate requires a READY deployment, HTTP success, and runtime-error review.
+- Production gate requires a READY deployment, HTTP success, and runtime-error review from the actual production provider.
+- The provider must be explicitly identified; a successful build on another platform does not satisfy a Vercel gate automatically.
 - After production changes, verify the actual deployed URL.
 
 ### 4. Codex Security
@@ -157,10 +169,12 @@ Webflow, Wix, Base44, ShipStatic, Spaceship, Devpost, Neon, WoWSQL, Agent Commun
 - [ ] Console/runtime errors reviewed.
 
 ### Gate D — Production
+- [ ] Production provider explicitly identified.
 - [ ] Deployment READY.
 - [ ] Production URL returns successfully.
 - [ ] Runtime error/fatal logs reviewed.
 - [ ] Critical workflow smoke test completed.
+- [ ] Provider evidence corresponds to the exact release commit.
 
 ### Gate E — Completion
 A gate may be marked DONE only from fresh evidence. Static plausibility, a successful commit, or a planned test is not evidence of runtime success.
@@ -172,9 +186,10 @@ A gate may be marked DONE only from fresh evidence. Static plausibility, a succe
 - Refund hierarchy: READY and enforced server-side
 - Refund Edge workflow: deployed and JWT-protected
 - Supabase RLS hardening: active
-- Vercel production: READY
-- Production HTTP smoke: PASS
-- Production error review: PASS for the checked window
+- **Vercel production: OPEN / RECONCILIATION REQUIRED**
+- **Cloudflare Workers production build: PASS for commit `baf9c9488eeebcd418fdc0fcda053fc7e064320f`**
+- Production HTTP smoke: PASS only for the previously checked production evidence; must be tied to the final provider decision before closure
+- Production error review: PASS for the previously checked window
 - Clinical Assessment backend/RLS: READY for E2E validation
 - Check-in reconciliation: OPEN — one historical `in_progress` booking has no `checked_in_at`; do not mutate it automatically
 - Leaked Password Protection: OPEN — requires Auth configuration action
