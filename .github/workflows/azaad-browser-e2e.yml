@@ -2,7 +2,9 @@ name: Azaad Production Browser E2E
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - codex/azaad-engineering-control-plan-20260817
   pull_request:
     branches: [main]
   workflow_dispatch:
