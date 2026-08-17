@@ -1,0 +1,29 @@
+name: AZAAD Phase 10 Finance Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  finance-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate finance gate contract
+        run: |
+          test -f qa/azaad-phase10-finance-gate.md
+          grep -q "shift open/close lifecycle" qa/azaad-phase10-finance-gate.md
+          grep -q "collection reconciliation" qa/azaad-phase10-finance-gate.md
+          grep -q "expense authorization and immutability" qa/azaad-phase10-finance-gate.md
+          grep -q "daily closing authorization" qa/azaad-phase10-finance-gate.md
+          grep -q "variance calculation and audit trail" qa/azaad-phase10-finance-gate.md
+          grep -q "no direct client exposure" qa/azaad-phase10-finance-gate.md
+          grep -q "no real patient/financial mutations" qa/azaad-phase10-finance-gate.md
+          echo "Phase 10 Finance contract: PASS"
