@@ -1,0 +1,24 @@
+name: AZAAD Phase 6 Doctor Clinical Workspace Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  doctor-workspace-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Phase 6 Doctor Clinical Workspace
+        run: python qa/azaad-phase6-doctor-workspace-gate.py
