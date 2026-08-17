@@ -15,6 +15,12 @@ jobs:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
 
+      - name: Verify exact commit under test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -58,6 +64,25 @@ jobs:
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
+
+      - name: Enforce Production Certification policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          test -s AZAAD_ENGINEERING_CONTROL_PLAN.md
+          test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'AI-First • Free-Only • Safety-Gated • Continuous Delivery' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'AZAAD is 100% free-only.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'NOT PROVEN ON FREE-ONLY STACK' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq '100% free-only' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'AI-first clinic platform' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          echo "Production certification policy verified for commit: $(git rev-parse HEAD)"
 
       - name: Upload Playwright report
         if: always()
