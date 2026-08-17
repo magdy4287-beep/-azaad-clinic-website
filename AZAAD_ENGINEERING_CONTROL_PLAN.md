@@ -24,6 +24,38 @@ UI → Auth → Authorization → Database / Edge Function → Validation
 → Production verification
 ```
 
+## Master execution phases
+
+```text
+PHASE 1  Infrastructure
+   ↓
+PHASE 2  Security / RLS
+   ↓
+PHASE 3  Patient 360
+   ↓
+PHASE 4  Scheduling
+   ↓
+PHASE 5  Check-in
+   ↓
+PHASE 6  Doctor Clinical Workspace
+   ↓
+PHASE 7  Assessment
+   ↓
+PHASE 8  Billing / Payments
+   ↓
+PHASE 9  Refund Approval
+   ↓
+PHASE 10 Cashier / Finance
+   ↓
+PHASE 11 AI
+   ↓
+PHASE 12 Full Security Audit
+   ↓
+PHASE 13 Production QA
+```
+
+A phase is DONE only when its applicable source, backend, frontend, security, integration, E2E and production gates have fresh evidence. A passing static contract alone does not close a runtime gate.
+
 ## Level 1 — Required for every production change
 
 ### 1. GitHub
@@ -135,6 +167,7 @@ A gate may be marked DONE only from fresh evidence. Static plausibility, a succe
 
 ## Current AZAAD status — 2026-08-17
 
+### Infrastructure / Security
 - Core architecture: READY
 - Refund hierarchy: READY and enforced server-side
 - Refund Edge workflow: deployed and JWT-protected
@@ -146,6 +179,21 @@ A gate may be marked DONE only from fresh evidence. Static plausibility, a succe
 - Check-in reconciliation: OPEN — one historical `in_progress` booking has no `checked_in_at`; do not mutate it automatically
 - Leaked Password Protection: OPEN — requires Auth configuration action
 - Authenticated SECURITY DEFINER advisory items: OPEN — review deliberately; do not remove legitimate protected operations just to silence an advisory
+
+### Master phases
+- Phase 1 Infrastructure: READY
+- Phase 2 Security / RLS: HARDENED; final advisory/Auth items remain OPEN
+- Phase 3 Patient 360: CONTRACT/E2E GATES PASS; production feature release remains subject to the current PR/release decision
+- Phase 4 Scheduling: CONTRACT GATE PASS; authenticated browser gate is the next required evidence before phase closure
+- Phase 5 Check-in: NOT STARTED as a phase gate
+- Phase 6 Doctor Clinical Workspace: NOT STARTED as a phase gate
+- Phase 7 Assessment: NOT STARTED as a phase gate
+- Phase 8 Billing / Payments: NOT STARTED as a phase gate
+- Phase 9 Refund Approval: CORE CONTROL READY; full phase gate pending later
+- Phase 10 Cashier / Finance: NOT STARTED as a phase gate
+- Phase 11 AI: NOT STARTED as a phase gate
+- Phase 12 Full Security Audit: NOT STARTED
+- Phase 13 Production QA: NOT STARTED
 
 ## Delivery rule
 
