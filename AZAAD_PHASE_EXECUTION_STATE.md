@@ -32,11 +32,20 @@
 - AI cannot approve refunds.
 
 ### Phase 3 — Patient 360
-- Status: IN PROGRESS
-- Existing Patient 360 contract gate is present and passing on the current control-plan commit.
-- Existing patient-center integration includes canonical MRN normalization, universal patient/booking search, date-driven appointment filtering, Patient 360 entry, follow-ups and invoice contracts.
-- No patient data is created or mutated by the static contract gate.
-- Next acceptance work: real browser verification of Patient 360 open/search/date/filter behavior against production-safe data.
+- Status: GATE READY / targeted production-safe browser evidence remains before final DONE.
+- Patient 360 contract and financial integration gates pass on the current control-plan lineage.
+- Doctor Isolation Contract passes against the real server-side authorization boundary.
+- Production Browser E2E is passing on the current PR lineage.
+- No patient data is created or mutated by static/contract gates.
+
+### Phase 4 — Scheduling
+- Status: ACTIVE / contract gate PASS
+- Canonical central scheduling contract exists with normalized statuses, slot validation, date normalization and doctor-scope validation.
+- Central scheduling center is a side-effect-free read/compose layer; mutations remain behind backend-owned action boundaries.
+- Scheduling actions contract covers booking, rescheduling, cancellation, no-show, transfer and waiting-list assignment with role and doctor-scope authorization.
+- Appointment Contract Gate passes on the current control-plan commit.
+- New Phase 4 Scheduling Gate passes on the current control-plan commit.
+- Next acceptance work: authenticated browser verification of the scheduling UI (day/week/month, doctor rows, availability, booking/reschedule/cancel/waiting-list flows) without mutating production patient data.
 
 ### Blocking finding resolved in this control-plan branch
 The Doctor Isolation Contract Gate previously asserted a local `cache.filter` implementation detail that the current architecture intentionally does not use. The actual doctor isolation boundary is server-side in `azaad-doctor-dashboard`: the authenticated user is resolved to an active DOCTOR staff record, the doctor_id is derived server-side, bookings are filtered with `doctor_id = authenticated doctor.id`, and waiting-list rows are scoped to that doctor. The contract gate now verifies those server-side invariants instead of requiring a client-side filter.
