@@ -3,28 +3,8 @@ name: Azaad Cross-Module Integration Gate
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'index.html'
-      - 'app.js'
-      - 'patient-booking-gate.js'
-      - 'patients-center.js'
-      - 'admin.html'
-      - '.github/patch-admin.py'
-      - 'ai-operating-center.js'
-      - 'qa/azaad-integration-contract.py'
-      - '.github/workflows/azaad-integration-gate.yml'
   push:
     branches: [main]
-    paths:
-      - 'index.html'
-      - 'app.js'
-      - 'patient-booking-gate.js'
-      - 'patients-center.js'
-      - 'admin.html'
-      - '.github/patch-admin.py'
-      - 'ai-operating-center.js'
-      - 'qa/azaad-integration-contract.py'
-      - '.github/workflows/azaad-integration-gate.yml'
 
 permissions:
   contents: read
