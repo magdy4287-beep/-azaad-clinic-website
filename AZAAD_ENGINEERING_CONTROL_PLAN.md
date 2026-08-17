@@ -9,7 +9,7 @@ This document is the operating contract for production work on AZAAD Clinic. A f
 ```text
 GitHub
   ↓
-Production Deployment Provider
+Vercel / Production
   ↓
 Supabase
   ↓
@@ -24,8 +24,8 @@ Current evidence:
 
 1. Vercel has a READY production deployment from `main` commit `714aff0f7f4c65ad122c53ab0d9ce118775672b8`.
 2. Vercel also has a READY preview deployment for PR #39 from branch `codex/azaad-engineering-control-plan-20260817`, commit `bf0aa79e25e3c501e2c97803fa33640eee7a0e76`.
-3. The PR head is currently `a6302596cd017d2d7858acaa1c96739d259cd4a0`; therefore the Vercel deployment-provider gate for the exact PR head remains open until a READY deployment is tied to that exact release commit.
-4. Vercel Deployment Protection/SSO is enabled on the preview URL. It must not be disabled merely to make a smoke test pass.
+3. The PR head was previously `a6302596cd017d2d7858acaa1c96739d259cd4a0`; later control-plan/API documentation commits are now ahead of that runtime evidence. Therefore the Vercel deployment-provider gate for the current release remains open until a READY deployment is tied to the current release commit.
+4. Vercel Deployment Protection/SSO is enabled on preview URLs. It must not be disabled merely to make a smoke test pass.
 
 Required closure evidence:
 
@@ -119,6 +119,9 @@ AI must never approve a refund.
 - Extract the explicit API contract from Edge/API code or supplied API material.
 - Compare documentation against the contract.
 - No undocumented request/response behavior should be introduced intentionally.
+- Core Edge Function documentation is now maintained at `docs/AZAAD_API_CONTRACT.md`.
+- The documented core contracts cover `azaad-frontdesk-checkin` and `azaad-patient-lookup` request fields, methods, success responses and documented errors.
+- The checker tool was invoked against the implementation-derived contract and documentation; its current adapter returned `not_evaluated` rather than item-level coverage, so the API gate remains OPEN pending a deterministic item-level comparison.
 
 ### React Best Practices
 - Apply after multi-component React/TSX changes.
@@ -211,12 +214,14 @@ For each such RPC:
 - Cloudflare Workers production build: PASS for the same CI cycle; this is build evidence, not the production provider
 - Vercel production deployment: READY on `main` commit `714aff0f7f4c65ad122c53ab0d9ce118775672b8`
 - Vercel PR preview deployment: READY on PR #39 commit `bf0aa79e25e3c501e2c97803fa33640eee7a0e76`
-- Vercel exact-head release evidence: OPEN because PR #39 currently points to `a6302596cd017d2d7858acaa1c96739d259cd4a0`
+- Vercel exact-head release evidence: OPEN because the later control-plan/API documentation commits are not yet represented by a matching READY deployment
 - Supabase Security Advisor: OPEN — 9 intentional authenticated `SECURITY DEFINER` RPC warnings plus leaked-password protection disabled
 - The affected RPCs already use explicit `search_path` settings and server-side authorization checks; no blind EXECUTE revocation was applied because that could break required browser RPC calls
 - Leaked Password Protection: OPEN — requires Auth configuration action
 - Production Smoke Gate: PASS on run `31995477255` for commit `a6302596cd017d2d7858acaa1c96739d259cd4a0`; both deterministic source smoke and live production-shell checks succeeded
 - Browser E2E Gate: PASS on run `31995477240` for commit `a6302596cd017d2d7858acaa1c96739d259cd4a0`; the checked-out PR code passed the Playwright browser suite
+- API documentation: IMPLEMENTED; deterministic item-level coverage evidence remains OPEN because the checker adapter returned `not_evaluated`
+- Deployment-source documentation: FIXED; README now identifies Vercel as the primary production provider and removes the stale GitHub Pages production claim
 - Check-in reconciliation: OPEN — one historical `in_progress` booking has no `checked_in_at`; do not mutate it automatically
 
 ### Master phases
@@ -232,7 +237,7 @@ For each such RPC:
 - Phase 10 Cashier / Finance: NOT STARTED as a phase gate
 - Phase 11 AI: NOT STARTED as a phase gate
 - Phase 12 Full Security Audit: CONTRACT PASS; independent repository audit still required
-- Phase 13 Production QA: IN PROGRESS — production smoke and PR-code browser E2E now have fresh passing evidence; full release-commit and critical workflow verification remain open
+- Phase 13 Production QA: IN PROGRESS — production smoke and PR-code browser E2E have fresh passing evidence; exact current release deployment, API coverage and full critical-workflow verification remain open
 
 ## Phase 8 Billing evidence contract
 
