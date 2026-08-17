@@ -10,6 +10,20 @@ test('admin login shell loads on production', async ({ page }) => {
   await expect(page.locator('#password')).toHaveAttribute('autocomplete', 'current-password');
 });
 
+test('Patient 360 appointment action bridge is loaded on admin shell', async ({ page }) => {
+  await page.goto(`${baseURL}/admin.html`, { waitUntil: 'domcontentloaded' });
+  await expect.poll(async () => page.locator('script[data-azaad-script="__AZAAD_PATIENT_APPOINTMENT_ACTIONS__"]').count(), {
+    timeout: 10000,
+  }).toBe(1);
+
+  const scriptResponse = await page.request.get(`${baseURL}/patient-appointment-actions.js?v=13.0.0`);
+  expect(scriptResponse.ok()).toBeTruthy();
+  const scriptText = await scriptResponse.text();
+  expect(scriptText).toContain('/functions/v1/azaad-frontdesk-checkin');
+  expect(scriptText).toContain('function checkIn');
+  expect(scriptText).toContain('p360-actions');
+});
+
 test('admin auth flow can be exercised when test credentials are supplied', async ({ page }) => {
   test.skip(!process.env.AZAAD_TEST_USERNAME || !process.env.AZAAD_TEST_PASSWORD,
     'Authenticated E2E is intentionally skipped unless dedicated test credentials are supplied as CI secrets.');
