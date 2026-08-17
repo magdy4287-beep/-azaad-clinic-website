@@ -18,7 +18,7 @@ AZAAD
 
 ### Deployment-provider contract
 
-Vercel remains a required Level-1 production gate in the intended AZAAD Core Stack, but the current repository evidence for commit `baf9c9488eeebcd418fdc0fcda053fc7e064320f` shows a successful **Cloudflare Workers production build** and a production Version ID. Therefore the deployment-provider identity is currently **OPEN / RECONCILIATION REQUIRED** rather than being marked as Vercel PASS by assumption.
+Vercel remains a required Level-1 production gate in the intended AZAAD Core Stack, but the repository currently also has Cloudflare Workers deployment evidence. The deployment-provider identity must be explicitly reconciled before the final Production Gate is closed.
 
 Required closure evidence:
 
@@ -159,6 +159,7 @@ Webflow, Wix, Base44, ShipStatic, Spaceship, Devpost, Neon, WoWSQL, Agent Commun
 - [ ] Audit trail verified where required.
 - [ ] Clinical/financial isolation verified.
 - [ ] Refund hierarchy verified.
+- [ ] Supabase Security Advisor reviewed after security-sensitive changes.
 
 ### Gate C — Frontend
 - [ ] Intended screen renders.
@@ -179,35 +180,49 @@ Webflow, Wix, Base44, ShipStatic, Spaceship, Devpost, Neon, WoWSQL, Agent Commun
 ### Gate E — Completion
 A gate may be marked DONE only from fresh evidence. Static plausibility, a successful commit, or a planned test is not evidence of runtime success.
 
+## Security hardening protocol for intentional SECURITY DEFINER RPCs
+
+Some AZAAD RPCs are deliberately exposed to `authenticated` clients because the browser must invoke them, while authorization is enforced inside the function. These are not automatically considered safe merely because they pass the contract gate.
+
+For each such RPC:
+
+1. Keep `SECURITY DEFINER` only when required by the data-access model.
+2. Require an explicit safe `search_path`.
+3. Qualify privileged tables/functions with explicit schemas.
+4. Perform server-side identity, active-staff, role and permission checks before mutation.
+5. For refund operations, enforce the Doctor → Management/Owner → Finance sequence server-side and prevent self-approval.
+6. Keep `anon` execution denied.
+7. Review the Supabase Security Advisor warning as a deliberate hardening item rather than weakening the business authorization to silence the warning.
+8. Prefer moving genuinely internal helpers out of exposed API schemas when that can be done without breaking required client RPC contracts.
+
 ## Current AZAAD status — 2026-08-17
 
 ### Infrastructure / Security
 - Core architecture: READY
-- Refund hierarchy: READY and enforced server-side
-- Refund Edge workflow: deployed and JWT-protected
-- Supabase RLS hardening: active
-- **Vercel production: OPEN / RECONCILIATION REQUIRED**
-- **Cloudflare Workers production build: PASS for commit `baf9c9488eeebcd418fdc0fcda053fc7e064320f`**
-- Production HTTP smoke: PASS only for the previously checked production evidence; must be tied to the final provider decision before closure
-- Production error review: PASS for the previously checked window
-- Clinical Assessment backend/RLS: READY for E2E validation
-- Check-in reconciliation: OPEN — one historical `in_progress` booking has no `checked_in_at`; do not mutate it automatically
+- Core Control Plan contract: PASS on commit `d5328fc6923776b7362b3315430d77db07974e64`
+- Refund hierarchy contract: PASS on the same fresh CI run
+- Security audit contract: PASS on the same fresh CI run
+- Cloudflare Workers production build: PASS for the same release commit, with a production version created
+- Vercel commit status: OPEN for this commit because GitHub reports a Vercel build-rate-limit failure; do not treat this as proof that the current production deployment is down
+- Supabase Security Advisor: OPEN — 9 intentional authenticated `SECURITY DEFINER` RPC warnings plus leaked-password protection disabled
+- The affected RPCs already use explicit `search_path` settings and server-side authorization checks; no blind EXECUTE revocation was applied because that could break required browser RPC calls
 - Leaked Password Protection: OPEN — requires Auth configuration action
-- Authenticated SECURITY DEFINER advisory items: OPEN — review deliberately; do not remove legitimate protected operations just to silence an advisory
+- Production HTTP/runtime evidence: must be tied to the final provider decision before closure
+- Check-in reconciliation: OPEN — one historical `in_progress` booking has no `checked_in_at`; do not mutate it automatically
 
 ### Master phases
 - Phase 1 Infrastructure: READY
-- Phase 2 Security / RLS: HARDENED; final advisory/Auth items remain OPEN
+- Phase 2 Security / RLS: HARDENED; Auth and SECURITY DEFINER advisory items remain OPEN
 - Phase 3 Patient 360: CONTRACT/E2E GATES PASS; production feature release remains subject to the current PR/release decision
-- Phase 4 Scheduling: CONTRACT GATE PASS; authenticated browser gate is the next required evidence before phase closure
-- Phase 5 Check-in: CONTRACT GATE PASS (fresh GitHub Actions Run #2); authenticated browser/production evidence remains required before full phase closure
-- Phase 6 Doctor Clinical Workspace: CONTRACT GATE PASS (fresh GitHub Actions evidence); authenticated browser/production evidence remains required before full phase closure
-- Phase 7 Assessment: CONTRACT GATE PASS (fresh GitHub Actions Run #2); authenticated browser/production evidence remains required before full phase closure
-- Phase 8 Billing / Payments: BACKEND HARDENING COMPLETE; payment over-balance protection and authorization were verified directly in Supabase; CI contract gate added, fresh CI/browser/production evidence pending
-- Phase 9 Refund Approval: CORE CONTROL READY; full phase gate pending later
+- Phase 4 Scheduling: CONTRACT GATE PASS; authenticated browser gate remains required before phase closure
+- Phase 5 Check-in: CONTRACT GATE PASS; authenticated browser/production evidence remains required before full phase closure
+- Phase 6 Doctor Clinical Workspace: CONTRACT GATE PASS; authenticated browser/production evidence remains required before full phase closure
+- Phase 7 Assessment: CONTRACT GATE PASS; authenticated browser/production evidence remains required before full phase closure
+- Phase 8 Billing / Payments: BACKEND HARDENING COMPLETE; fresh browser/production evidence pending
+- Phase 9 Refund Approval: CORE CONTROL PASS; full runtime phase gate pending
 - Phase 10 Cashier / Finance: NOT STARTED as a phase gate
 - Phase 11 AI: NOT STARTED as a phase gate
-- Phase 12 Full Security Audit: NOT STARTED
+- Phase 12 Full Security Audit: CONTRACT PASS; independent repository audit still required
 - Phase 13 Production QA: NOT STARTED
 
 ## Phase 8 Billing evidence contract
