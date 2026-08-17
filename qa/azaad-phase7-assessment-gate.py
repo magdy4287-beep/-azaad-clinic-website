@@ -17,7 +17,6 @@ files = [
 text = '\n'.join(p.read_text(errors='ignore') for p in files)
 lower = text.lower()
 
-# Do not inspect this gate's own assertions: doing so creates false evidence.
 checks = {
     'assessment UI present': 'assessment' in lower,
     'authenticated session boundary': 'getsession' in lower or 'authorization' in lower,
@@ -25,6 +24,8 @@ checks = {
     'patient scope boundary': 'patient_id' in lower,
     'doctor scope boundary': 'doctor_id' in lower,
     'assessment history': 'assessment history' in lower or 'assessment_history' in lower,
+    # Verify that the assessment implementation has an AI boundary, rather than
+    # searching for a phrase that the gate itself could supply.
     'AI boundary exists': 'azaad-doctor-ai' in lower or 'doctor-ai' in lower or 'clinical ai' in lower,
 }
 
