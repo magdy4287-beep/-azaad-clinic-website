@@ -117,6 +117,18 @@ Every change must identify:
 
 A passing Core Gate must not be weakened to accommodate an unrelated change.
 
+### Executable governance enforcement
+
+`.github/workflows/azaad-release-governance-gate.yml` enforces this document on `main` and pull requests targeting `main`.
+
+The gate verifies that:
+
+- this policy is present and contains the critical financial, release, and evidence rules
+- one-time/once workflows cannot acquire automatic `push`, `schedule`, `pull_request`, or `pull_request_target` triggers
+- one-time/once workflows cannot silently introduce `secrets` or `environment` blocks
+
+One-time workflows that have completed their migration remain manually dispatched only. They must never become part of the normal production release path.
+
 ## 6. Required Production Evidence
 
 A release is certified only when the applicable evidence exists for the exact production commit:
@@ -185,4 +197,4 @@ This document activates the next operating layer:
 
 **Production Hardening → UAT → Release Governance → Operations**
 
-The layer is considered active immediately after this commit reaches the production deployment successfully. Its individual release gates remain evidence-based and must not be marked PASS without fresh evidence.
+The layer is active, and its governance rules are now executable through CI. Individual release gates remain evidence-based and must not be marked PASS without fresh evidence.
