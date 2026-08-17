@@ -18,6 +18,7 @@ def read(path):
 migration = read("supabase/migrations/20260816_enforce_doctor_staff_binding.sql")
 identity = read("supabase/migrations/20260816_harden_doctor_staff_identity_mapping.sql")
 dashboard = read("doctor-dashboard.js")
+backend = read("supabase/functions/azaad-doctor-dashboard/index.ts")
 
 checks = {
     "doctor role requires doctor_id": "role = 'DOCTOR' and doctor_id is not null" in migration,
@@ -27,7 +28,11 @@ checks = {
     "dashboard requires access token": "session?.access_token" in dashboard,
     "dashboard calls scoped backend": "azaad-doctor-dashboard" in dashboard,
     "dashboard does not submit doctor_id": "doctor_id:" not in dashboard,
-    "patient search is locally limited to scoped response": "cache.filter" in dashboard,
+    "doctor dashboard backend resolves authenticated doctor": "eq(\"auth_user_id\",u.data.user.id)" in backend,
+    "doctor dashboard backend requires active DOCTOR role": "String(staff.role).toUpperCase()!==\"DOCTOR\"||!staff.doctor_id" in backend,
+    "appointments are server-side scoped by doctor_id": ".eq(\"doctor_id\",doctor.id)" in backend,
+    "waiting list is server-side scoped by doctor": "doctor_id.eq.${doctor.id},preferred_doctor_id.eq.${doctor.id}" in backend,
+    "patient search uses only scoped response": "appointmentsCache=b.appointments||[]" in dashboard and "patientCache=b.patients||[]" in dashboard,
 }
 
 failed = []
