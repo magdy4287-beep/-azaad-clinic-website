@@ -185,8 +185,8 @@ A gate may be marked DONE only from fresh evidence. Static plausibility, a succe
 - Phase 2 Security / RLS: HARDENED; final advisory/Auth items remain OPEN
 - Phase 3 Patient 360: CONTRACT/E2E GATES PASS; production feature release remains subject to the current PR/release decision
 - Phase 4 Scheduling: CONTRACT GATE PASS; authenticated browser gate is the next required evidence before phase closure
-- Phase 5 Check-in: NOT STARTED as a phase gate
-- Phase 6 Doctor Clinical Workspace: NOT STARTED as a phase gate
+- Phase 5 Check-in: CONTRACT GATE PASS (fresh GitHub Actions Run #2); authenticated browser/production evidence remains required before full phase closure
+- Phase 6 Doctor Clinical Workspace: NEXT BOUNDED WORK; not yet closed as a phase gate
 - Phase 7 Assessment: NOT STARTED as a phase gate
 - Phase 8 Billing / Payments: NOT STARTED as a phase gate
 - Phase 9 Refund Approval: CORE CONTROL READY; full phase gate pending later
