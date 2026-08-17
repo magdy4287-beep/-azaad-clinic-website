@@ -1,0 +1,29 @@
+name: AZAAD Phase 9 Refund Approval Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refund-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate refund approval contract
+        run: |
+          test -f qa/azaad-phase9-refund-gate.md
+          grep -q "Doctor approval requires" qa/azaad-phase9-refund-gate.md
+          grep -q "Management/Owner approval requires prior Doctor approval" qa/azaad-phase9-refund-gate.md
+          grep -q "Requester cannot approve" qa/azaad-phase9-refund-gate.md
+          grep -q "Bank refunds require" qa/azaad-phase9-refund-gate.md
+          grep -q "Processing requires both Doctor and Management/Owner approvals" qa/azaad-phase9-refund-gate.md
+          grep -q "not executable by PUBLIC/anon/authenticated clients" qa/azaad-phase9-refund-gate.md
+          grep -q "Data safety" qa/azaad-phase9-refund-gate.md
+          echo "Phase 9 Refund Approval contract: PASS"
