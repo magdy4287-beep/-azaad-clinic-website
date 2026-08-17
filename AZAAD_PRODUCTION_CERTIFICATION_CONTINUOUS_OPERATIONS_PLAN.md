@@ -33,6 +33,17 @@ AI is assistive only. It cannot approve or execute refunds outside the human app
 
 Every AI-assisted workflow requires a safe free fallback and must not make AI a single point of failure for core clinic operations.
 
+### Centralized Arabic/English Language Governance
+
+AZAAD supports **Arabic and English centrally only through the Patient Dashboard and Administration Dashboard**.
+
+- The Patient Dashboard is the centralized patient-facing bilingual surface.
+- The Administration Dashboard is the centralized administrative bilingual surface.
+- Language selection, translation resources, labels, navigation, validation messages, and dashboard-level accessibility behavior must be governed centrally rather than duplicated across modules.
+- Clinical, reception, doctor, financial, scheduling, and other operational workspaces remain governed by their existing product contracts and do not become independently bilingual surfaces unless a separately approved requirement is introduced.
+- Centralized language support must not alter authorization, clinical meaning, financial values, audit records, or authoritative database semantics.
+- Every bilingual change remains subject to the same exact-commit evidence and release gates as any other application change.
+
 ## 3. Certification Model
 
 Certification is evidence-based:
@@ -142,9 +153,15 @@ Do not log plaintext passwords, secrets, or unnecessary sensitive patient/AI dat
 
 `Authenticated Patient → Patient Dashboard → Appointments/relevant information → AI assistance/fallback → Logout`
 
+### Bilingual Dashboard Contract
+
+`Language Select → Patient Dashboard / Administration Dashboard → Centralized Arabic/English resources → Authorized content rendering → Preserve data/authorization semantics → Logout`
+
+Negative bilingual paths must reject unsupported language states and must never allow translation or locale state to bypass authorization or change authoritative clinical/financial meaning.
+
 ### Negative paths
 
-Reject unauthorized patient/clinical/financial access, direct refunds without both approvals, AI approval/privilege escalation/RLS bypass, duplicate transactions, invalid appointment transitions, expired sessions, and unsafe AI side effects.
+Reject unauthorized patient/clinical/financial access, direct refunds without both approvals, AI approval/privilege escalation/RLS bypass, duplicate transactions, invalid appointment transitions, expired sessions, unsafe AI side effects, and language/locale state that attempts to bypass authorization.
 
 ## 7. Release Evidence Record
 
@@ -160,6 +177,7 @@ For every release candidate record:
 - production smoke/browser result
 - AI/fallback result when applicable
 - financial/audit evidence when applicable
+- bilingual dashboard result when applicable
 - known limitations
 - rollback strategy
 
@@ -224,3 +242,13 @@ After the current baseline evidence is recorded, feature work proceeds under:
 `AZAAD_CONTROLLED_EVOLUTION_FEATURE_DELIVERY_PLAN.md`
 
 The next phase does not loosen certification. Every new feature remains bounded, AI-first where applicable, free-only, safety-gated, UAT-tested, and independently evidenced before release.
+
+## 14. Master Delivery Path to Go-Live
+
+The permanent project delivery path is:
+
+`Secure & Safety-Gated Production → Controlled Feature Evolution → Patient/Clinical/Financial E2E → Human-Approved AI → Security/UAT Certification → Go-Live → Continuous Operations`
+
+with **centralized Arabic/English bilingual support limited to the Patient Dashboard and Administration Dashboard**.
+
+This sentence is the project-level delivery contract. It does not replace the individual gates above; it is the concise operating map connecting them from the certified baseline to live clinic operations.
