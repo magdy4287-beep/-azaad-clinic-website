@@ -54,7 +54,7 @@ PHASE 12 Full Security Audit
 PHASE 13 Production QA
 ```
 
-A phase is DONE only when its applicable source, backend, frontend, security, integration, E2E and production gates have fresh evidence. A passing static contract alone does not close a runtime gate.
+A phase is DONE only when its applicable source, backend, security, integration, E2E and production gates have fresh evidence. A passing static contract alone does not close a runtime gate.
 
 ## Level 1 — Required for every production change
 
@@ -186,7 +186,7 @@ A gate may be marked DONE only from fresh evidence. Static plausibility, a succe
 - Phase 3 Patient 360: CONTRACT/E2E GATES PASS; production feature release remains subject to the current PR/release decision
 - Phase 4 Scheduling: CONTRACT GATE PASS; authenticated browser gate is the next required evidence before phase closure
 - Phase 5 Check-in: CONTRACT GATE PASS (fresh GitHub Actions Run #2); authenticated browser/production evidence remains required before full phase closure
-- Phase 6 Doctor Clinical Workspace: NEXT BOUNDED WORK; not yet closed as a phase gate
+- Phase 6 Doctor Clinical Workspace: CONTRACT GATE ADDED; fresh CI evidence pending
 - Phase 7 Assessment: NOT STARTED as a phase gate
 - Phase 8 Billing / Payments: NOT STARTED as a phase gate
 - Phase 9 Refund Approval: CORE CONTROL READY; full phase gate pending later
