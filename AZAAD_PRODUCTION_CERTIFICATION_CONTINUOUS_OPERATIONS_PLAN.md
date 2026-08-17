@@ -2,7 +2,7 @@
 
 **AI-First • Free-Only • Safety-Gated • Continuous Delivery**
 
-Status: **ACTIVE / EVIDENCE-GATED**  
+Status: **ACTIVE / CONTINUOUSLY EVIDENCE-GATED**  
 Effective branch: `main`  
 Production source of truth: `main` → GitHub Pages.  
 Backend: Supabase Auth/Postgres/RLS/Edge Functions.
@@ -184,4 +184,43 @@ Core Stack & Production Gates: **PASS / LOCKED** under `AZAAD_ENGINEERING_CONTRO
 
 Production Hardening → UAT → Release Governance → Operations: **ACTIVE / ENFORCED** under `AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md`.
 
-This plan is now the next certification and continuous-operations layer.
+This plan is the certification and continuous-operations layer.
+
+## 11. Verified Production Browser Evidence — Baseline
+
+A real GitHub Actions Production Browser E2E run has been verified for the `main` baseline:
+
+- Workflow: `Azaad Production Browser E2E #347`
+- Run ID: `32005754596`
+- Job: `browser-e2e`
+- Job ID: `95314764250`
+- Tested commit: `6935d6648a9e6a765ddd9c866af434928a5a3b2b`
+- Result: **SUCCESS**
+
+The job completed successfully for the following certification-relevant steps:
+
+- Checkout exact commit under test
+- Verify exact commit under test
+- Install Playwright test runner
+- Install Chromium
+- Run browser E2E against production on `main`
+- Enforce Production Certification policy
+- Upload Playwright report
+
+This is **fresh exact-commit browser/policy evidence** for the baseline. It does not by itself replace the individual Security, Clinical, Financial, AI Governance, Free-Only, and Resilience evidence requirements; those remain separately evidence-gated.
+
+## 12. Continuous Certification Rule
+
+The Production Browser E2E workflow is the recurring evidence path. It supports push/PR validation, manual dispatch, and scheduled re-certification.
+
+A successful browser run is recorded as production verification evidence. A failed run blocks the corresponding release candidate until triage and fresh verification succeed.
+
+No manual screenshot, inferred result, or stale run may be substituted for the required exact-commit CI evidence.
+
+## 13. Next Controlled-Evolution Phase
+
+After the current baseline evidence is recorded, feature work proceeds under:
+
+`AZAAD_CONTROLLED_EVOLUTION_FEATURE_DELIVERY_PLAN.md`
+
+The next phase does not loosen certification. Every new feature remains bounded, AI-first where applicable, free-only, safety-gated, UAT-tested, and independently evidenced before release.
