@@ -10,13 +10,26 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: azaad-production-certification-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   certification:
     name: AI-First Free-Only Production Certification
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@v4
+
+      - name: Record exact commit under certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA"
+          echo "Certification commit: $actual"
 
       - name: Require certification plan
         shell: bash
