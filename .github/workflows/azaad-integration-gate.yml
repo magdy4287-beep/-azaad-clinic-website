@@ -12,6 +12,7 @@ on:
       - '.github/patch-admin.py'
       - 'ai-operating-center.js'
       - 'qa/azaad-integration-contract.py'
+      - '.github/workflows/azaad-integration-gate.yml'
   push:
     branches: [main]
     paths:
@@ -23,6 +24,7 @@ on:
       - '.github/patch-admin.py'
       - 'ai-operating-center.js'
       - 'qa/azaad-integration-contract.py'
+      - '.github/workflows/azaad-integration-gate.yml'
 
 permissions:
   contents: read
