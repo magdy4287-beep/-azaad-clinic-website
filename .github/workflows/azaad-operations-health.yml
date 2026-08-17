@@ -1,0 +1,77 @@
+name: AZAAD Operations Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+
+jobs:
+  operations-health:
+    name: Production operations health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact production commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify operating policies are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s AZAAD_ENGINEERING_CONTROL_PLAN.md
+          test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          test -s .github/workflows/azaad-release-governance-gate.yml
+          test -s .github/workflows/azaad-browser-e2e.yml
+
+      - name: Verify financial and evidence controls remain documented
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI cannot approve, impersonate, bypass, or execute around this chain." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "If evidence is missing, status is **NOT PROVEN**, not PASS." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "A backup that has never been restored is not considered proven recovery capability." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+
+      - name: Verify one-time workflow safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          failures = []
+          for path in Path('.github/workflows').glob('*.y*ml'):
+              text = path.read_text(encoding='utf-8', errors='replace')
+              if re.search(r'(?i)(one-time|once)', path.name + '\n' + text):
+                  on_block = text.split('\njobs:', 1)[0]
+                  for trigger in ('push:', 'schedule:', 'pull_request:', 'pull_request_target:'):
+                      if trigger in on_block:
+                          failures.append(f'{path}: automatic trigger {trigger}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          print('One-time workflow safety: PASS')
+          PY
+
+      - name: Production Pages health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          url="https://${owner}.github.io/${repo}/"
+          echo "Checking ${url}"
+          curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-pages.html
+          test -s /tmp/azaad-pages.html
+          echo "GitHub Pages HTTP health: PASS"
+
+      - name: Record production commit
+        shell: bash
+        run: |
+          echo "Production operations health verified for ${GITHUB_SHA}"
