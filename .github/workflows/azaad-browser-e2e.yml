@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout exact commit under test
         uses: actions/checkout@v5
 
       - name: Setup Node
@@ -26,7 +26,8 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Start local PR build server
+      - name: Start local checked-out build server for pull requests
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -42,7 +43,16 @@ jobs:
           cat /tmp/azaad-http.log || true
           exit 1
 
-      - name: Run browser E2E against checked-out PR code
+      - name: Run browser E2E against production on main
+        if: github.event_name != 'pull_request'
+        env:
+          AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
+          AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
+
+      - name: Run browser E2E against exact checked-out code on pull requests
+        if: github.event_name == 'pull_request'
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
@@ -58,12 +68,12 @@ jobs:
           if-no-files-found: ignore
 
       - name: Stop local server
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         shell: bash
         run: |
           if [[ -f /tmp/azaad-http.pid ]]; then
             kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
           fi
 
-# Browser E2E intentionally tests the exact checked-out PR files locally.
-# This avoids provider-specific preview access controls and makes PR validation deterministic.
+# Main pushes validate the deployed production surface; pull requests validate the exact checked-out code.
+# Authenticated E2E remains gated behind dedicated CI secrets and is never bypassed by fake credentials.
