@@ -31,6 +31,17 @@ jobs:
           test -s .github/workflows/azaad-release-governance-gate.yml
           test -s .github/workflows/azaad-browser-e2e.yml
 
+      - name: Verify free-only production constraint
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "AZAAD is a **100% free-only project**." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Never upgrade a provider plan to make a gate pass." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Never introduce a paid API or service as a hidden dependency." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "NOT PROVEN ON FREE-ONLY STACK" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Paid-only recovery resources are prohibited." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          echo "Free-only production constraint: PASS"
+
       - name: Verify financial and evidence controls remain documented
         shell: bash
         run: |
