@@ -1,0 +1,53 @@
+name: AZAAD Release Governance Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    name: Release governance and one-time workflow hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require production hardening policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'Requirement → bounded change → implementation → authorization checks → validation → audit/security' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'If evidence is missing, status is **NOT PROVEN**, not PASS.' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+
+      - name: Enforce one-time workflow safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in .github/workflows/*one-time*.yml .github/workflows/*once*.yml; do
+            [ -e "$file" ] || continue
+            if grep -Eq '^\s*(push|schedule|pull_request|pull_request_target):' "$file"; then
+              echo "Unsafe automatic trigger found in one-time workflow: $file"
+              exit 1
+            fi
+          done
+          echo 'One-time workflow safety: PASS'
+
+      - name: Enforce no one-time workflow secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in .github/workflows/*one-time*.yml .github/workflows/*once*.yml; do
+            [ -e "$file" ] || continue
+            if grep -Eq '^\s*(secrets:|environment:)' "$file"; then
+              echo "Review required: one-time workflow references secrets/environment: $file"
+              exit 1
+            fi
+          done
+          echo 'One-time workflow secret hygiene: PASS'
