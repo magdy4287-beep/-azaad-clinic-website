@@ -1,4 +1,4 @@
-/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.4.0 */
+/* AZAAD CLINIC — PATIENT SESSION BRIDGE v5.4.1 */
 (() => {
   'use strict';
 
@@ -9,6 +9,7 @@
   const ENHANCEMENTS_SCRIPT = './admin-enhancements-v1.js?v=2026.08.14.2';
   const CANCELLATION_SCRIPT = './appointment-cancellation-ui.js?v=1.2.0';
   const REFUND_SCRIPT = './refund-workflow-ui.js?v=1.0.0';
+  const PATIENT_APPOINTMENT_ACTIONS_SCRIPT = './patient-appointment-actions.js?v=13.0.0';
   let restorePromise = null;
   let booted = false;
 
@@ -140,7 +141,7 @@
   window.AZAAD_AUTH_READY = restoreAdmin();
 
   window.AZAAD_PATIENT_SESSION = {
-    version: '5.4.0',
+    version: '5.4.1',
     getAccessToken: async () => {
       const session = await syncAuth();
       if (session?.access_token) return session.access_token;
@@ -169,6 +170,7 @@
     if (!/admin\.html$/i.test(location.pathname)) return;
     loadScriptOnce(CANCELLATION_SCRIPT, '__AZAAD_CANCELLATION_WORKFLOW__');
     loadScriptOnce(REFUND_SCRIPT, '__AZAAD_REFUND_WORKFLOW__');
+    loadScriptOnce(PATIENT_APPOINTMENT_ACTIONS_SCRIPT, '__AZAAD_PATIENT_APPOINTMENT_ACTIONS__');
   };
   const loadI18nStability = () => loadScriptOnce(I18N_STABILITY_SCRIPT, '__AZAAD_CENTRAL_I18N_STABILITY__');
   const loadCentralI18n = () => loadScriptOnce(I18N_SCRIPT, '__AZAAD_CENTRAL_I18N__');
