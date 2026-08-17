@@ -7,6 +7,24 @@ Production source of truth: `main` → GitHub Pages.
 Backend: Supabase Auth/Postgres/RLS/Edge Functions.
 Vercel: optional preview/development infrastructure unless explicitly promoted by a future release decision.
 
+## 0. Free-Only Engineering Constraint
+
+AZAAD is a **100% free-only project**.
+
+No production requirement, gate, architecture decision, recovery procedure, monitoring path, AI integration, deployment path, or operational dependency may require a paid plan, paid API, paid infrastructure, or paid add-on.
+
+Rules:
+
+- Never upgrade a provider plan to make a gate pass.
+- Never create a paid development/preview/recovery resource automatically.
+- Never introduce a paid API or service as a hidden dependency.
+- Prefer free/native capabilities first.
+- If a capability cannot be proven on the free-only stack, record it as **NOT PROVEN ON FREE-ONLY STACK** rather than converting it into a paid requirement.
+- A free-tier limitation is not a reason to weaken a security or financial control.
+- Production must remain operational without optional paid infrastructure.
+
+Recovery rule: a paid-only restore drill is **not** an acceptable production dependency. Recovery evidence must use free/native capabilities where available; otherwise the limitation is documented and the gate remains explicitly NOT PROVEN.
+
 ## 1. Production Hardening Gate
 
 Every production change must be evaluated for:
@@ -170,6 +188,8 @@ Before operational certification, maintain and periodically test:
 
 A backup that has never been restored is not considered proven recovery capability.
 
+Paid-only recovery resources are prohibited. Use free/native recovery capabilities where available. If the free-only environment cannot provide a real restore drill, record **NOT PROVEN ON FREE-ONLY STACK** and do not claim recovery certification.
+
 ## 9. Observability
 
 Monitor at minimum:
@@ -197,4 +217,6 @@ This document activates the next operating layer:
 
 **Production Hardening → UAT → Release Governance → Operations**
 
-The layer is active, and its governance rules are now executable through CI. Individual release gates remain evidence-based and must not be marked PASS without fresh evidence.
+The layer is active, and its governance rules are executable through CI. Individual release gates remain evidence-based and must not be marked PASS without fresh evidence.
+
+The AZAAD free-only constraint is a permanent project rule and overrides any proposal that introduces a paid dependency merely to close a gate.
