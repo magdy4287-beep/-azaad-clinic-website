@@ -1,0 +1,29 @@
+name: AZAAD Phase 12 Full Security Audit Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-audit-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate security audit contract
+        run: |
+          test -f qa/azaad-phase12-security-audit-gate.md
+          grep -q "SECURITY DEFINER function without explicit search_path" qa/azaad-phase12-security-audit-gate.md
+          grep -q "unintended anon/public execution" qa/azaad-phase12-security-audit-gate.md
+          grep -q "every RLS-enabled public table" qa/azaad-phase12-security-audit-gate.md
+          grep -q "sensitive clinical/financial/admin tables" qa/azaad-phase12-security-audit-gate.md
+          grep -q "refund approval hierarchy" qa/azaad-phase12-security-audit-gate.md
+          grep -q "payment authorization" qa/azaad-phase12-security-audit-gate.md
+          grep -q "AI remains assistive" qa/azaad-phase12-security-audit-gate.md
+          echo "Phase 12 Security Audit contract: PASS"
