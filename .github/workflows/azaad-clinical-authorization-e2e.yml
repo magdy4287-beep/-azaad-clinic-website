@@ -67,6 +67,40 @@ jobs:
           done
           echo "Controlled clinical authorization E2E configuration is present."
 
+      - name: Verify controlled Auth identities
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ secrets.AZAAD_E2E_FRONTDESK_TOKEN }}
+          AZAAD_E2E_NONSTAFF_TOKEN: ${{ secrets.AZAAD_E2E_NONSTAFF_TOKEN }}
+          AZAAD_E2E_DOCTOR_A_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_A_TOKEN }}
+          AZAAD_E2E_DOCTOR_B_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_B_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_identity() {
+            local label="$1"
+            local token="$2"
+            local response
+            response="$(curl -fsS \
+              -H "apikey: ${AZAAD_SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${token}" \
+              "${AZAAD_SUPABASE_URL}/auth/v1/user")"
+            node -e '
+              const label = process.argv[1];
+              const body = JSON.parse(process.argv[2]);
+              if (!body.id || !body.email) {
+                console.error(`Controlled identity ${label} did not resolve to a valid Auth user.`);
+                process.exit(1);
+              }
+              console.log(`Controlled identity ${label}: ${body.id} (${body.email})`);
+            ' "$label" "$response"
+          }
+          verify_identity "frontdesk" "$AZAAD_E2E_FRONTDESK_TOKEN"
+          verify_identity "nonstaff" "$AZAAD_E2E_NONSTAFF_TOKEN"
+          verify_identity "doctorA" "$AZAAD_E2E_DOCTOR_A_TOKEN"
+          verify_identity "doctorB" "$AZAAD_E2E_DOCTOR_B_TOKEN"
+
       - name: Run clinical authorization E2E
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
