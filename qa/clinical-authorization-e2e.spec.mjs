@@ -1,19 +1,41 @@
 import { test, expect } from '@playwright/test';
 
-const supabaseUrl = process.env.AZAAD_SUPABASE_URL;
-const anonKey = process.env.AZAAD_SUPABASE_ANON_KEY;
+function normalizeEnv(name, mode = 'scalar') {
+  const value = process.env[name];
+  if (value == null) return value;
+  const normalized = mode === 'token'
+    ? value.replace(/\s+/g, '')
+    : value.trim();
+  if (mode !== 'token' && /\r|\n/.test(normalized)) {
+    throw new Error(`Invalid controlled-E2E secret/env contains a line break: ${name}`);
+  }
+  return normalized;
+}
+
+function normalizeBookingId(name) {
+  const value = process.env[name];
+  if (value == null) return value;
+  const normalized = value.replace(/\s+/g, '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new Error(`Invalid controlled-E2E booking UUID: ${name}`);
+  }
+  return normalized;
+}
+
+const supabaseUrl = normalizeEnv('AZAAD_SUPABASE_URL');
+const anonKey = normalizeEnv('AZAAD_SUPABASE_ANON_KEY');
 
 const tokens = {
-  frontdesk: process.env.AZAAD_E2E_FRONTDESK_TOKEN,
-  nonStaff: process.env.AZAAD_E2E_NONSTAFF_TOKEN,
-  doctorA: process.env.AZAAD_E2E_DOCTOR_A_TOKEN,
-  doctorB: process.env.AZAAD_E2E_DOCTOR_B_TOKEN,
+  frontdesk: normalizeEnv('AZAAD_E2E_FRONTDESK_TOKEN', 'token'),
+  nonStaff: normalizeEnv('AZAAD_E2E_NONSTAFF_TOKEN', 'token'),
+  doctorA: normalizeEnv('AZAAD_E2E_DOCTOR_A_TOKEN', 'token'),
+  doctorB: normalizeEnv('AZAAD_E2E_DOCTOR_B_TOKEN', 'token'),
 };
 
 const bookings = {
-  wrongDoctor: process.env.AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID,
-  invalidState: process.env.AZAAD_E2E_INVALID_STATE_BOOKING_ID,
-  happyPath: process.env.AZAAD_E2E_HAPPY_PATH_BOOKING_ID,
+  wrongDoctor: normalizeBookingId('AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID'),
+  invalidState: normalizeBookingId('AZAAD_E2E_INVALID_STATE_BOOKING_ID'),
+  happyPath: normalizeBookingId('AZAAD_E2E_HAPPY_PATH_BOOKING_ID'),
 };
 
 function requireEnv(name, value) {
