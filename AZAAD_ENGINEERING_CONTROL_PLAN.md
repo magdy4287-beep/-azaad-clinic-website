@@ -186,14 +186,31 @@ A gate may be marked DONE only from fresh evidence. Static plausibility, a succe
 - Phase 3 Patient 360: CONTRACT/E2E GATES PASS; production feature release remains subject to the current PR/release decision
 - Phase 4 Scheduling: CONTRACT GATE PASS; authenticated browser gate is the next required evidence before phase closure
 - Phase 5 Check-in: CONTRACT GATE PASS (fresh GitHub Actions Run #2); authenticated browser/production evidence remains required before full phase closure
-- Phase 6 Doctor Clinical Workspace: CONTRACT GATE ADDED; fresh CI evidence pending
-- Phase 7 Assessment: NOT STARTED as a phase gate
-- Phase 8 Billing / Payments: NOT STARTED as a phase gate
+- Phase 6 Doctor Clinical Workspace: CONTRACT GATE PASS (fresh GitHub Actions evidence); authenticated browser/production evidence remains required before full phase closure
+- Phase 7 Assessment: CONTRACT GATE PASS (fresh GitHub Actions Run #2); authenticated browser/production evidence remains required before full phase closure
+- Phase 8 Billing / Payments: BACKEND HARDENING COMPLETE; payment over-balance protection and authorization were verified directly in Supabase; CI contract gate added, fresh CI/browser/production evidence pending
 - Phase 9 Refund Approval: CORE CONTROL READY; full phase gate pending later
 - Phase 10 Cashier / Finance: NOT STARTED as a phase gate
 - Phase 11 AI: NOT STARTED as a phase gate
 - Phase 12 Full Security Audit: NOT STARTED
 - Phase 13 Production QA: NOT STARTED
+
+## Phase 8 Billing evidence contract
+
+The Phase 8 gate requires evidence for:
+
+- authenticated staff boundary
+- payment permission enforcement
+- positive payment amount validation
+- allowed payment method validation
+- invoice row locking before payment creation
+- prevention of payment totals exceeding invoice balance
+- canonical invoice-status recalculation
+- anonymous execution denied for internal payment RPCs
+- internal invoice-status recalculation not exposed to authenticated clients
+- server-side payment verification
+
+The gate is evidence-only and must not insert, update, delete, or reconcile real patient, invoice, payment, or refund records during CI.
 
 ## Delivery rule
 
