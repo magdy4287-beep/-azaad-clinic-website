@@ -54,12 +54,13 @@ jobs:
           grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
           grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
 
-      - name: Enforce no paid dependency in certification path
+      - name: Enforce free-only architecture rule
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -Eiq 'paid (plan|api|ai model|credits|monitoring|recovery)' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          echo 'Certification plan contains no paid dependency requirement.'
+          grep -Fq 'AZAAD is 100% free-only.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'No paid provider plan, paid API, paid AI model, paid credits, paid monitoring, paid recovery resource, or paid add-on may be required' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          echo 'Free-only architecture rule: PASS'
 
       - name: Certification gate
         run: echo 'AZAAD Production Certification Gate: PASS'
