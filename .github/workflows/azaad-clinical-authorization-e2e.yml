@@ -1,0 +1,92 @@
+name: Azaad Clinical Authorization E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: azaad-clinical-authorization-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  clinical-authorization-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact commit under test
+        uses: actions/checkout@v5
+
+      - name: Verify exact commit under test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install Playwright runner
+        run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify controlled E2E configuration
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ secrets.AZAAD_E2E_FRONTDESK_TOKEN }}
+          AZAAD_E2E_NONSTAFF_TOKEN: ${{ secrets.AZAAD_E2E_NONSTAFF_TOKEN }}
+          AZAAD_E2E_DOCTOR_A_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_A_TOKEN }}
+          AZAAD_E2E_DOCTOR_B_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_B_TOKEN }}
+          AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID: ${{ secrets.AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID }}
+          AZAAD_E2E_INVALID_STATE_BOOKING_ID: ${{ secrets.AZAAD_E2E_INVALID_STATE_BOOKING_ID }}
+          AZAAD_E2E_HAPPY_PATH_BOOKING_ID: ${{ secrets.AZAAD_E2E_HAPPY_PATH_BOOKING_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            AZAAD_SUPABASE_URL \
+            AZAAD_SUPABASE_ANON_KEY \
+            AZAAD_E2E_FRONTDESK_TOKEN \
+            AZAAD_E2E_NONSTAFF_TOKEN \
+            AZAAD_E2E_DOCTOR_A_TOKEN \
+            AZAAD_E2E_DOCTOR_B_TOKEN \
+            AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID \
+            AZAAD_E2E_INVALID_STATE_BOOKING_ID \
+            AZAAD_E2E_HAPPY_PATH_BOOKING_ID; do
+            test -n "${!name:-}" || { echo "Missing required controlled-E2E secret: $name" >&2; exit 1; }
+          done
+          echo "Controlled clinical authorization E2E configuration is present."
+
+      - name: Run clinical authorization E2E
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ secrets.AZAAD_E2E_FRONTDESK_TOKEN }}
+          AZAAD_E2E_NONSTAFF_TOKEN: ${{ secrets.AZAAD_E2E_NONSTAFF_TOKEN }}
+          AZAAD_E2E_DOCTOR_A_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_A_TOKEN }}
+          AZAAD_E2E_DOCTOR_B_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_B_TOKEN }}
+          AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID: ${{ secrets.AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID }}
+          AZAAD_E2E_INVALID_STATE_BOOKING_ID: ${{ secrets.AZAAD_E2E_INVALID_STATE_BOOKING_ID }}
+          AZAAD_E2E_HAPPY_PATH_BOOKING_ID: ${{ secrets.AZAAD_E2E_HAPPY_PATH_BOOKING_ID }}
+        run: npx playwright test qa/clinical-authorization-e2e.spec.mjs
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: azaad-clinical-authorization-e2e-report
+          path: playwright-report/
+          if-no-files-found: ignore
+
+# This gate deliberately fails when controlled test credentials/data are absent.
+# It never falls back to fake credentials and never weakens RLS/RPC authorization.
