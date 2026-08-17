@@ -1,19 +1,25 @@
 import { test, expect } from '@playwright/test';
 
-const supabaseUrl = (process.env.AZAAD_SUPABASE_URL || '').trim();
-const anonKey = (process.env.AZAAD_SUPABASE_ANON_KEY || '').trim();
+function cleanEnv(name) {
+  const value = process.env[name];
+  if (!value) return '';
+  return value.replace(/[\u0000-\u001F\u007F]/g, '').trim();
+}
+
+const supabaseUrl = cleanEnv('AZAAD_SUPABASE_URL');
+const anonKey = cleanEnv('AZAAD_SUPABASE_ANON_KEY');
 
 const tokens = {
-  frontdesk: (process.env.AZAAD_E2E_FRONTDESK_TOKEN || '').trim(),
-  nonStaff: (process.env.AZAAD_E2E_NONSTAFF_TOKEN || '').trim(),
-  doctorA: (process.env.AZAAD_E2E_DOCTOR_A_TOKEN || '').trim(),
-  doctorB: (process.env.AZAAD_E2E_DOCTOR_B_TOKEN || '').trim(),
+  frontdesk: cleanEnv('AZAAD_E2E_FRONTDESK_TOKEN'),
+  nonStaff: cleanEnv('AZAAD_E2E_NONSTAFF_TOKEN'),
+  doctorA: cleanEnv('AZAAD_E2E_DOCTOR_A_TOKEN'),
+  doctorB: cleanEnv('AZAAD_E2E_DOCTOR_B_TOKEN'),
 };
 
 const bookings = {
-  wrongDoctor: (process.env.AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID || '').trim(),
-  invalidState: (process.env.AZAAD_E2E_INVALID_STATE_BOOKING_ID || '').trim(),
-  happyPath: (process.env.AZAAD_E2E_HAPPY_PATH_BOOKING_ID || '').trim(),
+  wrongDoctor: cleanEnv('AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID'),
+  invalidState: cleanEnv('AZAAD_E2E_INVALID_STATE_BOOKING_ID'),
+  happyPath: cleanEnv('AZAAD_E2E_HAPPY_PATH_BOOKING_ID'),
 };
 
 function requireEnv(name, value) {
