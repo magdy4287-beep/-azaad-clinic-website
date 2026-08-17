@@ -18,14 +18,20 @@ AZAAD
 
 ### Deployment-provider contract
 
-Vercel remains a required Level-1 production gate in the intended AZAAD Core Stack, but the repository currently also has Cloudflare Workers deployment evidence. The deployment-provider identity must be explicitly reconciled before the final Production Gate is closed.
+Vercel is the configured Level-1 production provider for the AZAAD Core Stack. Cloudflare Workers also has repository build evidence, but it is not the current production source of truth.
+
+Current evidence:
+
+1. Vercel has a READY production deployment from `main` commit `714aff0f7f4c65ad122c53ab0d9ce118775672b8`.
+2. Vercel also has a READY preview deployment for PR #39 from branch `codex/azaad-engineering-control-plan-20260817`, commit `bf0aa79e25e3c501e2c97803fa33640eee7a0e76`.
+3. The PR head is currently `a6302596cd017d2d7858acaa1c96739d259cd4a0`; therefore the Vercel deployment-provider gate for the exact PR head remains open until a READY deployment is tied to that exact release commit.
+4. Vercel Deployment Protection/SSO is enabled on the preview URL. It must not be disabled merely to make a smoke test pass.
 
 Required closure evidence:
 
 1. Identify the single production source of truth for the application.
-2. If Vercel is the production provider, prove the checked commit has a READY Vercel production deployment and verify its URL/runtime health.
-3. If Cloudflare Workers is the production provider, explicitly migrate the deployment contract from Vercel to Cloudflare in this document and in the relevant gates.
-4. Do not mark the deployment gate PASS merely because a build succeeded.
+2. Prove the exact release commit has a READY Vercel deployment and verify URL/runtime health through an authenticated/protected test path when protection is enabled.
+3. Do not mark the deployment gate PASS merely because a build succeeded.
 
 The product acceptance path is:
 
@@ -200,14 +206,17 @@ For each such RPC:
 ### Infrastructure / Security
 - Core architecture: READY
 - Core Control Plan contract: PASS on commit `d5328fc6923776b7362b3315430d77db07974e64`
-- Refund hierarchy contract: PASS on the same fresh CI run
-- Security audit contract: PASS on the same fresh CI run
-- Cloudflare Workers production build: PASS for the same release commit, with a production version created
-- Vercel commit status: OPEN for this commit because GitHub reports a Vercel build-rate-limit failure; do not treat this as proof that the current production deployment is down
+- Refund hierarchy contract: PASS on the fresh Core Gate CI run
+- Security audit contract: PASS on the fresh Security Audit CI run
+- Cloudflare Workers production build: PASS for the same CI cycle; this is build evidence, not the production provider
+- Vercel production deployment: READY on `main` commit `714aff0f7f4c65ad122c53ab0d9ce118775672b8`
+- Vercel PR preview deployment: READY on PR #39 commit `bf0aa79e25e3c501e2c97803fa33640eee7a0e76`
+- Vercel exact-head release evidence: OPEN because PR #39 currently points to `a6302596cd017d2d7858acaa1c96739d259cd4a0`
 - Supabase Security Advisor: OPEN — 9 intentional authenticated `SECURITY DEFINER` RPC warnings plus leaked-password protection disabled
 - The affected RPCs already use explicit `search_path` settings and server-side authorization checks; no blind EXECUTE revocation was applied because that could break required browser RPC calls
 - Leaked Password Protection: OPEN — requires Auth configuration action
-- Production HTTP/runtime evidence: must be tied to the final provider decision before closure
+- Production Smoke Gate: PASS on run `31995477255` for commit `a6302596cd017d2d7858acaa1c96739d259cd4a0`; both deterministic source smoke and live production-shell checks succeeded
+- Browser E2E Gate: PASS on run `31995477240` for commit `a6302596cd017d2d7858acaa1c96739d259cd4a0`; the checked-out PR code passed the Playwright browser suite
 - Check-in reconciliation: OPEN — one historical `in_progress` booking has no `checked_in_at`; do not mutate it automatically
 
 ### Master phases
@@ -223,7 +232,7 @@ For each such RPC:
 - Phase 10 Cashier / Finance: NOT STARTED as a phase gate
 - Phase 11 AI: NOT STARTED as a phase gate
 - Phase 12 Full Security Audit: CONTRACT PASS; independent repository audit still required
-- Phase 13 Production QA: NOT STARTED
+- Phase 13 Production QA: IN PROGRESS — production smoke and PR-code browser E2E now have fresh passing evidence; full release-commit and critical workflow verification remain open
 
 ## Phase 8 Billing evidence contract
 
