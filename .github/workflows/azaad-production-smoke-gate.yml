@@ -2,19 +2,54 @@ name: Azaad Production Smoke Gate
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - codex/azaad-engineering-control-plan-20260817
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   production-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Run production smoke gate
+
+      - name: Run deterministic production smoke gate
         run: python qa/production-smoke-gate.py
+
+      - name: Verify live production shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import urllib.request
+          from html.parser import HTMLParser
+
+          base = 'https://azaad-clinic-website.vercel.app'
+          urls = [f'{base}/admin.html', f'{base}/']
+
+          for url in urls:
+              with urllib.request.urlopen(url, timeout=20) as response:
+                  status = response.status
+                  body = response.read(200000).decode('utf-8', errors='replace')
+              if status != 200:
+                  raise SystemExit(f'Live production smoke failed: {url} returned {status}')
+              if not body.strip():
+                  raise SystemExit(f'Live production smoke failed: {url} returned empty body')
+              print(f'PASS: live production HTTP {status} {url}')
+
+          admin = urllib.request.urlopen(f'{base}/admin.html', timeout=20).read(200000).decode('utf-8', errors='replace')
+          required = ['loginPage', 'loginForm', 'username', 'password']
+          for token in required:
+              if token not in admin:
+                  raise SystemExit(f'Live production smoke failed: admin.html missing {token}')
+          print('PASS: live production admin login shell')
+          PY
