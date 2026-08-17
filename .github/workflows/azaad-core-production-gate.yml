@@ -47,7 +47,8 @@ jobs:
           grep -q 'Management/Owner approval requires prior Doctor approval' "$refund_gate"
           grep -q 'Requester cannot approve' "$refund_gate"
           grep -q 'Processing requires both Doctor and Management/Owner approvals' "$refund_gate"
-          grep -q 'not executable by PUBLIC/anon/authenticated clients' "$refund_gate"
+          grep -q 'Trigger functions that enforce the hierarchy are not executable by PUBLIC/anon/authenticated clients' "$refund_gate"
+          grep -q 'process_refund.*server-side guarded' "$refund_gate"
           echo 'Refund hierarchy invariant: PASS'
 
       - name: Validate security contract invariants
