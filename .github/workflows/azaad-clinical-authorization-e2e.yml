@@ -162,13 +162,13 @@ jobs:
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
-          AZAAD_E2E_FRONTDESK_TOKEN: ${{ env.AZAAD_E2E_FRONTDESK_TOKEN }}
-          AZAAD_E2E_NONSTAFF_TOKEN: ${{ env.AZAAD_E2E_NONSTAFF_TOKEN }}
-          AZAAD_E2E_DOCTOR_A_TOKEN: ${{ env.AZAAD_E2E_DOCTOR_A_TOKEN }}
-          AZAAD_E2E_DOCTOR_B_TOKEN: ${{ env.AZAAD_E2E_DOCTOR_B_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${AZAAD_E2E_FRONTDESK_TOKEN:-}"
+          test -n "${AZAAD_E2E_NONSTAFF_TOKEN:-}"
+          test -n "${AZAAD_E2E_DOCTOR_A_TOKEN:-}"
+          test -n "${AZAAD_E2E_DOCTOR_B_TOKEN:-}"
           node <<'NODE'
           (async () => {
             const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, ''); const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
@@ -182,10 +182,6 @@ jobs:
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
-          AZAAD_E2E_FRONTDESK_TOKEN: ${{ env.AZAAD_E2E_FRONTDESK_TOKEN }}
-          AZAAD_E2E_NONSTAFF_TOKEN: ${{ env.AZAAD_E2E_NONSTAFF_TOKEN }}
-          AZAAD_E2E_DOCTOR_A_TOKEN: ${{ env.AZAAD_E2E_DOCTOR_A_TOKEN }}
-          AZAAD_E2E_DOCTOR_B_TOKEN: ${{ env.AZAAD_E2E_DOCTOR_B_TOKEN }}
           AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID: ${{ secrets.AZAAD_E2E_WRONG_DOCTOR_BOOKING_ID }}
           AZAAD_E2E_INVALID_STATE_BOOKING_ID: ${{ secrets.AZAAD_E2E_INVALID_STATE_BOOKING_ID }}
           AZAAD_E2E_HAPPY_PATH_BOOKING_ID: ${{ secrets.AZAAD_E2E_HAPPY_PATH_BOOKING_ID }}
