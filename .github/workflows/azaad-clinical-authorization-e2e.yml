@@ -151,7 +151,7 @@ jobs:
             if (!base || !anon || !password) throw new Error('Missing Doctor B Auth configuration');
             const response = await fetch(`${base}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'doctor.amgad@azaad.local', password }) });
             const raw = await response.text(); let body = {}; try { body = JSON.parse(raw); } catch {}
-            if (!response.ok) throw new Error(`Doctor B Supabase Auth sign-in failed with HTTP ${response.status}; error=${typeof body?.error_description === 'string' ? body.error_description : (typeof body?.msg === 'string' ? body.msg : 'NO_ERROR_MESSAGE'}`);
+            if (!response.ok) throw new Error(`Doctor B Supabase Auth sign-in failed with HTTP ${response.status}; error=${typeof body?.error_description === 'string' ? body.error_description : (typeof body?.msg === 'string' ? body.msg : 'NO_ERROR_MESSAGE')}`);
             const token = (body.access_token || '').trim();
             if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) throw new Error('Doctor B Supabase Auth did not return a valid JWT');
             if (!body.user?.id) throw new Error('Doctor B Supabase Auth returned no authenticated user identity');
