@@ -35,6 +35,19 @@ async function rpc(request, name, args = {}, token) {
   return request.post(rpcUrl(name), { headers, data: args });
 }
 
+function extractFixture(body) {
+  const candidate = Array.isArray(body) ? body[0] : body;
+  const nested = candidate?.clinic_prepare_controlled_clinical_e2e_suite;
+  if (nested && typeof nested === 'object') return nested;
+  const fixtureResult = candidate?.fixture_result;
+  if (fixtureResult && typeof fixtureResult === 'object') return fixtureResult;
+  return candidate;
+}
+
+function requireUuid(name, value) {
+  expect(value, `${name} must be a UUID`).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+}
+
 async function prepareFixtures(request) {
   const response = await rpc(request, 'clinic_prepare_controlled_clinical_e2e_suite', {}, tokens.frontdesk);
   if (!response.ok()) {
@@ -42,10 +55,10 @@ async function prepareFixtures(request) {
     throw new Error(`Controlled E2E fixture factory failed with HTTP ${response.status()}: ${body}`);
   }
   const body = await response.json();
-  const fixture = Array.isArray(body) ? body[0]?.clinic_prepare_controlled_clinical_e2e_suite : body?.clinic_prepare_controlled_clinical_e2e_suite;
-  if (!fixture?.happy_path_booking_id || !fixture?.invalid_state_booking_id) {
-    throw new Error('Controlled E2E fixture factory returned incomplete booking IDs');
-  }
+  const fixture = extractFixture(body);
+  requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
+  requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
+  requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
   return fixture;
 }
 
