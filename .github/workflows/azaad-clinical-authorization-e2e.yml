@@ -76,6 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           node <<'NODE'
+          const fs = require('fs');
           (async () => {
             const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, '');
             const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
@@ -94,24 +95,15 @@ jobs:
             if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
               throw new Error('Frontdesk Auth did not return a valid JWT');
             }
-            const user = session.user;
-            if (!user || !user.id) throw new Error('Frontdesk Auth returned no authenticated user identity');
-            console.log('Frontdesk Auth identity verified.');
-            console.log('AZAAD_E2E_FRONTDESK_TOKEN=' + token + '::add-mask');
+            if (!session.user || !session.user.id) throw new Error('Frontdesk Auth returned no authenticated user identity');
             process.stdout.write(`::add-mask::${token}\n`);
-            process.stdout.write(`AZAAD_E2E_FRONTDESK_TOKEN=${token}\n`);
+            fs.appendFileSync(process.env.GITHUB_ENV, `AZAAD_E2E_FRONTDESK_TOKEN=${token}\n`);
+            console.log('Frontdesk Auth identity verified.');
           })().catch((error) => {
             console.error(error instanceof Error ? error.message : error);
             process.exit(1);
           });
           NODE
-
-      - name: Export Frontdesk access token for later steps
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "${AZAAD_E2E_FRONTDESK_TOKEN:-}"
-          echo "AZAAD_E2E_FRONTDESK_TOKEN=$AZAAD_E2E_FRONTDESK_TOKEN" >> "$GITHUB_ENV"
 
       - name: Verify controlled Auth identities
         env:
