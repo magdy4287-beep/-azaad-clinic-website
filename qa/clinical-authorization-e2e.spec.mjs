@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const supabaseUrl = process.env.AZAAD_SUPABASE_URL;
+const supabaseUrl = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
 const anonKey = process.env.AZAAD_SUPABASE_ANON_KEY;
 
 function requireJwtSecret(name, value) {
