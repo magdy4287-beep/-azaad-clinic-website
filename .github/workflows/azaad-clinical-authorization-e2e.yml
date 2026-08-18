@@ -43,7 +43,7 @@ jobs:
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
-          AZAAD_E2E_FRONTDESK_TOKEN: ${{ secrets.AZAAD_E2E_FRONTDESK_TOKEN }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
           AZAAD_E2E_NONSTAFF_TOKEN: ${{ secrets.AZAAD_E2E_NONSTAFF_TOKEN }}
           AZAAD_E2E_DOCTOR_A_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_A_TOKEN }}
           AZAAD_E2E_DOCTOR_B_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_B_TOKEN }}
@@ -56,7 +56,7 @@ jobs:
           for name in \
             AZAAD_SUPABASE_URL \
             AZAAD_SUPABASE_ANON_KEY \
-            AZAAD_E2E_FRONTDESK_TOKEN \
+            AZAAD_E2E_FRONTDESK_PASSWORD \
             AZAAD_E2E_NONSTAFF_TOKEN \
             AZAAD_E2E_DOCTOR_A_TOKEN \
             AZAAD_E2E_DOCTOR_B_TOKEN \
@@ -67,11 +67,57 @@ jobs:
           done
           echo "Controlled clinical authorization E2E configuration is present."
 
+      - name: Authenticate controlled Frontdesk identity
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async () => {
+            const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, '');
+            const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
+            const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD;
+            if (!base || !anon || !password) throw new Error('Missing Frontdesk Auth configuration');
+            const response = await fetch(`${base}/auth/v1/token?grant_type=password`, {
+              method: 'POST',
+              headers: { apikey: anon, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: 'frontdesk@azaad.local', password }),
+            });
+            if (!response.ok) {
+              throw new Error(`Frontdesk Supabase Auth sign-in failed with HTTP ${response.status}`);
+            }
+            const session = await response.json();
+            const token = (session.access_token || '').trim();
+            if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+              throw new Error('Frontdesk Auth did not return a valid JWT');
+            }
+            const user = session.user;
+            if (!user || !user.id) throw new Error('Frontdesk Auth returned no authenticated user identity');
+            console.log('Frontdesk Auth identity verified.');
+            console.log('AZAAD_E2E_FRONTDESK_TOKEN=' + token + '::add-mask');
+            process.stdout.write(`::add-mask::${token}\n`);
+            process.stdout.write(`AZAAD_E2E_FRONTDESK_TOKEN=${token}\n`);
+          })().catch((error) => {
+            console.error(error instanceof Error ? error.message : error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Export Frontdesk access token for later steps
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${AZAAD_E2E_FRONTDESK_TOKEN:-}"
+          echo "AZAAD_E2E_FRONTDESK_TOKEN=$AZAAD_E2E_FRONTDESK_TOKEN" >> "$GITHUB_ENV"
+
       - name: Verify controlled Auth identities
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
-          AZAAD_E2E_FRONTDESK_TOKEN: ${{ secrets.AZAAD_E2E_FRONTDESK_TOKEN }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ env.AZAAD_E2E_FRONTDESK_TOKEN }}
           AZAAD_E2E_NONSTAFF_TOKEN: ${{ secrets.AZAAD_E2E_NONSTAFF_TOKEN }}
           AZAAD_E2E_DOCTOR_A_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_A_TOKEN }}
           AZAAD_E2E_DOCTOR_B_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_B_TOKEN }}
@@ -114,7 +160,7 @@ jobs:
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
-          AZAAD_E2E_FRONTDESK_TOKEN: ${{ secrets.AZAAD_E2E_FRONTDESK_TOKEN }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ env.AZAAD_E2E_FRONTDESK_TOKEN }}
           AZAAD_E2E_NONSTAFF_TOKEN: ${{ secrets.AZAAD_E2E_NONSTAFF_TOKEN }}
           AZAAD_E2E_DOCTOR_A_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_A_TOKEN }}
           AZAAD_E2E_DOCTOR_B_TOKEN: ${{ secrets.AZAAD_E2E_DOCTOR_B_TOKEN }}
