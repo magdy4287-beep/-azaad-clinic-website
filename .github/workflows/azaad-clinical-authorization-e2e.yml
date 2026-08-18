@@ -87,8 +87,15 @@ jobs:
               headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ username: 'frontdesk_azaad', password }),
             });
-            if (!response.ok) throw new Error(`Frontdesk staff-login failed with HTTP ${response.status}`);
-            const session = await response.json();
+            const raw = await response.text();
+            let body = {};
+            try { body = JSON.parse(raw); } catch {}
+            if (!response.ok) {
+              const code = typeof body?.code === 'string' ? body.code : 'NO_ERROR_CODE';
+              const error = typeof body?.error === 'string' ? body.error : 'NO_ERROR_MESSAGE';
+              throw new Error(`Frontdesk staff-login failed with HTTP ${response.status}; code=${code}; error=${error}`);
+            }
+            const session = body;
             const token = (session.access_token || session.session?.access_token || '').trim();
             if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) throw new Error('Frontdesk staff-login did not return a valid JWT');
             const user = session.user || session.session?.user;
