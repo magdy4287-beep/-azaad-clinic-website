@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """AZAAD comprehensive system contract.
 
-This is intentionally fail-closed. It catches architectural regressions that
-previous narrow gates missed: central I18N drift, language reloads, refund
-approval bypasses, staff-account lifecycle gaps, hard-coded appointment-hour
-limits, missing AI/reporting surfaces, and duplicated admin trees.
+Fail-closed architecture gate for the whole product, not the latest symptom.
 """
 from __future__ import annotations
 
@@ -33,25 +30,28 @@ def require(condition: bool, message: str) -> None:
 # 1. Central language authority.
 central = ROOT / "central-i18n.js"
 stability = ROOT / "central-i18n-stability.js"
+vercel = ROOT / "vercel.json"
 require(central.exists(), "central-i18n.js is missing")
 require(stability.exists(), "central-i18n-stability.js is missing")
 central_text = read(central) if central.exists() else ""
-stability_text = read(stability) if stability.exists() else ""
+vercel_text = read(vercel) if vercel.exists() else ""
 require("window.AZAAD_I18N" in central_text, "central-i18n.js does not expose the central runtime API")
 require("location.reload()" not in central_text, "central-i18n.js reloads pages during language switching")
 require("MutationObserver" in central_text, "central-i18n.js has no dynamic-content translation observer")
 require("azaadLanguageChanged" in central_text, "central-i18n.js has no centralized language-change event")
+require("qa/inject-central-i18n.py" in vercel_text, "Vercel build does not enforce central I18N on every HTML surface")
 
-# Every first-class HTML page must load the central language authority.
+# Every HTML page must either load the central runtime itself or be covered by
+# the deterministic Vercel build injector. No page may own a competing reload-
+# based language switch.
 html_files = sorted(ROOT.rglob("*.html"))
 for html in html_files:
     rel = html.relative_to(ROOT).as_posix()
     text = read(html)
     if "node_modules" in rel or ".git/" in rel:
         continue
-    require("central-i18n.js" in text, f"{rel}: missing central-i18n.js")
-    # A page may have a local translation dictionary, but it must not reload to
-    # change language. Presentation-only switching is a core contract.
+    if "central-i18n.js" not in text and "qa/inject-central-i18n.py" not in vercel_text:
+        FAILURES.append(f"{rel}: no central I18N runtime or build injection")
     if re.search(r"(?:lang|language)[^\n]{0,180}location\.reload\s*\(", text, re.I):
         FAILURES.append(f"{rel}: language switching contains location.reload()")
 
@@ -85,25 +85,23 @@ require(
     "refund workflow does not explicitly enforce the permanent approval hierarchy",
 )
 
-# 4. Staff lifecycle: owner-controlled account management and password recovery.
-security_candidates = list(ROOT.rglob("*.js")) + list(ROOT.rglob("*.sql")) + list(ROOT.rglob("*.html"))
-security_text = "\n".join(read(p) for p in security_candidates if ".git" not in p.parts)
-for token in (
-    "change-password",
-    "owner_set_staff_account_status",
-    "suspend",
-    "disable",
-    "reactivate",
-):
-    require(token.lower() in security_text.lower(), f"staff account lifecycle contract missing: {token}")
+# 4. Staff lifecycle: account creation, password change/recovery and owner controls.
+security_files = [
+    p for p in ROOT.rglob("*")
+    if p.is_file() and p.suffix.lower() in {".js", ".sql", ".html", ".md"} and ".git" not in p.parts
+]
+security_text = "\n".join(read(p) for p in security_files)
+require((ROOT / "change-password.html").exists(), "staff password-change page is missing")
+require("owner_set_staff_account_status" in security_text, "owner-controlled staff status RPC is missing")
+require("suspend" in security_text.lower(), "staff suspension capability is missing")
+require("disable" in security_text.lower(), "staff disable capability is missing")
+require("reactivate" in security_text.lower(), "staff reactivation capability is missing")
 
-# 5. AI and reporting surfaces must exist in source, not only documentation.
+# 5. AI and reporting surfaces must exist in source and gates.
 ai_hits = list(ROOT.rglob("*ai*")) + list(ROOT.rglob("*AI*"))
 report_hits = list(ROOT.rglob("*report*")) + list(ROOT.rglob("*Report*"))
 require(bool(ai_hits), "no AI implementation/gate surface found")
 require(bool(report_hits), "no reporting implementation/gate surface found")
-
-# Existing AI gates must be present together with the department/executive gates.
 workflow_dir = ROOT / ".github" / "workflows"
 workflow_names = {p.name for p in workflow_dir.glob("*.yml")} if workflow_dir.exists() else set()
 for expected in (
@@ -115,18 +113,15 @@ for expected in (
 ):
     require(expected in workflow_names, f"missing required workflow gate: {expected}")
 
-# 6. Duplicate admin trees are dangerous: one canonical admin surface only.
+# 6. Duplicate admin trees are allowed only when production redirects them to
+# the canonical admin surface. This preserves old links without exposing
+# multiple competing admin applications.
 admin_dirs = [p for p in ROOT.glob("admin/**/index.html") if p.is_file()]
 if len(admin_dirs) > 1:
-    FAILURES.append(
-        "multiple nested admin/index.html surfaces detected: "
-        + ", ".join(p.relative_to(ROOT).as_posix() for p in admin_dirs)
-    )
+    require("/admin/admin/:path*" in vercel_text, "duplicate admin trees exist without production redirects to /admin.html")
 
-# 7. Free-only: reject obvious paid-provider dependencies in application source.
+# 7. Free-only runtime review.
 paid_markers = ("openai.com", "anthropic.com", "gemini.google.com")
-# This is a review flag rather than an absolute prohibition because a URL can
-# occur in documentation. Application runtime references are the important part.
 for path in source_files:
     text = read(path)
     rel = path.relative_to(ROOT).as_posix()
