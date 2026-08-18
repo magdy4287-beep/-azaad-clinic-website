@@ -1,0 +1,36 @@
+name: AZAAD Central I18N Normalize
+
+on:
+  push:
+    branches: ['codex/azaad-comprehensive-system-hardening']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Inject central I18N into every HTML surface
+        run: python qa/inject-central-i18n.py
+
+      - name: Commit normalization
+        run: |
+          if git diff --quiet; then
+            echo 'All HTML surfaces already use central I18N.'
+            exit 0
+          fi
+          git config user.name 'azaad-bot'
+          git config user.email 'azaad-bot@users.noreply.github.com'
+          git add '*.html' 'admin/**/*.html' 'qa/inject-central-i18n.py'
+          git commit -m 'chore: normalize all HTML surfaces to central I18N'
+          git push origin HEAD:codex/azaad-comprehensive-system-hardening
