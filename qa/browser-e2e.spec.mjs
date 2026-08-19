@@ -43,13 +43,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     'Authenticated E2E requires dedicated CI test credentials.');
 
   const pageErrors = [];
-  const authResponseStatuses = [];
   page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || '' }));
-  page.on('response', response => {
-    if (response.url().includes('/functions/v1/staff-login')) {
-      authResponseStatuses.push(response.status());
-    }
-  });
 
   await resetBrowserSession(page);
   const username = page.locator('#username');
@@ -68,28 +62,36 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
 
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
+
+  const authResponsePromise = page.waitForResponse(
+    response => response.url().includes('/functions/v1/staff-login'),
+    { timeout: 15000 }
+  );
   await page.locator('#loginForm').getByRole('button', { name: /تسجيل الدخول/ }).click();
+
+  const authResponse = await authResponsePromise;
+  const authStatus = authResponse.status();
+  const authBody = await authResponse.json().catch(() => ({}));
+  expect(authStatus, `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}`).toBe(200);
 
   await password.fill('');
 
-  // Fail quickly with non-secret diagnostics if the login handler never reaches
-  // its authenticated shell transition. This does not weaken the 60s readiness gate.
-  await page.waitForTimeout(5000);
-  if (await page.locator('#loginPage').isVisible()) {
-    const diagnostics = await page.evaluate(() => ({
+  // Fail with non-secret diagnostics if the real authentication request succeeds
+  // but the authenticated shell does not transition.
+  await expect.poll(
+    async () => page.evaluate(() => ({
+      loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
+      adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
       hasAzaadGlobal: Boolean(window.AZAAD),
       loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
+      loginAttempt: window.AZAAD_LOGIN_LAST_ATTEMPT || '',
       hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
       hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
       loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
       loginErrorText: document.getElementById('loginError')?.textContent || ''
-    }));
-    throw new Error(`Admin auth shell did not transition: ${JSON.stringify({
-      ...diagnostics,
-      authResponseStatuses,
-      pageErrors
-    })}`);
-  }
+    })),
+    { timeout: AUTH_READY_TIMEOUT, intervals: [250, 500, 1000] }
+  ).toMatchObject({ loginHidden: true, adminVisible: true });
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
