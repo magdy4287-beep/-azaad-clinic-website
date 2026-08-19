@@ -57,13 +57,12 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
-  // The production-parity login controller is injected at build time. Because
-  // this test deliberately navigates with `commit`, wait for the real handler
-  // to bind before clicking; otherwise the browser can race the script load and
-  // perform a native form submit without exercising authentication at all.
+  // Synchronize on the real canonical authentication dependency used by the
+  // application. Do not depend on a synthetic controller-readiness flag: the
+  // test must prove that the real form handler can reach the real setSession().
   await page.waitForFunction(
-    () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY && window.AZAAD?.supabase?.auth?.setSession),
-    { timeout: 10000 }
+    () => Boolean(document.getElementById('loginForm') && window.AZAAD?.supabase?.auth?.setSession),
+    { timeout: 15000 }
   );
 
   await username.fill(process.env.AZAAD_TEST_USERNAME);
@@ -90,7 +89,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
       adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
       hasAzaadGlobal: Boolean(window.AZAAD),
-      loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
       loginAttempt: window.AZAAD_LOGIN_LAST_ATTEMPT || '',
       hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
       hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
