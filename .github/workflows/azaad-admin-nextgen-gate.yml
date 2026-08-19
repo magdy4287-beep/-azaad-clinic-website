@@ -71,7 +71,7 @@ jobs:
           grep -q 'Disabled in favor of the canonical central i18n/admin runtime' admin-nextgen-v2.js
           grep -q 'Name / Phone / Patient Number / Booking Number' patients-center.js
           grep -q 'from:d,to:d' patients-center.js
-          grep -q 'params.set("mrn"' patients-center.js
+          grep -Eq 'params\.set\(["'"']mrn["'"']' patients-center.js
           grep -q 'booking_code' patients-center.js
           grep -q 'bookingDateFilter' patients-center.js
       - name: Validate Secretary hybrid role contract
