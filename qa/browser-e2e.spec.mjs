@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
 const navigation = { waitUntil: 'commit' };
-const AUTH_READY_TIMEOUT = 60000;
+const AUTH_READY_TIMEOUT = 15000;
 
 async function resetBrowserSession(page) {
   await page.goto(`${baseURL}/admin.html`, navigation);
@@ -43,7 +43,11 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     'Authenticated E2E requires dedicated CI test credentials.');
 
   const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || '' }));
+  const consoleErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
 
   await resetBrowserSession(page);
   const username = page.locator('#username');
@@ -51,9 +55,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
-  // The readiness bridge is passive: it only confirms that the canonical
-  // admin.html submit handler and Supabase client exist. Authentication itself
-  // remains the real form handler and the real staff-login endpoint.
   await page.waitForFunction(
     () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY && window.AZAAD?.supabase?.auth?.setSession),
     { timeout: 10000 }
@@ -67,10 +68,8 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     { timeout: 15000 }
   );
 
-  // Submit the canonical form directly. This exercises the same production
-  // submit handler while avoiding any secondary click bridge or localization
-  // of the button label. It does not seed credentials, mock the endpoint, or
-  // bypass the application's authentication code.
+  // Exercise the canonical production form submit handler directly. This is
+  // still the real staff-login request and real Supabase session establishment.
   await page.locator('#loginForm').evaluate(form => form.requestSubmit());
 
   const authResponse = await authResponsePromise;
@@ -78,26 +77,44 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   const authBody = await authResponse.json().catch(() => ({}));
   expect(
     authStatus,
-    `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}; pageErrors=${JSON.stringify(pageErrors)}`
+    `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}`
   ).toBe(200);
+  expect(authBody, 'staff-login 200 response must contain a real session and staff identity').toEqual(
+    expect.objectContaining({
+      session: expect.objectContaining({ access_token: expect.any(String) }),
+      staff: expect.objectContaining({ id: expect.anything() })
+    })
+  );
+
+  const immediateState = await page.evaluate(() => ({
+    url: location.href,
+    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
+    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
+    hasAzaadGlobal: Boolean(window.AZAAD),
+    loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
+    hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
+    hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
+    loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
+    loginErrorText: document.getElementById('loginError')?.textContent || ''
+  }));
 
   await expect.poll(
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
       adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
-      hasAzaadGlobal: Boolean(window.AZAAD),
-      loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
-      loginAttempt: window.AZAAD_LOGIN_LAST_ATTEMPT || '',
       hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
-      hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
       loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
       loginErrorText: document.getElementById('loginError')?.textContent || ''
     })),
-    { timeout: AUTH_READY_TIMEOUT, intervals: [250, 500, 1000] }
-  ).toMatchObject({ loginHidden: true, adminVisible: true });
+    {
+      timeout: AUTH_READY_TIMEOUT,
+      intervals: [250, 500, 1000],
+      message: `authenticated shell did not transition. immediate=${JSON.stringify(immediateState)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
+    }
+  ).toMatchObject({ loginHidden: true, adminVisible: true, hasAdminToken: true });
 
-  await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
-  await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
+  await expect(page.locator('#loginPage')).toBeHidden({ timeout: 5000 });
+  await expect(page.locator('#adminPage')).toBeVisible({ timeout: 5000 });
 
   await page.reload(navigation);
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
