@@ -63,6 +63,8 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
 
   await password.fill('');
 
+  // Fail quickly with non-secret diagnostics if the login handler never reaches
+  // its authenticated shell transition. This does not weaken the 60s readiness gate.
   await page.waitForTimeout(5000);
   if (await page.locator('#loginPage').isVisible()) {
     const diagnostics = await page.evaluate(() => ({
