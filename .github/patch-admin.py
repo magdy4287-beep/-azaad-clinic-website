@@ -101,6 +101,18 @@ def patch_admin_injected_compatibility():
         text=text.replace('</head>',diagnostic+'\n</head>',1)
     path.write_text(text,encoding="utf-8")
 
+def patch_login_form_binding():
+    path=Path("admin.html")
+    if not path.exists(): return
+    text=path.read_text(encoding="utf-8")
+    marker='''window.AZAAD = {\n  supabase,\n  state,\n  hasPermission,\n  refresh:load,\n  logout\n};'''
+    binding='''\n\nconst loginForm = document.getElementById("loginForm");\nif (!loginForm) throw new Error("Canonical admin login form is missing");\nloginForm.onsubmit = login;'''
+    if 'loginForm.onsubmit = login;' in text:
+        return
+    if marker not in text:
+        raise SystemExit("Admin global API marker not found; cannot wire canonical login form")
+    path.write_text(text.replace(marker,binding+'\n'+marker,1),encoding="utf-8")
+
 def patch_nextgen_scripts():
     english=Path('admin-english-hardening.js')
     if english.exists():
@@ -114,7 +126,7 @@ def patch_nextgen_scripts():
         updated=updated.replace("const key = `azaadSrc${a}`;", "const key = a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
         if updated!=text:path.write_text(updated,encoding='utf-8')
 
-patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
+patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center();patch_login_form_binding()
 for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js"):
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","azaad-platform-kernel.js")
