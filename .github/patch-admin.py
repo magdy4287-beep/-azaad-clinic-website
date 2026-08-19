@@ -5,6 +5,11 @@ def patch_admin_html():
     path=Path("admin.html")
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
+    # The browser E2E must not depend on a single third-party ESM edge.
+    # Keep the app's Supabase JS dependency identical in API, but use jsDelivr
+    # for the production-parity browser artifact so a transient esm.sh module
+    # failure cannot silently prevent the module (and login submit handler) from executing.
+    text=text.replace('https://esm.sh/@supabase/supabase-js@2','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
     legacy=re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)',re.S)
     modern='''async function restoreStaff(){
   if(!state.user?.id || !state.session?.access_token) return false;
@@ -26,6 +31,7 @@ def patch_admin_js():
     path=Path("admin.js")
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
+    text=text.replace('https://esm.sh/@supabase/supabase-js@2','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
     legacy=re.compile(r'async function restoreStaffProfile\(\)\s*\{.*?\n\}\n\n/\* ============================================================\n   INITIALIZE\n',re.S)
     modern='''async function restoreStaffProfile() {
   if (!state.user?.id || !state.session?.access_token) return false;
