@@ -8,26 +8,21 @@
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
   let disposed = false;
-  let boundForm = null;
-  let supabasePromise = null;
+  let ready = false;
 
   function markReady(){
-    if (disposed) return false;
-    const form = document.getElementById('loginForm');
-    if (!form) return false;
+    if (disposed || ready) return;
+    if (!document.getElementById('loginForm')) return;
+    ready = true;
     window.AZAAD_LOGIN_CONTROLLER_READY = true;
     window.dispatchEvent(new CustomEvent('azaad:login-controller-ready'));
-    return true;
   }
 
   async function getSupabase(){
-    if (!supabasePromise) {
-      supabasePromise = import('https://esm.sh/@supabase/supabase-js@2')
-        .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-        }));
-    }
-    return supabasePromise;
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
   }
 
   function showError(message){
@@ -46,11 +41,14 @@
   }
 
   async function submit(event){
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || form.id !== 'loginForm') return;
+
     event.preventDefault();
     event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     clearError();
 
-    const form = event.currentTarget;
     const username = String(form.querySelector('#username')?.value || '').trim().toLowerCase();
     const password = String(form.querySelector('#password')?.value || '');
     const submitButton = form.querySelector('button[type="submit"]');
@@ -99,35 +97,23 @@
     }
   }
 
-  function bind(){
-    if (disposed) return;
-    const form = document.getElementById('loginForm');
-    if (!form) return;
-    form.noValidate = true;
-    if (boundForm === form) {
+  // Bind at window capture level so the canonical handler survives any
+  // replacement of #loginForm by other initialization code. This is one
+  // listener only; it delegates solely to the canonical login form.
+  window.addEventListener('submit', submit, true);
+  markReady();
+
+  if (!ready) {
+    const observer = new MutationObserver(() => markReady());
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('DOMContentLoaded', () => {
       markReady();
-      return;
-    }
-    if (boundForm) boundForm.removeEventListener('submit', submit, true);
-    form.addEventListener('submit', submit, true);
-    boundForm = form;
-    markReady();
+      observer.disconnect();
+    }, { once: true });
   }
-
-  // admin.html owns the login form in the initial DOM. Bind synchronously so
-  // the readiness flag is established before any test or caller can submit.
-  bind();
-
-  if (!boundForm && document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bind, { once: true });
-  }
-
-  const observer = new MutationObserver(bind);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
 
   window.addEventListener('pagehide', () => {
     disposed = true;
-    if (boundForm) boundForm.removeEventListener('submit', submit, true);
-    observer.disconnect();
+    window.removeEventListener('submit', submit, true);
   }, { once: true });
 })();
