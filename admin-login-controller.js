@@ -1,7 +1,5 @@
 /* AZAAD Admin Login Controller
  * Canonical submit adapter for the production admin login form.
- * The form is wired here because admin.js is an ES module and its login()
- * function is module-scoped; no window.login contract exists.
  * Authentication remains real: staff-login -> Supabase setSession.
  */
 (function installAzaadAdminLoginController(){
@@ -9,7 +7,7 @@
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
   let disposed = false;
-  let bound = false;
+  let installed = false;
 
   function prepareForm(){
     if (disposed) return false;
@@ -24,8 +22,9 @@
   }
 
   async function authenticate(event){
-    const form = event.target;
-    if (!(form instanceof HTMLFormElement) || form.id !== 'loginForm' || disposed) return;
+    if (disposed) return;
+    const form = event?.target;
+    if (!form || form.id !== 'loginForm') return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -96,25 +95,23 @@
     }
   }
 
-  function bind(){
-    if (disposed || bound) return;
+  function install(){
+    if (disposed || installed) return;
     const form = document.getElementById('loginForm');
     if (!form) return;
     form.noValidate = true;
     window.addEventListener('submit', authenticate, true);
-    bound = true;
+    installed = true;
     prepareForm();
   }
 
-  // Bind against the initial DOM and also recover if a renderer replaces the form.
-  bind();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
+  install();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
+
   const observer = new MutationObserver(() => {
-    const form = document.getElementById('loginForm');
-    if (form) {
-      form.noValidate = true;
-      prepareForm();
-    }
+    prepareForm();
+    // The listener is window-level, so a replaced form needs no re-binding.
+    if (!installed) install();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
