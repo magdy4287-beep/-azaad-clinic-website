@@ -1,7 +1,7 @@
 /* AZAAD Admin Login Controller
- * Canonical submit adapter for the production admin login form.
- * Authentication remains real: it calls the deployed staff-login Edge Function
- * and then Supabase Auth setSession. No token, response, or credential is mocked.
+ * Canonical readiness/submit adapter for the production admin login form.
+ * Authentication remains real and is owned by the canonical admin.html login()
+ * implementation, which calls staff-login and Supabase Auth setSession.
  */
 (function installAzaadAdminLoginController(){
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
@@ -22,91 +22,67 @@
     return true;
   }
 
-  async function getSupabase(){
+  async function canonicalLoginFallback(event){
+    const form = event.target;
+    const username = String(form.querySelector('#username')?.value || '').trim().toLowerCase();
+    const password = String(form.querySelector('#password')?.value || '');
+    if (!username || !password) throw new Error('اسم المستخدم وكلمة المرور مطلوبان.');
+
+    const response = await fetch(STAFF_LOGIN_FUNCTION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ username, password })
+    });
+    let body = {};
+    try { body = await response.json(); } catch (_) {}
+    if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
+    if (!body?.session?.access_token || !body?.session?.refresh_token) {
+      throw new Error('تعذر إنشاء جلسة تسجيل الدخول.');
+    }
+    if (!body?.staff || body.staff.active === false) {
+      throw new Error('حساب الموظف غير فعال أو غير مكتمل.');
+    }
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
-  }
-
-  function showError(message){
-    const target = document.getElementById('loginError');
-    if (!target) return;
-    target.textContent = message || 'بيانات الدخول غير صحيحة.';
-    target.classList.remove('hidden');
-  }
-
-  function clearError(){
-    const target = document.getElementById('loginError');
-    if (target) {
-      target.textContent = '';
-      target.classList.add('hidden');
-    }
+    const { error } = await supabase.auth.setSession({
+      access_token: body.session.access_token,
+      refresh_token: body.session.refresh_token
+    });
+    if (error) throw error;
+    window.location.reload();
   }
 
   async function submit(event){
     const form = event.target;
-    if (!form || form.id !== 'loginForm') return;
+    if (!form || form.id !== 'loginForm' || disposed) return;
 
+    // The existing admin.html login() is the canonical production auth owner.
+    // Stop the second listener from running twice, then invoke that exact flow.
     event.preventDefault();
     event.stopPropagation();
     if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-    clearError();
-
-    const username = String(form.querySelector('#username')?.value || '').trim().toLowerCase();
-    const password = String(form.querySelector('#password')?.value || '');
-    const submitButton = form.querySelector('button[type="submit"]');
-
-    if (!username || !password) {
-      showError('اسم المستخدم وكلمة المرور مطلوبان.');
-      return;
-    }
-
-    if (submitButton) submitButton.disabled = true;
 
     try {
-      const response = await fetch(STAFF_LOGIN_FUNCTION, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
-        body: JSON.stringify({ username, password })
-      });
-
-      let body = {};
-      try { body = await response.json(); } catch (_) {}
-      if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
-
-      const session = body?.session;
-      if (!session?.access_token || !session?.refresh_token) throw new Error('تعذر إنشاء جلسة تسجيل الدخول.');
-      if (!body?.staff || body.staff.active === false) throw new Error('حساب الموظف غير فعال أو غير مكتمل.');
-
-      const supabase = await getSupabase();
-      const { error } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      });
-      if (error) throw error;
-
-      const loginPage = document.getElementById('loginPage');
-      const adminPage = document.getElementById('adminPage');
-      if (loginPage) loginPage.classList.add('hidden');
-      if (adminPage) adminPage.classList.remove('hidden');
-      try { sessionStorage.setItem('azaad_admin_token', session.access_token); } catch (_) {}
-      window.dispatchEvent(new CustomEvent('azaad:authenticated', { detail: { staff: body.staff, user: body.user || null } }));
-      window.location.reload();
+      if (typeof window.login === 'function') {
+        await window.login(event);
+      } else {
+        await canonicalLoginFallback(event);
+      }
     } catch (error) {
-      console.error('Azaad admin login failed', error);
-      showError(error instanceof Error ? error.message : 'تعذر تسجيل الدخول. حاول مرة أخرى.');
-    } finally {
-      if (submitButton) submitButton.disabled = false;
+      console.error('Azaad canonical login adapter failed', error);
+      const target = document.getElementById('loginError');
+      if (target) {
+        target.textContent = error?.message || 'تعذر تسجيل الدخول.';
+        target.classList.remove('hidden');
+      }
     }
   }
 
   prepareForm();
   window.addEventListener('submit', submit, true);
 
-  // Keep the current or any replacement login form validation-independent.
-  // Other initialization code can rebuild #loginForm after this controller
-  // loads; requestSubmit must still reach the canonical submit boundary.
   const observer = new MutationObserver(prepareForm);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   if (document.readyState === 'loading') {
