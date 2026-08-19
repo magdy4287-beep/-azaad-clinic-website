@@ -47,7 +47,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
 
-      - name: Create immutable local build copy for pull requests
+      - name: Create immutable local production-parity build copy for pull requests
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
@@ -56,10 +56,16 @@ jobs:
           mkdir -p /tmp/azaad-build
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
+          # Mirror the Vercel buildCommand exactly so PR Browser E2E tests
+          # the same transformed artifact that production deploys.
           python3 qa/inject-central-i18n.py
           python3 qa/inject-responsive-shell.py
+          python3 .github/patch-admin.py
+          python3 .github/finalize-auth.py
+          python3 .github/inject-patient-actions.py
+          python3 .github/inject-doctor-actions.py
 
-      - name: Start local checked-out build server for pull requests
+      - name: Start local checked-out production-parity build server for pull requests
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
@@ -69,7 +75,7 @@ jobs:
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              echo "Local Azaad immutable build is ready."
+              echo "Local Azaad immutable production-parity build is ready."
               exit 0
             fi
             sleep 1
@@ -94,7 +100,7 @@ jobs:
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
-      - name: Run browser shell/control-plane/responsive E2E against exact checked-out build copy on pull requests
+      - name: Run browser shell/control-plane/responsive E2E against exact checked-out production-parity build copy on pull requests
         if: github.event_name == 'pull_request'
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
@@ -136,8 +142,9 @@ jobs:
             kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
           fi
 
-# Source certification remains non-mutating: PR browser tests run from an immutable /tmp build copy.
+# Source certification remains non-mutating: PR browser tests run from an immutable production-parity /tmp build copy.
+# The PR copy mirrors Vercel's buildCommand so browser evidence reflects the deployed artifact shape.
 # Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
-# Main pushes validate the deployed production shell; pull requests validate the exact checked-out build copy.
+# Main pushes validate the deployed production shell; pull requests validate the exact checked-out production-parity build copy.
 # Authenticated E2E is gated behind a dedicated controlled Frontdesk credential and never bypassed with fake credentials.
 # Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
