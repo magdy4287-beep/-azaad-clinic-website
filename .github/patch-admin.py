@@ -34,8 +34,14 @@ def patch_admin_js():
    INITIALIZE
 '''
     if legacy.search(text): text=legacy.sub(modern,text,count=1)
-    # Secretary is a hybrid Front Desk + Cashier role in the UI.
-    text=text.replace('  SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view"\n  ],','  SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view",\n    "finance.view"\n  ],',1)
+    # Secretary is a hybrid Front Desk + Cashier role in the UI. Keep this resilient to formatting changes.
+    role_pattern=re.compile(r'(SECRETARY\s*:\s*\[)(.*?)(\])',re.S)
+    match=role_pattern.search(text)
+    if match and 'finance.view' not in match.group(2):
+        body=match.group(2)
+        if body and not body.endswith('\n'): body+='\n'
+        body+='    "finance.view",\n'
+        text=text[:match.start(2)]+body+text[match.end(2):]
     path.write_text(text,encoding="utf-8")
 
 def patch_startup_restore():
