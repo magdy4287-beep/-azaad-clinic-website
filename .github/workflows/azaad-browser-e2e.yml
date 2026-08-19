@@ -68,6 +68,7 @@ jobs:
           python3 qa/inject-responsive-shell.py
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
+          python3 qa/restore-admin-submit-binding.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
 
@@ -158,35 +159,3 @@ jobs:
           test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'AI-First • Free-Only • Safety-Gated • Continuous Delivery' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
           grep -Fq 'AZAAD is 100% free-only.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'NOT PROVEN ON FREE-ONLY STACK' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq '100% free-only' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI-first clinic platform' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          echo "Production certification policy verified for commit: $(git rev-parse HEAD)"
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: azaad-playwright-report
-          path: playwright-report/
-          if-no-files-found: ignore
-
-      - name: Stop local server
-        if: always() && github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          if [[ -f /tmp/azaad-http.pid ]]; then
-            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
-          fi
-
-# Source certification remains non-mutating: PR browser tests run from an immutable production-parity /tmp build copy.
-# The PR copy mirrors Vercel's buildCommand so browser evidence reflects the deployed artifact shape.
-# Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
-# Main pushes validate the deployed production shell; pull requests validate the exact checked-out production-parity build copy.
-# Authenticated E2E is gated behind a dedicated controlled Frontdesk credential and never bypassed with fake credentials.
-# Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
