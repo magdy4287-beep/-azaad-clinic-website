@@ -25,3 +25,6 @@ jobs:
 
       - name: Run comprehensive system contract
         run: python qa/comprehensive-system-contract.py
+
+      - name: Run platform kernel contract
+        run: python qa/azaad-platform-kernel-contract.py
