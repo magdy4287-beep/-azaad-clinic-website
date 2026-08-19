@@ -63,8 +63,11 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
 
+  // Match the actual authentication POST, not the CORS preflight OPTIONS
+  // response. The preflight is also a 200 response with an empty body and was
+  // the reason the earlier test could falsely report a successful auth call.
   const authResponsePromise = page.waitForResponse(
-    response => response.url().includes('/functions/v1/staff-login'),
+    response => response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST',
     { timeout: 15000 }
   );
 
@@ -77,9 +80,9 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   const authBody = await authResponse.json().catch(() => ({}));
   expect(
     authStatus,
-    `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}`
+    `staff-login POST must succeed with the real CI credential flow; response=${JSON.stringify(authBody)}`
   ).toBe(200);
-  expect(authBody, 'staff-login 200 response must contain a real session and staff identity').toEqual(
+  expect(authBody, 'staff-login POST 200 response must contain a real session and staff identity').toEqual(
     expect.objectContaining({
       session: expect.objectContaining({ access_token: expect.any(String) }),
       staff: expect.objectContaining({ id: expect.anything() })
