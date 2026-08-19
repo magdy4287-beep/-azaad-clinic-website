@@ -8,10 +8,19 @@ html = HTML_PATH.read_text(encoding="utf-8")
 js = JS_PATH.read_text(encoding="utf-8")
 controller = CONTROLLER_PATH.read_text(encoding="utf-8")
 
-if "async function login(" not in js:
-    raise RuntimeError("Canonical admin login() function is missing after auth finalization")
-if "STAFF_LOGIN_FUNCTION" not in controller or "form.addEventListener('submit', submit, true)" not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js submit owner is missing")
+# finalize-auth.py can rewrite the canonical controller before this transformer
+# runs. Validate the post-finalization behavior contract rather than one exact
+# pre-finalization source spelling.
+if "STAFF_LOGIN_FUNCTION" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost STAFF_LOGIN_FUNCTION")
+if "fetch(STAFF_LOGIN_FUNCTION" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost real staff-login fetch")
+if "setSession" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost Supabase setSession")
+if "AZAAD_LOGIN_CONTROLLER_READY" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost readiness contract")
+if "addEventListener('submit'" not in controller and 'addEventListener("submit"' not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js has no submit handler")
 
 legacy_markers = (
     "azaadInstallLoginBridge",
@@ -23,11 +32,9 @@ legacy_markers = (
 if any(marker in js for marker in legacy_markers):
     raise RuntimeError("Legacy submit bridge remains in admin.js; canonical controller must be sole owner")
 
-# The controller must be present in the generated parity document itself.
-# Depending on the build copy rules, an external /admin-login-controller.js
-# request can be absent even though the source file exists. Inline the exact
-# canonical controller so requestSubmit() always reaches the real submit
-# handler. No authentication result or credential is mocked.
+# The generated parity document must contain the exact canonical controller.
+# This removes a build-path dependency on /admin-login-controller.js while
+# preserving the real authentication path.
 controller_source = controller.replace("</script>", "<\\/script>")
 inline_script = f'<script type="module">\n{controller_source}\n</script>'
 external_script = '<script type="module" src="/admin-login-controller.js"></script>'
@@ -37,4 +44,4 @@ if inline_script not in html:
     html = html.replace('</body>', f'  {inline_script}\n</body>')
 
 HTML_PATH.write_text(html, encoding="utf-8")
-print("Inlined canonical admin-login-controller.js as the sole production login submit owner.")
+print("Validated and inlined canonical admin-login-controller.js as the sole production login submit owner.")
