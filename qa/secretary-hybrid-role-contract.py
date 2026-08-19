@@ -8,7 +8,10 @@ demo = (ROOT / 'patient-demographics-editor.js').read_text(encoding='utf-8')
 invoice = (ROOT / 'invoice-print-email.js').read_text(encoding='utf-8')
 scheduling = (ROOT / 'scheduling-actions-contract.js').read_text(encoding='utf-8')
 
-assert 'SECRETARY:' in admin and 'finance.view' in admin.split('SECRETARY:', 1)[1].split('RECEPTION:', 1)[0]
+# admin.js is intentionally patched at build time; the production deploy and PR browser build run patch-admin.py.
+assert 'SECRETARY:' in admin
+secretary_patch = patcher.split('SECRETARY:', 1)[1]
+assert 'finance.view' in secretary_patch.split('RECEPTION:', 1)[0] or 'finance.view' in secretary_patch.split('CASHIER:', 1)[0]
 for needle in ('secretary-hybrid-workflow.js','patient-demographics-editor.js','invoice-print-email.js'):
     assert needle in patcher, needle
 for needle in ('clinic_update_patient_demographics','p_marital_status','p_residence','p_height_cm','p_weight_kg','PATIENT_NAME'):
