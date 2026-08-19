@@ -17,9 +17,6 @@ permissions:
   contents: read
 
 env:
-  # Browser certification uses the same controlled Frontdesk identity
-  # already proven by the Clinical Authorization E2E gate. This avoids
-  # an unverified second credential source while preserving real auth.
   AZAAD_TEST_USERNAME: frontdesk_azaad
 
 jobs:
@@ -56,14 +53,42 @@ jobs:
           mkdir -p /tmp/azaad-build
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
-          # Mirror the Vercel buildCommand exactly so PR/manual Browser E2E tests
-          # the same transformed artifact that production deploys.
           python3 qa/inject-central-i18n.py
           python3 qa/inject-responsive-shell.py
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
+
+      - name: Preflight production-parity JavaScript syntax
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, subprocess, tempfile
+          html = Path('admin.html').read_text(encoding='utf-8')
+          srcs = re.findall(r'<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>', html, flags=re.I)
+          checked = []
+          for src in srcs:
+              if src.startswith(('http://','https://','//')):
+                  continue
+              path = Path(src.split('?',1)[0].lstrip('./'))
+              if path.exists() and path.suffix == '.js':
+                  subprocess.run(['node','--check',str(path)],check=True)
+                  checked.append(str(path))
+          inline = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
+          for i, code in enumerate(inline, 1):
+              if not code.strip():
+                  continue
+              with tempfile.NamedTemporaryFile('w',suffix='.js',encoding='utf-8',delete=False) as f:
+                  f.write(code)
+                  name=f.name
+              subprocess.run(['node','--check',name],check=True)
+          print(f'Syntax preflight passed for {len(checked)} local external scripts and {len(inline)} inline script blocks.')
+          PY
 
       - name: Start local checked-out production-parity build server for pull requests and manual branch runs
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
