@@ -71,6 +71,7 @@ jobs:
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
           python3 .github/fix-auth-callback.py
+          python3 qa/inject-admin-login-readiness.py
 
       - name: Validate Admin production-parity JavaScript syntax
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
@@ -177,18 +178,3 @@ jobs:
           name: azaad-playwright-report
           path: playwright-report/
           if-no-files-found: ignore
-
-      - name: Stop local server
-        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'))
-        shell: bash
-        run: |
-          if [[ -f /tmp/azaad-http.pid ]]; then
-            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
-          fi
-
-# Source certification remains non-mutating: PR browser tests and manual branch runs use an immutable production-parity /tmp build copy.
-# Main pushes and manual runs explicitly targeting main validate the deployed production shell.
-# The PR/manual-branch copy mirrors Vercel's buildCommand so browser evidence reflects the deployed artifact shape.
-# Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
-# Authenticated E2E is gated behind a dedicated controlled Frontdesk credential and never bypassed with fake credentials.
-# Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
