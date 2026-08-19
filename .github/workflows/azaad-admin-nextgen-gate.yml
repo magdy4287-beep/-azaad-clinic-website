@@ -13,6 +13,11 @@ on:
       - 'frontdesk-workflow.js'
       - 'central-i18n.js'
       - 'admin-english-hardening.js'
+      - 'secretary-hybrid-workflow.js'
+      - 'patient-demographics-editor.js'
+      - 'invoice-print-email.js'
+      - 'scheduling-actions-contract.js'
+      - 'qa/secretary-hybrid-role-contract.py'
   push:
     branches: [feat/ai-operating-system-20260815]
     paths:
@@ -25,6 +30,11 @@ on:
       - 'frontdesk-workflow.js'
       - 'central-i18n.js'
       - 'admin-english-hardening.js'
+      - 'secretary-hybrid-workflow.js'
+      - 'patient-demographics-editor.js'
+      - 'invoice-print-email.js'
+      - 'scheduling-actions-contract.js'
+      - 'qa/secretary-hybrid-role-contract.py'
 
 permissions:
   contents: read
@@ -43,12 +53,19 @@ jobs:
           node --check frontdesk-workflow.js
           node --check central-i18n.js
           node --check admin-english-hardening.js
+          node --check secretary-hybrid-workflow.js
+          node --check patient-demographics-editor.js
+          node --check invoice-print-email.js
+          node --check scheduling-actions-contract.js
       - name: Validate patch injection
         run: |
           grep -q 'admin-nextgen-v2.js' .github/patch-admin.py
           grep -q 'admin-patient-icon-guard.js' .github/patch-admin.py
           grep -q 'doctors-center-v2.js' .github/patch-admin.py
           grep -q 'services-center-v2.js' .github/patch-admin.py
+          grep -q 'secretary-hybrid-workflow.js' .github/patch-admin.py
+          grep -q 'patient-demographics-editor.js' .github/patch-admin.py
+          grep -q 'invoice-print-email.js' .github/patch-admin.py
       - name: Validate universal search contract
         run: |
           grep -q 'Name / Phone / MRN / Booking Number' admin-nextgen-v2.js
@@ -56,6 +73,8 @@ jobs:
           grep -q "set('mrn'" admin-nextgen-v2.js
           grep -q 'booking_code' patients-center.js
           grep -q 'bookingDateFilter' patients-center.js
+      - name: Validate Secretary hybrid role contract
+        run: python3 qa/secretary-hybrid-role-contract.py
       - name: Validate bilingual and session safety
         run: |
           grep -q 'azaadClinicLanguage' admin-nextgen-v2.js
@@ -65,3 +84,6 @@ jobs:
       - name: Validate no service-role credential
         run: |
           ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' admin-nextgen-v2.js
+          ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' secretary-hybrid-workflow.js
+          ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' patient-demographics-editor.js
+          ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' invoice-print-email.js
