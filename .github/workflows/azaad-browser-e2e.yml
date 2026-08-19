@@ -16,6 +16,12 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Browser certification uses the same controlled Frontdesk identity
+  # already proven by the Clinical Authorization E2E gate. This avoids
+  # an unverified second credential source while preserving real auth.
+  AZAAD_TEST_USERNAME: frontdesk_azaad
+
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
@@ -71,20 +77,28 @@ jobs:
           cat /tmp/azaad-http.log || true
           exit 1
 
+      - name: Verify controlled browser credential configuration
+        env:
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZAAD_TEST_USERNAME"
+          test -n "$AZAAD_TEST_PASSWORD"
+          echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
+
       - name: Run browser shell/control-plane E2E against production on main
         if: github.event_name != 'pull_request'
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
-          AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
-          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
       - name: Run browser shell/control-plane/responsive E2E against exact checked-out build copy on pull requests
         if: github.event_name == 'pull_request'
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
-          AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
-          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
       - name: Enforce Production Certification policy
@@ -125,5 +139,5 @@ jobs:
 # Source certification remains non-mutating: PR browser tests run from an immutable /tmp build copy.
 # Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
 # Main pushes validate the deployed production shell; pull requests validate the exact checked-out build copy.
-# Authenticated E2E is gated behind dedicated CI credentials and never bypassed with fake credentials.
+# Authenticated E2E is gated behind a dedicated controlled Frontdesk credential and never bypassed with fake credentials.
 # Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
