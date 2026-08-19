@@ -37,12 +37,40 @@ replacement = '''supabase.auth.onAuthStateChange(
 '''
 text = text[:start] + replacement + text[end:]
 
-needle = '''  if (redirectDoctorIfNeeded()) {
+login_needle = '''  applyStaffRole(
+    result.staff
+  );
+
+  if (redirectDoctorIfNeeded()) {
     return;
   }
 
   await initializeApplication();'''
-replacement_login = '''  if (redirectDoctorIfNeeded()) {
+login_replacement = '''  applyStaffRole(
+    result.staff
+  );
+
+  if (redirectDoctorIfNeeded()) {
+    return;
+  }
+
+  // The real Supabase session is established at this point. Reveal the authenticated
+  // shell before any non-auth initialization so a slow dashboard query cannot make
+  // a successful login look like an authentication failure.
+  document.getElementById("loginPage")?.classList.add("hidden");
+  document.getElementById("adminPage")?.classList.remove("hidden");
+
+  await initializeApplication();'''
+if login_needle not in text:
+    raise SystemExit('Canonical login post-session marker not found')
+text = text.replace(login_needle, login_replacement, 1)
+
+restore_needle = '''  if (redirectDoctorIfNeeded()) {
+    return;
+  }
+
+  await initializeApplication();'''
+restore_replacement = '''  if (redirectDoctorIfNeeded()) {
     return;
   }
 
@@ -50,9 +78,9 @@ replacement_login = '''  if (redirectDoctorIfNeeded()) {
   document.getElementById("adminPage")?.classList.remove("hidden");
 
   await initializeApplication();'''
-if needle not in text:
-    raise SystemExit('Canonical login initialization marker not found')
-text = text.replace(needle, replacement_login, 1)
+if restore_needle not in text:
+    raise SystemExit('Canonical session-restore marker not found')
+text = text.replace(restore_needle, restore_replacement, 1)
 
 path.write_text(text, encoding='utf-8')
-print('Auth callback is synchronous and authenticated shell is revealed before non-auth initialization.')
+print('Auth callback is synchronous and authenticated shell is revealed immediately after a real session is established.')
