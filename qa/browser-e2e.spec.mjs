@@ -43,7 +43,13 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     'Authenticated E2E requires dedicated CI test credentials.');
 
   const pageErrors = [];
+  const authResponseStatuses = [];
   page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || '' }));
+  page.on('response', response => {
+    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+      authResponseStatuses.push(response.status());
+    }
+  });
 
   await resetBrowserSession(page);
   const username = page.locator('#username');
@@ -64,20 +70,21 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
 
   const authResponsePromise = page.waitForResponse(
-    response => response.url().includes('/functions/v1/staff-login'),
+    response => response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST',
     { timeout: 15000 }
   );
   await page.locator('#loginForm').getByRole('button', { name: /تسجيل الدخول/ }).click();
 
+  // Assert the real authentication POST reached the staff-login endpoint and
+  // returned HTTP 200. Do not consume the response body here: authentication
+  // owns that stream, and waiting for its body can deadlock the browser test
+  // while the real session transition is already proceeding.
   const authResponse = await authResponsePromise;
   const authStatus = authResponse.status();
-  const authBody = await authResponse.json().catch(() => ({}));
-  expect(authStatus, `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}`).toBe(200);
+  expect(authStatus, 'staff-login POST must return HTTP 200').toBe(200);
 
-  await password.fill('');
-
-  // Fail with non-secret diagnostics if the real authentication request succeeds
-  // but the authenticated shell does not transition.
+  // The real application must establish the session and reveal the authenticated
+  // shell. This is the session-level proof; no token/session is seeded by the test.
   await expect.poll(
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
@@ -88,9 +95,14 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
       hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
       hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
       loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
-      loginErrorText: document.getElementById('loginError')?.textContent || ''
+      loginErrorText: document.getElementById('loginError')?.textContent || '',
+      authResponseStatuses: window.__azaadAuthResponseStatuses || []
     })),
-    { timeout: AUTH_READY_TIMEOUT, intervals: [250, 500, 1000] }
+    {
+      timeout: AUTH_READY_TIMEOUT,
+      intervals: [250, 500, 1000],
+      message: `real authentication did not transition to admin shell; authStatuses=${JSON.stringify(authResponseStatuses)} pageErrors=${JSON.stringify(pageErrors)}`
+    }
   ).toMatchObject({ loginHidden: true, adminVisible: true });
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
