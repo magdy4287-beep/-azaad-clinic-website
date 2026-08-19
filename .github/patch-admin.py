@@ -90,13 +90,11 @@ def patch_admin_injected_compatibility():
     path.write_text(text,encoding="utf-8")
 
 def patch_nextgen_scripts():
-    # Repair the production-parity English hardening object if an earlier patch left the final map entry closed as an object.
     english=Path('admin-english-hardening.js')
     if english.exists():
         text=english.read_text(encoding='utf-8')
         fixed=text.replace("'معاد':'Rescheduled'},\nexact:", "'معاد':'Rescheduled',\nexact:")
         if fixed!=text: english.write_text(fixed,encoding='utf-8')
-    # Fix dynamic dataset keys for hyphenated attributes in the production-parity artifact.
     for path in Path('.').rglob('*.js'):
         if '.git' in path.parts: continue
         text=path.read_text(encoding='utf-8',errors='replace')
@@ -105,7 +103,7 @@ def patch_nextgen_scripts():
         if updated!=text:path.write_text(updated,encoding='utf-8')
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js"):
+for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js"):
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","azaad-platform-kernel.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
