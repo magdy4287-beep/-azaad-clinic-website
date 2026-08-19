@@ -2,12 +2,20 @@ from pathlib import Path
 
 path = Path("admin.html")
 text = path.read_text(encoding="utf-8")
+
+# The production-parity pipeline can run this fixer after another auth
+# finalization step has already normalized the callback. In that case the
+# absence of the old async markers is success, not a build failure.
+if 'supabase.auth.onAuthStateChange(\n  (event, session) => {' in text:
+    print("Admin auth callback already normalized; no change required.")
+    raise SystemExit(0)
+
 start_marker = '''supabase.auth.onAuthStateChange(\n  async (\n    event,\n    session\n  ) => {'''
 end_marker = '''\n  }\n);\n\nasync function restore()'''
 start = text.find(start_marker)
 end = text.find(end_marker, start)
 if start < 0 or end < 0:
-    raise SystemExit("Inline admin auth callback markers not found")
+    raise SystemExit("Inline admin auth callback markers not found and callback is not already normalized")
 
 replacement = '''supabase.auth.onAuthStateChange(\n  (event, session) => {\n    if (event === "SIGNED_IN" && session) {\n      state.session = session;\n      state.user = session.user;\n      return;\n    }\n\n    if (event === "TOKEN_REFRESHED") {\n      state.session = session || null;\n      state.user = session?.user || null;\n      return;\n    }\n\n    if (event === "SIGNED_OUT") {\n      state.session = null;\n      state.user = null;\n      state.staff = null;\n      state.initialized = false;\n    }\n  }\n);'''
 
