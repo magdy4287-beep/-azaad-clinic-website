@@ -1,36 +1,25 @@
 /* AZAAD Admin Login Controller
- * Production-parity auth readiness bridge.
+ * Passive readiness signal only.
  *
  * Authentication remains exclusively owned by the canonical admin.html
- * submit handler. This file never calls staff-login, never creates tokens,
- * and never submits the form itself.
- *
- * The previous click->requestSubmit bridge could race the canonical module
- * handler and create a native-navigation lifecycle hazard after a successful
- * staff-login response. The bridge is therefore intentionally passive:
- * it only publishes readiness once the canonical form and Supabase client
- * actually exist.
+ * submit handler. This file never calls staff-login, creates tokens, or
+ * submits the form. Readiness must never depend on Supabase setSession;
+ * otherwise a production race can block the canonical submit path before
+ * authentication even starts.
  */
 (function installAzaadAdminLoginController(){
   let disposed = false;
 
   function markReady(){
     if (disposed) return true;
-
     const form = document.getElementById('loginForm');
-    const client = window.AZAAD?.supabase;
-
-    if (!form || !client?.auth?.setSession) {
-      return false;
-    }
-
+    if (!form) return false;
     window.AZAAD_LOGIN_CONTROLLER_READY = true;
+    window.dispatchEvent(new CustomEvent('azaad:login-controller-ready'));
     return true;
   }
 
-  function bind(){
-    markReady();
-  }
+  function bind(){ markReady(); }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bind, { once: true });
@@ -41,21 +30,10 @@
   const observer = new MutationObserver(bind);
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // AZAAD is assigned by the canonical module after its own script executes;
-  // that assignment does not itself mutate the DOM. Poll briefly so readiness
-  // cannot remain permanently false simply because the module finished later.
-  let attempts = 0;
-  const readinessTimer = window.setInterval(() => {
-    if (markReady() || ++attempts >= 200) {
-      window.clearInterval(readinessTimer);
-    }
-  }, 50);
-
   window.addEventListener('pagehide', () => {
     disposed = true;
     observer.disconnect();
-    window.clearInterval(readinessTimer);
   }, { once: true });
 })();
 
-// CI trigger note: keep this controller passive; canonical admin.html owns submit/auth.
+// Canonical admin.html owns submit/authentication; this controller is passive.
