@@ -15,10 +15,15 @@ ct=read(central); vt=read(vercel); rt=read(role_ui); ft=read(finance)
 for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObserver','central I18N dynamic observer'),('azaadLanguageChanged','central language-change event')]:require(token in ct,f'{msg} missing')
 require('location.reload()' not in ct,'central I18N reloads pages');require('qa/inject-central-i18n.py' in vt,'Vercel does not enforce central I18N');require('qa/inject-responsive-shell.py' in vt,'Vercel does not enforce responsive shell');require('azaad-responsive-shell.css' in read(injector),'responsive CSS injection missing');require('azaad-role-experience.js' in read(injector),'admin role UI injection missing')
 for r in ('OWNER','ADMIN','MANAGER','SECRETARY','RECEPTION','CASHIER','MARKETING'):require(r in rt,f'role navigation contract missing {r}')
-# Contract semantics rather than one exact JavaScript formatting choice. Support both
-# normal member access (window.AZAAD.state.role) and optional chaining
-# (window.AZAAD?.state?.role), then require the role to be exposed as data-role.
-role_source = re.search(r'window\.AZAAD(?:\?\.|\.)state(?:\?\.|\.)role', rt) is not None
+# Contract the actual role-source tokens used by the shell. This deliberately avoids
+# formatting-sensitive regexes: optional chaining is valid JavaScript syntax and the
+# contract is about authenticated-role provenance, not whitespace/operator formatting.
+role_source = any(token in rt for token in (
+    'window.AZAAD?.state?.role',
+    'window.AZAAD.state.role',
+    'window["AZAAD"]?.state?.role',
+    "window['AZAAD']?.state?.role",
+))
 require('data-role' in rt and role_source,'admin role shell does not expose the authenticated role')
 require(all(x in ft for x in ('OWNER','ADMIN','MANAGER','CASHIER')),'RCM finance role scope missing')
 htmls=sorted(ROOT.rglob('*.html'))
