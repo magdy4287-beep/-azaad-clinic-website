@@ -47,6 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           workflows=(
+            '.github/workflows/azaad-comprehensive-system-contract.yml'
             '.github/workflows/azaad-browser-e2e.yml'
             '.github/workflows/azaad-clinical-authorization-e2e.yml'
             '.github/workflows/azaad-payments-reporting-gate.yml'
@@ -70,6 +71,16 @@ jobs:
             exit 1
           fi
 
+      - name: Verify production Vercel surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://azaad-clinic-website-magdy-team.vercel.app/"
+          curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
+          test -s /tmp/azaad-vercel.html
+          grep -Fq 'Azaad Clinic' /tmp/azaad-vercel.html
+          echo "Vercel production surface: PASS"
+
       - name: Verify permanent human-approval and AI boundaries
         shell: bash
         run: |
@@ -86,4 +97,4 @@ jobs:
           set -euo pipefail
           echo 'AZAAD FINAL RELEASE CERTIFICATION: PASS'
           echo "Exact commit: $GITHUB_SHA"
-          echo 'All required exact-commit CI gates passed.'
+          echo 'All required exact-commit CI gates and the production Vercel surface passed.'
