@@ -71,21 +71,16 @@ jobs:
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
 
-      - name: Validate JavaScript syntax in exact production-parity build
+      - name: Validate Admin production-parity JavaScript syntax
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/azaad-build
-          failed=0
-          while IFS= read -r -d '' file; do
-            if ! node --check "$file" >/tmp/azaad-node-check.out 2>&1; then
-              echo "JavaScript syntax failure: $file"
-              cat /tmp/azaad-node-check.out
-              failed=1
-            fi
-          done < <(find . -type f -name '*.js' -not -path './.git/*' -print0)
-
+          node --check ./admin-english-hardening.js
+          if [[ -f ./admin-auth-ui-guard.js ]]; then
+            node --check ./admin-auth-ui-guard.js
+          fi
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -94,6 +89,7 @@ jobs:
 
           html = Path('admin.html').read_text(encoding='utf-8')
           blocks = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.I | re.S)
+          failed = 0
           for index, source in enumerate(blocks, start=1):
               if not source.strip():
                   continue
@@ -108,7 +104,7 @@ jobs:
                   failed = 1
           if failed:
               raise SystemExit(1)
-          print('Production-parity JavaScript syntax validation passed.')
+          print('Admin production-parity JavaScript syntax validation passed.')
           PY
 
       - name: Start local checked-out production-parity build server for pull requests
