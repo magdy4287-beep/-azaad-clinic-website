@@ -19,7 +19,7 @@ permissions:
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
@@ -41,16 +41,29 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Create immutable local build copy for pull requests
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/azaad-build
+          mkdir -p /tmp/azaad-build
+          cp -a . /tmp/azaad-build/
+          cd /tmp/azaad-build
+          python3 qa/inject-central-i18n.py
+          python3 qa/inject-responsive-shell.py
+
       - name: Start local checked-out build server for pull requests
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
+          cd /tmp/azaad-build
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              echo "Local Azaad PR build is ready."
+              echo "Local Azaad immutable build is ready."
               exit 0
             fi
             sleep 1
@@ -64,15 +77,15 @@ jobs:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
-      - name: Run browser shell/control-plane E2E against exact checked-out code on pull requests
+      - name: Run browser shell/control-plane/responsive E2E against exact checked-out build copy on pull requests
         if: github.event_name == 'pull_request'
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
       - name: Enforce Production Certification policy
         shell: bash
@@ -109,8 +122,8 @@ jobs:
             kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
           fi
 
-# This gate never mutates the checked-out tree before certification.
+# Source certification remains non-mutating: PR browser tests run from an immutable /tmp build copy.
 # Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
-# Main pushes validate the deployed production shell; pull requests validate the exact checked-out commit.
+# Main pushes validate the deployed production shell; pull requests validate the exact checked-out build copy.
 # Authenticated E2E is gated behind dedicated CI credentials and never bypassed with fake credentials.
 # Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
