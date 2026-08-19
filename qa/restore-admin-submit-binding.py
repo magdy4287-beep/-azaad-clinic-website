@@ -24,7 +24,12 @@ if (typeof login !== "function") {
   throw new Error("Canonical login() function is missing after auth finalization");
 }
 if (!azaadLoginForm.dataset.azaadSubmitBound) {
-  azaadLoginForm.addEventListener("submit", login);
+  azaadLoginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    await login(usernameInput?.value || "", passwordInput?.value || "");
+  });
   azaadLoginForm.dataset.azaadSubmitBound = "true";
 }
 window.AZAAD_PRODUCTION_SUBMIT_BOUND = true;
@@ -32,4 +37,4 @@ window.AZAAD_PRODUCTION_SUBMIT_BOUND = true;
 
 text = text.replace(marker, marker + binding, 1)
 path.write_text(text, encoding="utf-8")
-print("Restored canonical admin #loginForm submit binding after auth finalization.")
+print("Restored canonical admin #loginForm submit binding with the login(username, password) contract.")
