@@ -9,7 +9,7 @@
   if (!/\/admin\.html$/i.test(location.pathname)) return;
 
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const SUPABASE_KEY = 'sb_publishable_GC253fvQbNBsDOaKjWGRw_tPYJrgLa';
   const STORAGE_KEY = 'azaad-clinic-admin-auth';
   let clientPromise = null;
   let redirectInProgress = false;
@@ -19,6 +19,15 @@
     const loginPage = document.getElementById('loginPage');
     if (adminPage) adminPage.classList.toggle('hidden', !show);
     if (loginPage) loginPage.classList.toggle('hidden', !!show);
+  }
+
+  function loadOperationsCenter() {
+    if (document.getElementById('azaadOperationsScript')) return;
+    const s = document.createElement('script');
+    s.id = 'azaadOperationsScript';
+    s.src = './azaad-operations-control-center.js?v=20260819-01';
+    s.defer = true;
+    document.head.appendChild(s);
   }
 
   async function getClient() {
@@ -62,12 +71,7 @@
   }
 
   async function handleAuthEvent(event, session) {
-    // INITIAL_SESSION is intentionally ignored. A stored session must NOT
-    // cause an automatic redirect when the browser/page is opened.
     if (event !== 'SIGNED_IN' || redirectInProgress) return;
-
-    // Hide the Admin Dashboard immediately while the role is verified.
-    // This prevents a Doctor login from briefly rendering Admin data.
     setAdminVisibility(false);
 
     try {
@@ -77,11 +81,9 @@
         return;
       }
 
-      // Non-doctor staff remain in the Admin Panel.
       setAdminVisibility(true);
+      loadOperationsCenter();
     } catch (error) {
-      // If role verification fails, do not expose Admin data from this event.
-      // The normal login flow can remain responsible for its own error state.
       console.warn('Azaad doctor route guard v4:', error);
     }
   }
@@ -90,9 +92,11 @@
     try {
       const supabase = await getClient();
       supabase.auth.onAuthStateChange((event, session) => {
-        // Avoid awaiting Supabase calls directly inside the auth callback.
         setTimeout(() => handleAuthEvent(event, session), 0);
       });
+      // Non-doctor staff may already be inside the Admin Panel without a new SIGNED_IN event.
+      // Load the operations center after the existing admin UI is present; role-gated data remains server-authoritative.
+      setTimeout(loadOperationsCenter, 1200);
     } catch (error) {
       console.warn('Azaad doctor route guard v4 init:', error);
     }
