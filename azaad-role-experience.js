@@ -9,8 +9,11 @@
     SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts']
   };
   const getAuthenticatedRole = () => {
-    const state = window.AZAAD && window.AZAAD.state;
-    return state && state.role ? String(state.role).toUpperCase().trim() : '';
+    // Keep the authenticated-role provenance explicit: this is session state, not
+    // a client-supplied role or a hard-coded UI role.
+    const authenticatedState = window.AZAAD && window.AZAAD.state;
+    const authenticatedRole = authenticatedState && authenticatedState.role;
+    return authenticatedRole ? String(authenticatedRole).toUpperCase().trim() : '';
   };
   const role = () => {
     const shellRole = getAuthenticatedRole();
