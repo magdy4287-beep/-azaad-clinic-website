@@ -24,6 +24,11 @@
     bind();
   }
 
-  const observer = new MutationObserver(bind);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  // admin.html initializes window.AZAAD from its canonical inline runtime.
+  // That initialization can occur after this deferred script executes, so use
+  // a short bounded poll rather than intercepting or replacing authentication.
+  const timer = setInterval(() => {
+    if (markReady()) clearInterval(timer);
+  }, 25);
+  setTimeout(() => clearInterval(timer), 10000);
 })();
