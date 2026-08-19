@@ -17,9 +17,6 @@ permissions:
   contents: read
 
 env:
-  # Browser certification uses the same controlled Frontdesk identity
-  # already proven by the Clinical Authorization E2E gate. This avoids
-  # an unverified second credential source while preserving real auth.
   AZAAD_TEST_USERNAME: frontdesk_azaad
 
 jobs:
@@ -67,14 +64,52 @@ jobs:
           mkdir -p /tmp/azaad-build
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
-          # Mirror the Vercel buildCommand exactly so PR Browser E2E tests
-          # the same transformed artifact that production deploys.
           python3 qa/inject-central-i18n.py
           python3 qa/inject-responsive-shell.py
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
+
+      - name: Validate JavaScript syntax in exact production-parity build
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          failed=0
+          while IFS= read -r -d '' file; do
+            if ! node --check "$file" >/tmp/azaad-node-check.out 2>&1; then
+              echo "JavaScript syntax failure: $file"
+              cat /tmp/azaad-node-check.out
+              failed=1
+            fi
+          done < <(find . -type f -name '*.js' -not -path './.git/*' -print0)
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          html = Path('admin.html').read_text(encoding='utf-8')
+          blocks = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.I | re.S)
+          for index, source in enumerate(blocks, start=1):
+              if not source.strip():
+                  continue
+              with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.js', delete=False) as handle:
+                  handle.write(source)
+                  path = handle.name
+              result = subprocess.run(['node', '--check', path], text=True, capture_output=True)
+              if result.returncode:
+                  print(f'Inline JavaScript syntax failure: admin.html script block {index}')
+                  print(result.stdout)
+                  print(result.stderr)
+                  failed = 1
+          if failed:
+              raise SystemExit(1)
+          print('Production-parity JavaScript syntax validation passed.')
+          PY
 
       - name: Start local checked-out production-parity build server for pull requests
         if: github.event_name == 'pull_request'
