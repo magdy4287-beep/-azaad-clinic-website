@@ -55,6 +55,11 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm').getByRole('button', { name: /تسجيل الدخول/ }).click();
 
+  // The submit handler has already synchronously captured the password before its
+  // first await. Clear the field immediately so Playwright traces/reports cannot
+  // persist the controlled CI credential in DOM snapshots.
+  await password.fill('');
+
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: 15000 });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: 15000 });
 
