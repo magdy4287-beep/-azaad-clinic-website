@@ -42,7 +42,10 @@
 
   async function submit(event){
     const form = event.target;
-    if (!(form instanceof HTMLFormElement) || form.id !== 'loginForm') return;
+    // Do not use instanceof here: the only production contract we need is the
+    // real DOM target and its stable id. This also remains valid across iframe,
+    // adopted-node, and generated-document realms.
+    if (!form || form.id !== 'loginForm') return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -97,6 +100,12 @@
     }
   }
 
+  // The generated form has required fields. Disable native validation so the
+  // canonical controller owns validation and requestSubmit always dispatches
+  // the real submit event that reaches this capture listener.
+  const form = document.getElementById('loginForm');
+  if (form) form.noValidate = true;
+
   // Bind at window capture level so the canonical handler survives any
   // replacement of #loginForm by other initialization code. This is one
   // listener only; it delegates solely to the canonical login form.
@@ -104,9 +113,15 @@
   markReady();
 
   if (!ready) {
-    const observer = new MutationObserver(() => markReady());
+    const observer = new MutationObserver(() => {
+      const currentForm = document.getElementById('loginForm');
+      if (currentForm) currentForm.noValidate = true;
+      markReady();
+    });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     document.addEventListener('DOMContentLoaded', () => {
+      const currentForm = document.getElementById('loginForm');
+      if (currentForm) currentForm.noValidate = true;
       markReady();
       observer.disconnect();
     }, { once: true });
