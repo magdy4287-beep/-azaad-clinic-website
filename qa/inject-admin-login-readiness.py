@@ -13,31 +13,30 @@ ready = '''window.AZAAD = {
   logout
 };
 
-/* AZAAD_LOGIN_CONTROLLER_READY_V2
- * Test-readiness signal only. The canonical login() handler remains the
- * only authentication owner. This block never submits the form, calls
- * staff-login, creates a session, or writes a token.
+/* AZAAD_LOGIN_CONTROLLER_READY_V3
+ * Readiness signal only. Authentication remains exclusively owned by the
+ * canonical login() handler. This property has no side effects and performs
+ * no login, token, session, submit, or network operation.
+ *
+ * Use a live getter because the Supabase client is canonical runtime state;
+ * readiness must reflect that state rather than race a one-time assignment.
  */
-(function(){
-  function markReady(){
-    const form = document.getElementById("loginForm");
-    if (!form || !window.AZAAD?.supabase?.auth?.setSession) return false;
-    window.AZAAD_LOGIN_CONTROLLER_READY = true;
-    return true;
+Object.defineProperty(window, "AZAAD_LOGIN_CONTROLLER_READY", {
+  configurable: true,
+  get() {
+    return Boolean(
+      document.getElementById("loginForm") &&
+      window.AZAAD?.supabase?.auth?.setSession
+    );
   }
-  if (markReady()) return;
-  const timer = setInterval(() => {
-    if (markReady()) clearInterval(timer);
-  }, 25);
-  setTimeout(() => clearInterval(timer), 10000);
-})();'''
+});'''
 
-if "AZAAD_LOGIN_CONTROLLER_READY_V2" in text:
-    print("Admin login readiness marker already present.")
+if "AZAAD_LOGIN_CONTROLLER_READY_V3" in text:
+    print("Admin login readiness marker V3 already present.")
     raise SystemExit(0)
 
 if marker not in text:
     raise SystemExit("Canonical window.AZAAD marker not found")
 
 path.write_text(text.replace(marker, ready, 1), encoding="utf-8")
-print("Injected canonical admin login readiness marker.")
+print("Injected canonical admin login readiness marker V3.")
