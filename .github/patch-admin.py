@@ -73,6 +73,26 @@ def inject_script(path_name,script_name):
     if tag in text:return
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
+def patch_admin_injected_compatibility():
+    path=Path("admin.html")
+    if not path.exists(): return
+    text=path.read_text(encoding="utf-8")
+    # admin-nextgen-v2 used an invalid DOMStringMap key for aria-label.
+    text=text.replace(
+        "const key=`azaadSrc${a}`;if(!el.dataset[key])el.dataset[key]=r.get(norm(cur))||cur;el.setAttribute(a,translate(el.dataset[key],d,r));",
+        "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;if(!el.dataset[key])el.dataset[key]=r.get(norm(cur))||cur;el.setAttribute(a,translate(el.dataset[key],d,r));"
+    )
+    # Keep the hardening module's mutation queue local; an undeclared global
+    # named `queued` can collide with other browser scripts and throw when reset.
+    text=text.replace("queued=false;\nconst observer=new MutationObserver", "let queued=false;\nconst observer=new MutationObserver")
+    # Some legacy additive modules expect a tiny `$` DOM helper. The canonical
+    # admin controller keeps `$` module-scoped, so expose only this harmless
+    # read-only helper for compatibility instead of coupling scripts together.
+    bridge='<script>window.$=window.$||function(id){return document.getElementById(id)};</script>'
+    if bridge not in text and '</body>' in text:
+        text=text.replace('</body>',bridge+'\n</body>',1)
+    path.write_text(text,encoding="utf-8")
+
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
 for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js"):
     inject_script("admin.html",script)
@@ -84,4 +104,5 @@ inject_script("clinical-assessment.html","clinician-longitudinal-dashboard.js")
 inject_script("clinical-assessment.html","patient-demographics-editor.js")
 inject_script("invoice-center.html","azaad-platform-kernel.js")
 inject_script("invoice-center.html","invoice-print-email.js")
+patch_admin_injected_compatibility()
 print("patch-admin.py completed successfully")
