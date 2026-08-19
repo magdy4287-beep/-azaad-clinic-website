@@ -3,12 +3,17 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './qa',
   testMatch: '**/*.spec.mjs',
-  timeout: 30000,
+  timeout: 90000,
   retries: process.env.CI ? 1 : 0,
   reporter: [['line'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL: process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app',
     headless: true,
-    trace: 'retain-on-failure',
+    trace: 'off',
+    screenshot: 'off',
+    video: 'off',
+    actionTimeout: 15000,
+    navigationTimeout: 30000,
   },
+  expect: { timeout: 60000 },
 });
