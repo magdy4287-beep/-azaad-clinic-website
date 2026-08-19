@@ -8,17 +8,22 @@ html = HTML_PATH.read_text(encoding="utf-8")
 js = JS_PATH.read_text(encoding="utf-8")
 controller = CONTROLLER_PATH.read_text(encoding="utf-8")
 
-# admin-login-controller.js is intentionally readiness-only. Canonical
-# authentication remains owned by admin.html's existing login() handler.
-if "AZAAD_LOGIN_CONTROLLER_READY" not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js lost readiness contract")
+# The canonical controller is allowed to own the single production submit
+# path. Validate behavior, not a historical implementation spelling.
 if "loginForm" not in controller:
     raise RuntimeError("Canonical admin-login-controller.js lost login form contract")
-if "addEventListener('submit'" in controller or 'addEventListener("submit"' in controller:
-    raise RuntimeError("Readiness-only admin-login-controller.js must not own submit")
+if "fetch(" not in controller or "staff-login" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost real staff-login request")
+if "setSession" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost Supabase setSession")
+if "AZAAD_LOGIN_CONTROLLER_READY" not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js lost readiness contract")
+if "addEventListener('submit'" not in controller and 'addEventListener("submit"' not in controller:
+    raise RuntimeError("Canonical admin-login-controller.js has no submit owner")
+
 for marker in ("preventDefault()", "stopPropagation()", "stopImmediatePropagation()"):
     if marker in controller:
-        raise RuntimeError(f"Readiness-only controller contains forbidden submit interception: {marker}")
+        raise RuntimeError(f"Canonical controller contains forbidden submit interception: {marker}")
 
 legacy_markers = (
     "azaadInstallLoginBridge",
@@ -39,4 +44,4 @@ if inline_script not in html:
     html = html.replace('</body>', f'  {inline_script}\n</body>')
 
 HTML_PATH.write_text(html, encoding="utf-8")
-print("Validated and inlined readiness-only admin-login-controller.js; canonical admin.html login() remains the sole auth owner.")
+print("Validated and inlined canonical admin-login-controller.js as the sole production login submit owner.")
