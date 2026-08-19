@@ -6,9 +6,6 @@ def patch_admin_html():
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
     # The browser E2E must not depend on a single third-party ESM edge.
-    # Keep the app's Supabase JS dependency identical in API, but use jsDelivr
-    # for the production-parity browser artifact so a transient esm.sh module
-    # failure cannot silently prevent the module (and login submit handler) from executing.
     text=text.replace('https://esm.sh/@supabase/supabase-js@2','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
     legacy=re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)',re.S)
     modern='''async function restoreStaff(){
@@ -83,7 +80,7 @@ def inject_script(path_name,script_name):
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","admin-nextgen-v2.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js"):
+for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","admin-nextgen-v2.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-bridge.js"):
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","azaad-platform-kernel.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
