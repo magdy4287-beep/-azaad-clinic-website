@@ -70,13 +70,24 @@ for token in ("approve_refund_doctor", "approve_refund_management", "process_ref
     require(token in refund_text, f"refund workflow missing mandatory control: {token}")
 require("Every refund: Request -> Doctor Approval -> Management/Owner Approval -> Processing" in refund_text, "refund workflow does not explicitly enforce the permanent approval hierarchy")
 
-security_files = [p for p in ROOT.rglob("*") if p.is_file() and p.suffix.lower() in {".js", ".sql", ".html", ".md"} and ".git" not in p.parts]
+security_files = [p for p in ROOT.rglob("*") if p.is_file() and p.suffix.lower() in {".js", ".ts", ".sql", ".html", ".md"} and ".git" not in p.parts]
 security_text = "\n".join(read(p) for p in security_files)
 require((ROOT / "change-password.html").exists(), "staff password-change page is missing")
 require("owner_set_staff_account_status" in security_text, "owner-controlled staff status RPC is missing")
+require("azaad-account-security" in security_text, "dedicated account-security function is missing from source")
+require("CANNOT_DISABLE_SELF" in security_text, "self-disable protection is missing")
+require("LAST_OWNER_PROTECTED" in security_text, "last-owner protection is missing")
+require("PASSWORD_UPDATE_FAILED" in security_text, "server-side password recovery path is missing")
 require("suspend" in security_text.lower(), "staff suspension capability is missing")
 require("disable" in security_text.lower(), "staff disable capability is missing")
 require("reactivate" in security_text.lower(), "staff reactivation capability is missing")
+
+marketing_ai = ROOT / "supabase" / "functions" / "azaad-marketing-ai" / "index.ts"
+marketing_text = read(marketing_ai) if marketing_ai.exists() else ""
+require(marketing_ai.exists(), "marketing AI function source is missing")
+require("allowedRoles" in marketing_text and "MARKETING" in marketing_text, "marketing AI lacks explicit role/department authorization")
+require("local-free-fallback" in marketing_text, "marketing AI has no guaranteed free fallback")
+require("provider-unavailable" not in marketing_text or "localDraft" in marketing_text, "marketing AI may fail core operation when external AI is unavailable")
 
 ai_hits = list(ROOT.rglob("*ai*")) + list(ROOT.rglob("*AI*"))
 report_hits = list(ROOT.rglob("*report*")) + list(ROOT.rglob("*Report*"))
@@ -86,6 +97,11 @@ workflow_dir = ROOT / ".github" / "workflows"
 workflow_names = {p.name for p in workflow_dir.glob("*.yml")} if workflow_dir.exists() else set()
 for expected in ("azaad-ai-gate.yml", "azaad-department-ai-gate.yml", "azaad-executive-ai-gate.yml", "azaad-payments-reporting-gate.yml", "azaad-integration-gate.yml"):
     require(expected in workflow_names, f"missing required workflow gate: {expected}")
+
+# AI governance is a policy contract, not merely an existence check.
+require("ai_can_approve" in security_text, "AI approval prohibition is not represented in the system source")
+require("clinic_ai_recommendations" in security_text, "AI recommendation persistence/audit surface is missing")
+require("human" in security_text.lower() and "approval" in security_text.lower(), "human approval policy is not represented")
 
 admin_dirs = [p for p in ROOT.glob("admin/**/index.html") if p.is_file()]
 if len(admin_dirs) > 1:
@@ -101,6 +117,7 @@ for path in source_files:
 print("AZAAD comprehensive system contract")
 print(f"HTML pages scanned: {len(html_files)}")
 print(f"JS sources scanned: {len(source_files)}")
+print(f"Security/AI source files scanned: {len(security_files)}")
 if WARNINGS:
     print("WARNINGS:")
     for item in sorted(set(WARNINGS)):
