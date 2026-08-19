@@ -19,9 +19,6 @@ permissions:
 env:
   AZAAD_TEST_USERNAME: frontdesk_azaad
 
-env:
-  AZAAD_TEST_USERNAME: frontdesk_azaad
-
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
@@ -140,7 +137,7 @@ jobs:
           echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
 
       - name: Run browser shell/control-plane E2E against production on main
-        if: github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
