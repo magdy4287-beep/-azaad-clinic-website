@@ -15,7 +15,7 @@ for needle in ('secretary-hybrid-workflow.js','patient-demographics-editor.js','
     assert needle in patcher, needle
 for needle in ('clinic_update_patient_demographics','p_patient_name','p_marital_status','p_residence','p_height_cm','p_weight_kg'):
     assert needle in workflow or needle in demo, needle
-for needle in ('requestRefund','AZAAD_REFUNDS','invoice','print','mailto:'):
+for needle in ('AZAAD_REFUNDS','loadPanels','invoice','print','mailto:'):
     assert needle in workflow or needle in invoice, needle
 for needle in ('SECRETARY','RESCHEDULE','ASSIGN_WAITING','CANCEL'):
     assert needle in scheduling, needle
