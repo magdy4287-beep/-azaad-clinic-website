@@ -30,6 +30,10 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
+      - name: Apply production static patch set for PR verification
+        if: github.event_name == 'pull_request'
+        run: python3 .github/patch-admin.py
+
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
