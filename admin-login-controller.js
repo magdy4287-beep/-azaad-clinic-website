@@ -1,5 +1,5 @@
 /* AZAAD Admin Login Controller
- * Binds the canonical staff-login form in the production-parity artifact.
+ * Canonical production-parity staff-login binding.
  * Uses only the public Supabase publishable key; no credentials are stored here.
  */
 (function installAzaadAdminLoginController(){
@@ -13,8 +13,8 @@
     form.dataset.azaadLoginControllerBound = 'true';
 
     form.addEventListener('submit', async event => {
-      if (event.defaultPrevented) return;
       event.preventDefault();
+      event.stopImmediatePropagation();
 
       const username = String(document.getElementById('username')?.value || '').trim().toLowerCase();
       const password = String(document.getElementById('password')?.value || '');
@@ -32,7 +32,6 @@
         showError('يرجى إدخال Username وكلمة المرور.');
         return;
       }
-
       if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
         showError('Username يجب أن يحتوي على أحرف إنجليزية صغيرة أو أرقام أو . _ - فقط.');
         return;
@@ -57,6 +56,7 @@
         let body = {};
         try { body = await response.json(); } catch (_) {}
         if (!response.ok) throw new Error(body?.error || body?.message || 'بيانات الدخول غير صحيحة.');
+
         const session = body?.session;
         if (!session?.access_token || !session?.refresh_token) {
           throw new Error('تعذر إنشاء جلسة الدخول.');
@@ -83,7 +83,7 @@
         const passwordInput = document.getElementById('password');
         if (passwordInput) passwordInput.value = '';
       }
-    });
+    }, true);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
