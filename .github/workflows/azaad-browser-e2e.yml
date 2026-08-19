@@ -116,3 +116,4 @@ jobs:
 # Main pushes validate the deployed production surface; pull requests validate the exact checked-out code.
 # Weekly scheduled certification revalidates production without requiring paid monitoring.
 # Authenticated E2E remains gated behind dedicated CI secrets and is never bypassed by fake credentials.
+# Browser readiness is asserted through UI/API expectations rather than waiting on application DOMContentLoaded handlers.
