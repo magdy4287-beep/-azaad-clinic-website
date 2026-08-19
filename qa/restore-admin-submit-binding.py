@@ -23,11 +23,18 @@ legacy_markers = (
 if any(marker in js for marker in legacy_markers):
     raise RuntimeError("Legacy submit bridge remains in admin.js; canonical controller must be sole owner")
 
-# The dedicated controller owns the login boundary. Do not inject any submit
-# listener into admin.js, avoiding competing handlers and lifecycle races.
-script = '<script type="module" src="/admin-login-controller.js"></script>'
-if script not in html:
-    html = html.replace('</body>', f'  {script}\n</body>')
+# The controller must be present in the generated parity document itself.
+# Depending on the build copy rules, an external /admin-login-controller.js
+# request can be absent even though the source file exists. Inline the exact
+# canonical controller so requestSubmit() always reaches the real submit
+# handler. No authentication result or credential is mocked.
+controller_source = controller.replace("</script>", "<\\/script>")
+inline_script = f'<script type="module">\n{controller_source}\n</script>'
+external_script = '<script type="module" src="/admin-login-controller.js"></script>'
+
+if inline_script not in html:
+    html = html.replace(external_script, "")
+    html = html.replace('</body>', f'  {inline_script}\n</body>')
 
 HTML_PATH.write_text(html, encoding="utf-8")
-print("Canonical admin-login-controller.js is the sole production login submit owner.")
+print("Inlined canonical admin-login-controller.js as the sole production login submit owner.")
