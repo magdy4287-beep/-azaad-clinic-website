@@ -1,14 +1,7 @@
 /* AZAAD Admin Login Controller
- *
  * Canonical submit adapter for the production admin login form.
- * The previous version only emitted a readiness flag, but the checked-out
- * production-parity admin.html contains no submit listener. That made
- * requestSubmit() a no-op and produced authResponseStatuses: [].
- *
- * This adapter owns only the DOM submit boundary. Authentication remains
- * real: it calls the deployed staff-login Edge Function and then Supabase
- * Auth setSession with the returned session. No token, response, or
- * credential is mocked or pre-seeded.
+ * Authentication remains real: it calls the deployed staff-login Edge Function
+ * and then Supabase Auth setSession. No token, response, or credential is mocked.
  */
 (function installAzaadAdminLoginController(){
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
@@ -72,28 +65,17 @@
     try {
       const response = await fetch(STAFF_LOGIN_FUNCTION, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_PUBLISHABLE_KEY
-        },
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ username, password })
       });
 
       let body = {};
       try { body = await response.json(); } catch (_) {}
-
-      if (!response.ok) {
-        throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
 
       const session = body?.session;
-      if (!session?.access_token || !session?.refresh_token) {
-        throw new Error('تعذر إنشاء جلسة تسجيل الدخول.');
-      }
-
-      if (!body?.staff || body.staff.active === false) {
-        throw new Error('حساب الموظف غير فعال أو غير مكتمل.');
-      }
+      if (!session?.access_token || !session?.refresh_token) throw new Error('تعذر إنشاء جلسة تسجيل الدخول.');
+      if (!body?.staff || body.staff.active === false) throw new Error('حساب الموظف غير فعال أو غير مكتمل.');
 
       const supabase = await getSupabase();
       const { error } = await supabase.auth.setSession({
@@ -106,16 +88,8 @@
       const adminPage = document.getElementById('adminPage');
       if (loginPage) loginPage.classList.add('hidden');
       if (adminPage) adminPage.classList.remove('hidden');
-
       try { sessionStorage.setItem('azaad_admin_token', session.access_token); } catch (_) {}
-
-      window.dispatchEvent(new CustomEvent('azaad:authenticated', {
-        detail: { staff: body.staff, user: body.user || null }
-      }));
-
-      // Let the canonical admin application restore the persisted session and
-      // hydrate its own state. A reload avoids depending on module-scope
-      // functions from admin.js and preserves the real Supabase session.
+      window.dispatchEvent(new CustomEvent('azaad:authenticated', { detail: { staff: body.staff, user: body.user || null } }));
       window.location.reload();
     } catch (error) {
       console.error('Azaad admin login failed', error);
@@ -129,18 +103,23 @@
     if (disposed) return;
     const form = document.getElementById('loginForm');
     if (!form) return;
-    markReady();
-    if (boundForm === form) return;
+    // The username is intentionally not an email field; staff-login resolves
+    // the username server-side. Disable native constraint validation so
+    // requestSubmit() dispatches the real submit event and the controller can
+    // perform its own explicit username/password validation above.
+    form.noValidate = true;
+    if (boundForm === form) {
+      markReady();
+      return;
+    }
     if (boundForm) boundForm.removeEventListener('submit', submit, true);
     form.addEventListener('submit', submit, true);
     boundForm = form;
+    markReady();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bind, { once: true });
-  } else {
-    bind();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
+  else bind();
 
   const observer = new MutationObserver(bind);
   observer.observe(document.documentElement, { childList: true, subtree: true });
