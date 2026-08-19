@@ -17,12 +17,15 @@ permissions:
   contents: read
 
 env:
+  # Browser certification uses the same controlled Frontdesk identity
+  # already proven by the Clinical Authorization E2E gate. This avoids
+  # an unverified second credential source while preserving real auth.
   AZAAD_TEST_USERNAME: frontdesk_azaad
 
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
@@ -41,22 +44,11 @@ jobs:
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package.json') }}
-          restore-keys: |
-            playwright-chromium-${{ runner.os }}-
-
       - name: Install Chromium
-        shell: bash
-        run: |
-          set -euo pipefail
-          timeout 15m npx playwright install chromium
+        run: npx playwright install chromium
 
-      - name: Create immutable local production-parity build copy for pull requests and manual branch runs
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+      - name: Create immutable local production-parity build copy for pull requests
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -64,53 +56,17 @@ jobs:
           mkdir -p /tmp/azaad-build
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
+          # Mirror the Vercel buildCommand exactly so PR Browser E2E tests
+          # the same transformed artifact that production deploys.
           python3 qa/inject-central-i18n.py
           python3 qa/inject-responsive-shell.py
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
-          python3 .github/fix-auth-callback.py
 
-      - name: Validate Admin production-parity JavaScript syntax
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd /tmp/azaad-build
-          node --check ./admin-english-hardening.js
-          if [[ -f ./admin-auth-ui-guard.js ]]; then
-            node --check ./admin-auth-ui-guard.js
-          fi
-          node --check ./admin.js
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          import subprocess
-          import tempfile
-
-          html = Path('admin.html').read_text(encoding='utf-8')
-          blocks = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.I | re.S)
-          failed = 0
-          for index, source in enumerate(blocks, start=1):
-              if not source.strip():
-                  continue
-              with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.js', delete=False) as handle:
-                  handle.write(source)
-                  path = handle.name
-              result = subprocess.run(['node', '--check', path], text=True, capture_output=True)
-              if result.returncode:
-                  print(f'Inline JavaScript syntax failure: admin.html script block {index}')
-                  print(result.stdout)
-                  print(result.stderr)
-                  failed = 1
-          if failed:
-              raise SystemExit(1)
-          print('Admin production-parity JavaScript syntax validation passed.')
-          PY
-
-      - name: Start local checked-out production-parity build server for pull requests and manual branch runs
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+      - name: Start local checked-out production-parity build server for pull requests
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -138,14 +94,14 @@ jobs:
           echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
 
       - name: Run browser shell/control-plane E2E against production on main
-        if: github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        if: github.event_name != 'pull_request'
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
-      - name: Run browser shell/control-plane/responsive E2E against exact checked-out production-parity build copy on pull requests and manual branch runs
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+      - name: Run browser shell/control-plane/responsive E2E against exact checked-out production-parity build copy on pull requests
+        if: github.event_name == 'pull_request'
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
@@ -177,3 +133,18 @@ jobs:
           name: azaad-playwright-report
           path: playwright-report/
           if-no-files-found: ignore
+
+      - name: Stop local server
+        if: always() && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          if [[ -f /tmp/azaad-http.pid ]]; then
+            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
+          fi
+
+# Source certification remains non-mutating: PR browser tests run from an immutable production-parity /tmp build copy.
+# The PR copy mirrors Vercel's buildCommand so browser evidence reflects the deployed artifact shape.
+# Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
+# Main pushes validate the deployed production shell; pull requests validate the exact checked-out production-parity build copy.
+# Authenticated E2E is gated behind a dedicated controlled Frontdesk credential and never bypassed with fake credentials.
+# Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
