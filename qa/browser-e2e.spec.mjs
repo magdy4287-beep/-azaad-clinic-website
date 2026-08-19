@@ -44,7 +44,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
 
   const pageErrors = [];
   const authResponseStatuses = [];
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || '' }));
   page.on('response', response => {
     if (response.url().includes('/functions/v1/staff-login')) {
       authResponseStatuses.push(response.status());
