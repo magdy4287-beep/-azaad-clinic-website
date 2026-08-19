@@ -8,7 +8,18 @@
     MANAGER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
     SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts']
   };
-  const role = () => String(document.body.dataset.role || '').toUpperCase().trim();
+  const role = () => {
+    const shellRole = String(window.AZAAD?.state?.role || '').toUpperCase().trim();
+    if (shellRole) return shellRole;
+    return String(document.body.dataset.role || '').toUpperCase().trim();
+  };
+  function exposeAuthenticatedRole() {
+    const current = role();
+    if (!current) return false;
+    document.body.dataset.role = current;
+    document.documentElement.dataset.role = current;
+    return true;
+  }
   function addLanguageSwitcher() {
     if (document.getElementById('azaadLanguageSwitcher')) return;
     const host = document.querySelector('.top-actions') || document.querySelector('.topbar');
@@ -21,6 +32,7 @@
     wrap.querySelectorAll('[data-lang]').forEach(btn => btn.addEventListener('click', () => window.AZAAD_I18N?.setLanguage?.(btn.dataset.lang)));
   }
   function applyRoleNavigation() {
+    exposeAuthenticatedRole();
     const current = role();
     if (!current || current === 'DOCTOR') return;
     const allowed = new Set(ROLE_PANELS[current] || []);
@@ -39,7 +51,7 @@
     if (!location.pathname.endsWith('/admin.html')) return;
     addLanguageSwitcher();
     applyRoleNavigation();
-    const observer = new MutationObserver(() => { if (document.body.dataset.role) applyRoleNavigation(); if (!document.getElementById('azaadLanguageSwitcher')) addLanguageSwitcher(); });
+    const observer = new MutationObserver(() => { if (window.AZAAD?.state?.role || document.body.dataset.role) applyRoleNavigation(); if (!document.getElementById('azaadLanguageSwitcher')) addLanguageSwitcher(); });
     observer.observe(document.body, { attributes:true, childList:true, subtree:true });
     window.addEventListener('azaadLanguageChanged', applyRoleNavigation);
   }
