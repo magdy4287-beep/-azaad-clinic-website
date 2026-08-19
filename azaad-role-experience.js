@@ -8,8 +8,12 @@
     MANAGER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
     SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts']
   };
+  const getAuthenticatedRole = () => {
+    const state = window.AZAAD && window.AZAAD.state;
+    return state && state.role ? String(state.role).toUpperCase().trim() : '';
+  };
   const role = () => {
-    const shellRole = String(window.AZAAD?.state?.role || '').toUpperCase().trim();
+    const shellRole = getAuthenticatedRole();
     if (shellRole) return shellRole;
     return String(document.body.dataset.role || '').toUpperCase().trim();
   };
@@ -51,7 +55,7 @@
     if (!location.pathname.endsWith('/admin.html')) return;
     addLanguageSwitcher();
     applyRoleNavigation();
-    const observer = new MutationObserver(() => { if (window.AZAAD?.state?.role || document.body.dataset.role) applyRoleNavigation(); if (!document.getElementById('azaadLanguageSwitcher')) addLanguageSwitcher(); });
+    const observer = new MutationObserver(() => { if (getAuthenticatedRole() || document.body.dataset.role) applyRoleNavigation(); if (!document.getElementById('azaadLanguageSwitcher')) addLanguageSwitcher(); });
     observer.observe(document.body, { attributes:true, childList:true, subtree:true });
     window.addEventListener('azaadLanguageChanged', applyRoleNavigation);
   }
