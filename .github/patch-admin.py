@@ -90,6 +90,12 @@ def patch_admin_injected_compatibility():
     path.write_text(text,encoding="utf-8")
 
 def patch_nextgen_scripts():
+    # Repair the production-parity English hardening object if an earlier patch left the final map entry closed as an object.
+    english=Path('admin-english-hardening.js')
+    if english.exists():
+        text=english.read_text(encoding='utf-8')
+        fixed=text.replace("'معاد':'Rescheduled'},\nexact:", "'معاد':'Rescheduled',\nexact:")
+        if fixed!=text: english.write_text(fixed,encoding='utf-8')
     # Fix dynamic dataset keys for hyphenated attributes in the production-parity artifact.
     for path in Path('.').rglob('*.js'):
         if '.git' in path.parts: continue
