@@ -8,11 +8,21 @@
   const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
   let disposed = false;
   let installed = false;
+  let supabase = null;
+
+  const supabaseReady = import('https://esm.sh/@supabase/supabase-js@2').then(({ createClient }) => {
+    supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+    window.AZAAD = window.AZAAD || {};
+    window.AZAAD.supabase = supabase;
+    return supabase;
+  });
 
   function prepareForm(){
     if (disposed) return false;
     const form = document.getElementById('loginForm');
-    if (!form) return false;
+    if (!form || !supabase) return false;
     form.noValidate = true;
     if (!window.AZAAD_LOGIN_CONTROLLER_READY) {
       window.AZAAD_LOGIN_CONTROLLER_READY = true;
@@ -49,6 +59,7 @@
     if (button) button.disabled = true;
 
     try {
+      await supabaseReady;
       const response = await fetch(STAFF_LOGIN_FUNCTION, {
         method: 'POST',
         headers: {
@@ -68,10 +79,6 @@
         throw new Error('حساب الموظف غير فعال أو غير مكتمل.');
       }
 
-      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-      const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-      });
       const { error } = await supabase.auth.setSession({
         access_token: result.session.access_token,
         refresh_token: result.session.refresh_token
@@ -105,12 +112,17 @@
     prepareForm();
   }
 
+  supabaseReady.then(() => {
+    if (disposed) return;
+    prepareForm();
+    install();
+  }).catch(error => console.error('Azaad Supabase client initialization failed', error));
+
   install();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
 
   const observer = new MutationObserver(() => {
     prepareForm();
-    // The listener is window-level, so a replaced form needs no re-binding.
     if (!installed) install();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
