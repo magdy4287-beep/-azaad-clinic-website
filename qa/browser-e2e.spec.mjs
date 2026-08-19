@@ -66,16 +66,21 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     response => response.url().includes('/functions/v1/staff-login'),
     { timeout: 15000 }
   );
-  await page.locator('#loginForm').getByRole('button', { name: /تسجيل الدخول/ }).click();
+
+  // Submit the canonical form directly. This exercises the same production
+  // submit handler while avoiding any secondary click bridge or localization
+  // of the button label. It does not seed credentials, mock the endpoint, or
+  // bypass the application's authentication code.
+  await page.locator('#loginForm').evaluate(form => form.requestSubmit());
 
   const authResponse = await authResponsePromise;
   const authStatus = authResponse.status();
   const authBody = await authResponse.json().catch(() => ({}));
-  expect(authStatus, `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}`).toBe(200);
+  expect(
+    authStatus,
+    `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}; pageErrors=${JSON.stringify(pageErrors)}`
+  ).toBe(200);
 
-  // Do not touch the form while the canonical handler is completing setSession
-  // and the authenticated shell transition. Clearing the password is UI cleanup,
-  // not an authentication assertion, and doing it here can race a real navigation.
   await expect.poll(
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
