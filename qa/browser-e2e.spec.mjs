@@ -3,7 +3,6 @@ import { test, expect } from '@playwright/test';
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
-const STAFF_LOGIN_URL = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/staff-login';
 
 async function resetBrowserSession(page) {
   await page.goto(`${baseURL}/admin.html`, navigation);
@@ -64,47 +63,29 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
 
+  // Match the real authentication POST, not the CORS preflight OPTIONS.
   const authResponsePromise = page.waitForResponse(
     response => response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST',
     { timeout: 15000 }
   );
 
+  // Exercise the canonical production form submit handler directly. No token,
+  // session, endpoint response, or credential is mocked or pre-seeded.
   await page.locator('#loginForm').evaluate(form => form.requestSubmit());
 
   const authResponse = await authResponsePromise;
   const authStatus = authResponse.status();
-  const authText = await authResponse.text().catch(() => '');
+  const authText = await authResponse.text();
   let authBody = {};
   try { authBody = authText ? JSON.parse(authText) : {}; } catch (_) {}
 
-  // Independent network probe: this does not establish the browser session;
-  // it only distinguishes a browser-response transport problem from an
-  // endpoint-response problem. Credentials remain in CI secrets and no token
-  // is ever printed.
-  const directProbe = await page.request.post(STAFF_LOGIN_URL, {
-    data: { username: process.env.AZAAD_TEST_USERNAME, password: process.env.AZAAD_TEST_PASSWORD }
-  });
-  const directText = await directProbe.text().catch(() => '');
-  let directBody = {};
-  try { directBody = directText ? JSON.parse(directText) : {}; } catch (_) {}
-  const diagnostic = {
-    browserStatus: authStatus,
-    browserBodyBytes: authText.length,
-    browserContentType: authResponse.headers()['content-type'] || '',
-    browserKeys: Object.keys(authBody),
-    directStatus: directProbe.status(),
-    directBodyBytes: directText.length,
-    directContentType: directProbe.headers()['content-type'] || '',
-    directKeys: Object.keys(directBody),
-    directHasSession: Boolean(directBody?.session?.access_token),
-    pageErrors,
-    consoleErrors
-  };
-
-  expect(authStatus, `staff-login browser POST failed: ${JSON.stringify(diagnostic)}`).toBe(200);
+  expect(
+    authStatus,
+    `staff-login POST must succeed with the real CI credential flow; response=${JSON.stringify(authBody)}`
+  ).toBe(200);
   expect(
     authBody,
-    `staff-login browser POST returned no usable JSON; endpoint comparison=${JSON.stringify(diagnostic)}`
+    `staff-login POST returned no usable session; bodyBytes=${authText.length}; contentType=${authResponse.headers()['content-type'] || ''}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`
   ).toEqual(expect.objectContaining({
     session: expect.objectContaining({ access_token: expect.any(String) }),
     staff: expect.objectContaining({ id: expect.anything() })
@@ -133,7 +114,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     {
       timeout: AUTH_READY_TIMEOUT,
       intervals: [250, 500, 1000],
-      message: `authenticated shell did not transition. immediate=${JSON.stringify(immediateState)} diagnostics=${JSON.stringify(diagnostic)}`
+      message: `authenticated shell did not transition. immediate=${JSON.stringify(immediateState)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
     }
   ).toMatchObject({ loginHidden: true, adminVisible: true, hasAdminToken: true });
 
