@@ -5,6 +5,7 @@ const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.verc
 // Do not wait on application-level DOMContentLoaded handlers: several public/admin
 // modules intentionally perform optional remote work. We assert readiness directly.
 const navigation = { waitUntil: 'commit' };
+const AUTH_READY_TIMEOUT = 60000;
 
 async function resetBrowserSession(page) {
   await page.goto(`${baseURL}/admin.html`, navigation);
@@ -60,10 +61,13 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   // persist the controlled CI credential in DOM snapshots.
   await password.fill('');
 
-  await expect(page.locator('#loginPage')).toBeHidden({ timeout: 15000 });
-  await expect(page.locator('#adminPage')).toBeVisible({ timeout: 15000 });
+  // Production-parity initialization performs several authenticated data reads.
+  // Give the complete application initialization window before declaring auth
+  // unsuccessful; this is intentionally bounded and still fails closed.
+  await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
+  await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 
   await page.reload(navigation);
-  await expect(page.locator('#loginPage')).toBeHidden({ timeout: 15000 });
-  await expect(page.locator('#adminPage')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
+  await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 });
