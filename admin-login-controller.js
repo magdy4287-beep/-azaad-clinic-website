@@ -57,3 +57,5 @@
     window.clearInterval(readinessTimer);
   }, { once: true });
 })();
+
+// CI trigger note: keep this controller passive; canonical admin.html owns submit/auth.
