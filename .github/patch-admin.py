@@ -5,8 +5,15 @@ def patch_admin_html():
     path=Path("admin.html")
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
-    # The browser E2E must not depend on a single third-party ESM edge.
+    # Keep the browser E2E independent from a single third-party ESM edge.
     text=text.replace('https://esm.sh/@supabase/supabase-js@2','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm')
+    # The canonical admin.js controller already owns authentication. Bind its
+    # existing submit handler immediately when the inline module is evaluated;
+    # the DOMContentLoaded binding remains idempotent via azaadBound.
+    dom_ready='''document.addEventListener(\n  "DOMContentLoaded",\n  async () => {\n    bindLogin();'''
+    immediate='''bindLogin();\n\ndocument.addEventListener(\n  "DOMContentLoaded",\n  async () => {\n    bindLogin();'''
+    if dom_ready in text and '/* AZAAD_E2E_IMMEDIATE_LOGIN_BIND */' not in text:
+        text=text.replace(dom_ready, '/* AZAAD_E2E_IMMEDIATE_LOGIN_BIND */\n'+immediate, 1)
     legacy=re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)',re.S)
     modern='''async function restoreStaff(){
   if(!state.user?.id || !state.session?.access_token) return false;
@@ -80,7 +87,7 @@ def inject_script(path_name,script_name):
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","admin-nextgen-v2.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-bridge.js"):
+for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","admin-nextgen-v2.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js"):
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","azaad-platform-kernel.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
