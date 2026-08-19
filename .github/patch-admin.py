@@ -17,6 +17,9 @@ async function logout()'''
     duplicate=re.compile(r'\s*const valid =\s*await restoreStaff\(\);\s*if\(\s*valid\s*\)\{\s*await load\(\);\s*\}',re.S)
     text=duplicate.sub('\n      // Startup restoration is owned by restore().',text,count=1)
     text=text.replace('patient-session-bridge-v3.js?v=4.1.0','patient-session-bridge-v3.js?v=4.3.1')
+    bootstrap='''<script>window.$=window.$||((id)=>document.getElementById(id));</script>\n'''
+    if 'window.$=window.$||((id)=>document.getElementById(id))' not in text and '</body>' in text:
+        text=text.replace('</body>',bootstrap+'</body>',1)
     path.write_text(text,encoding="utf-8")
 
 def patch_admin_js():
