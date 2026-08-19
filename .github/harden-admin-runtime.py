@@ -3,13 +3,18 @@ import re
 
 UMD = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.56.1/dist/umd/supabase.min.js'
 ADMIN_MARKER = './admin.js?v=2026-08-19-auth'
+IMPORT_RE = re.compile(r'import\s*\{\s*createClient\s*\}\s*from\s*["\']https://[^"\']+/supabase-js@2[^"\']*["\']\s*;?', re.S)
 
 admin = Path('admin.js')
 if admin.exists():
     text = admin.read_text(encoding='utf-8')
-    text, count = re.subn(r'import\s*\{\s*createClient\s*\}\s*from\s*["\']https://[^"\']+/supabase-js@2(?:/\+esm)?["\'];', 'const { createClient } = window.supabase;', text, count=1)
+    text, count = IMPORT_RE.subn('const { createClient } = window.supabase;', text, count=1)
     if count != 1:
+        if re.search(r'import\s*\{\s*createClient\s*\}', text):
+            raise RuntimeError('canonical admin.js still contains an unsupported Supabase ESM import shape')
         raise RuntimeError('canonical admin.js Supabase ESM import was not found')
+    if re.search(r'import\s*\{\s*createClient\s*\}', text):
+        raise RuntimeError('canonical admin.js still contains a Supabase ESM import after hardening')
     admin.write_text(text, encoding='utf-8')
 
 html = Path('admin.html')
@@ -26,4 +31,4 @@ if html.exists():
         text = text.replace('</body>', classic_marker + '\n</body>', 1)
     html.write_text(text, encoding='utf-8')
 
-print('Admin runtime hardened: synchronous pinned Supabase UMD loads before classic canonical admin.js; no remote Supabase ESM import remains in admin.js.')
+print('Admin runtime hardened: pinned Supabase UMD loads synchronously before classic canonical admin.js; no Supabase ESM import remains.')
