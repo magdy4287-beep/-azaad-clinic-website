@@ -103,10 +103,6 @@
     if (disposed) return;
     const form = document.getElementById('loginForm');
     if (!form) return;
-    // The username is intentionally not an email field; staff-login resolves
-    // the username server-side. Disable native constraint validation so
-    // requestSubmit() dispatches the real submit event and the controller can
-    // perform its own explicit username/password validation above.
     form.noValidate = true;
     if (boundForm === form) {
       markReady();
@@ -118,8 +114,13 @@
     markReady();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
-  else bind();
+  // admin.html owns the login form in the initial DOM. Bind synchronously so
+  // the readiness flag is established before any test or caller can submit.
+  bind();
+
+  if (!boundForm && document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind, { once: true });
+  }
 
   const observer = new MutationObserver(bind);
   observer.observe(document.documentElement, { childList: true, subtree: true });
