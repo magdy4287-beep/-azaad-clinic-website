@@ -16,19 +16,25 @@ for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObs
 require('location.reload()' not in ct,'central I18N reloads pages');require('qa/inject-central-i18n.py' in vt,'Vercel does not enforce central I18N');require('qa/inject-responsive-shell.py' in vt,'Vercel does not enforce responsive shell');require('azaad-responsive-shell.css' in read(injector),'responsive CSS injection missing');require('azaad-role-experience.js' in read(injector),'admin role UI injection missing')
 for r in ('OWNER','ADMIN','MANAGER','SECRETARY','RECEPTION','CASHIER','MARKETING'):require(r in rt,f'role navigation contract missing {r}')
 # Authenticated-role provenance is checked structurally after whitespace normalization.
-# This deliberately validates the session-state assignment chain instead of one exact formatting/spelling.
+# Keep the proof split into independent source/flow checks so harmless formatting,
+# helper extraction, or variable spacing cannot invalidate a real authenticated-role chain.
 normalized=re.sub(r'\s+',' ',rt).strip()
-role_state_patterns=(
-    r'(?:(?:const|let|var)\s+)?authenticatedState\s*=\s*window\.AZAAD\s*&&\s*window\.AZAAD\.state',
-    r'(?:(?:const|let|var)\s+)?authenticatedState\s*=\s*window\[\s*["\']AZAAD["\']\s*\]\s*(?:&&\s*window\[\s*["\']AZAAD["\']\s*\]\s*)?\.state',
+state_assignment_patterns=(
+    r'(?:const|let|var)\s+authenticatedState\s*=\s*window\.AZAAD\s*&&\s*window\.AZAAD\.state',
+    r'(?:const|let|var)\s+authenticatedState\s*=\s*window\[\s*["\']AZAAD["\']\s*\]\s*\.state',
 )
-role_value_patterns=(
-    r'(?:(?:const|let|var)\s+)?authenticatedRole\s*=\s*authenticatedState\s*&&\s*authenticatedState\.role',
-    r'(?:(?:const|let|var)\s+)?authenticatedRole\s*=\s*authenticatedState(?:\?\.)?\.role',
+role_assignment_patterns=(
+    r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState\s*&&\s*authenticatedState\.role',
+    r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState(?:\?\.)?\.role',
 )
-role_state_source=any(re.search(p,normalized) for p in role_state_patterns)
-role_value_source=any(re.search(p,normalized) for p in role_value_patterns)
-require('data-role' in normalized and 'getAuthenticatedRole' in normalized and role_state_source and role_value_source,'admin role shell does not expose the authenticated role')
+role_projection_patterns=(
+    r'document\.body\.dataset\.role\s*=\s*current',
+    r'document\.documentElement\.dataset\.role\s*=\s*current',
+)
+state_source=any(re.search(p,normalized) for p in state_assignment_patterns)
+role_source=any(re.search(p,normalized) for p in role_assignment_patterns)
+role_projection=all(re.search(p,normalized) for p in role_projection_patterns)
+require('getAuthenticatedRole' in normalized and state_source and role_source and role_projection,'admin role shell does not expose the authenticated role')
 require(all(x in ft for x in ('OWNER','ADMIN','MANAGER','CASHIER')),'RCM finance role scope missing')
 htmls=sorted(ROOT.rglob('*.html'))
 for h in htmls:
