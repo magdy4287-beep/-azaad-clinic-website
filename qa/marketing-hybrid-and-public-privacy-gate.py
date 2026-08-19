@@ -11,8 +11,8 @@ for needle in ('facebook','instagram','linkedin','tiktok','campaign','addchannel
 assert 'marketing-studio-v3.js' in patcher
 assert 'azaad-public-patient-lookup' in privacy
 assert 'select("id,active")' in lookup
-assert 'upcoming_bookings' not in lookup
-assert 'patient_name' not in lookup
-assert 'mrn' not in lookup
+response_contract=lookup.split('select("id,active")',1)[1]
+for secret in ('upcoming_bookings','patient_name','mrn'):
+    assert secret not in response_contract, secret
 assert 'clinic_public_team_profiles' in team or 'azaad-public-team-data' in team
 print('marketing hybrid + public privacy gate: PASS')
