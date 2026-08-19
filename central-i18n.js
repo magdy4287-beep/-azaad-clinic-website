@@ -14,6 +14,7 @@
   let applying = false;
   let queued = false;
   let observer = null;
+  let observerSuppressed = false;
 
   const normalize = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
@@ -71,6 +72,8 @@
     persist(lang);
     currentLanguage = lang;
     applying = true;
+    observerSuppressed = true;
+    if (observer) observer.disconnect();
     try {
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -89,7 +92,8 @@
       for (const node of nodes) {
         if (shouldSkip(node)) continue;
         const source = rememberText(node);
-        node.nodeValue = translateText(source, lang);
+        const translated = translateText(source, lang);
+        if (node.nodeValue !== translated) node.nodeValue = translated;
       }
 
       document.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => {
@@ -97,7 +101,8 @@
           if (!el.hasAttribute(attr)) continue;
           const source = rememberAttr(el, attr);
           if (source == null) continue;
-          el.setAttribute(attr, translateText(source, lang));
+          const translated = translateText(source, lang);
+          if (el.getAttribute(attr) !== translated) el.setAttribute(attr, translated);
         }
       });
 
@@ -106,15 +111,17 @@
       window.dispatchEvent(new CustomEvent('azaadLanguageChanged', { detail: { language: lang } }));
     } finally {
       applying = false;
+      observerSuppressed = false;
+      if (observer) observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
   }
 
   function queueApply() {
-    if (applying || queued) return;
+    if (applying || queued || observerSuppressed) return;
     queued = true;
     queueMicrotask(() => {
       queued = false;
-      if (!applying) apply(getLang());
+      if (!applying && !observerSuppressed) apply(getLang());
     });
   }
 
