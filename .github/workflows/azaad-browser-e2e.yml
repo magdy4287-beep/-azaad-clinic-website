@@ -71,7 +71,6 @@ jobs:
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
           python3 .github/fix-auth-callback.py
-          python3 qa/inject-admin-login-readiness.py
 
       - name: Validate Admin production-parity JavaScript syntax
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
