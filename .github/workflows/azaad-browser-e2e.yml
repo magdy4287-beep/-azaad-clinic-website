@@ -30,10 +30,6 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Apply production static patch set for PR verification
-        if: github.event_name == 'pull_request'
-        run: python3 .github/patch-admin.py
-
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -62,21 +58,21 @@ jobs:
           cat /tmp/azaad-http.log || true
           exit 1
 
-      - name: Run browser E2E against production on main
+      - name: Run browser shell/control-plane E2E against production on main
         if: github.event_name != 'pull_request'
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs qa/platform-control-plane.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs
 
-      - name: Run browser E2E against exact checked-out code on pull requests
+      - name: Run browser shell/control-plane E2E against exact checked-out code on pull requests
         if: github.event_name == 'pull_request'
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs qa/platform-control-plane.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs
 
       - name: Enforce Production Certification policy
         shell: bash
@@ -113,7 +109,8 @@ jobs:
             kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
           fi
 
-# Main pushes validate the deployed production surface; pull requests validate the exact checked-out code.
-# Weekly scheduled certification revalidates production without requiring paid monitoring.
-# Authenticated E2E remains gated behind dedicated CI secrets and is never bypassed by fake credentials.
-# Browser readiness is asserted through UI/API expectations rather than waiting on application DOMContentLoaded handlers.
+# This gate never mutates the checked-out tree before certification.
+# Public bilingual UI is certified by the dedicated I18N/Locale/Booking gates.
+# Main pushes validate the deployed production shell; pull requests validate the exact checked-out commit.
+# Authenticated E2E is gated behind dedicated CI credentials and never bypassed with fake credentials.
+# Browser readiness is assertion-driven rather than dependent on application DOMContentLoaded handlers.
