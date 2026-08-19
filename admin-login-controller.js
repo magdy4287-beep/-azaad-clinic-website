@@ -1,17 +1,25 @@
 /* AZAAD Admin Login Controller
- * Passive readiness signal only.
  *
- * Authentication remains exclusively owned by the canonical admin.html
- * submit handler. This file never calls staff-login, creates tokens, or
- * submits the form. Readiness must never depend on Supabase setSession;
- * otherwise a production race can block the canonical submit path before
- * authentication even starts.
+ * Canonical submit adapter for the production admin login form.
+ * The previous version only emitted a readiness flag, but the checked-out
+ * production-parity admin.html contains no submit listener. That made
+ * requestSubmit() a no-op and produced authResponseStatuses: [].
+ *
+ * This adapter owns only the DOM submit boundary. Authentication remains
+ * real: it calls the deployed staff-login Edge Function and then Supabase
+ * Auth setSession with the returned session. No token, response, or
+ * credential is mocked or pre-seeded.
  */
 (function installAzaadAdminLoginController(){
+  const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
   let disposed = false;
+  let boundForm = null;
+  let supabasePromise = null;
 
   function markReady(){
-    if (disposed) return true;
+    if (disposed) return false;
     const form = document.getElementById('loginForm');
     if (!form) return false;
     window.AZAAD_LOGIN_CONTROLLER_READY = true;
@@ -19,7 +27,114 @@
     return true;
   }
 
-  function bind(){ markReady(); }
+  async function getSupabase(){
+    if (!supabasePromise) {
+      supabasePromise = import('https://esm.sh/@supabase/supabase-js@2')
+        .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        }));
+    }
+    return supabasePromise;
+  }
+
+  function showError(message){
+    const target = document.getElementById('loginError');
+    if (!target) return;
+    target.textContent = message || 'بيانات الدخول غير صحيحة.';
+    target.classList.remove('hidden');
+  }
+
+  function clearError(){
+    const target = document.getElementById('loginError');
+    if (target) {
+      target.textContent = '';
+      target.classList.add('hidden');
+    }
+  }
+
+  async function submit(event){
+    event.preventDefault();
+    event.stopPropagation();
+    clearError();
+
+    const form = event.currentTarget;
+    const username = String(form.querySelector('#username')?.value || '').trim().toLowerCase();
+    const password = String(form.querySelector('#password')?.value || '');
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (!username || !password) {
+      showError('اسم المستخدم وكلمة المرور مطلوبان.');
+      return;
+    }
+
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      const response = await fetch(STAFF_LOGIN_FUNCTION, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_PUBLISHABLE_KEY
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      let body = {};
+      try { body = await response.json(); } catch (_) {}
+
+      if (!response.ok) {
+        throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
+      }
+
+      const session = body?.session;
+      if (!session?.access_token || !session?.refresh_token) {
+        throw new Error('تعذر إنشاء جلسة تسجيل الدخول.');
+      }
+
+      if (!body?.staff || body.staff.active === false) {
+        throw new Error('حساب الموظف غير فعال أو غير مكتمل.');
+      }
+
+      const supabase = await getSupabase();
+      const { error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      });
+      if (error) throw error;
+
+      const loginPage = document.getElementById('loginPage');
+      const adminPage = document.getElementById('adminPage');
+      if (loginPage) loginPage.classList.add('hidden');
+      if (adminPage) adminPage.classList.remove('hidden');
+
+      try { sessionStorage.setItem('azaad_admin_token', session.access_token); } catch (_) {}
+
+      window.dispatchEvent(new CustomEvent('azaad:authenticated', {
+        detail: { staff: body.staff, user: body.user || null }
+      }));
+
+      // Let the canonical admin application restore the persisted session and
+      // hydrate its own state. A reload avoids depending on module-scope
+      // functions from admin.js and preserves the real Supabase session.
+      window.location.reload();
+    } catch (error) {
+      console.error('Azaad admin login failed', error);
+      showError(error instanceof Error ? error.message : 'تعذر تسجيل الدخول. حاول مرة أخرى.');
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  }
+
+  function bind(){
+    if (disposed) return;
+    const form = document.getElementById('loginForm');
+    if (!form) return;
+    markReady();
+    if (boundForm === form) return;
+    if (boundForm) boundForm.removeEventListener('submit', submit, true);
+    form.addEventListener('submit', submit, true);
+    boundForm = form;
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bind, { once: true });
@@ -32,8 +147,7 @@
 
   window.addEventListener('pagehide', () => {
     disposed = true;
+    if (boundForm) boundForm.removeEventListener('submit', submit, true);
     observer.disconnect();
   }, { once: true });
 })();
-
-// Canonical admin.html owns submit/authentication; this controller is passive.
