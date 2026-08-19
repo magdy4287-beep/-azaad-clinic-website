@@ -77,25 +77,26 @@ def patch_admin_injected_compatibility():
     path=Path("admin.html")
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
-    # Make aria-label translation independent of DOMStringMap's identifier rules.
-    text=re.sub(
-        r"const key\s*=\s*`azaadSrc\$\{a\}`;",
-        "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;",
-        text
-    )
-    # Keep the hardening module's mutation queue mutable if its value is reset.
+    text=re.sub(r"const key\s*=\s*`azaadSrc\$\{a\}`;", "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;", text)
     text=re.sub(r"\bconst\s+queued\s*=\s*false\b", "let queued=false", text)
-    text=text.replace("queued=false;\nconst observer=new MutationObserver", "let queued=false;\nconst observer=new MutationObserver")
-    # The helper must exist before any injected/body script can execute.
     bridge='<script>window.$=window.$||function(id){return document.getElementById(id)};</script>'
     if bridge not in text:
-        if '</head>' in text:
-            text=text.replace('</head>',bridge+'\n</head>',1)
-        elif '<body>' in text:
-            text=text.replace('<body>', '<body>\n'+bridge,1)
-        else:
-            text=bridge+'\n'+text
+        if '</head>' in text:text=text.replace('</head>',bridge+'\n</head>',1)
+        elif '<body>' in text:text=text.replace('<body>', '<body>\n'+bridge,1)
+        else:text=bridge+'\n'+text
+    diagnostic="<script>window.addEventListener('error',function(e){if(e&&e.error&&e.error.stack)console.error('[AZAAD_PAGE_ERROR_STACK]',e.error.stack);});</script>"
+    if diagnostic not in text:
+        text=text.replace('</head>',diagnostic+'\n</head>',1)
     path.write_text(text,encoding="utf-8")
+
+def patch_nextgen_scripts():
+    # Fix dynamic dataset keys for hyphenated attributes in the production-parity artifact.
+    for path in Path('.').rglob('*.js'):
+        if '.git' in path.parts: continue
+        text=path.read_text(encoding='utf-8',errors='replace')
+        updated=text.replace("const key=`azaadSrc${a}`;", "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
+        updated=updated.replace("const key = `azaadSrc${a}`;", "const key = a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
+        if updated!=text:path.write_text(updated,encoding='utf-8')
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
 for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js"):
@@ -108,5 +109,6 @@ inject_script("clinical-assessment.html","clinician-longitudinal-dashboard.js")
 inject_script("clinical-assessment.html","patient-demographics-editor.js")
 inject_script("invoice-center.html","azaad-platform-kernel.js")
 inject_script("invoice-center.html","invoice-print-email.js")
+patch_nextgen_scripts()
 patch_admin_injected_compatibility()
 print("patch-admin.py completed successfully")
