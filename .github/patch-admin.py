@@ -34,7 +34,6 @@ def patch_admin_js():
    INITIALIZE
 '''
     if legacy.search(text): text=legacy.sub(modern,text,count=1)
-    # Secretary is a hybrid Front Desk + Cashier role in the UI. Keep this resilient to formatting changes.
     role_pattern=re.compile(r'(SECRETARY\s*:\s*\[)(.*?)(\])',re.S)
     match=role_pattern.search(text)
     if match and 'finance.view' not in match.group(2):
@@ -75,12 +74,14 @@ def inject_script(path_name,script_name):
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js"):
+for script in ("azaad-platform-kernel.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js"):
     inject_script("admin.html",script)
+inject_script("clinical-assessment.html","azaad-platform-kernel.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
 inject_script("clinical-assessment.html","clinician-transfer-widget.js")
 inject_script("clinical-assessment.html","clinician-ai-session-cockpit.js")
 inject_script("clinical-assessment.html","clinician-longitudinal-dashboard.js")
 inject_script("clinical-assessment.html","patient-demographics-editor.js")
+inject_script("invoice-center.html","azaad-platform-kernel.js")
 inject_script("invoice-center.html","invoice-print-email.js")
 print("patch-admin.py completed successfully")
