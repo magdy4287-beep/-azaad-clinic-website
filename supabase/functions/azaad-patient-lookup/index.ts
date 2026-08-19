@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js@2/edge-runtime.d.ts";
+import "jsr:@supabase/supabase-js@2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")!;const SERVICE_ROLE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const db=createClient(SUPABASE_URL,SERVICE_ROLE_KEY,{auth:{autoRefreshToken:false,persistSession:false}});
@@ -13,7 +13,7 @@ Deno.serve(async req=>{
   phone=phone.trim();if(!phone)return json(req,{error:"PATIENT_PHONE_REQUIRED"},400);const normalized=await normalizePhone(phone);if(!normalized)return json(req,{error:"INVALID_PHONE"},400);
   const {data:patient,error}=await db.from("clinic_patients").select("id,active").eq("patient_phone_normalized",normalized).eq("active",true).order("created_at",{ascending:true}).limit(1).maybeSingle();if(error)throw error;
   if(!patient)return json(req,{found:false});
-  // Public lookup intentionally returns no name, MRN, phone, appointments, doctor, service, notes, or financial data.
+  // Public lookup intentionally returns only a minimal existence marker and never exposes private patient details.
   return json(req,{found:true,patient:{id:patient.id,active:patient.active}});
  }catch(error){console.error("azaad-patient-lookup:",error);return json(req,{error:error instanceof Error?error.message:"Server error"},500)}
 });
