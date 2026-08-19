@@ -12,7 +12,8 @@
     if (busy) return;
     if (event) {
       event.preventDefault();
-      event.stopImmediatePropagation();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     }
 
     const form = document.getElementById(FORM_ID);
@@ -21,7 +22,7 @@
     const username = String(document.getElementById('username')?.value || '').trim().toLowerCase();
     const password = String(document.getElementById('password')?.value || '');
     const errorBox = document.getElementById('loginError');
-    const button = event?.submitter || form.querySelector('button[type="submit"]');
+    const button = document.getElementById('loginForm')?.querySelector('button[type="submit"]');
 
     const showError = message => {
       if (errorBox) {
@@ -94,12 +95,22 @@
     if (!form || form.dataset.azaadLoginControllerBound === 'true') return;
     form.dataset.azaadLoginControllerBound = 'true';
 
+    // This is the authoritative binding. It replaces any legacy inline
+    // onsubmit handler so multiple login implementations cannot race or
+    // swallow the request before staff-login is called.
+    form.onsubmit = submitLogin;
     form.addEventListener('submit', submitLogin, true);
 
-    const button = form.querySelector('button[type="submit"]');
-    if (button) button.addEventListener('click', submitLogin, true);
+    window.AZAAD_LOGIN_CONTROLLER_READY = true;
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
-  else bind();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind, { once: true });
+  } else {
+    bind();
+  }
+
+  // Defensive late binding for injected/re-rendered login forms.
+  const observer = new MutationObserver(bind);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
