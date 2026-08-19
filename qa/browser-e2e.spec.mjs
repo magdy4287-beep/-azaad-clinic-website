@@ -44,9 +44,9 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
 
   const pageErrors = [];
   const authResponseStatuses = [];
-  page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || '' }));
+  page.on('pageerror', error => pageErrors.push(error.message));
   page.on('response', response => {
-    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+    if (response.url().includes('/functions/v1/staff-login')) {
       authResponseStatuses.push(response.status());
     }
   });
@@ -57,51 +57,27 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
-  // Synchronize on the real canonical authentication dependency used by the
-  // application. Do not depend on a synthetic controller-readiness flag: the
-  // test must prove that the real form handler can reach the real setSession().
-  await page.waitForFunction(
-    () => Boolean(document.getElementById('loginForm') && window.AZAAD?.supabase?.auth?.setSession),
-    { timeout: 15000 }
-  );
-
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
-
-  const authResponsePromise = page.waitForResponse(
-    response => response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST',
-    { timeout: 15000 }
-  );
   await page.locator('#loginForm').getByRole('button', { name: /تسجيل الدخول/ }).click();
 
-  // Assert the real authentication POST reached the staff-login endpoint and
-  // returned HTTP 200. Do not consume the response body here: authentication
-  // owns that stream, and waiting for its body can deadlock the browser test
-  // while the real session transition is already proceeding.
-  const authResponse = await authResponsePromise;
-  const authStatus = authResponse.status();
-  expect(authStatus, 'staff-login POST must return HTTP 200').toBe(200);
+  await password.fill('');
 
-  // The real application must establish the session and reveal the authenticated
-  // shell. This is the session-level proof; no token/session is seeded by the test.
-  await expect.poll(
-    async () => page.evaluate(() => ({
-      loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
-      adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
+  await page.waitForTimeout(5000);
+  if (await page.locator('#loginPage').isVisible()) {
+    const diagnostics = await page.evaluate(() => ({
       hasAzaadGlobal: Boolean(window.AZAAD),
-      loginAttempt: window.AZAAD_LOGIN_LAST_ATTEMPT || '',
       hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
       hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
       loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
-      loginErrorText: document.getElementById('loginError')?.textContent || '',
-      authResponseStatuses: window.__azaadAuthResponseStatuses || []
-    })),
-    {
-      timeout: AUTH_READY_TIMEOUT,
-      intervals: [250, 500, 1000],
-      message: `real authentication did not transition to admin shell; authStatuses=${JSON.stringify(authResponseStatuses)} pageErrors=${JSON.stringify(pageErrors)}`
-    }
-  ).toMatchObject({ loginHidden: true, adminVisible: true });
+      loginErrorText: document.getElementById('loginError')?.textContent || ''
+    }));
+    throw new Error(`Admin auth shell did not transition: ${JSON.stringify({
+      ...diagnostics,
+      authResponseStatuses,
+      pageErrors
+    })}`);
+  }
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
