@@ -66,22 +66,22 @@ jobs:
           grep -q 'secretary-hybrid-workflow.js' .github/patch-admin.py
           grep -q 'patient-demographics-editor.js' .github/patch-admin.py
           grep -q 'invoice-print-email.js' .github/patch-admin.py
-      - name: Validate universal search contract
+      - name: Validate canonical admin search contract
         run: |
-          grep -q 'Name / Phone / MRN / Booking Number' admin-nextgen-v2.js
-          grep -q 'from:d,to:d' admin-nextgen-v2.js
-          grep -q "set('mrn'" admin-nextgen-v2.js
+          grep -q 'Disabled in favor of the canonical central i18n/admin runtime' admin-nextgen-v2.js
+          grep -q 'Name / Phone / Patient Number / Booking Number' patients-center.js
+          grep -q 'from:d,to:d' patients-center.js
+          grep -q 'params.set("mrn"' patients-center.js
           grep -q 'booking_code' patients-center.js
           grep -q 'bookingDateFilter' patients-center.js
       - name: Validate Secretary hybrid role contract
         run: python3 qa/secretary-hybrid-role-contract.py
       - name: Validate bilingual and session safety
         run: |
-          grep -q 'azaadClinicLanguage' admin-nextgen-v2.js
-          grep -q 'azaad_admin_lang' admin-nextgen-v2.js
-          grep -q 'No reload, no sign-out' admin-nextgen-v2.js
+          grep -q 'azaad_admin_lang' admin-english-hardening.js
+          grep -q 'localStorage.getItem' admin-english-hardening.js
           ! grep -Eqi 'signOut\(|auth\.signOut\(' admin-nextgen-v2.js
-      - name: Validate no service-role credential
+      - name: Validate no service-role credential in browser overlays
         run: |
           ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' admin-nextgen-v2.js
           ! grep -Eqi 'SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY|service_role_key\s*=' secretary-hybrid-workflow.js
