@@ -6,14 +6,13 @@ root = Path(__file__).resolve().parents[1]
 kernel = (root / 'azaad-platform-kernel.js').read_text(encoding='utf-8')
 migration = (root / 'supabase/migrations/20260819012000_azaad_platform_kernel_v1.sql').read_text(encoding='utf-8')
 patcher = (root / '.github/patch-admin.py').read_text(encoding='utf-8')
-refunds = '\n'.join(p.read_text(encoding='utf-8') for p in (root / 'supabase/migrations').glob('*refund*.sql'))
 
 # Platform kernel is real code, not a documentation-only marker.
 for needle in ('AZAAD_PLATFORM', 'advisoryOnly', 'humanApprovalRequired', 'forbiddenActions', 'AZAAD_WORKFLOW_POLICY', 'clinic_feature_flags', 'clinic_audit_events'):
     assert needle in kernel, needle
 
 # Core safety invariants are explicit and cannot be delegated to AI.
-for needle in ('refund', 'doctor_approval', 'management_owner_approval', 'ai_can_approve', 'paid_marketing_publication'):
+for needle in ('refund', 'doctor_approved', 'management_owner_approved', 'ai_can_approve', 'paid_marketing_publication'):
     assert needle in migration, needle
 
 # Feature flags are database-backed and RLS is present.
