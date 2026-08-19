@@ -70,6 +70,7 @@ jobs:
           python3 .github/finalize-auth.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
+          python3 .github/fix-auth-callback.py
 
       - name: Validate Admin production-parity JavaScript syntax
         if: github.event_name == 'pull_request'
@@ -81,6 +82,7 @@ jobs:
           if [[ -f ./admin-auth-ui-guard.js ]]; then
             node --check ./admin-auth-ui-guard.js
           fi
+          node --check ./admin.js
           python3 - <<'PY'
           from pathlib import Path
           import re
