@@ -51,7 +51,7 @@ def patch_startup_restore():
     marker='''window.AZAAD = {\n  supabase,\n  state,\n  hasPermission,\n  refresh:load,\n  logout\n};'''
     if marker not in text:
         print("Admin readiness marker not found; leaving source unchanged");return
-    replacement=marker+'''\n\nwindow.AZAAD_READY=(async()=>{try{const restored=await restore();if(restored!==false&&state.session?.access_token&&state.staff){$("loginPage")?.classList.add("hidden");$("adminPage")?.classList.remove("hidden");return true;}}catch(error){console.error("Admin startup restore failed:",error);}return false;})();'''
+    replacement=marker+'''\n\nwindow.AZAAD_READY=(async()=>{try{const restored=await restore();if(restored!==false&&state.session?.access_token&&state.staff){document.getElementById("loginPage")?.classList.add("hidden");document.getElementById("adminPage")?.classList.remove("hidden");return true;}}catch(error){console.error("Admin startup restore failed:",error);}return false;})();'''
     path.write_text(text.replace(marker,replacement,1),encoding="utf-8")
 
 def patch_patient_center():
