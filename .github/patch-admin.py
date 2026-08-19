@@ -77,23 +77,24 @@ def patch_admin_injected_compatibility():
     path=Path("admin.html")
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
-    # admin-nextgen-v2 used an invalid DOMStringMap key for aria-label.
-    text=text.replace(
-        "const key=`azaadSrc${a}`;if(!el.dataset[key])el.dataset[key]=r.get(norm(cur))||cur;el.setAttribute(a,translate(el.dataset[key],d,r));",
-        "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;if(!el.dataset[key])el.dataset[key]=r.get(norm(cur))||cur;el.setAttribute(a,translate(el.dataset[key],d,r));"
+    # Make aria-label translation independent of DOMStringMap's identifier rules.
+    text=re.sub(
+        r"const key\s*=\s*`azaadSrc\$\{a\}`;",
+        "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;",
+        text
     )
-    # Keep the hardening module's mutation queue local; an undeclared global
-    # named `queued` can collide with other browser scripts and throw when reset.
+    # Keep the hardening module's mutation queue mutable if its value is reset.
+    text=re.sub(r"\bconst\s+queued\s*=\s*false\b", "let queued=false", text)
     text=text.replace("queued=false;\nconst observer=new MutationObserver", "let queued=false;\nconst observer=new MutationObserver")
-    # Bootstrap must be dependency-free and run before readiness code. Do not
-    # append this bridge at </body>, because AZAAD_READY executes earlier.
+    # The helper must exist before any injected/body script can execute.
     bridge='<script>window.$=window.$||function(id){return document.getElementById(id)};</script>'
     if bridge not in text:
-        anchor='window.AZAAD_READY='
-        if anchor in text:
-            text=text.replace(anchor,bridge+'\n'+anchor,1)
-        elif '</body>' in text:
-            text=text.replace('</body>',bridge+'\n</body>',1)
+        if '</head>' in text:
+            text=text.replace('</head>',bridge+'\n</head>',1)
+        elif '<body>' in text:
+            text=text.replace('<body>', '<body>\n'+bridge,1)
+        else:
+            text=bridge+'\n'+text
     path.write_text(text,encoding="utf-8")
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
