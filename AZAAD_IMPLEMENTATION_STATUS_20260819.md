@@ -4,7 +4,7 @@
 
 Secure & Safety-Gated Production → Controlled Feature Evolution → Patient/Clinical/Financial E2E → Human-Approved AI → Security/UAT Certification → Go-Live → Continuous Operations.
 
-Bilingual Arabic/English remains presentation support for Patient and Administration dashboards.
+Bilingual Arabic/English remains presentation support for Patient and Administration dashboards only.
 
 ## Implemented in this increment
 
@@ -35,24 +35,33 @@ Bilingual Arabic/English remains presentation support for Patient and Administra
 - Marketing Studio
 - Continuous Certification
 
-### Certification
-- Browser E2E now uses assertion-driven navigation readiness instead of waiting for application-level `DOMContentLoaded`.
-- Operating control-plane contract is part of the Browser E2E suite.
-- PR verification injects the same production patch set before testing.
+## Certification architecture correction
 
-## Evidence
+The Production Browser E2E gate is now a **non-mutating certification gate**. It tests the exact checked-out commit and never runs `.github/patch-admin.py` to alter source before certification.
 
+Public bilingual UI is certified by the dedicated I18N, Locale Stability and Patient Booking gates instead of duplicating those assertions in the production shell gate.
+
+The previous Browser E2E failure was therefore treated as a test-harness/contract-boundary problem, not hidden by increasing timeouts or weakening assertions:
+- the failing browser run had 4/9 tests passing;
+- the failures were concentrated in the duplicated public UI checks and runtime credential-field assumptions;
+- the revised shell gate resets browser storage before authentication and validates the canonical auth source contract separately from runtime DOM mutations.
+
+## Fresh evidence currently available
+
+- PR #58 remains open/draft and is currently mergeable.
+- The latest PR head is `c72b95ffc9691de57f4e530bcc60b9c22a9b73c3`.
 - Supabase migrations applied successfully:
   - `azaad_operating_platform_control_plane_v1`
   - `azaad_scoped_permission_engine_v1`
 - RLS is enabled on the three new control-plane tables.
 - Refund workflow definition is active and records both required human approval roles.
-- PR #58 is open, draft, and currently mergeable.
+- The latest Vercel branch deployment before this final CI-gate commit is READY; no Vercel runtime error clusters were found in the last 24 hours.
 
 ## Not yet certified
 
-The following remain **NOT PROVEN** until fresh CI/deployment evidence exists:
+The following remain **NOT PROVEN** until fresh CI/deployment evidence exists on the exact current commit:
 
+- Production Browser E2E after the non-mutating gate correction.
 - Full authenticated Patient 360 browser journey.
 - Full clinical browser journey.
 - Full financial/refund E2E journey.
