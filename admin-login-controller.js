@@ -10,12 +10,16 @@
   let disposed = false;
   let ready = false;
 
-  function markReady(){
-    if (disposed || ready) return;
-    if (!document.getElementById('loginForm')) return;
-    ready = true;
-    window.AZAAD_LOGIN_CONTROLLER_READY = true;
-    window.dispatchEvent(new CustomEvent('azaad:login-controller-ready'));
+  function prepareForm(){
+    const form = document.getElementById('loginForm');
+    if (!form) return false;
+    form.noValidate = true;
+    if (!ready) {
+      ready = true;
+      window.AZAAD_LOGIN_CONTROLLER_READY = true;
+      window.dispatchEvent(new CustomEvent('azaad:login-controller-ready'));
+    }
+    return true;
   }
 
   async function getSupabase(){
@@ -42,9 +46,6 @@
 
   async function submit(event){
     const form = event.target;
-    // Do not use instanceof here: the only production contract we need is the
-    // real DOM target and its stable id. This also remains valid across iframe,
-    // adopted-node, and generated-document realms.
     if (!form || form.id !== 'loginForm') return;
 
     event.preventDefault();
@@ -100,35 +101,21 @@
     }
   }
 
-  // The generated form has required fields. Disable native validation so the
-  // canonical controller owns validation and requestSubmit always dispatches
-  // the real submit event that reaches this capture listener.
-  const form = document.getElementById('loginForm');
-  if (form) form.noValidate = true;
-
-  // Bind at window capture level so the canonical handler survives any
-  // replacement of #loginForm by other initialization code. This is one
-  // listener only; it delegates solely to the canonical login form.
+  prepareForm();
   window.addEventListener('submit', submit, true);
-  markReady();
 
-  if (!ready) {
-    const observer = new MutationObserver(() => {
-      const currentForm = document.getElementById('loginForm');
-      if (currentForm) currentForm.noValidate = true;
-      markReady();
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    document.addEventListener('DOMContentLoaded', () => {
-      const currentForm = document.getElementById('loginForm');
-      if (currentForm) currentForm.noValidate = true;
-      markReady();
-      observer.disconnect();
-    }, { once: true });
+  // Keep the current or any replacement login form validation-independent.
+  // Other initialization code can rebuild #loginForm after this controller
+  // loads; requestSubmit must still reach the canonical submit boundary.
+  const observer = new MutationObserver(prepareForm);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', prepareForm, { once: true });
   }
 
   window.addEventListener('pagehide', () => {
     disposed = true;
     window.removeEventListener('submit', submit, true);
+    observer.disconnect();
   }, { once: true });
 })();
