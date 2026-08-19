@@ -22,7 +22,7 @@
     const username = String(document.getElementById('username')?.value || '').trim().toLowerCase();
     const password = String(document.getElementById('password')?.value || '');
     const errorBox = document.getElementById('loginError');
-    const button = document.getElementById('loginForm')?.querySelector('button[type="submit"]');
+    const button = document.getElementById(FORM_ID)?.querySelector('button[type="submit"]');
 
     const showError = message => {
       if (errorBox) {
@@ -41,6 +41,7 @@
     }
 
     busy = true;
+    window.AZAAD_LOGIN_LAST_ATTEMPT = 'staff-login-request';
     if (errorBox) {
       errorBox.textContent = '';
       errorBox.classList.add('hidden');
@@ -57,6 +58,7 @@
         headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
         body: JSON.stringify({ username, password })
       });
+      window.AZAAD_LOGIN_LAST_STATUS = response.status;
       let body = {};
       try { body = await response.json(); } catch (_) {}
       if (!response.ok) throw new Error(body?.error || body?.message || 'بيانات الدخول غير صحيحة.');
@@ -75,9 +77,11 @@
       if (result.error) throw result.error;
 
       try { sessionStorage.setItem('azaad_admin_token', session.access_token); } catch (_) {}
+      window.AZAAD_LOGIN_LAST_ATTEMPT = 'authenticated';
       window.dispatchEvent(new CustomEvent('azaad-auth-ready'));
     } catch (error) {
       console.error('Admin login controller error:', error);
+      window.AZAAD_LOGIN_LAST_ATTEMPT = 'error';
       showError(error?.message || 'بيانات الدخول غير صحيحة أو لا يوجد حساب فعال.');
       if (button) {
         button.disabled = false;
@@ -93,11 +97,13 @@
   function bind(){
     const form = document.getElementById(FORM_ID);
     if (!form || form.dataset.azaadLoginControllerBound === 'true') return;
+    const button = form.querySelector('button[type="submit"]');
     form.dataset.azaadLoginControllerBound = 'true';
 
-    // This is the authoritative binding. It replaces any legacy inline
-    // onsubmit handler so multiple login implementations cannot race or
-    // swallow the request before staff-login is called.
+    // Intercept the user's click as well as submit. This prevents a native
+    // browser form navigation from winning a race with another submit handler.
+    // Authentication still goes exclusively through the real staff-login function.
+    if (button) button.addEventListener('click', submitLogin, true);
     form.onsubmit = submitLogin;
     form.addEventListener('submit', submitLogin, true);
 
