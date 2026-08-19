@@ -68,7 +68,7 @@ jobs:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs qa/platform-control-plane.spec.mjs
 
       - name: Run browser E2E against exact checked-out code on pull requests
         if: github.event_name == 'pull_request'
@@ -76,7 +76,7 @@ jobs:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs qa/platform-control-plane.spec.mjs
 
       - name: Enforce Production Certification policy
         shell: bash
