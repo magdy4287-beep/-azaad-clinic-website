@@ -41,6 +41,24 @@ def patch_admin_js():
         if body and not body.endswith('\n'): body+='\n'
         body+='    "finance.view",\n'
         text=text[:match.start(2)]+body+text[match.end(2):]
+
+    # Supabase auth callbacks must not perform awaited network/database work
+    # synchronously inside onAuthStateChange. Deferring the callback work lets
+    # setSession() complete and lets the canonical login() path initialize the
+    # authenticated shell without changing the real authentication flow.
+    auth_start='''supabase.auth.onAuthStateChange(\n  async (\n    event,\n    session\n  ) => {'''
+    auth_start_replacement='''supabase.auth.onAuthStateChange(\n  (event, session) => {\n    queueMicrotask(async () => {'''
+    if auth_start in text:
+        text=text.replace(auth_start,auth_start_replacement,1)
+        auth_end='''  }\n);\n\n/* ============================================================\n   GLOBAL API'''
+        auth_end_replacement='''    });\n  }\n);\n\n/* ============================================================\n   GLOBAL API'''
+        if auth_end in text:
+            text=text.replace(auth_end,auth_end_replacement,1)
+        else:
+            print("Auth callback end marker not found; leaving callback unwrapped")
+    else:
+        print("Auth callback start marker not found; source may already be patched")
+
     path.write_text(text,encoding="utf-8")
 
 def patch_startup_restore():
