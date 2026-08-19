@@ -8,22 +8,29 @@ html = HTML_PATH.read_text(encoding="utf-8")
 js = JS_PATH.read_text(encoding="utf-8")
 controller = CONTROLLER_PATH.read_text(encoding="utf-8")
 
-# The canonical controller is allowed to own the single production submit
-# path. Validate behavior, not a historical implementation spelling.
-if "loginForm" not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js lost login form contract")
-if "fetch(" not in controller or "staff-login" not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js lost real staff-login request")
-if "setSession" not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js lost Supabase setSession")
-if "AZAAD_LOGIN_CONTROLLER_READY" not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js lost readiness contract")
-if "addEventListener('submit'" not in controller and 'addEventListener("submit"' not in controller:
-    raise RuntimeError("Canonical admin-login-controller.js has no submit owner")
+# The canonical controller is the single production submit owner. Validate the
+# actual behavioral contract rather than forbidding the interception primitives
+# that a legitimate capture-phase owner must use to prevent a second handler.
+required = (
+    ("loginForm", "login form contract"),
+    ("fetch(", "real staff-login request"),
+    ("staff-login", "real staff-login endpoint"),
+    ("setSession", "Supabase session establishment"),
+    ("AZAAD_LOGIN_CONTROLLER_READY", "readiness contract"),
+    ("addEventListener('submit'", "submit owner"),
+    ("preventDefault()", "native submit cancellation"),
+)
+for marker, label in required:
+    if marker not in controller:
+        raise RuntimeError(f"Canonical controller lost {label}: {marker}")
 
-for marker in ("preventDefault()", "stopPropagation()", "stopImmediatePropagation()"):
-    if marker in controller:
-        raise RuntimeError(f"Canonical controller contains forbidden submit interception: {marker}")
+# The owner must be capture-phase and must stop competing handlers. This is an
+# intentional invariant, not a forbidden pattern: otherwise admin.js can run a
+# second login path after the canonical adapter has started authentication.
+if "addEventListener('submit', authenticate, true)" not in controller:
+    raise RuntimeError("Canonical controller is not the capture-phase submit owner")
+if "stopImmediatePropagation()" not in controller:
+    raise RuntimeError("Canonical submit owner does not block competing handlers")
 
 legacy_markers = (
     "azaadInstallLoginBridge",
@@ -35,6 +42,7 @@ legacy_markers = (
 if any(marker in js for marker in legacy_markers):
     raise RuntimeError("Legacy submit bridge remains in admin.js")
 
+# The generated parity document must contain the canonical controller exactly.
 controller_source = controller.replace("</script>", "<\\/script>")
 inline_script = f'<script type="module">\n{controller_source}\n</script>'
 external_script = '<script type="module" src="/admin-login-controller.js"></script>'
