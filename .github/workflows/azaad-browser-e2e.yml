@@ -26,24 +26,19 @@ jobs:
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
-
       - name: Verify exact commit under test
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: 24
-
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test
-
       - name: Install Chromium
         run: npx playwright install chromium
-
       - name: Create immutable local production-parity build copy for pull requests and manual branch runs
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         shell: bash
@@ -58,9 +53,9 @@ jobs:
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
           python3 .github/harden-admin-runtime.py
+          python3 .github/repair-admin-generated.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
-
       - name: Preflight production-parity JavaScript syntax
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         shell: bash
@@ -81,7 +76,7 @@ jobs:
                   subprocess.run(['node','--check',str(path)],check=True)
                   checked.append(str(path))
           inline = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
-          for i, code in enumerate(inline, 1):
+          for code in inline:
               if not code.strip():
                   continue
               with tempfile.NamedTemporaryFile('w',suffix='.js',encoding='utf-8',delete=False) as f:
@@ -90,7 +85,6 @@ jobs:
               subprocess.run(['node','--check',name],check=True)
           print(f'Syntax preflight passed for {len(checked)} local external scripts and {len(inline)} inline script blocks.')
           PY
-
       - name: Start local checked-out production-parity build server for pull requests and manual branch runs
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         shell: bash
@@ -100,15 +94,11 @@ jobs:
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              echo "Local Azaad immutable production-parity build is ready."
-              exit 0
-            fi
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/azaad-http.log || true
           exit 1
-
       - name: Verify controlled browser credential configuration
         env:
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
@@ -117,22 +107,18 @@ jobs:
           set -euo pipefail
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
-          echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
-
       - name: Run browser shell/control-plane E2E against production on main
         if: github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
-
       - name: Run browser shell/control-plane/responsive E2E against exact checked-out production-parity build copy on pull requests and manual branch runs
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
-
       - name: Enforce Production Certification policy
         shell: bash
         run: |
@@ -151,7 +137,6 @@ jobs:
           grep -Fq 'AI-first clinic platform' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           echo "Production certification policy verified for commit: $(git rev-parse HEAD)"
-
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v7
@@ -159,16 +144,8 @@ jobs:
           name: azaad-playwright-report
           path: playwright-report/
           if-no-files-found: ignore
-
       - name: Stop local server
         if: always() && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'))
         shell: bash
         run: |
-          if [[ -f /tmp/azaad-http.pid ]]; then
-            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
-          fi
-
-# Source certification remains non-mutating: PR/manual branch browser tests run from an immutable production-parity /tmp build copy.
-# The copy mirrors Vercel's buildCommand so browser evidence reflects the deployed artifact shape.
-# Main pushes validate the deployed production shell; pull requests/manual branch runs validate the exact checked-out production-parity build copy.
-# Authenticated E2E is gated behind a dedicated controlled Frontdesk credential and never bypassed with fake credentials.
+          if [[ -f /tmp/azaad-http.pid ]]; then kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true; fi
