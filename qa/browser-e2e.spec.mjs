@@ -51,10 +51,9 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
-  // The production-parity login controller is injected at build time. Because
-  // this test deliberately navigates with `commit`, wait for the real handler
-  // to bind before clicking; otherwise the browser can race the script load and
-  // perform a native form submit without exercising authentication at all.
+  // The readiness bridge is passive: it only confirms that the canonical
+  // admin.html submit handler and Supabase client exist. Authentication itself
+  // remains the real form handler and the real staff-login endpoint.
   await page.waitForFunction(
     () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY && window.AZAAD?.supabase?.auth?.setSession),
     { timeout: 10000 }
@@ -74,10 +73,9 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   const authBody = await authResponse.json().catch(() => ({}));
   expect(authStatus, `staff-login must be reached with the real CI credential flow; response=${JSON.stringify(authBody)}`).toBe(200);
 
-  await password.fill('');
-
-  // Fail with non-secret diagnostics if the real authentication request succeeds
-  // but the authenticated shell does not transition.
+  // Do not touch the form while the canonical handler is completing setSession
+  // and the authenticated shell transition. Clearing the password is UI cleanup,
+  // not an authentication assertion, and doing it here can race a real navigation.
   await expect.poll(
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
