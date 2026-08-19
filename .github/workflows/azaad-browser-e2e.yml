@@ -25,7 +25,7 @@ env:
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
@@ -44,8 +44,19 @@ jobs:
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            playwright-chromium-${{ runner.os }}-
+
       - name: Install Chromium
-        run: npx playwright install chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 15m npx playwright install chromium
 
       - name: Create immutable local production-parity build copy for pull requests
         if: github.event_name == 'pull_request'
