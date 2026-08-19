@@ -41,11 +41,6 @@ def patch_admin_js():
         if body and not body.endswith('\n'): body+='\n'
         body+='    "finance.view",\n'
         text=text[:match.start(2)]+body+text[match.end(2):]
-
-    # Supabase auth callbacks must not perform awaited network/database work
-    # synchronously inside onAuthStateChange. Deferring the callback work lets
-    # setSession() complete and lets the canonical login() path initialize the
-    # authenticated shell without changing the real authentication flow.
     auth_start='''supabase.auth.onAuthStateChange(\n  async (\n    event,\n    session\n  ) => {'''
     auth_start_replacement='''supabase.auth.onAuthStateChange(\n  (event, session) => {\n    queueMicrotask(async () => {'''
     if auth_start in text:
@@ -58,7 +53,6 @@ def patch_admin_js():
             print("Auth callback end marker not found; leaving callback unwrapped")
     else:
         print("Auth callback start marker not found; source may already be patched")
-
     path.write_text(text,encoding="utf-8")
 
 def patch_startup_restore():
@@ -121,7 +115,7 @@ def patch_nextgen_scripts():
         if updated!=text:path.write_text(updated,encoding='utf-8')
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js"):
+for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js"):
     inject_script("admin.html",script)
 inject_script("clinical-assessment.html","azaad-platform-kernel.js")
 inject_script("clinical-assessment.html","clinical-followup-widget.js")
