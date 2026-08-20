@@ -58,7 +58,16 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
       });
     }
     if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
-      authResponses.push(response);
+      // Capture the response body while the response is still attached to the
+      // current page context. Navigation/reload can invalidate response.text().
+      const record = {
+        response,
+        status: response.status(),
+        headers: response.headers(),
+        bodyText: null
+      };
+      authResponses.push(record);
+      void response.text().then(text => { record.bodyText = text; }).catch(() => {});
     }
   });
 
@@ -68,8 +77,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
-  // Readiness means the real submit listener is bound. The production handler
-  // owns the async Supabase dependency and will wait for it before staff-login.
   await page.waitForFunction(
     () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
     { timeout: 10000 }
@@ -77,9 +84,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
 
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
-
-  // Exercise the canonical production form submit handler directly. No token,
-  // session, endpoint response, or credential is mocked or pre-seeded.
   await page.locator('#loginForm').evaluate(form => form.requestSubmit());
 
   await expect.poll(
@@ -91,10 +95,10 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     }
   ).toBeGreaterThan(0);
 
-  const authResponse = authResponses[authResponses.length - 1];
-  const authStatus = authResponse.status();
-  const authText = await authResponse.text();
+  const authRecord = authResponses[authResponses.length - 1];
+  const authStatus = authRecord.status;
   let authBody = {};
+  const authText = authRecord.bodyText || '';
   try { authBody = authText ? JSON.parse(authText) : {}; } catch (_) {}
 
   expect(
@@ -103,42 +107,35 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   ).toBe(200);
   expect(
     authBody,
-    `staff-login POST returned no usable session; bodyBytes=${authText.length}; contentType=${authResponse.headers()['content-type'] || ''}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`
+    `staff-login POST returned no usable session; bodyBytes=${authText.length}; contentType=${authRecord.headers['content-type'] || ''}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`
   ).toEqual(expect.objectContaining({
     session: expect.objectContaining({ access_token: expect.any(String) }),
     staff: expect.objectContaining({ id: expect.anything() })
   }));
 
-  const immediateState = await page.evaluate(() => ({
-    url: location.href,
-    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
-    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
-    hasAzaadGlobal: Boolean(window.AZAAD),
-    loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
-    hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
-    hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('-auth-token')),
-    loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
-    loginErrorText: document.getElementById('loginError')?.textContent || ''
-  }));
-
+  // The production controller performs the real reload itself after the
+  // session is persisted. Do not assert the pre-reload DOM as the final state.
   await expect.poll(
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
       adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
       hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
-      loginErrorVisible: !document.getElementById('loginError')?.classList.contains('hidden'),
-      loginErrorText: document.getElementById('loginError')?.textContent || ''
+      hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('auth')),
+      loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
+      authReady: Boolean(window.AZAAD_READY)
     })),
     {
       timeout: AUTH_READY_TIMEOUT,
       intervals: [250, 500, 1000],
-      message: `authenticated shell did not transition. immediate=${JSON.stringify(immediateState)} unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
+      message: `authenticated shell did not transition after the real login/reload. unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
     }
   ).toMatchObject({ loginHidden: true, adminVisible: true, hasAdminToken: true });
 
-  await expect(page.locator('#loginPage')).toBeHidden({ timeout: 5000 });
-  await expect(page.locator('#adminPage')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
+  await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 
+  // Second reload proves persisted-session restoration independently of the
+  // login controller's first navigation. No token or session is injected.
   await page.reload(navigation);
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
