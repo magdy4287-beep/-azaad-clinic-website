@@ -52,32 +52,54 @@ function isFutureJwtRejection(status, body) {
   return status === 401 && /PGRST303|JWT issued at future/i.test(body);
 }
 
-function jwtIssuedAtMs(token) {
+function jwtClaims(token) {
   try {
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
-    return Number.isFinite(payload?.iat) ? payload.iat * 1000 : null;
+    return {
+      iat: Number.isFinite(payload?.iat) ? payload.iat : null,
+      nbf: Number.isFinite(payload?.nbf) ? payload.nbf : null,
+      exp: Number.isFinite(payload?.exp) ? payload.exp : null,
+      aud: typeof payload?.aud === 'string' ? payload.aud : null,
+      role: typeof payload?.role === 'string' ? payload.role : null,
+      iss: typeof payload?.iss === 'string' ? payload.iss : null,
+    };
   } catch (_) {
     return null;
   }
 }
 
-async function waitForJwtClockCatchUp(token, response, attempt) {
-  const issuedAt = jwtIssuedAtMs(token);
+async function authClockEvidence(request, token) {
+  requireEnv('AZAAD_SUPABASE_URL', supabaseUrl);
+  requireEnv('AZAAD_SUPABASE_ANON_KEY', anonKey);
+  const response = await request.get(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
+  });
+  return {
+    status: response.status(),
+    dateHeader: response.headers()['date'] || '',
+  };
+}
+
+async function waitForJwtClockCatchUp(request, token, response, attempt) {
+  const claims = jwtClaims(token);
   const serverDateHeader = response.headers()['date'] || '';
   const serverDate = Date.parse(serverDateHeader);
   const localNow = Date.now();
+  const authEvidence = await authClockEvidence(request, token);
+  const authDate = Date.parse(authEvidence.dateHeader);
 
-  if (issuedAt == null) {
-    throw new Error(`PGRST303 diagnostic could not decode JWT iat (attempt ${attempt}); token payload did not expose a numeric iat.`);
+  if (!claims || claims.iat == null) {
+    throw new Error(`PGRST303 claim diagnostic could not decode JWT temporal claims (attempt ${attempt}); token payload did not expose numeric iat.`);
   }
 
-  console.log(`PGRST303 timing evidence: jwtIatMs=${issuedAt}; jwtIatIso=${new Date(issuedAt).toISOString()}; localNowMs=${localNow}; localNowIso=${new Date(localNow).toISOString()}; responseDateHeader=${serverDateHeader || '<missing>'}.`);
+  console.log(`PGRST303 claim evidence: iat=${claims.iat}; iatIso=${new Date(claims.iat * 1000).toISOString()}; nbf=${claims.nbf ?? '<absent>'}; nbfIso=${claims.nbf == null ? '<absent>' : new Date(claims.nbf * 1000).toISOString()}; exp=${claims.exp ?? '<absent>'}; expIso=${claims.exp == null ? '<absent>' : new Date(claims.exp * 1000).toISOString()}; aud=${claims.aud ?? '<absent>'}; role=${claims.role ?? '<absent>'}; iss=${claims.iss ?? '<absent>'}.`);
+  console.log(`PGRST303 clock evidence: localNowIso=${new Date(localNow).toISOString()}; postgrestDate=${serverDateHeader || '<missing>'}; authUserStatus=${authEvidence.status}; authDate=${authEvidence.dateHeader || '<missing>'}; postgrestVsAuthDateMs=${Number.isFinite(serverDate) && Number.isFinite(authDate) ? serverDate - authDate : '<unmeasured>'}; jwtIatVsPostgrestDateMs=${Number.isFinite(serverDate) ? claims.iat * 1000 - serverDate : '<unmeasured>'}; jwtIatVsAuthDateMs=${Number.isFinite(authDate) ? claims.iat * 1000 - authDate : '<unmeasured>'}.`);
 
   if (!Number.isFinite(serverDate)) {
-    throw new Error(`PGRST303 diagnostic could not measure PostgREST server time because the response Date header is missing or invalid (attempt ${attempt}).`);
+    throw new Error(`PGRST303 claim diagnostic could not measure PostgREST gateway time because the response Date header is missing or invalid (attempt ${attempt}).`);
   }
 
-  const skewMs = Math.max(0, issuedAt - serverDate);
+  const skewMs = Math.max(0, claims.iat * 1000 - serverDate);
   const delayMs = Math.min(Math.max(skewMs + 1500, 5000), 15000);
   console.log(`PGRST303 JWT future-time rejection; measuredServerSkewMs=${skewMs}; waiting ${delayMs}ms before retry (attempt ${attempt}).`);
   await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -99,7 +121,7 @@ async function prepareFixtures(request) {
 
     const body = await response.text();
     if (attempt <= maxClockSkewRetries && isFutureJwtRejection(response.status(), body)) {
-      await waitForJwtClockCatchUp(tokens.frontdesk, response, attempt);
+      await waitForJwtClockCatchUp(request, tokens.frontdesk, response, attempt);
       continue;
     }
 
