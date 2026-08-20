@@ -44,9 +44,18 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
 
   const pageErrors = [];
   const consoleErrors = [];
+  const unauthorizedRequests = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('console', message => {
     if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('response', response => {
+    if (response.status() === 401) {
+      unauthorizedRequests.push({
+        method: response.request().method(),
+        url: response.url()
+      });
+    }
   });
 
   await resetBrowserSession(page);
@@ -114,7 +123,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     {
       timeout: AUTH_READY_TIMEOUT,
       intervals: [250, 500, 1000],
-      message: `authenticated shell did not transition. immediate=${JSON.stringify(immediateState)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
+      message: `authenticated shell did not transition. immediate=${JSON.stringify(immediateState)} unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
     }
   ).toMatchObject({ loginHidden: true, adminVisible: true, hasAdminToken: true });
 
