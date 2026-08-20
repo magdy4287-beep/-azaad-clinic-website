@@ -80,55 +80,45 @@ async function authClockEvidence(request, token) {
   };
 }
 
-async function waitForJwtClockCatchUp(request, token, response, attempt) {
+async function recordPgrst303Evidence(request, token, response) {
   const claims = jwtClaims(token);
-  const serverDateHeader = response.headers()['date'] || '';
-  const serverDate = Date.parse(serverDateHeader);
+  const postgrestDateHeader = response.headers()['date'] || '';
+  const postgrestDate = Date.parse(postgrestDateHeader);
   const localNow = Date.now();
   const authEvidence = await authClockEvidence(request, token);
   const authDate = Date.parse(authEvidence.dateHeader);
 
   if (!claims || claims.iat == null) {
-    throw new Error(`PGRST303 claim diagnostic could not decode JWT temporal claims (attempt ${attempt}); token payload did not expose numeric iat.`);
+    throw new Error('PGRST303 claim diagnostic could not decode numeric JWT iat.');
   }
 
   console.log(`PGRST303 claim evidence: iat=${claims.iat}; iatIso=${new Date(claims.iat * 1000).toISOString()}; nbf=${claims.nbf ?? '<absent>'}; nbfIso=${claims.nbf == null ? '<absent>' : new Date(claims.nbf * 1000).toISOString()}; exp=${claims.exp ?? '<absent>'}; expIso=${claims.exp == null ? '<absent>' : new Date(claims.exp * 1000).toISOString()}; aud=${claims.aud ?? '<absent>'}; role=${claims.role ?? '<absent>'}; iss=${claims.iss ?? '<absent>'}.`);
-  console.log(`PGRST303 clock evidence: localNowIso=${new Date(localNow).toISOString()}; postgrestDate=${serverDateHeader || '<missing>'}; authUserStatus=${authEvidence.status}; authDate=${authEvidence.dateHeader || '<missing>'}; postgrestVsAuthDateMs=${Number.isFinite(serverDate) && Number.isFinite(authDate) ? serverDate - authDate : '<unmeasured>'}; jwtIatVsPostgrestDateMs=${Number.isFinite(serverDate) ? claims.iat * 1000 - serverDate : '<unmeasured>'}; jwtIatVsAuthDateMs=${Number.isFinite(authDate) ? claims.iat * 1000 - authDate : '<unmeasured>'}.`);
+  console.log(`PGRST303 clock evidence: localNowIso=${new Date(localNow).toISOString()}; postgrestDate=${postgrestDateHeader || '<missing>'}; authUserStatus=${authEvidence.status}; authDate=${authEvidence.dateHeader || '<missing>'}; postgrestVsAuthDateMs=${Number.isFinite(postgrestDate) && Number.isFinite(authDate) ? postgrestDate - authDate : '<unmeasured>'}; jwtIatVsPostgrestDateMs=${Number.isFinite(postgrestDate) ? claims.iat * 1000 - postgrestDate : '<unmeasured>'}; jwtIatVsAuthDateMs=${Number.isFinite(authDate) ? claims.iat * 1000 - authDate : '<unmeasured>'}.`);
 
-  if (!Number.isFinite(serverDate)) {
-    throw new Error(`PGRST303 claim diagnostic could not measure PostgREST gateway time because the response Date header is missing or invalid (attempt ${attempt}).`);
+  if (!Number.isFinite(postgrestDate)) {
+    throw new Error('PGRST303 claim diagnostic could not measure PostgREST gateway time because the response Date header is missing or invalid.');
   }
 
-  const skewMs = Math.max(0, claims.iat * 1000 - serverDate);
-  const delayMs = Math.min(Math.max(skewMs + 1500, 5000), 15000);
-  console.log(`PGRST303 JWT future-time rejection; measuredServerSkewMs=${skewMs}; waiting ${delayMs}ms before retry (attempt ${attempt}).`);
-  await new Promise(resolve => setTimeout(resolve, delayMs));
+  console.log(`PGRST303 terminal diagnostic: no retry/backoff will be attempted; same JWT would retain the same iat=${claims.iat}.`);
 }
 
 async function prepareFixtures(request) {
-  const maxClockSkewRetries = 4;
-
-  for (let attempt = 1; attempt <= maxClockSkewRetries + 1; attempt += 1) {
-    const response = await rpc(request, 'clinic_prepare_controlled_clinical_e2e_suite', {}, tokens.frontdesk);
-    if (response.ok()) {
-      const body = await response.json();
-      const fixture = extractFixture(body);
-      requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
-      requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
-      requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
-      return fixture;
-    }
-
-    const body = await response.text();
-    if (attempt <= maxClockSkewRetries && isFutureJwtRejection(response.status(), body)) {
-      await waitForJwtClockCatchUp(request, tokens.frontdesk, response, attempt);
-      continue;
-    }
-
-    throw new Error(`Controlled E2E fixture factory failed with HTTP ${response.status()}: ${body}`);
+  const response = await rpc(request, 'clinic_prepare_controlled_clinical_e2e_suite', {}, tokens.frontdesk);
+  if (response.ok()) {
+    const body = await response.json();
+    const fixture = extractFixture(body);
+    requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
+    requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
+    requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
+    return fixture;
   }
 
-  throw new Error('Controlled E2E fixture factory exhausted clock-skew retries.');
+  const body = await response.text();
+  if (isFutureJwtRejection(response.status(), body)) {
+    await recordPgrst303Evidence(request, tokens.frontdesk, response);
+  }
+
+  throw new Error(`Controlled E2E fixture factory failed with HTTP ${response.status()}: ${body}`);
 }
 
 function expectDenied(response) {
