@@ -5,7 +5,8 @@
 (function installAzaadAdminLoginController(){
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
-  const SUPABASE_AUTH_STORAGE_KEY = 'sb-derofsthjivlkcdnojww-auth-token';
+  // Must match the canonical admin.html auth client created by finalize-auth.py.
+  const SUPABASE_AUTH_STORAGE_KEY = 'azaad-clinic-admin-auth';
   const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
   const SUPABASE_READY_TIMEOUT_MS = 20000;
   let disposed = false;
@@ -17,7 +18,7 @@
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
         storage: window.localStorage,
         storageKey: SUPABASE_AUTH_STORAGE_KEY
       }
@@ -152,8 +153,6 @@
     prepareForm();
   }
 
-  // Bind the submit owner as soon as the form exists. The handler itself waits
-  // for Supabase; readiness must never depend on the async dependency resolving.
   install();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
 
