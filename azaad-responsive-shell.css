@@ -1,0 +1,41 @@
+/* AZAAD Responsive Application Shell */
+:root { --azaad-gutter: clamp(10px, 2vw, 24px); --azaad-control-h: 44px; }
+html, body { min-width: 320px; }
+img, video, canvas, svg { max-width: 100%; }
+button, a, input, select, textarea { min-height: var(--azaad-control-h); }
+button, a { touch-action: manipulation; }
+.admin { width: min(100%, 1500px); padding-inline: var(--azaad-gutter); }
+.topbar, .top { position: sticky; top: 0; z-index: 50; }
+.tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); overflow: visible; }
+.tab { min-width: 0; width: 100%; }
+.top-actions, .item-actions, .toolbar, .modal-actions { align-items: stretch; }
+.top-actions > *, .item-actions > *, .toolbar > *, .modal-actions > * { min-width: 0; }
+.table-wrap { -webkit-overflow-scrolling: touch; max-width: 100%; }
+.wrap { width: min(100%, 1320px); padding-inline: var(--azaad-gutter); }
+.workspace-grid, .card { min-width: 0; }
+@media (max-width: 1100px) { .stats, .grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 760px) {
+  .topbar, .top { align-items: stretch; }
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .tab { padding: 9px 10px; font-size: 13px; }
+  .top-actions, .toolbar, .modal-actions, .item-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .top-actions > *, .toolbar > *, .modal-actions > *, .item-actions > * { width: 100%; }
+  .filters, .grid, .field-grid, .workspace-grid, .mini-grid, .time-row { grid-template-columns: 1fr !important; }
+  .full { grid-column: auto !important; }
+  .table-wrap table { min-width: 720px; }
+  .table-wrap { overflow-x: auto; }
+  .modal { padding: 8px; }
+  .modal-box { max-height: 96vh; padding: 14px; border-radius: 14px; }
+}
+@media (max-width: 480px) {
+  .admin, .wrap { padding: 8px; }
+  .stats, .grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .stat { padding: 14px !important; }
+  .stat-number { font-size: 24px !important; }
+  .topbar, .top { padding: 12px !important; border-radius: 12px; }
+  .tabs { grid-template-columns: 1fr 1fr; }
+  .top-actions, .toolbar, .modal-actions, .item-actions { grid-template-columns: 1fr 1fr; }
+  .btn, .tab { padding: 9px 8px; font-size: 12px; }
+  .card { padding: 13px !important; border-radius: 14px; }
+}
+.azaad-language-switcher { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }

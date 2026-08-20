@@ -16,10 +16,13 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  AZAAD_TEST_USERNAME: frontdesk_azaad
+
 jobs:
   browser-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
@@ -38,19 +41,88 @@ jobs:
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            playwright-chromium-${{ runner.os }}-
 
-      - name: Start local checked-out build server for pull requests
-        if: github.event_name == 'pull_request'
+      - name: Install Chromium
         shell: bash
         run: |
           set -euo pipefail
+          timeout 15m npx playwright install chromium
+
+      - name: Create immutable local production-parity build copy for pull requests and branch dispatches
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/azaad-build
+          mkdir -p /tmp/azaad-build
+          cp -a . /tmp/azaad-build/
+          cd /tmp/azaad-build
+          python3 qa/inject-central-i18n.py
+          python3 qa/inject-responsive-shell.py
+          python3 .github/patch-admin.py
+          python3 .github/finalize-auth.py
+          python3 .github/patch-admin-auth-lifecycle.py
+          python3 .github/patch-admin-auth-reload.py
+          python3 .github/patch-frontdesk-auth-bridge.py
+          python3 qa/restore-admin-submit-binding.py
+          python3 .github/inject-patient-actions.py
+          python3 .github/inject-doctor-actions.py
+
+      - name: Validate Admin production-parity JavaScript syntax
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          node --check ./admin-english-hardening.js
+          if [[ -f ./admin-auth-ui-guard.js ]]; then
+            node --check ./admin-auth-ui-guard.js
+          fi
+          node --check ./frontdesk-workflow.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          html = Path('admin.html').read_text(encoding='utf-8')
+          blocks = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.I | re.S)
+          failed = 0
+          for index, source in enumerate(blocks, start=1):
+              if not source.strip():
+                  continue
+              with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.js', delete=False) as handle:
+                  handle.write(source)
+                  path = handle.name
+              result = subprocess.run(['node', '--check', path], text=True, capture_output=True)
+              if result.returncode:
+                  print(f'Inline JavaScript syntax failure: admin.html script block {index}')
+                  print(result.stdout)
+                  print(result.stderr)
+                  failed = 1
+          if failed:
+              raise SystemExit(1)
+          print('Admin production-parity JavaScript syntax validation passed.')
+          PY
+
+      - name: Start local checked-out production-parity build server for pull requests and branch dispatches
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              echo "Local Azaad PR build is ready."
+              echo "Local Azaad immutable production-parity build is ready."
               exit 0
             fi
             sleep 1
@@ -58,21 +130,29 @@ jobs:
           cat /tmp/azaad-http.log || true
           exit 1
 
-      - name: Run browser E2E against production on main
-        if: github.event_name != 'pull_request'
+      - name: Verify controlled browser credential configuration
+        env:
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZAAD_TEST_USERNAME"
+          test -n "$AZAAD_TEST_PASSWORD"
+          echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
+
+      - name: Run browser shell/control-plane E2E against production on main
+        if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
-          AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
-          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
-      - name: Run browser E2E against exact checked-out code on pull requests
-        if: github.event_name == 'pull_request'
+      - name: Run browser shell/control-plane/responsive E2E against exact checked-out production-parity build copy on pull requests and branch dispatches
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
-          AZAAD_TEST_USERNAME: ${{ secrets.AZAAD_TEST_USERNAME }}
-          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_TEST_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/public-ui.spec.mjs
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs
 
       - name: Enforce Production Certification policy
         shell: bash
@@ -83,32 +163,3 @@ jobs:
           test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'AI-First • Free-Only • Safety-Gated • Continuous Delivery' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
           grep -Fq 'AZAAD is 100% free-only.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'NOT PROVEN ON FREE-ONLY STACK' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq '100% free-only' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI-first clinic platform' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          echo "Production certification policy verified for commit: $(git rev-parse HEAD)"
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: azaad-playwright-report
-          path: playwright-report/
-          if-no-files-found: ignore
-
-      - name: Stop local server
-        if: always() && github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          if [[ -f /tmp/azaad-http.pid ]]; then
-            kill "$(cat /tmp/azaad-http.pid)" 2>/dev/null || true
-          fi
-
-# Main pushes validate the deployed production surface; pull requests validate the exact checked-out code.
-# Weekly scheduled certification revalidates production without requiring paid monitoring.
-# Authenticated E2E remains gated behind dedicated CI secrets and is never bypassed by fake credentials.

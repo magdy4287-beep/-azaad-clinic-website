@@ -18,11 +18,19 @@
   const TERMINAL = new Set(['cancelled', 'no_show']);
   const ACTIVE = new Set(['pending', 'confirmed']);
 
+  const FRONT_DESK_RULES = new Set([ACTION.BOOK, ACTION.RESCHEDULE, ACTION.CANCEL, ACTION.NO_SHOW, ACTION.TRANSFER, ACTION.ASSIGN_WAITING]);
+
   const ROLE_RULES = Object.freeze({
     DOCTOR: new Set([ACTION.BOOK, ACTION.RESCHEDULE, ACTION.NO_SHOW]),
-    FRONT_DESK: new Set([ACTION.BOOK, ACTION.RESCHEDULE, ACTION.CANCEL, ACTION.NO_SHOW, ACTION.TRANSFER, ACTION.ASSIGN_WAITING]),
+    FRONT_DESK: FRONT_DESK_RULES,
+    SECRETARY: FRONT_DESK_RULES,
+    RECEPTION: FRONT_DESK_RULES,
+    RECEPTIONIST: FRONT_DESK_RULES,
+    CASHIER: new Set([ACTION.BOOK, ACTION.RESCHEDULE]),
     ADMIN: new Set(Object.values(ACTION)),
+    ADMINISTRATOR: new Set(Object.values(ACTION)),
     MANAGER: new Set(Object.values(ACTION)),
+    OWNER: new Set(Object.values(ACTION)),
   });
 
   function normalizeRole(role) {
@@ -65,13 +73,9 @@
   function validateTransition(action, currentStatus) {
     const status = String(currentStatus || '').toLowerCase();
     if (!isKnownAction(action)) return { ok: false, reason: 'unknown_action' };
-    if (action === ACTION.BOOK || action === ACTION.ASSIGN_WAITING) {
-      return { ok: true };
-    }
+    if (action === ACTION.BOOK || action === ACTION.ASSIGN_WAITING) return { ok: true };
     if (!ACTIVE.has(status)) return { ok: false, reason: 'appointment_not_active' };
-    if (action === ACTION.RESCHEDULE || action === ACTION.CANCEL || action === ACTION.NO_SHOW || action === ACTION.TRANSFER) {
-      return { ok: true };
-    }
+    if ([ACTION.RESCHEDULE, ACTION.CANCEL, ACTION.NO_SHOW, ACTION.TRANSFER].includes(action)) return { ok: true };
     return { ok: false, reason: 'unsupported_transition' };
   }
 

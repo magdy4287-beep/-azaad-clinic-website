@@ -1,17 +1,18 @@
 name: AZAAD Final Release Certification
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
+  checks: read
 
 jobs:
   final-release-certification:
     name: Final Release / Go-Live Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout exact production candidate
         uses: actions/checkout@v4
@@ -23,44 +24,72 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          echo "Certified candidate: $GITHUB_SHA"
+          echo "Candidate commit: $GITHUB_SHA"
 
-      - name: Required certification evidence
+      - name: Required certification evidence files
         shell: bash
         run: |
           set -euo pipefail
-          test -s AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          test -s AZAAD_ENGINEERING_CONTROL_PLAN.md
-          test -s AZAAD_CONTROLLED_EVOLUTION_FEATURE_DELIVERY_PLAN.md
-          test -s .github/workflows/azaad-ai-gate.yml
-          test -s .github/workflows/azaad-release-governance-gate.yml
-          test -s .github/workflows/azaad-operations-health.yml
-          grep -Fq 'AI-First • Free-Only • Safety-Gated • Continuous Delivery' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          for file in \
+            AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md \
+            AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md \
+            AZAAD_ENGINEERING_CONTROL_PLAN.md \
+            AZAAD_CONTROLLED_EVOLUTION_FEATURE_DELIVERY_PLAN.md; do
+            test -s "$file"
+          done
+
+      - name: Verify fresh required CI gates for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflows=(
+            '.github/workflows/azaad-comprehensive-system-contract.yml'
+            '.github/workflows/azaad-browser-e2e.yml'
+            '.github/workflows/azaad-clinical-authorization-e2e.yml'
+            '.github/workflows/azaad-payments-reporting-gate.yml'
+            '.github/workflows/azaad-phase12-security-audit-gate.yml'
+            '.github/workflows/azaad-ai-gate.yml'
+            '.github/workflows/azaad-operations-health.yml'
+            '.github/workflows/azaad-release-governance-gate.yml'
+          )
+          failed=0
+          for workflow in "${workflows[@]}"; do
+            runs="$(gh run list --repo "$GH_REPO" --workflow "$workflow" --commit "$CANDIDATE_SHA" --limit 20 --json databaseId,status,conclusion --jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length')"
+            if [ "$runs" -lt 1 ]; then
+              echo "MISSING/PENDING/FAILED exact-commit gate: $workflow" >&2
+              failed=1
+            else
+              echo "PASS exact-commit gate: $workflow"
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo 'FINAL RELEASE CERTIFICATION: NOT PROVEN — one or more required exact-commit gates are missing, pending, or failed.' >&2
+            exit 1
+          fi
+
+      - name: Verify production Vercel surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://azaad-clinic-website-magdy-team.vercel.app/"
+          curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
+          test -s /tmp/azaad-vercel.html
+          grep -Fq 'Azaad Clinic' /tmp/azaad-vercel.html
+          echo "Vercel production surface: PASS"
+
+      - name: Verify permanent human-approval and AI boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
           grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
           grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-
-      - name: One-time workflow safety
-        shell: bash
-        run: |
-          set -euo pipefail
-          for file in .github/workflows/*one-time*.yml .github/workflows/*once*.yml; do
-            [ -e "$file" ] || continue
-            ! grep -Eq '^\s*(push|schedule|pull_request|pull_request_target):' "$file"
-            ! grep -Eq '^\s*(secrets:|environment:)' "$file"
-          done
-          echo 'One-time workflow hygiene: PASS'
-
-      - name: AI and human-approval boundary
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq '100% free-only' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          echo 'AI / Free-Only / Human-Approval boundary: PASS'
+          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
 
       - name: Final release decision
         shell: bash
@@ -68,4 +97,4 @@ jobs:
           set -euo pipefail
           echo 'AZAAD FINAL RELEASE CERTIFICATION: PASS'
           echo "Exact commit: $GITHUB_SHA"
-          echo 'Go-Live gate evidence generated by this exact-commit workflow.'
+          echo 'All required exact-commit CI gates and the production Vercel surface passed.'

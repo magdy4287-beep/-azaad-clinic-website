@@ -138,4 +138,4 @@ Scheduling:
 AI follows:
 `Observe → Analyze → Recommend → Prepare → Human Approval → Execute only if policy permits → Audit`
 
-Healthcare AI must augment rather than replace clinical judgement and must provide transparency, accountability and human oversight. This is consistent with WHO AI-for-health guidance. 
+Healthcare AI must augment rather than replace clinical judgement and must provide transparency, accountability and human oversight. This is consistent with WHO AI-for-health guidance.

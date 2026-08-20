@@ -2,8 +2,11 @@ import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
 
+// Navigation waits for the document commit; UI readiness is asserted explicitly.
+const navigation = { waitUntil: 'commit' };
+
 test('public website primary actions are wired and interactive', async ({ page }) => {
-  await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${baseURL}/`, navigation);
   await expect(page.locator('#booking')).toBeAttached();
   await expect(page.locator('#waHero')).toHaveAttribute('href', /wa\.me\//);
   await expect(page.locator('#waLink')).toHaveAttribute('href', /wa\.me\//);
@@ -23,7 +26,7 @@ test('public website primary actions are wired and interactive', async ({ page }
 });
 
 test('public English mode has English UI chrome with no Arabic navigation labels', async ({ page }) => {
-  await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${baseURL}/`, navigation);
   await page.getByRole('button', { name: 'English' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
@@ -39,9 +42,9 @@ test('public English mode has English UI chrome with no Arabic navigation labels
 });
 
 test('public English mode survives reload', async ({ page }) => {
-  await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${baseURL}/`, navigation);
   await page.getByRole('button', { name: 'English' }).click();
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.reload(navigation);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await expect(page.locator('nav a').first()).toHaveText('Home');

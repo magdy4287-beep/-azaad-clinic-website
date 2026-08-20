@@ -1,0 +1,31 @@
+name: Azaad Feature Evolution Gate
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  feature-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax check new browser modules
+        run: |
+          node --check marketing-studio-v3.js
+          node --check public-team-display.js
+          node --check public-team-admin.js
+          node --check patient-booking-privacy-v2.js
+          node --check booking-share-deeplink.js
+      - name: Run feature contract
+        run: python qa/marketing-hybrid-and-public-privacy-gate.py
+      - name: Verify marketing migration and edge functions are present
+        run: |
+          test -f supabase/migrations/20260818160000_azaad_marketing_platform.sql
+          test -f supabase/migrations/20260818162000_harden_public_booking_existing_patient_privacy.sql
+          test -f supabase/functions/azaad-marketing-ai/index.ts
+          test -f public-team-display.js
+          test -f public-team-admin.js

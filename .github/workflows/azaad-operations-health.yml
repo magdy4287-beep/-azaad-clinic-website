@@ -30,6 +30,7 @@ jobs:
           test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           test -s .github/workflows/azaad-release-governance-gate.yml
           test -s .github/workflows/azaad-browser-e2e.yml
+          test -s .github/workflows/azaad-comprehensive-system-contract.yml
 
       - name: Verify free-only AI-first production constraint
         shell: bash
@@ -82,17 +83,17 @@ jobs:
           print('One-time workflow safety: PASS')
           PY
 
-      - name: Production Pages health check
+      - name: Production Vercel health check
         shell: bash
         run: |
           set -euo pipefail
-          owner="${GITHUB_REPOSITORY_OWNER}"
-          repo="${GITHUB_REPOSITORY#*/}"
-          url="https://${owner}.github.io/${repo}/"
+          url="https://azaad-clinic-website-magdy-team.vercel.app/"
           echo "Checking ${url}"
-          curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-pages.html
-          test -s /tmp/azaad-pages.html
-          echo "GitHub Pages HTTP health: PASS"
+          curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
+          test -s /tmp/azaad-vercel.html
+          grep -Fq 'Azaad Clinic' /tmp/azaad-vercel.html
+          grep -Fq 'central-i18n.js' /tmp/azaad-vercel.html
+          echo "Vercel production HTTP/content health: PASS"
 
       - name: Record production commit
         shell: bash
