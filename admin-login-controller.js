@@ -7,6 +7,7 @@
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const SUPABASE_AUTH_STORAGE_KEY = 'sb-derofsthjivlkcdnojww-auth-token';
   const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
+  const SUPABASE_READY_TIMEOUT_MS = 20000;
   let disposed = false;
   let installed = false;
   let supabase = null;
@@ -23,19 +24,35 @@
     });
     window.AZAAD = window.AZAAD || {};
     window.AZAAD.supabase = supabase;
+    window.AZAAD_SUPABASE_READY = true;
+    window.dispatchEvent(new CustomEvent('azaad:supabase-ready'));
     return supabase;
   });
 
   function prepareForm(){
     if (disposed) return false;
     const form = document.getElementById('loginForm');
-    if (!form || !supabase) return false;
+    if (!form) return false;
     form.noValidate = true;
     if (!window.AZAAD_LOGIN_CONTROLLER_READY) {
       window.AZAAD_LOGIN_CONTROLLER_READY = true;
       window.dispatchEvent(new CustomEvent('azaad:login-controller-ready'));
     }
     return true;
+  }
+
+  async function waitForSupabase(){
+    let timeoutId;
+    try {
+      return await Promise.race([
+        supabaseReady,
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('انتهت مهلة تهيئة Supabase قبل تنفيذ تسجيل الدخول.')), SUPABASE_READY_TIMEOUT_MS);
+        })
+      ]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
   }
 
   async function authenticate(event){
@@ -66,7 +83,7 @@
     if (button) button.disabled = true;
 
     try {
-      await supabaseReady;
+      await waitForSupabase();
       const response = await fetch(STAFF_LOGIN_FUNCTION, {
         method: 'POST',
         headers: {
@@ -135,14 +152,12 @@
     prepareForm();
   }
 
-  supabaseReady.then(() => {
-    if (disposed) return;
-    prepareForm();
-    install();
-  }).catch(error => console.error('Azaad Supabase client initialization failed', error));
-
+  // Bind the submit owner as soon as the form exists. The handler itself waits
+  // for Supabase; readiness must never depend on the async dependency resolving.
   install();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
+
+  supabaseReady.catch(error => console.error('Azaad Supabase client initialization failed', error));
 
   const observer = new MutationObserver(() => {
     prepareForm();
