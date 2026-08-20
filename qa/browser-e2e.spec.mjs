@@ -68,8 +68,10 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
+  // Readiness means the real submit listener is bound. The production handler
+  // owns the async Supabase dependency and will wait for it before staff-login.
   await page.waitForFunction(
-    () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY && window.AZAAD?.supabase?.auth?.setSession),
+    () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
     { timeout: 10000 }
   );
 
@@ -85,7 +87,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     {
       timeout: AUTH_READY_TIMEOUT,
       intervals: [100, 250, 500],
-      message: `real staff-login POST was not observed. unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
+      message: `real staff-login POST was not observed. controllerReady=${await page.evaluate(() => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY))}; supabaseReady=${await page.evaluate(() => Boolean(window.AZAAD_SUPABASE_READY))}; unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
     }
   ).toBeGreaterThan(0);
 
