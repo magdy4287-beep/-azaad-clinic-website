@@ -63,12 +63,23 @@ function jwtIssuedAtMs(token) {
 
 async function waitForJwtClockCatchUp(token, response, attempt) {
   const issuedAt = jwtIssuedAtMs(token);
-  const serverDate = Date.parse(response.headers()['date'] || '');
-  const now = Date.now();
-  const referenceNow = Number.isFinite(serverDate) ? serverDate : now;
-  const skewMs = issuedAt == null ? 0 : Math.max(0, issuedAt - referenceNow);
-  const delayMs = Math.min(Math.max(skewMs + 1500, 5000 * attempt), 15000);
-  console.log(`PGRST303 JWT future-time rejection; waiting ${delayMs}ms before retry (attempt ${attempt}, observedSkewMs=${skewMs}).`);
+  const serverDateHeader = response.headers()['date'] || '';
+  const serverDate = Date.parse(serverDateHeader);
+  const localNow = Date.now();
+
+  if (issuedAt == null) {
+    throw new Error(`PGRST303 diagnostic could not decode JWT iat (attempt ${attempt}); token payload did not expose a numeric iat.`);
+  }
+
+  console.log(`PGRST303 timing evidence: jwtIatMs=${issuedAt}; jwtIatIso=${new Date(issuedAt).toISOString()}; localNowMs=${localNow}; localNowIso=${new Date(localNow).toISOString()}; responseDateHeader=${serverDateHeader || '<missing>'}.`);
+
+  if (!Number.isFinite(serverDate)) {
+    throw new Error(`PGRST303 diagnostic could not measure PostgREST server time because the response Date header is missing or invalid (attempt ${attempt}).`);
+  }
+
+  const skewMs = Math.max(0, issuedAt - serverDate);
+  const delayMs = Math.min(Math.max(skewMs + 1500, 5000), 15000);
+  console.log(`PGRST303 JWT future-time rejection; measuredServerSkewMs=${skewMs}; waiting ${delayMs}ms before retry (attempt ${attempt}).`);
   await new Promise(resolve => setTimeout(resolve, delayMs));
 }
 
