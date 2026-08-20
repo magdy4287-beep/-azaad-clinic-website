@@ -48,18 +48,54 @@ function requireUuid(name, value) {
   expect(value, `${name} must be a UUID`).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 }
 
+function isFutureJwtRejection(status, body) {
+  return status === 401 && /PGRST303|JWT issued at future/i.test(body);
+}
+
+function jwtIssuedAtMs(token) {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    return Number.isFinite(payload?.iat) ? payload.iat * 1000 : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function waitForJwtClockCatchUp(token, response, attempt) {
+  const issuedAt = jwtIssuedAtMs(token);
+  const serverDate = Date.parse(response.headers()['date'] || '');
+  const now = Date.now();
+  const referenceNow = Number.isFinite(serverDate) ? serverDate : now;
+  const skewMs = issuedAt == null ? 0 : Math.max(0, issuedAt - referenceNow);
+  const delayMs = Math.min(Math.max(skewMs + 1500, 5000 * attempt), 15000);
+  console.log(`PGRST303 JWT future-time rejection; waiting ${delayMs}ms before retry (attempt ${attempt}, observedSkewMs=${skewMs}).`);
+  await new Promise(resolve => setTimeout(resolve, delayMs));
+}
+
 async function prepareFixtures(request) {
-  const response = await rpc(request, 'clinic_prepare_controlled_clinical_e2e_suite', {}, tokens.frontdesk);
-  if (!response.ok()) {
+  const maxClockSkewRetries = 4;
+
+  for (let attempt = 1; attempt <= maxClockSkewRetries + 1; attempt += 1) {
+    const response = await rpc(request, 'clinic_prepare_controlled_clinical_e2e_suite', {}, tokens.frontdesk);
+    if (response.ok()) {
+      const body = await response.json();
+      const fixture = extractFixture(body);
+      requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
+      requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
+      requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
+      return fixture;
+    }
+
     const body = await response.text();
+    if (attempt <= maxClockSkewRetries && isFutureJwtRejection(response.status(), body)) {
+      await waitForJwtClockCatchUp(tokens.frontdesk, response, attempt);
+      continue;
+    }
+
     throw new Error(`Controlled E2E fixture factory failed with HTTP ${response.status()}: ${body}`);
   }
-  const body = await response.json();
-  const fixture = extractFixture(body);
-  requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
-  requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
-  requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
-  return fixture;
+
+  throw new Error('Controlled E2E fixture factory exhausted clock-skew retries.');
 }
 
 function expectDenied(response) {
