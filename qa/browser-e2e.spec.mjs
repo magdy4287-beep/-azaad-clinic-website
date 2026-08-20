@@ -45,6 +45,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   const pageErrors = [];
   const consoleErrors = [];
   const unauthorizedRequests = [];
+  const authResponses = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('console', message => {
     if (message.type() === 'error') consoleErrors.push(message.text());
@@ -55,6 +56,9 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
         method: response.request().method(),
         url: response.url()
       });
+    }
+    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+      authResponses.push(response);
     }
   });
 
@@ -72,17 +76,20 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
 
-  // Match the real authentication POST, not the CORS preflight OPTIONS.
-  const authResponsePromise = page.waitForResponse(
-    response => response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST',
-    { timeout: 15000 }
-  );
-
   // Exercise the canonical production form submit handler directly. No token,
   // session, endpoint response, or credential is mocked or pre-seeded.
   await page.locator('#loginForm').evaluate(form => form.requestSubmit());
 
-  const authResponse = await authResponsePromise;
+  await expect.poll(
+    () => authResponses.length,
+    {
+      timeout: AUTH_READY_TIMEOUT,
+      intervals: [100, 250, 500],
+      message: `real staff-login POST was not observed. unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
+    }
+  ).toBeGreaterThan(0);
+
+  const authResponse = authResponses[authResponses.length - 1];
   const authStatus = authResponse.status();
   const authText = await authResponse.text();
   let authBody = {};
