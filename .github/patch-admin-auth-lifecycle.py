@@ -4,9 +4,24 @@ import re
 path = Path("admin.js")
 text = path.read_text(encoding="utf-8")
 
+# Make the production admin client use one explicit, shared persistent storage key.
+text = re.sub(
+    r"const SUPABASE_PUBLISHABLE_KEY =\s*\n\s*\"([^\"]+)\";",
+    r'const SUPABASE_PUBLISHABLE_KEY = "\1";\n\nconst SUPABASE_AUTH_STORAGE_KEY = "sb-derofsthjivlkcdnojww-auth-token";',
+    text,
+    count=1,
+)
+text = re.sub(
+    r"auth:\s*\{\s*\n\s*persistSession:\s*true,\s*\n\s*autoRefreshToken:\s*true,\s*\n\s*detectSessionInUrl:\s*true\s*\n\s*\}",
+    "auth: {\n      persistSession: true,\n      autoRefreshToken: true,\n      detectSessionInUrl: true,\n      storage: window.localStorage,\n      storageKey: SUPABASE_AUTH_STORAGE_KEY\n    }",
+    text,
+    count=1,
+)
+
 # Replace the legacy browser-side clinic_staff RLS lookup with one canonical,
-# server-authorized restore path. Keep all session/token state in one function
-# so finalize-auth.py cannot leave a second competing restore lifecycle.
+# server-authorized restore path. If Supabase's persisted session is missing,
+# use the short-lived admin access token as a validation fallback. The fallback
+# never invents a refresh token and never uses a service-role key in the browser.
 pattern = re.compile(
     r"async function restoreStaffProfile\(\)\s*\{.*?\n\}\n\n/\* ============================================================\n   INITIALIZE",
     re.S,
@@ -14,35 +29,56 @@ pattern = re.compile(
 
 replacement = '''async function restoreStaffProfile() {
   try {
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.access_token || !session?.user?.id) {
+    let session = null;
+    let accessToken = null;
+
+    const sessionResult = await supabase.auth.getSession();
+    if (!sessionResult.error && sessionResult.data?.session?.access_token) {
+      session = sessionResult.data.session;
+      accessToken = session.access_token;
+    }
+
+    // Reload-resilience fallback: validate the access token that was deliberately
+    // kept in sessionStorage by the real login flow. This does not bypass Auth;
+    // azaad-admin-auth verifies the JWT and active clinic_staff record server-side.
+    if (!accessToken) {
+      try {
+        accessToken = sessionStorage.getItem("azaad_admin_token");
+      } catch (_) {}
+    }
+
+    if (!accessToken) {
       return false;
     }
 
-    state.session = session;
-    state.user = session.user;
+    if (session?.user?.id) {
+      state.session = session;
+      state.user = session.user;
+    }
 
-    const request = async () => fetch(
+    const request = async (token) => fetch(
       `${SUPABASE_URL}/functions/v1/azaad-admin-auth`,
       {
         method: "GET",
         cache: "no-store",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${state.session.access_token}`,
+          Authorization: `Bearer ${token}`,
           apikey: SUPABASE_PUBLISHABLE_KEY
         }
       }
     );
 
-    let response = await request();
+    let response = await request(accessToken);
 
-    if (response.status === 401) {
+    if (response.status === 401 && session) {
       const refreshed = await supabase.auth.refreshSession();
       if (!refreshed.error && refreshed.data?.session?.access_token) {
-        state.session = refreshed.data.session;
-        state.user = refreshed.data.session.user;
-        response = await request();
+        session = refreshed.data.session;
+        accessToken = session.access_token;
+        state.session = session;
+        state.user = session.user;
+        response = await request(accessToken);
       }
     }
 
@@ -61,8 +97,21 @@ replacement = '''async function restoreStaffProfile() {
 
     state.user = body.user || state.user;
     try {
-      sessionStorage.setItem("azaad_admin_token", state.session.access_token);
+      sessionStorage.setItem("azaad_admin_token", accessToken);
     } catch (_) {}
+
+    // When a reload lost the Supabase client session but the access token is
+    // still valid, keep the verified token available to the authenticated
+    // shell. A session can only be rebuilt when Supabase supplied a refresh
+    // token; never fabricate one here.
+    if (session?.refresh_token) {
+      try {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: session.refresh_token
+        });
+      } catch (_) {}
+    }
 
     return true;
   } catch (error) {
@@ -97,4 +146,4 @@ updated = re.sub(
 )
 
 path.write_text(updated, encoding="utf-8")
-print("Unified admin auth lifecycle: restoreStaffProfile is the single canonical restore path")
+print("Unified admin auth lifecycle: explicit persistent storage + reload token fallback")
