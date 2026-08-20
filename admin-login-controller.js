@@ -5,6 +5,7 @@
 (function installAzaadAdminLoginController(){
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
+  const SUPABASE_AUTH_STORAGE_KEY = 'sb-derofsthjivlkcdnojww-auth-token';
   const STAFF_LOGIN_FUNCTION = `${SUPABASE_URL}/functions/v1/staff-login`;
   let disposed = false;
   let installed = false;
@@ -12,7 +13,13 @@
 
   const supabaseReady = import('https://esm.sh/@supabase/supabase-js@2').then(({ createClient }) => {
     supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: SUPABASE_AUTH_STORAGE_KEY
+      }
     });
     window.AZAAD = window.AZAAD || {};
     window.AZAAD.supabase = supabase;
@@ -85,14 +92,16 @@
       });
       if (error) throw error;
 
-      // Force a read-back so the auth adapter has completed persistence before reload.
       const persisted = await supabase.auth.getSession();
       if (!persisted?.data?.session?.access_token) {
         throw new Error('تعذر تثبيت جلسة Supabase قبل فتح لوحة الإدارة.');
       }
 
-      // Keep the legacy admin-session contract used by the authenticated shell
-      // and downstream frontdesk bridges. Never expose the refresh token here.
+      const storedAuth = window.localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY);
+      if (!storedAuth) {
+        throw new Error('تعذر حفظ جلسة Supabase في localStorage.');
+      }
+
       try {
         sessionStorage.setItem('azaad_admin_token', persisted.data.session.access_token);
       } catch (_) {}
@@ -103,7 +112,6 @@
       if (adminPage) adminPage.classList.remove('hidden');
       window.dispatchEvent(new CustomEvent('azaad:authenticated', { detail: { staff: result.staff, user: result.user || null } }));
 
-      // Give storage writes and auth state propagation one event-loop turn before reload.
       await new Promise(resolve => setTimeout(resolve, 50));
       window.location.reload();
     } catch (error) {
