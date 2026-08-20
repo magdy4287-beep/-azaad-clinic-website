@@ -53,10 +53,17 @@ jobs:
           for name in AZAAD_SUPABASE_URL AZAAD_SUPABASE_ANON_KEY AZAAD_E2E_FRONTDESK_PASSWORD AZAAD_E2E_NONSTAFF_PASSWORD AZAAD_E2E_DOCTOR_A_PASSWORD AZAAD_E2E_DOCTOR_B_PASSWORD; do
             test -n "${!name:-}" || { echo "Missing required controlled-E2E secret: $name" >&2; exit 1; }
           done
-          case "$AZAAD_SUPABASE_URL" in
+
+          normalized_url="$(printf '%s' "$AZAAD_SUPABASE_URL" | sed 's/[[:space:]]*$//; s#/*$##')"
+          parsed_host="$(node -e 'const u=new URL(process.argv[1]); process.stdout.write(u.hostname)' "$normalized_url" 2>/dev/null || true)"
+          parsed_path="$(node -e 'const u=new URL(process.argv[1]); process.stdout.write(u.pathname)' "$normalized_url" 2>/dev/null || true)"
+          case "$normalized_url" in
             https://*.supabase.co) ;;
             *) echo "AZAAD_SUPABASE_URL is not a Supabase project URL" >&2; exit 1 ;;
           esac
+          test -n "$parsed_host" || { echo "AZAAD_SUPABASE_URL is not a valid URL" >&2; exit 1; }
+          test "$parsed_path" = "/" || test -z "$parsed_path" || { echo "AZAAD_SUPABASE_URL must contain only the project origin" >&2; exit 1; }
+          printf 'AZAAD_SUPABASE_URL=%s\n' "$normalized_url" >> "$GITHUB_ENV"
           echo "Controlled clinical authorization E2E configuration is present."
 
       - name: Authenticate controlled Frontdesk identity
@@ -70,7 +77,7 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           (async () => {
-            const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, '');
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
             const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
             const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD;
             if (!base || !anon || !password) throw new Error('Missing Frontdesk Auth configuration');
@@ -95,7 +102,7 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           (async () => {
-            const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, '');
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
             const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
             const password = process.env.AZAAD_E2E_NONSTAFF_PASSWORD;
             if (!base || !anon || !password) throw new Error('Missing Nonstaff Auth configuration');
@@ -120,7 +127,7 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           (async () => {
-            const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, '');
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
             const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
             const password = process.env.AZAAD_E2E_DOCTOR_A_PASSWORD;
             if (!base || !anon || !password) throw new Error('Missing Doctor A Auth configuration');
@@ -145,7 +152,7 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           (async () => {
-            const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, '');
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
             const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
             const password = process.env.AZAAD_E2E_DOCTOR_B_PASSWORD;
             if (!base || !anon || !password) throw new Error('Missing Doctor B Auth configuration');
@@ -172,7 +179,7 @@ jobs:
           test -n "${AZAAD_E2E_DOCTOR_B_TOKEN:-}"
           node <<'NODE'
           (async () => {
-            const base = (process.env.AZAAD_SUPABASE_URL || '').replace(/\/$/, ''); const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, ''); const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
             const identities = [['AZAAD_E2E_FRONTDESK_TOKEN', process.env.AZAAD_E2E_FRONTDESK_TOKEN], ['AZAAD_E2E_NONSTAFF_TOKEN', process.env.AZAAD_E2E_NONSTAFF_TOKEN], ['AZAAD_E2E_DOCTOR_A_TOKEN', process.env.AZAAD_E2E_DOCTOR_A_TOKEN], ['AZAAD_E2E_DOCTOR_B_TOKEN', process.env.AZAAD_E2E_DOCTOR_B_TOKEN]];
             if (!base || !anon) throw new Error('Missing Supabase URL or anon key');
             for (const [name, token] of identities) { const compact = (token || '').trim(); if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(compact)) throw new Error(`${name} is not a JWT`); const r = await fetch(`${base}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${compact}` } }); if (!r.ok) throw new Error(`${name} failed Supabase Auth identity verification with HTTP ${r.status}`); const user = await r.json(); if (!user?.id) throw new Error(`${name} returned no authenticated user identity`); console.log(`${name}: verified Auth identity`); }

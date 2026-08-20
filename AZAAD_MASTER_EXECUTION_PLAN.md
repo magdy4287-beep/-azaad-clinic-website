@@ -24,17 +24,25 @@ Core rule:
 
 ## 3. Execution Order
 
-### Phase 0 — Baseline & Safety Gate
-**Goal:** freeze a known-good baseline before expanding the suite.
+### Cross-Department Operational Integration — Added 2026-08-19
 
-- [ ] Identify current production-ready deployment.
-- [ ] Verify `main` baseline and open PR state.
-- [ ] Confirm Supabase schema/functions used by the admin layer.
-- [ ] Confirm role/permission model and owner protection.
-- [ ] Confirm no secret keys are present in frontend assets.
-- [ ] Establish regression checklist for login, patient, booking and existing admin flows.
-
-**Exit gate:** baseline documented and reproducible.
+- [x] Doctor transfer data model with patient/doctor request source and treating-doctor approval state.
+- [x] Attendance model with clock-in/out, breaks, lateness and absence status.
+- [x] Doctor compensation model: percentage, salary, salary + percentage, fixed-per-visit.
+- [x] Effective-dated consultation pricing foundation.
+- [x] Canonical service-catalog mapping foundation to prevent duplicate service definitions.
+- [x] Daily operational report aggregate foundation.
+- [x] Doctor dashboard operational center mount.
+- [x] Cross-department acceptance contract documented.
+- [ ] Wire secretary unified daily schedule UI with one row per doctor and inline appointment workflow.
+- [ ] Wire free-slot booking and waiting-list conversion into the unified schedule.
+- [ ] Wire early/late check-in to doctor availability while preserving original appointment time.
+- [ ] Wire transfer request/doctor approval/completion UI.
+- [ ] Wire attendance UI and payroll/compensation calculations to the existing HR/finance surfaces.
+- [ ] Wire management/owner global and per-doctor/service pricing UI.
+- [ ] Normalize duplicate service records against the canonical catalog and preserve historical invoice references.
+- [ ] Wire daily/monthly/yearly reports and employee-of-month/year scoring to source facts.
+- [ ] Wire central free/local AI recommendations to report facts with traceable evidence.
 
 ### Phase 1 — Language & UI Foundation 🌐
 
@@ -48,8 +56,6 @@ Core rule:
 - [ ] Verify that switching to Arabic restores Arabic UI chrome and RTL.
 - [ ] Keep patient/doctor/service names bilingual where source data supports it.
 - [ ] No paid translation dependency.
-
-**Exit gate:** full admin chrome is language-complete in both modes; no mixed-language UI remains in the selected mode.
 
 ### Phase 2 — Patient 360 + Appointment Center 🤢📅
 
@@ -75,8 +81,6 @@ Core rule:
 - [ ] Safe patient merge with historical preservation and audit.
 - [ ] Optional free/local Smart Insights for operational and progress signals; never make AI a dependency for clinical decisions.
 
-**Exit gate:** one patient can be followed end-to-end from booking through visit, clinical progress, billing and follow-up, with real date/calendar behavior and auditable edits.
-
 ### Phase 3 — Doctors Center 🧑‍⚕️
 
 - [ ] Show every registered doctor, not only the Add Doctor action.
@@ -92,8 +96,6 @@ Core rule:
 - [ ] Schedule linkage.
 - [ ] Performance, patients, completion, no-show and revenue metrics.
 - [ ] Free/local AI suggestions for operational performance only.
-
-**Exit gate:** doctor lifecycle, profile, scheduling and historical relationships are safe and functional.
 
 ### Phase 4 — Services Center 🩺
 
@@ -111,8 +113,6 @@ Core rule:
 - [ ] Booking linkage.
 - [ ] Invoice/RCM linkage.
 - [ ] Free/local AI-assisted operational suggestions where useful.
-
-**Exit gate:** a service can flow from catalog → doctor → booking → invoice without duplicated definitions.
 
 ### Phase 5 — Doctor Scheduling 🕐
 
@@ -133,8 +133,6 @@ Core rule:
 - [ ] Booking engine consistency check.
 - [ ] Optional free/local AI scheduling suggestions without changing saved rules automatically.
 
-**Exit gate:** generated availability is deterministic and matches the saved schedule.
-
 ### Phase 6 — Marketing Workspace 📣
 
 - [ ] Show all existing posts/campaign records, not only New Post.
@@ -153,8 +151,6 @@ Core rule:
 - [ ] Campaign performance.
 - [ ] Free/local AI ideas, copy suggestions and campaign analysis.
 
-**Exit gate:** lead → campaign/source → conversion can be measured and managed.
-
 ### Phase 7 — Holidays & Closures 🚫
 
 - [ ] Clinic-wide closure.
@@ -166,8 +162,6 @@ Core rule:
 - [ ] Booking engine enforcement.
 - [ ] Historical booking preservation.
 - [ ] Free/local AI suggestions for closure/availability conflicts where useful.
-
-**Exit gate:** unavailable periods cannot be booked and historical bookings remain intact.
 
 ### Phase 8 — General Working Hours 🕘
 
@@ -182,8 +176,6 @@ Core rule:
 - [ ] Arabic/English.
 - [ ] Free/local AI suggestions for operational hours only; no automatic changes without authorization.
 
-**Exit gate:** saved clinic hours are visible, editable, persisted and honored by booking availability.
-
 ### Phase 9 — HR Management 👥
 
 **Existing employee management is protected and must not be replaced.**
@@ -194,6 +186,8 @@ Core rule:
 - [x] `clinic_staff_hr` foundation.
 - [x] `clinic_staff_documents` foundation.
 - [x] `clinic_compensation_rules` foundation.
+- [x] Doctor-specific `clinic_doctor_compensation_rules` foundation.
+- [x] `clinic_staff_attendance` foundation.
 - [ ] HR profile.
 - [ ] Department.
 - [ ] Job title.
@@ -205,7 +199,8 @@ Core rule:
 - [ ] Fixed per booking.
 - [ ] Targets.
 - [ ] Documents/certificates and expiry dates.
-- [ ] Shifts and attendance.
+- [ ] Shifts and attendance UI.
+- [ ] Payroll calculation/reconciliation.
 - [ ] Performance.
 - [ ] Patients handled.
 - [ ] Revenue contribution.
@@ -214,8 +209,6 @@ Core rule:
 - [ ] Employee of Month/Year based on defined metrics.
 - [ ] HR-style dashboards, records and reminders.
 - [ ] Free/local AI workforce insights and improvement suggestions.
-
-**Exit gate:** HR data, compensation and performance are permissioned, auditable and reconciled with finance/analytics.
 
 ### Phase 10 — Clinic Configuration Center ⚙️
 
@@ -236,8 +229,6 @@ Core rule:
 - [ ] Preserve administration account.
 - [ ] No secrets displayed unnecessarily in the UI.
 
-**Exit gate:** configuration changes are validated, scoped, permissioned and auditable.
-
 ### Phase 11 — Administration + Workflow 👤⚙️
 
 - [x] `clinic_workflow_steps` foundation.
@@ -254,8 +245,6 @@ Core rule:
 - [ ] Management recommendations from real reports.
 - [ ] Doctor/service pricing and compensation-rule administration with strict authorization and audit.
 
-**Exit gate:** workflow state is visible, actionable, permissioned and automatically escalates overdue work.
-
 ### Phase 12 — Analytics & Reports 📊
 
 - [ ] Dedicated charts/dashboard section.
@@ -270,15 +259,17 @@ Core rule:
 - [ ] Net cash flow.
 - [ ] Doctor share.
 - [ ] Clinic share.
+- [ ] Attendance.
+- [ ] Lateness/absence.
+- [ ] Compensation.
 - [ ] Employee performance.
 - [ ] Patients handled.
 - [ ] Daily/monthly/yearly reports.
 - [ ] Trends.
 - [ ] Date/filter consistency.
 - [ ] Recommendations for workflow, quality, productivity and profitability.
+- [ ] Employee of Month/Year evidence-based scoring.
 - [ ] Free/local AI analytics and recommendations.
-
-**Exit gate:** dashboard numbers reconcile with source data for tested periods and recommendations are traceable to measured data.
 
 ### Phase 13 — Invoices & RCM 🧾
 
@@ -315,8 +306,6 @@ Core rule:
 - [ ] RCM work queues and payment follow-up.
 - [ ] Free/local AI for anomaly detection and collections prioritization.
 
-**Exit gate:** invoice totals and balances reconcile against payment records and source services; all sensitive actions are authorized and audited.
-
 ### Phase 14 — IT Security 🛡️
 
 - [x] `clinic_security_events` foundation.
@@ -337,8 +326,6 @@ Core rule:
 - [ ] Monitoring for runtime failures and deployment regressions.
 - [ ] Free/local AI-assisted anomaly summaries only; AI is never the security control itself.
 
-**Exit gate:** security-sensitive paths are demonstrably protected, logged and recoverable; no single AI or external paid service is a security dependency.
-
 ### Phase 15 — Purchasing 🛒
 
 - [x] Existing `clinic_purchases` foundation.
@@ -351,8 +338,6 @@ Core rule:
 - [ ] Daily/monthly/yearly reporting.
 - [ ] Finance/profit linkage.
 - [ ] Free/local AI suggestions for purchasing trends and waste control.
-
-**Exit gate:** purchasing costs flow into finance without double counting.
 
 ### Phase 16 — Finance Center 💰
 
@@ -371,8 +356,6 @@ Core rule:
 - [ ] Finance staffing visibility where applicable.
 - [ ] Free/local AI financial anomaly and trend insights.
 
-**Exit gate:** Revenue → Collection → Expenses → Doctor Share → Clinic Share → Net → Closing reconciles.
-
 ### Phase 17 — Free Smart Insights 🧠
 
 - [x] `azaad-ai-insights` local/free foundation.
@@ -390,8 +373,6 @@ Core rule:
 - [ ] Arabic/English recommendations.
 - [ ] Explain the data/signals behind recommendations.
 - [ ] Keep external AI optional and non-critical.
-
-**Exit gate:** core management insights work without paid AI/API dependency and never silently modify clinical/financial decisions.
 
 ## 4. Cross-Cutting Acceptance Gates
 
@@ -414,6 +395,7 @@ Core rule:
 - Doctor/clinic shares reconcile.
 - Expenses and purchasing reconcile.
 - Daily/monthly/yearly reports use consistent periods.
+- Compensation calculations reconcile to approved rules and attendance/visit facts.
 
 ### Security Gate 🛡️
 - No secret/service-role keys in frontend.
@@ -454,8 +436,8 @@ Priority order for fastest useful value:
 
 ## 6. Current State Snapshot
 
-- PR #9 is the current admin-suite foundation branch.
-- PR #9 is not merged into `main`.
+- PR #58 is the current comprehensive system-hardening branch.
+- PR #58 is not merged into `main`.
 - Supabase contains the HR, i18n, invoice-item, AI, workflow and security foundations.
 - `doctor_weekly_schedules` exists with weekday/enabled/start/end/break/slot/buffer/max-bookings/mode fields.
 - Current English implementation is a foundation only; it must be hardened until zero Arabic UI chrome remains in English mode.
