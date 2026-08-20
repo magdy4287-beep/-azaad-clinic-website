@@ -69,6 +69,7 @@ jobs:
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
           python3 .github/patch-admin-auth-lifecycle.py
+          python3 .github/patch-frontdesk-auth-bridge.py
           python3 qa/restore-admin-submit-binding.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
@@ -83,6 +84,7 @@ jobs:
           if [[ -f ./admin-auth-ui-guard.js ]]; then
             node --check ./admin-auth-ui-guard.js
           fi
+          node --check ./frontdesk-workflow.js
           python3 - <<'PY'
           from pathlib import Path
           import re
