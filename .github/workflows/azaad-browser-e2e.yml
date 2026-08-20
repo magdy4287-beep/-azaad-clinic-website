@@ -68,6 +68,7 @@ jobs:
           python3 qa/inject-responsive-shell.py
           python3 .github/patch-admin.py
           python3 .github/finalize-auth.py
+          python3 .github/patch-admin-auth-lifecycle.py
           python3 qa/restore-admin-submit-binding.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
