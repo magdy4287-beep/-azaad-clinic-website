@@ -85,10 +85,16 @@
       });
       if (error) throw error;
 
+      // Force a read-back so the auth adapter has completed persistence before reload.
+      const persisted = await supabase.auth.getSession();
+      if (!persisted?.data?.session?.access_token) {
+        throw new Error('تعذر تثبيت جلسة Supabase قبل فتح لوحة الإدارة.');
+      }
+
       // Keep the legacy admin-session contract used by the authenticated shell
       // and downstream frontdesk bridges. Never expose the refresh token here.
       try {
-        sessionStorage.setItem('azaad_admin_token', result.session.access_token);
+        sessionStorage.setItem('azaad_admin_token', persisted.data.session.access_token);
       } catch (_) {}
 
       const loginPage = document.getElementById('loginPage');
@@ -96,6 +102,9 @@
       if (loginPage) loginPage.classList.add('hidden');
       if (adminPage) adminPage.classList.remove('hidden');
       window.dispatchEvent(new CustomEvent('azaad:authenticated', { detail: { staff: result.staff, user: result.user || null } }));
+
+      // Give storage writes and auth state propagation one event-loop turn before reload.
+      await new Promise(resolve => setTimeout(resolve, 50));
       window.location.reload();
     } catch (error) {
       console.error('Azaad admin login failed', error);
