@@ -85,6 +85,12 @@
       });
       if (error) throw error;
 
+      // Keep the legacy admin-session contract used by the authenticated shell
+      // and downstream frontdesk bridges. Never expose the refresh token here.
+      try {
+        sessionStorage.setItem('azaad_admin_token', result.session.access_token);
+      } catch (_) {}
+
       const loginPage = document.getElementById('loginPage');
       const adminPage = document.getElementById('adminPage');
       if (loginPage) loginPage.classList.add('hidden');
