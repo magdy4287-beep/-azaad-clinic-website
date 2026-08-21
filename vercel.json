@@ -6,7 +6,7 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/admin/admin/admin/admin/:path*", "destination": "/admin.html", "permanent": false },
-    { "source": "/admin/admin/admin/:path*", "destination": "/admin/admin/admin/:path*", "permanent": false },
+    { "source": "/admin/admin/admin/:path*", "destination": "/admin.html", "permanent": false },
     { "source": "/admin/admin/:path*", "destination": "/admin.html", "permanent": false }
   ],
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!*.md' ':!docs/**'",
