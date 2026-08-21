@@ -10,7 +10,7 @@ test('AZAAD operating control plane contract is deployed', async ({ page }) => {
   expect(source).toContain('clinic_ai_recommendations');
   expect(source).toContain('human review');
   expect(source).toContain('No automatic decision');
-  expect(source).toContain('azaad_daily_finance_report');
+  expect(source).toContain('azaad-finance?api=dashboard');
   expect(source).toContain('clinic_security_events');
   expect(source).toContain('clinic_feature_flags');
 });

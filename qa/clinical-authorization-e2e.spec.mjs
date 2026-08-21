@@ -48,18 +48,83 @@ function requireUuid(name, value) {
   expect(value, `${name} must be a UUID`).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 }
 
+function isFutureJwtRejection(status, body) {
+  return status === 401 && /PGRST303|JWT issued at future/i.test(body);
+}
+
+function jwtClaims(token) {
+  try {
+    const [header, payload] = token.split('.');
+    const decodedHeader = JSON.parse(Buffer.from(header, 'base64url').toString('utf8'));
+    const decodedPayload = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return {
+      alg: typeof decodedHeader?.alg === 'string' ? decodedHeader.alg : null,
+      kid: typeof decodedHeader?.kid === 'string' ? decodedHeader.kid : null,
+      typ: typeof decodedHeader?.typ === 'string' ? decodedHeader.typ : null,
+      iat: Number.isFinite(decodedPayload?.iat) ? decodedPayload.iat : null,
+      nbf: Number.isFinite(decodedPayload?.nbf) ? decodedPayload.nbf : null,
+      exp: Number.isFinite(decodedPayload?.exp) ? decodedPayload.exp : null,
+      aud: typeof decodedPayload?.aud === 'string' ? decodedPayload.aud : null,
+      role: typeof decodedPayload?.role === 'string' ? decodedPayload.role : null,
+      iss: typeof decodedPayload?.iss === 'string' ? decodedPayload.iss : null,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function authClockEvidence(request, token) {
+  requireEnv('AZAAD_SUPABASE_URL', supabaseUrl);
+  requireEnv('AZAAD_SUPABASE_ANON_KEY', anonKey);
+  const response = await request.get(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
+  });
+  return {
+    status: response.status(),
+    dateHeader: response.headers()['date'] || '',
+  };
+}
+
+async function recordPgrst303Evidence(request, token, response) {
+  const claims = jwtClaims(token);
+  const postgrestDateHeader = response.headers()['date'] || '';
+  const postgrestDate = Date.parse(postgrestDateHeader);
+  const localNow = Date.now();
+  const authEvidence = await authClockEvidence(request, token);
+  const authDate = Date.parse(authEvidence.dateHeader);
+
+  if (!claims || claims.iat == null) {
+    throw new Error('PGRST303 claim diagnostic could not decode numeric JWT iat.');
+  }
+
+  console.log(`PGRST303 signing evidence: alg=${claims.alg ?? '<absent>'}; kid=${claims.kid ?? '<absent>'}; typ=${claims.typ ?? '<absent>'}.`);
+  console.log(`PGRST303 claim evidence: iat=${claims.iat}; iatIso=${new Date(claims.iat * 1000).toISOString()}; nbf=${claims.nbf ?? '<absent>'}; nbfIso=${claims.nbf == null ? '<absent>' : new Date(claims.nbf * 1000).toISOString()}; exp=${claims.exp ?? '<absent>'}; expIso=${claims.exp == null ? '<absent>' : new Date(claims.exp * 1000).toISOString()}; aud=${claims.aud ?? '<absent>'}; role=${claims.role ?? '<absent>'}; iss=${claims.iss ?? '<absent>'}.`);
+  console.log(`PGRST303 clock evidence: localNowIso=${new Date(localNow).toISOString()}; postgrestDate=${postgrestDateHeader || '<missing>'}; authUserStatus=${authEvidence.status}; authDate=${authEvidence.dateHeader || '<missing>'}; postgrestVsAuthDateMs=${Number.isFinite(postgrestDate) && Number.isFinite(authDate) ? postgrestDate - authDate : '<unmeasured>'}; jwtIatVsPostgrestDateMs=${Number.isFinite(postgrestDate) ? claims.iat * 1000 - postgrestDate : '<unmeasured>'}; jwtIatVsAuthDateMs=${Number.isFinite(authDate) ? claims.iat * 1000 - authDate : '<unmeasured>'}.`);
+
+  if (!Number.isFinite(postgrestDate)) {
+    throw new Error('PGRST303 claim diagnostic could not measure PostgREST gateway time because the response Date header is missing or invalid.');
+  }
+
+  console.log(`PGRST303 terminal diagnostic: no retry/backoff will be attempted; same JWT would retain the same iat=${claims.iat}.`);
+}
+
 async function prepareFixtures(request) {
   const response = await rpc(request, 'clinic_prepare_controlled_clinical_e2e_suite', {}, tokens.frontdesk);
-  if (!response.ok()) {
-    const body = await response.text();
-    throw new Error(`Controlled E2E fixture factory failed with HTTP ${response.status()}: ${body}`);
+  if (response.ok()) {
+    const body = await response.json();
+    const fixture = extractFixture(body);
+    requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
+    requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
+    requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
+    return fixture;
   }
-  const body = await response.json();
-  const fixture = extractFixture(body);
-  requireUuid('happy_path_booking_id', fixture?.happy_path_booking_id);
-  requireUuid('wrong_doctor_booking_id', fixture?.wrong_doctor_booking_id);
-  requireUuid('invalid_state_booking_id', fixture?.invalid_state_booking_id);
-  return fixture;
+
+  const body = await response.text();
+  if (isFutureJwtRejection(response.status(), body)) {
+    await recordPgrst303Evidence(request, tokens.frontdesk, response);
+  }
+
+  throw new Error(`Controlled E2E fixture factory failed with HTTP ${response.status()}: ${body}`);
 }
 
 function expectDenied(response) {

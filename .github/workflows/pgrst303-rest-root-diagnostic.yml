@@ -1,0 +1,49 @@
+name: PGRST303 REST Table Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pgrst303-rest-table-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe authenticated PostgREST table with fresh Frontdesk JWT and delayed recheck
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const base=(process.env.AZAAD_SUPABASE_URL||'').trim().replace(/\/+$/,'');
+          const anon=process.env.AZAAD_SUPABASE_ANON_KEY;
+          const password=process.env.AZAAD_E2E_FRONTDESK_PASSWORD;
+          if(!base||!anon||!password) throw new Error('Missing controlled diagnostic configuration');
+          const login=await fetch(`${base}/functions/v1/staff-login`,{method:'POST',headers:{apikey:anon,Authorization:`Bearer ${anon}`,'Content-Type':'application/json'},body:JSON.stringify({username:'frontdesk_azaad',password})});
+          const loginBody=await login.json();
+          if(!login.ok) throw new Error(`staff-login failed: HTTP ${login.status}`);
+          const token=(loginBody.access_token||loginBody.session?.access_token||'').trim();
+          if(!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) throw new Error('staff-login did not return JWT');
+          const [h,p]=token.split('.');
+          const decode=(s)=>JSON.parse(Buffer.from(s,'base64url').toString('utf8'));
+          const header=decode(h), claims=decode(p);
+          process.stdout.write(`::add-mask::${token}\n`);
+          const auth=await fetch(`${base}/auth/v1/user`,{headers:{apikey:anon,Authorization:`Bearer ${token}`}});
+          const requestRest=async()=>{
+            const rest=await fetch(`${base}/rest/v1/clinic_staff?select=id&limit=1`,{headers:{apikey:anon,Authorization:`Bearer ${token}`,Accept:'application/json'}});
+            return {status:rest.status,date:rest.headers.get('date'),content_type:rest.headers.get('content-type'),body_prefix:(await rest.text()).slice(0,300)};
+          };
+          const immediate=await requestRest();
+          console.log(JSON.stringify({phase:'immediate',login_status:login.status,login_date:login.headers.get('date'),jwt:{alg:header.alg||null,kid:header.kid||null,typ:header.typ||null,iat:claims.iat||null,exp:claims.exp||null,aud:claims.aud||null,role:claims.role||null,iss:claims.iss||null},auth_user:{status:auth.status,date:auth.headers.get('date')},postgrest_table:immediate},null,2));
+          await new Promise(r=>setTimeout(r,10000));
+          const delayed=await requestRest();
+          console.log(JSON.stringify({phase:'delayed_10s',postgrest_table:delayed},null,2));
+          const isPgrst303=(x)=>x.status===401 && /PGRST303|JWT issued at future/i.test(x.body_prefix||'');
+          if(isPgrst303(delayed)) process.exitCode=2;
+          NODE
