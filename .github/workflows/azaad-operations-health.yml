@@ -3,6 +3,8 @@ name: AZAAD Operations Health
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "17 5 * * *"
@@ -87,7 +89,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url="https://azaad-clinic-website-magdy-team.vercel.app/"
+          url="https://azaad-clinic-website.vercel.app/"
           echo "Checking ${url}"
           curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
           test -s /tmp/azaad-vercel.html
