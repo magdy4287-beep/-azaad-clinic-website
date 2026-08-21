@@ -54,14 +54,19 @@ function isFutureJwtRejection(status, body) {
 
 function jwtClaims(token) {
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    const [header, payload] = token.split('.');
+    const decodedHeader = JSON.parse(Buffer.from(header, 'base64url').toString('utf8'));
+    const decodedPayload = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     return {
-      iat: Number.isFinite(payload?.iat) ? payload.iat : null,
-      nbf: Number.isFinite(payload?.nbf) ? payload.nbf : null,
-      exp: Number.isFinite(payload?.exp) ? payload.exp : null,
-      aud: typeof payload?.aud === 'string' ? payload.aud : null,
-      role: typeof payload?.role === 'string' ? payload.role : null,
-      iss: typeof payload?.iss === 'string' ? payload.iss : null,
+      alg: typeof decodedHeader?.alg === 'string' ? decodedHeader.alg : null,
+      kid: typeof decodedHeader?.kid === 'string' ? decodedHeader.kid : null,
+      typ: typeof decodedHeader?.typ === 'string' ? decodedHeader.typ : null,
+      iat: Number.isFinite(decodedPayload?.iat) ? decodedPayload.iat : null,
+      nbf: Number.isFinite(decodedPayload?.nbf) ? decodedPayload.nbf : null,
+      exp: Number.isFinite(decodedPayload?.exp) ? decodedPayload.exp : null,
+      aud: typeof decodedPayload?.aud === 'string' ? decodedPayload.aud : null,
+      role: typeof decodedPayload?.role === 'string' ? decodedPayload.role : null,
+      iss: typeof decodedPayload?.iss === 'string' ? decodedPayload.iss : null,
     };
   } catch (_) {
     return null;
@@ -92,6 +97,7 @@ async function recordPgrst303Evidence(request, token, response) {
     throw new Error('PGRST303 claim diagnostic could not decode numeric JWT iat.');
   }
 
+  console.log(`PGRST303 signing evidence: alg=${claims.alg ?? '<absent>'}; kid=${claims.kid ?? '<absent>'}; typ=${claims.typ ?? '<absent>'}.`);
   console.log(`PGRST303 claim evidence: iat=${claims.iat}; iatIso=${new Date(claims.iat * 1000).toISOString()}; nbf=${claims.nbf ?? '<absent>'}; nbfIso=${claims.nbf == null ? '<absent>' : new Date(claims.nbf * 1000).toISOString()}; exp=${claims.exp ?? '<absent>'}; expIso=${claims.exp == null ? '<absent>' : new Date(claims.exp * 1000).toISOString()}; aud=${claims.aud ?? '<absent>'}; role=${claims.role ?? '<absent>'}; iss=${claims.iss ?? '<absent>'}.`);
   console.log(`PGRST303 clock evidence: localNowIso=${new Date(localNow).toISOString()}; postgrestDate=${postgrestDateHeader || '<missing>'}; authUserStatus=${authEvidence.status}; authDate=${authEvidence.dateHeader || '<missing>'}; postgrestVsAuthDateMs=${Number.isFinite(postgrestDate) && Number.isFinite(authDate) ? postgrestDate - authDate : '<unmeasured>'}; jwtIatVsPostgrestDateMs=${Number.isFinite(postgrestDate) ? claims.iat * 1000 - postgrestDate : '<unmeasured>'}; jwtIatVsAuthDateMs=${Number.isFinite(authDate) ? claims.iat * 1000 - authDate : '<unmeasured>'}.`);
 
