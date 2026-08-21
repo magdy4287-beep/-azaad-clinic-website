@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url="https://azaad-clinic-website-magdy-team.vercel.app/"
+          url="https://azaad-clinic-website.vercel.app/"
           echo "Checking ${url}"
           curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
           test -s /tmp/azaad-vercel.html
