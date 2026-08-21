@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe authenticated PostgREST table with fresh Frontdesk JWT
+      - name: Probe authenticated PostgREST table with fresh Frontdesk JWT and delayed recheck
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
@@ -35,8 +35,15 @@ jobs:
           const header=decode(h), claims=decode(p);
           process.stdout.write(`::add-mask::${token}\n`);
           const auth=await fetch(`${base}/auth/v1/user`,{headers:{apikey:anon,Authorization:`Bearer ${token}`}});
-          const rest=await fetch(`${base}/rest/v1/clinic_staff?select=id&limit=1`,{headers:{apikey:anon,Authorization:`Bearer ${token}`,Accept:'application/json'}});
-          const restBody=await rest.text();
-          console.log(JSON.stringify({login_status:login.status,login_date:login.headers.get('date'),jwt:{alg:header.alg||null,kid:header.kid||null,typ:header.typ||null,iat:claims.iat||null,exp:claims.exp||null,aud:claims.aud||null,role:claims.role||null,iss:claims.iss||null},auth_user:{status:auth.status,date:auth.headers.get('date')},postgrest_table:{status:rest.status,date:rest.headers.get('date'),content_type:rest.headers.get('content-type'),body_prefix:restBody.slice(0,300)}},null,2));
-          if(rest.status===401 && /PGRST303|JWT issued at future/i.test(restBody)) process.exitCode=2;
+          const requestRest=async()=>{
+            const rest=await fetch(`${base}/rest/v1/clinic_staff?select=id&limit=1`,{headers:{apikey:anon,Authorization:`Bearer ${token}`,Accept:'application/json'}});
+            return {status:rest.status,date:rest.headers.get('date'),content_type:rest.headers.get('content-type'),body_prefix:(await rest.text()).slice(0,300)};
+          };
+          const immediate=await requestRest();
+          console.log(JSON.stringify({phase:'immediate',login_status:login.status,login_date:login.headers.get('date'),jwt:{alg:header.alg||null,kid:header.kid||null,typ:header.typ||null,iat:claims.iat||null,exp:claims.exp||null,aud:claims.aud||null,role:claims.role||null,iss:claims.iss||null},auth_user:{status:auth.status,date:auth.headers.get('date')},postgrest_table:immediate},null,2));
+          await new Promise(r=>setTimeout(r,10000));
+          const delayed=await requestRest();
+          console.log(JSON.stringify({phase:'delayed_10s',postgrest_table:delayed},null,2));
+          const isPgrst303=(x)=>x.status===401 && /PGRST303|JWT issued at future/i.test(x.body_prefix||'');
+          if(isPgrst303(delayed)) process.exitCode=2;
           NODE
