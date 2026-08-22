@@ -8,6 +8,14 @@ CENTRAL = ROOT / "central-i18n.js"
 app = APP.read_text(encoding="utf-8")
 central = CENTRAL.read_text(encoding="utf-8")
 
+# Remove the legacy app-owned language state entirely.
+legacy_language = re.compile(
+    r"(?s)/\*\s*\n\s*\* =========================================================\s*\n\s*\* LANGUAGE\s*\n\s*\* =========================================================\s*\n\s*\*/.*?(?=/\*\s*\n\s*\* =========================================================\s*\n\s*\* TRANSLATIONS)"
+)
+app, language_count = legacy_language.subn("", app, count=1)
+if language_count != 1:
+    raise SystemExit("Legacy app.js language owner was not found")
+
 # Extract the complete legacy booking dictionary and move it into the central
 # runtime. The production artifact must contain one translation owner only.
 block = re.compile(
@@ -31,8 +39,28 @@ replacement = """/* LANGUAGE: CENTRAL I18N ONLY */
     return typeof value === 'string' && value !== key ? value : key;
   }
 """
-APP.write_text(app[:match.start()] + replacement + app[match.end():], encoding="utf-8")
+app = app[:match.start()] + replacement + app[match.end():]
 
+# Replace the old 400ms language polling loop with the central language event.
+observer = re.compile(
+    r"(?s)  function setupLanguageObserver\(\) \{.*?\n  \}\n  /\*\s*\n\s*\* =========================================================\s*\n\s*\* EVENT HELPERS"
+)
+observer_replacement = """  function setupLanguageObserver() {
+    const refresh = () => refreshDynamicLanguage();
+    window.addEventListener('azaadLanguageChanged', refresh);
+    window.addEventListener('azaadPublicContentLanguageChanged', refresh);
+  }
+  /*
+   * =========================================================
+   * EVENT HELPERS"""
+app, observer_count = observer.subn(observer_replacement, app, count=1)
+if observer_count != 1:
+    raise SystemExit("Legacy app.js language polling observer was not found")
+
+APP.write_text(app, encoding="utf-8")
+
+# Keep the booking strings in the central runtime itself. No second runtime is
+# introduced: this extends the central owner's existing t() contract.
 marker = "\n})();\n"
 if "__AZAAD_PUBLIC_BOOKING_I18N_CANONICAL__" not in central:
     extra = f"""
@@ -55,4 +83,4 @@ if "__AZAAD_PUBLIC_BOOKING_I18N_CANONICAL__" not in central:
         raise SystemExit("Central i18n runtime boundary was not found")
     CENTRAL.write_text(central.replace(marker, extra + marker, 1), encoding="utf-8")
 
-print("[AZAAD i18n] public booking now has one central translation owner")
+print("[AZAAD i18n] public booking uses central language state, translations, and events")
