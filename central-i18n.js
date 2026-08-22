@@ -1,201 +1,29 @@
 (() => {
   'use strict';
-
-  const KEY = 'azaadClinicLanguage';
-  const ADMIN_KEY = 'azaad_admin_lang';
-  const ENGLISH = {
-    'عيادة أزاد للصحة النفسية':'Azaad Clinic Mental Health','جاري التحميل...':'Loading...','اختر الطبيب':'Select doctor','اختر الخدمة':'Select service','اكتب اسمك':'Enter your name','رقم الهاتف':'Phone number','أي معلومات إضافية...':'Any additional information...','دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض':'Damietta - Nafea Street, opposite Al-Mazloum Mosque, above Al-Riyad Pharmacy',
-    'لوحة إدارة العيادة':'Clinic Administration Panel','تسجيل الدخول بحساب الموظف عبر Supabase Auth':'Sign in with your staff account through Supabase Auth','اسم المستخدم':'Username','كلمة المرور':'Password','تسجيل الدخول':'Sign in','تحديث':'Refresh','الموقع':'Website','تسجيل الخروج':'Sign out','إجمالي الحجوزات':'Total bookings','قيد المراجعة':'Pending','مؤكدة':'Confirmed','حجوزات اليوم':"Today's bookings",'الحجوزات':'Bookings','الأطباء':'Doctors','الخدمات':'Services','جداول الأطباء':'Doctor schedules','المنشورات والعروض':'Posts & Offers','العطلات والإغلاقات':'Holidays & Closures','ساعات العمل':'Working Hours','ساعات العمل العامة':'General Working Hours','الموظفون':'Staff','إدارة الموظفين':'Staff Management','إعدادات العيادة':'Clinic Settings','حساب الإدارة':'Admin Account','كل الحالات':'All statuses','مؤكد':'Confirmed','ملغي':'Cancelled','مكتمل':'Completed','رقم الحجز':'Booking number','المريض':'Patient','الهاتف':'Phone','التاريخ':'Date','الوقت':'Time','الحالة':'Status','لا توجد حجوزات مطابقة.':'No matching bookings.','إضافة طبيب':'Add doctor','تعديل':'Edit','إضافة خدمة':'Add service','إضافة إغلاق':'Add closure','منشور جديد':'New post','اختر طبيبًا.':'Select a doctor.','اختر تاريخًا.':'Select a date.','حفظ':'Save','إغلاق':'Close','حذف':'Delete','إلغاء':'Cancel','الدور':'Role','نشط':'Active','غير نشط':'Inactive','يوم عمل':'Working day','متاح':'Available','من':'From','إلى':'To','بداية الراحة':'Break start','نهاية الراحة':'Break end','مدة الموعد، البريك، وساعات كل يوم.':'Appointment duration, breaks, and daily hours.','حفظ الجدول':'Save schedule','حفظ ساعات العمل':'Save working hours','حفظ البيانات':'Save details','حفظ كلمة المرور':'Save password','تغيير كلمة المرور':'Change password','كلمة المرور الحالية':'Current password','كلمة المرور الجديدة':'New password','تأكيد كلمة المرور الجديدة':'Confirm new password','إضافة موظف':'Add employee','إنشاء موظف':'Create employee','كلمة المرور المؤقتة':'Temporary password','Username غير صالح.':'Invalid username.','بيانات الدخول غير صحيحة.':'Invalid login credentials.','تعذر إنشاء جلسة الدخول.':'Unable to create the sign-in session.','جلسة الإدارة غير موجودة.':'Admin session is missing.','جلسة الإدارة غير موجودة أو منتهية.':'Admin session is missing or expired.','جلسة Supabase غير صالحة أو منتهية.':'Supabase session is invalid or expired.','حساب الموظف غير فعال أو دوره غير صالح.':'The staff account is inactive or its role is invalid.','ليس لديك صلاحية لتنفيذ هذا الإجراء.':'You do not have permission to perform this action.','تم تسجيل الدخول بنجاح':'Signed in successfully','تم تحديث النظام.':'System refreshed.','تم تحديث الحجوزات.':'Bookings refreshed.','تم حفظ بيانات الطبيب.':'Doctor details saved.','تم حفظ الخدمة.':'Service saved.','تم حفظ المنشور.':'Post saved.','تم حفظ الإغلاق.':'Closure saved.','تم حفظ الإعدادات.':'Settings saved.','تم حفظ ساعات العمل.':'Working hours saved.','تم تغيير الدور.':'Role updated.','تم تغيير كلمة المرور.':'Password changed.','تم تحديث حالة الموظف.':'Staff status updated.','لا يوجد أطباء.':'No doctors found.','لا توجد خدمات.':'No services found.','لا توجد منشورات.':'No posts found.','لا توجد إغلاقات.':'No closures found.','لا توجد بيانات.':'No data available.','لا يوجد موظفون.':'No staff found.','جاري تحميل الجدول...':'Loading schedule...','تعذر تحميل بيانات الإدارة.':'Unable to load admin data.','ملفات المرضى':'Patient Files','مواعيد المرضى':'Patient Appointments','فتح الملف':'Open Patient','تعديل الاسم والموبايل':'Edit Name & Phone','ملف المريض':'Patient File','السجل الطبي':'Clinical Record','التطور':'Progress','الفواتير':'Invoices','المدفوعات':'Payments','المتابعة':'Follow-up','الحجوزات':'Appointments','الزيارات':'Visits','الموعد القادم':'Next appointment','الاسم':'Name','الموبايل':'Phone','لا توجد بيانات مطابقة.':'No matching patient records.','جاري تحميل الملف الكامل...':'Loading the full patient record...','لا توجد حجوزات بتاريخ':'No appointments on','اليوم':'Today','المواعيد':'Appointments','رقم الملف':'Patient Number','تعديل ملف المريض':'Edit Patient','سيتم تسجيل التعديل في Audit Log.':'This change will be recorded in the Audit Log.','رقم الملف الظاهر ثابت، والـMRN الداخلي لا يمكن تعديله.':'The display number is fixed; the canonical MRN cannot be edited.','كل الأطباء':'All doctors','طبيب محدد':'Specific doctor','العيادة بالكامل':'Entire clinic','لا يمكن إزالة دور OWNER من آخر Owner نشط.':'The last active OWNER role cannot be removed.','حساب OWNER محمي ولا يمكن تعطيله.':'The OWNER account is protected and cannot be disabled.','تم تحديث ملف المريض.':'Patient record updated.','تم حفظ بيانات الحساب.':'Account details saved.'
+  const KEY='azaadClinicLanguage', ADMIN_KEY='azaad_admin_lang';
+  const LEGACY_EN={
+    'عيادة أزاد للصحة النفسية':'Azaad Clinic Mental Health','جاري التحميل...':'Loading...','اختر الطبيب':'Select doctor','اختر الخدمة':'Select service','اكتب اسمك':'Enter your name','رقم الهاتف':'Phone number','أي معلومات إضافية...':'Any additional information...','دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض':'Damietta - Nafea Street, opposite Al-Mazloum Mosque, above Al-Riyad Pharmacy','لوحة إدارة العيادة':'Clinic Administration Panel','تسجيل الدخول بحساب الموظف عبر Supabase Auth':'Sign in with your staff account through Supabase Auth','اسم المستخدم':'Username','كلمة المرور':'Password','تسجيل الدخول':'Sign in','تحديث':'Refresh','الموقع':'Website','تسجيل الخروج':'Sign out','إجمالي الحجوزات':'Total bookings','قيد المراجعة':'Pending','مؤكدة':'Confirmed','حجوزات اليوم':"Today's bookings",'الحجوزات':'Bookings','الأطباء':'Doctors','الخدمات':'Services','جداول الأطباء':'Doctor schedules','المنشورات والعروض':'Posts & Offers','العطلات والإغلاقات':'Holidays & Closures','ساعات العمل':'Working Hours','ساعات العمل العامة':'General Working Hours','الموظفون':'Staff','إدارة الموظفين':'Staff Management','إعدادات العيادة':'Clinic Settings','حساب الإدارة':'Admin Account','كل الحالات':'All statuses','مؤكد':'Confirmed','ملغي':'Cancelled','مكتمل':'Completed','رقم الحجز':'Booking number','المريض':'Patient','الهاتف':'Phone','التاريخ':'Date','الوقت':'Time','الحالة':'Status','لا توجد حجوزات مطابقة.':'No matching bookings.','إضافة طبيب':'Add doctor','تعديل':'Edit','إضافة خدمة':'Add service','إضافة إغلاق':'Add closure','منشور جديد':'New post','اختر طبيبًا.':'Select a doctor.','اختر تاريخًا.':'Select a date.','حفظ':'Save','إغلاق':'Close','حذف':'Delete','إلغاء':'Cancel','الدور':'Role','نشط':'Active','غير نشط':'Inactive','يوم عمل':'Working day','متاح':'Available','من':'From','إلى':'To','بداية الراحة':'Break start','نهاية الراحة':'Break end','حفظ الجدول':'Save schedule','حفظ ساعات العمل':'Save working hours','حفظ البيانات':'Save details','حفظ كلمة المرور':'Save password','تغيير كلمة المرور':'Change password','كلمة المرور الحالية':'Current password','كلمة المرور الجديدة':'New password','تأكيد كلمة المرور الجديدة':'Confirm new password','إضافة موظف':'Add employee','إنشاء موظف':'Create employee','كلمة المرور المؤقتة':'Temporary password','بيانات الدخول غير صحيحة.':'Invalid login credentials.','تعذر إنشاء جلسة الدخول.':'Unable to create the sign-in session.','جلسة الإدارة غير موجودة.':'Admin session is missing.','جلسة الإدارة غير موجودة أو منتهية.':'Admin session is missing or expired.','ليس لديك صلاحية لتنفيذ هذا الإجراء.':'You do not have permission to perform this action.','تم تسجيل الدخول بنجاح':'Signed in successfully','تم تحديث النظام.':'System refreshed.','تم تحديث الحجوزات.':'Bookings refreshed.','تم حفظ بيانات الطبيب.':'Doctor details saved.','تم حفظ الخدمة.':'Service saved.','تم حفظ المنشور.':'Post saved.','تم حفظ الإغلاق.':'Closure saved.','تم حفظ الإعدادات.':'Settings saved.','تم حفظ ساعات العمل.':'Working hours saved.','تم تغيير الدور.':'Role updated.','تم تغيير كلمة المرور.':'Password changed.','تم تحديث حالة الموظف.':'Staff status updated.','لا يوجد أطباء.':'No doctors found.','لا توجد خدمات.':'No services found.','لا توجد منشورات.':'No posts found.','لا توجد إغلاقات.':'No closures found.','لا توجد بيانات.':'No data available.','لا يوجد موظفون.':'No staff found.','جاري تحميل الجدول...':'Loading schedule...','تعذر تحميل بيانات الإدارة.':'Unable to load admin data.','ملفات المرضى':'Patient Files','مواعيد المرضى':'Patient Appointments','فتح الملف':'Open Patient','تعديل الاسم والموبايل':'Edit Name & Phone','ملف المريض':'Patient File','السجل الطبي':'Clinical Record','التطور':'Progress','الفواتير':'Invoices','المدفوعات':'Payments','المتابعة':'Follow-up','الزيارات':'Visits','الموعد القادم':'Next appointment','الاسم':'Name','الموبايل':'Phone','لا توجد بيانات مطابقة.':'No matching patient records.','جاري تحميل الملف الكامل...':'Loading the full patient record...','لا توجد حجوزات بتاريخ':'No appointments on','اليوم':'Today','المواعيد':'Appointments','رقم الملف':'Patient Number','تعديل ملف المريض':'Edit Patient','سيتم تسجيل التعديل في Audit Log.':'This change will be recorded in the Audit Log.','رقم الملف الظاهر ثابت، والـMRN الداخلي لا يمكن تعديله.':'The display number is fixed; the canonical MRN cannot be edited.','كل الأطباء':'All doctors','طبيب محدد':'Specific doctor','العيادة بالكامل':'Entire clinic','لا يمكن إزالة دور OWNER من آخر Owner نشط.':'The last active OWNER role cannot be removed.','حساب OWNER محمي ولا يمكن تعطيله.':'The OWNER account is protected and cannot be disabled.','تم تحديث ملف المريض.':'Patient record updated.','تم حفظ بيانات الحساب.':'Account details saved.'
   };
-
-  const originalText = new WeakMap();
-  const originalAttrs = new WeakMap();
-  let currentLanguage = null;
-  let applying = false;
-  let queued = false;
-  let observer = null;
-  let observerSuppressed = false;
-  let pendingRoots = new Set();
-
-  const normalize = value => String(value ?? '').replace(/\s+/g, ' ').trim();
-
-  function isAdmin() {
-    return /(^|\/)admin\.html$/i.test(location.pathname);
-  }
-
-  function getLang() {
-    try {
-      if (isAdmin()) {
-        const admin = localStorage.getItem(ADMIN_KEY);
-        if (admin === 'en' || admin === 'ar') return admin;
-      }
-      const saved = localStorage.getItem(KEY);
-      if (saved === 'en' || saved === 'ar') return saved;
-    } catch (_) {}
-    return String(document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
-  }
-
-  function persist(lang) {
-    try {
-      localStorage.setItem(KEY, lang);
-      if (isAdmin()) localStorage.setItem(ADMIN_KEY, lang);
-    } catch (_) {}
-  }
-
-  function rememberText(node) {
-    if (!originalText.has(node)) originalText.set(node, node.nodeValue || '');
-    return originalText.get(node);
-  }
-
-  function rememberAttr(el, attr) {
-    let values = originalAttrs.get(el);
-    if (!values) {
-      values = new Map();
-      originalAttrs.set(el, values);
-    }
-    if (!values.has(attr)) values.set(attr, el.getAttribute(attr));
-    return values.get(attr);
-  }
-
-  function translateText(source, lang) {
-    if (lang !== 'en') return source;
-    const exact = ENGLISH[normalize(source)];
-    return exact === undefined ? source : String(source).replace(normalize(source), exact);
-  }
-
-  function shouldSkip(node) {
-    const parent = node.parentElement;
-    return !parent || !!parent.closest('script,style,textarea,[data-no-i18n]');
-  }
-
-  function translateTextNodes(root, lang) {
-    if (!root) return;
-    if (root.nodeType === Node.TEXT_NODE) {
-      if (!shouldSkip(root)) {
-        const source = rememberText(root);
-        const translated = translateText(source, lang);
-        if (root.nodeValue !== translated) root.nodeValue = translated;
-      }
-      return;
-    }
-    if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE && root.nodeType !== Node.DOCUMENT_NODE) return;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (shouldSkip(node)) continue;
-      const source = rememberText(node);
-      const translated = translateText(source, lang);
-      if (node.nodeValue !== translated) node.nodeValue = translated;
-    }
-  }
-
-  function translateAttributes(root, lang) {
-    if (!root) return;
-    const elements = [];
-    if (root.nodeType === Node.ELEMENT_NODE && root.matches('[placeholder],[title],[aria-label]')) elements.push(root);
-    if (root.querySelectorAll) root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => elements.push(el));
-    for (const el of elements) {
-      for (const attr of ['placeholder', 'title', 'aria-label']) {
-        if (!el.hasAttribute(attr)) continue;
-        const source = rememberAttr(el, attr);
-        if (source == null) continue;
-        const translated = translateText(source, lang);
-        if (el.getAttribute(attr) !== translated) el.setAttribute(attr, translated);
-      }
-    }
-  }
-
-  function translateRoot(root, lang) {
-    translateTextNodes(root, lang);
-    translateAttributes(root, lang);
-    bindLanguageControls(root);
-  }
-
-  function apply(lang = getLang()) {
-    lang = lang === 'en' ? 'en' : 'ar';
-    persist(lang);
-    currentLanguage = lang;
-    applying = true;
-    observerSuppressed = true;
-    if (observer) observer.disconnect();
-    try {
-      document.documentElement.lang = lang;
-      document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
-      document.documentElement.dataset.language = lang;
-      document.title = lang === 'en' ? 'Azaad Clinic | Mental Health Clinic' : 'Azaad Clinic | عيادة أزاد للصحة النفسية';
-      const description = document.querySelector('meta[name="description"]');
-      if (description) description.content = lang === 'en'
-        ? 'Azaad Clinic — specialized mental health and psychotherapy care with privacy and compassionate support.'
-        : 'Azaad Clinic - عيادة متخصصة في الصحة النفسية والعلاج النفسي';
-      translateRoot(document.body, lang);
-      window.AZAAD_ADMIN_ENGLISH_HARDENING?.run?.();
-      window.dispatchEvent(new CustomEvent('azaadLanguageChanged', { detail: { language: lang } }));
-    } finally {
-      applying = false;
-      observerSuppressed = false;
-      if (observer) observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    }
-  }
-
-  function queueRoot(root) {
-    if (!root) return;
-    pendingRoots.add(root);
-    if (queued || applying || observerSuppressed) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      if (applying || observerSuppressed) return;
-      const roots = Array.from(pendingRoots);
-      pendingRoots.clear();
-      for (const pending of roots) translateRoot(pending, getLang());
-    });
-  }
-
-  function bindLanguageControls(root = document) {
-    const controls = [];
-    if (root.nodeType === Node.ELEMENT_NODE && root.matches?.('[data-lang],[data-azaad-lang]')) controls.push(root);
-    if (root.querySelectorAll) root.querySelectorAll('[data-lang],[data-azaad-lang]').forEach(control => controls.push(control));
-    for (const control of controls) {
-      if (control.dataset.azaadCentralBound === 'true') continue;
-      control.dataset.azaadCentralBound = 'true';
-      control.addEventListener('click', event => {
-        const lang = control.dataset.lang === 'en' || control.dataset.azaadLang === 'en' ? 'en' : 'ar';
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        apply(lang);
-      }, true);
-    }
-  }
-
-  function init() {
-    if (window.__AZAAD_CENTRAL_I18N_V5__) return;
-    window.__AZAAD_CENTRAL_I18N_V5__ = true;
-    window.AZAAD_I18N = {
-      version: '5.0.0',
-      apply,
-      language: getLang,
-      dictionary: ENGLISH,
-      setLanguage: apply
-    };
-    apply(getLang());
-    observer = new MutationObserver(mutations => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach(queueRoot);
-        } else if (mutation.type === 'characterData') {
-          queueRoot(mutation.target);
-        }
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    window.addEventListener('storage', event => {
-      if (event.key === KEY || event.key === ADMIN_KEY) apply(getLang());
-    });
-    window.addEventListener('azaadLanguageChanged', event => {
-      if (!applying && event.detail?.language && event.detail.language !== currentLanguage) apply(event.detail.language);
-    });
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
-  else init();
+  const P={
+    navHome:['الرئيسية','Home'],navAbout:['عن العيادة','About'],navServices:['الخدمات','Services'],navDoctors:['الأطباء','Doctors'],navBooking:['الحجز','Booking'],navContact:['تواصل معنا','Contact'],bookNow:['احجز موعدك','Book an appointment'],
+    heroTitle:['مساحة آمنة<br><span>لبداية التغيير</span>','A safe space<br><span>to begin change</span>'],heroText:['رعاية نفسية متخصصة باهتمام إنساني، وخصوصية كاملة، وخطة علاجية تناسب احتياجاتك.','Specialized mental health care with human attention, complete privacy, and a treatment plan designed around your needs.'],heroBook:['احجز جلستك الآن','Book your session'],heroWhatsapp:['تواصل عبر واتساب','Contact us on WhatsApp'],trustPrivacy:['✓ خصوصية كاملة','✓ Complete privacy'],trustModes:['✓ حضوري وأونلاين','✓ In-clinic & online'],trustCare:['✓ رعاية متخصصة','✓ Specialized care'],
+    aboutTitle:['مكان تستطيع فيه<br>أن تكون على طبيعتك.','A place where<br>you can be yourself.'],aboutP1:['نؤمن أن طلب المساعدة خطوة قوة وليست ضعفًا. لذلك نوفر بيئة آمنة ومحترمة تساعدك على فهم التحديات النفسية والتعامل معها بخطوات عملية.','We believe asking for help is a sign of strength, not weakness. We provide a safe, respectful environment to understand mental health challenges and work through them with practical steps.'],aboutP2:['هدفنا أن تحصل على رعاية نفسية مهنية، إنسانية، وسرية بالكامل.','Our goal is professional, human, and completely confidential mental health care.'],
+    servicesTitle:['خدماتنا','Our services'],servicesIntro:['خدمات نفسية مصممة لتناسب احتياجات كل شخص.','Mental health services designed around each person’s needs.'],doctorsTitle:['فريق العيادة','Our team'],doctorsIntro:['متخصصون يعملون معك للوصول إلى حياة أكثر توازنًا.','Specialists working with you toward a more balanced life.'],loading:['جاري التحميل...','Loading...'],
+    bookingTitle:['احجز موعدك','Book an appointment'],bookingIntro:['اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.','Choose the doctor, service, date, and time that work for you.'],doctorLabel:['الطبيب','Doctor'],doctorPlaceholder:['اختر الطبيب','Select doctor'],serviceLabel:['الخدمة','Service'],servicePlaceholder:['اختر الخدمة','Select service'],dateLabel:['التاريخ','Date'],modeLabel:['نوع الجلسة','Session type'],clinicMode:['داخل العيادة','In-clinic'],onlineMode:['جلسة أونلاين','Online session'],slotsLabel:['المواعيد المتاحة','Available appointments'],slotsPlaceholder:['اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.','Choose a doctor, service, and date to see available appointments.'],nameLabel:['الاسم بالكامل','Full name'],namePlaceholder:['اكتب اسمك','Enter your name'],phoneLabel:['رقم الهاتف','Phone number'],phonePlaceholder:['رقم الهاتف','Phone number'],emailLabel:['البريد الإلكتروني','Email'],notesLabel:['ملاحظات','Notes'],notesPlaceholder:['أي معلومات إضافية...','Any additional information...'],confirmBooking:['تأكيد طلب الحجز','Confirm appointment request'],
+    contactTitle:['تواصل معنا','Contact us'],phoneContact:['الهاتف','Phone'],emailContact:['البريد الإلكتروني','Email'],whatsappContact:['واتساب','WhatsApp'],startChat:['ابدأ المحادثة','Start chat'],locationTitle:['موقع العيادة','Clinic location'],openMaps:['فتح الموقع على Google Maps','Open in Google Maps'],shareLocation:['📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp','📲 Share clinic website via WhatsApp'],rights:['جميع الحقوق محفوظة.','All rights reserved.'],
+    servicesEmpty:['🩺 خدمات العيادة سيتم تحديثها قريبًا.','🩺 Our clinic services will be updated soon.'],servicesError:['⚠️ تعذر تحميل خدمات العيادة حاليًا.\nيرجى تحديث الصفحة والمحاولة مرة أخرى.','⚠️ Unable to load clinic services right now.\nPlease refresh the page and try again.'],defaultService:['خدمة نفسية','Mental health service'],defaultServiceDescription:['خدمة نفسية مصممة لتناسب احتياجاتك.','Mental health service designed around your needs.'],durationMinute:['دقيقة','minutes'],doctorsEmpty:['🧑‍⚕️ فريق العيادة سيتم تحديثه قريبًا.','🧑‍⚕️ Our clinic team will be updated soon.'],doctorsError:['⚠️ تعذر تحميل فريق العيادة حاليًا.\nيرجى تحديث الصفحة والمحاولة مرة أخرى.','⚠️ Unable to load our clinic team right now.\nPlease refresh the page and try again.'],defaultDoctor:['طبيب','Doctor'],defaultDoctorTitle:['متخصص في الصحة النفسية','Mental health specialist'],defaultDoctorBio:['متخصص يعمل معك للوصول إلى حياة أكثر توازنًا.','Mental health specialist working with you toward a more balanced life.'],postsEyebrow:['AZAAD CLINIC','AZAAD CLINIC'],postsTitle:['المنشورات والعروض','News, Posts & Offers'],postsIntro:['آخر الأخبار والعروض والمحتوى من عيادة آزاد للصحة النفسية.','The latest news, offers, and content from Azaad Clinic for Mental Health.'],loadingPosts:['جاري تحميل المنشورات...','Loading posts...'],postMore:['عرض المزيد','View more'],defaultPostTitle:['منشور من عيادة آزاد','Azaad Clinic Post'],videoUnsupported:['المتصفح لا يدعم تشغيل الفيديو.','Your browser does not support video playback.'],shareButton:['📲 مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp','📲 Share clinic website via WhatsApp'],shareAria:['مشاركة الموقع الإلكتروني للعيادة عبر WhatsApp','Share the clinic website via WhatsApp'],copied:['تم نسخ رابط موقع العيادة الإلكتروني.','The clinic website link has been copied.'],prompt:['انسخ رابط موقع العيادة الإلكتروني:','Copy the clinic website link:'],shareDataTitle:['Azaad Clinic | عيادة آزاد للصحة النفسية','Azaad Clinic | Mental Health Clinic'],shareDataText:['🌐 مشاركة الموقع الإلكتروني للعيادة\n\n🏥 Azaad Clinic - عيادة آزاد للصحة النفسية\n\nيمكنك التعرف على خدمات العيادة وفريقها وحجز موعد بسهولة.','🌐 Share Azaad Clinic website\n\n🏥 Azaad Clinic for Mental Health\n\nExplore our services and team and book an appointment easily.']
+  };
+  const originalText=new WeakMap(), originalAttrs=new WeakMap(); let applying=false, observer=null;
+  const norm=v=>String(v??'').replace(/\s+/g,' ').trim();
+  const isAdmin=()=>/(^|\/)admin\.html$/i.test(location.pathname);
+  function language(){try{if(isAdmin()){const a=localStorage.getItem(ADMIN_KEY);if(a==='en'||a==='ar')return a;}const s=localStorage.getItem(KEY);if(s==='en'||s==='ar')return s;}catch(_){}return String(document.documentElement.lang||'ar').toLowerCase().startsWith('en')?'en':'ar';}
+  function persist(l){try{localStorage.setItem(KEY,l);if(isAdmin())localStorage.setItem(ADMIN_KEY,l);}catch(_){}
+  function t(k){const l=language(),e=P[k];return e?e[l==='en'?1:0]:(l==='en'?(LEGACY_EN[norm(k)]??k):k);}
+  function legacy(node,l){const w=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);while(w.nextNode()){const n=w.currentNode,p=n.parentElement;if(!p||p.closest('script,style,textarea,[data-no-i18n],[data-i18n]'))continue;if(!originalText.has(n))originalText.set(n,n.nodeValue||'');const s=originalText.get(n);if(l==='en'){const x=LEGACY_EN[norm(s)];if(x!==undefined)n.nodeValue=String(s).replace(norm(s),x);}else n.nodeValue=s;}node.querySelectorAll?.('[placeholder],[title],[aria-label]').forEach(el=>['placeholder','title','aria-label'].forEach(a=>{if(!el.hasAttribute(a)||el.hasAttribute('data-i18n-placeholder'))return;let m=originalAttrs.get(el);if(!m){m=new Map();originalAttrs.set(el,m);}if(!m.has(a))m.set(a,el.getAttribute(a));const s=m.get(a),x=l==='en'?LEGACY_EN[norm(s)]:s;if(x!==undefined&&el.getAttribute(a)!==x)el.setAttribute(a,x);}));}
+  function keyed(node,l){const pick=(k)=>P[k]?.[l==='en'?1:0];node.querySelectorAll?.('[data-i18n]').forEach(el=>{const x=pick(el.dataset.i18n);if(x!==undefined)el.innerHTML=x;});if(node.nodeType===Node.ELEMENT_NODE&&node.hasAttribute('data-i18n')){const x=pick(node.dataset.i18n);if(x!==undefined)node.innerHTML=x;}node.querySelectorAll?.('[data-i18n-placeholder]').forEach(el=>{const x=pick(el.dataset.i18nPlaceholder);if(x!==undefined)el.setAttribute('placeholder',x);});}
+  function bind(root=document){root.querySelectorAll?.('[data-lang],[data-azaad-lang]').forEach(c=>{if(c.dataset.azaadCentralBound==='true')return;c.dataset.azaadCentralBound='true';c.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();setLanguage(c.dataset.lang==='en'||c.dataset.azaadLang==='en'?'en':'ar');},true);});}
+  function apply(l=language()){l=l==='en'?'en':'ar';persist(l);applying=true;if(observer)observer.disconnect();try{document.documentElement.lang=l;document.documentElement.dir=l==='en'?'ltr':'rtl';document.documentElement.dataset.language=l;document.title=l==='en'?'Azaad Clinic | Mental Health Clinic':'Azaad Psychotherapy | عيادة آزاد للعلاج النفسي';const d=document.querySelector('meta[name="description"]');if(d)d.content=l==='en'?'Azaad Clinic — specialized mental health and psychotherapy care with privacy and compassionate support.':'Azaad Clinic - عيادة متخصصة في الصحة النفسية والعلاج النفسي';keyed(document.body,l);legacy(document.body,l);bind(document);document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',(b.dataset.lang||'ar')===l));window.dispatchEvent(new CustomEvent('azaadLanguageChanged',{detail:{language:l}}));}finally{applying=false;if(observer)observer.observe(document.body,{childList:true,subtree:true,characterData:true});}}
+  function setLanguage(l){apply(l);}
+  function init(){if(window.__AZAAD_CENTRAL_I18N_V6__)return;window.__AZAAD_CENTRAL_I18N_V6__=true;window.AZAAD_I18N={version:'6.0.0',apply,setLanguage,language,t,dictionary:LEGACY_EN,publicDictionary:P};apply(language());observer=new MutationObserver(ms=>{if(applying)return;for(const m of ms)if(m.type==='childList')m.addedNodes.forEach(n=>{if(n.nodeType===Node.ELEMENT_NODE){keyed(n,language());legacy(n,language());bind(n);}});});observer.observe(document.body,{childList:true,subtree:true,characterData:true});window.addEventListener('storage',e=>{if(e.key===KEY||e.key===ADMIN_KEY)apply(language());});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
