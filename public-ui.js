@@ -2,6 +2,7 @@
   'use strict';
   const MAPS_URL='https://maps.app.goo.gl/6kta6eBxN7TH88ATA?g_st=ic';
   const DEFAULT_WHATSAPP='201140526294';
+  const LANGUAGE_KEY='azaadClinicLanguage';
   const $=id=>document.getElementById(id);
   const normalizeDigits=value=>String(value||'').replace(/\D/g,'');
   const getPublicData=()=>window.AZAAD_PUBLIC_CLINIC_DATA||{};
@@ -29,7 +30,26 @@
     const waUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(waMessage)}`;
     if(waLink)waLink.href=waUrl; if(waHero)waHero.href=waUrl;
     if(mapsLink){mapsLink.href=MAPS_URL;mapsLink.target='_blank';mapsLink.rel='noopener noreferrer'}
-    if(shareLocation){const locationMessage=lang==='en'?`📍 Azaad Clinic location:\n${address}\n\n${MAPS_URL}`:`📍 موقع عيادة أزاد:\n${address}\n\n${MAPS_URL}`;shareLocation.onclick=()=>window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(locationMessage)}`,'_blank','noopener,noreferrer')}
+    if(shareLocation){
+      shareLocation.onclick=async event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        const pageUrl=window.location.href.split('#')[0];
+        const shareText=lang==='en'?`Azaad Psychotherapy Clinic\n${address}`:`عيادة آزاد للعلاج النفسي\n${address}`;
+        try{
+          if(typeof navigator.share==='function'){
+            await navigator.share({title:'Azaad Psychotherapy',text:shareText,url:pageUrl});
+            return;
+          }
+        }catch(error){
+          if(error?.name==='AbortError')return;
+        }
+        const whatsappMessage=`${shareText}\n\n${pageUrl}\n\n${MAPS_URL}`;
+        const whatsappUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(whatsappMessage)}`;
+        const popup=window.open(whatsappUrl,'_blank');
+        if(!popup) window.location.href=whatsappUrl;
+      };
+    }
   }
   function syncFromCentral(){
     const i18n=central(); if(!i18n?.t)return;
@@ -54,7 +74,8 @@
           setter.call(i18n,target);
           return;
         }
-        window.dispatchEvent(new CustomEvent('azaadLanguageRequest',{detail:{language:target}}));
+        localStorage.setItem(LANGUAGE_KEY,target);
+        window.location.reload();
       });
     });
   }
