@@ -29,8 +29,6 @@ LAZY = {
     "staff": ["staff-management.js", "patient-merge-tool.js"],
     "settings": [
         "admin-enhancements-v1.js",
-        "admin-nextgen-fixes.js",
-        "admin-nextgen-v2.js",
         "admin-english-hardening.js",
         "admin-patient-icon-guard.js",
     ],
@@ -45,7 +43,7 @@ def main():
         return
     text = path.read_text(encoding="utf-8")
 
-    for name in sorted(ALL_LAZY):
+    for name in sorted(ALL_LAZY | {"admin-nextgen-fixes.js", "admin-nextgen-v2.js"}):
         tag = re.compile(
             r'<script\b[^>]*src=["\'](?:/)?' + re.escape(name) +
             r'(?:\?[^"\']*)?["\'][^>]*>\s*</script>', re.I
