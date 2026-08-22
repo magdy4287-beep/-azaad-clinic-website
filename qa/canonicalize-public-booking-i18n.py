@@ -11,14 +11,14 @@ central = CENTRAL.read_text(encoding="utf-8")
 # Extract the complete legacy booking dictionary and move it into the central
 # runtime. The production artifact must contain one translation owner only.
 block = re.compile(
-    r"(?s)  /\*\n   \* =========================================================\n   \* TRANSLATIONS\n   * =========================================================\n   \*/\n  const I18N = (\{.*?\n  \});\n  function t\(key\) \{.*?\n  \}\n"
+    r"(?s)/\*\s*\n\s*\* =========================================================\s*\n\s*\* TRANSLATIONS\s*\n\s*\* =========================================================\s*\n\s*\*/\s*\n\s*const I18N = (\{.*?\});\s*\n\s*function t\(key\) \{.*?\n\s*\}\s*(?=/\*)"
 )
 match = block.search(app)
 if not match:
     raise SystemExit("Legacy app.js translation block was not found")
 
 legacy_object = match.group(1)
-replacement = """  /* LANGUAGE: CENTRAL I18N ONLY */
+replacement = """/* LANGUAGE: CENTRAL I18N ONLY */
   function getCurrentLanguage() {
     const language = window.AZAAD_I18N?.language?.();
     if (language === 'en' || language === 'ar') return language;
