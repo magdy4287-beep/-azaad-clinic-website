@@ -13,6 +13,7 @@ STEPS = [
     ["python3", "qa/lazy-admin-modules.py"],
     ["python3", "qa/canonicalize-public-booking-i18n.py"],
     ["python3", "qa/fix-public-language-edge-cases.py"],
+    ["python3", "qa/final-public-i18n-owner.py"],
     ["python3", "qa/admin-i18n-single-owner-gate.py"],
 ]
 
@@ -23,9 +24,6 @@ for command in STEPS:
     print(f"[AZAAD build] {' '.join(command)}", flush=True)
     subprocess.run(command, check=True)
 
-# The initial injector handles the checked-in source. This final pass is a
-# separate artifact-level canonicalizer because downstream transforms may add
-# relative central-i18n.js tags after the first normalization.
 final_i18n = ["python3", "qa/finalize-central-i18n.py"]
 print(f"[AZAAD build] {' '.join(final_i18n)}", flush=True)
 subprocess.run(final_i18n, check=True)
