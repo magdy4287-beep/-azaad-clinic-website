@@ -11,6 +11,7 @@ STEPS = [
     ["python3", ".github/inject-patient-actions.py"],
     ["python3", ".github/inject-doctor-actions.py"],
     ["python3", "qa/lazy-admin-modules.py"],
+    ["python3", "qa/admin-i18n-single-owner-gate.py"],
 ]
 
 for command in STEPS:
