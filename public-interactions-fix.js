@@ -5,7 +5,6 @@
   const MAPS = 'https://maps.app.goo.gl/6kta6eBxN7TH88ATA?g_st=ic';
   const DEFAULT_WA = '201140526294';
   let initialized = false;
-  let lastLanguage = '';
 
   const lang = () => {
     try {
@@ -42,43 +41,11 @@
     return true;
   }
 
-  function shareLocationViaWhatsApp() {
-    const english = lang() === 'en';
-    const message = english
-      ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
-      : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`;
-    openWhatsApp(message);
-  }
-
   function shareLocationHref() {
-    const english = lang() === 'en';
-    const message = english
+    const message = lang() === 'en'
       ? `📍 Azaad Clinic for Mental Health\n\n${MAPS}\n\n🌐 ${SITE}`
       : `📍 عيادة أزاد للصحة النفسية\n\n${MAPS}\n\n🌐 ${SITE}`;
     return `https://wa.me/${wa()}?text=${encodeURIComponent(message)}`;
-  }
-
-  function announceLanguageChange() {
-    const current = lang();
-    document.documentElement.lang = current;
-    document.documentElement.dir = current === 'en' ? 'ltr' : 'rtl';
-    if (current !== lastLanguage) {
-      lastLanguage = current;
-      window.dispatchEvent(new CustomEvent('azaadLanguageChanged', { detail: { language: current } }));
-    }
-  }
-
-  function bindLanguageSwitch() {
-    document.querySelectorAll('[data-lang]').forEach(button => {
-      if (button.dataset.azaadLanguageBound === 'true') return;
-      button.dataset.azaadLanguageBound = 'true';
-      button.addEventListener('click', () => {
-        const requested = button.getAttribute('data-lang') === 'en' ? 'en' : 'ar';
-        try { localStorage.setItem('azaadClinicLanguage', requested); } catch (_) {}
-        setTimeout(announceLanguageChange, 0);
-        setTimeout(() => window.AZAAD_I18N?.apply?.(), 20);
-      });
-    });
   }
 
   function bindAnchor(link, selector) {
@@ -90,8 +57,9 @@
   }
 
   function normalizeActions() {
-    bindLanguageSwitch();
-    announceLanguageChange();
+    // Language controls are intentionally owned exclusively by central-i18n.js.
+    // Do not add a second click handler here: duplicate handlers caused delayed,
+    // repeated application and incomplete locale/RTL updates.
 
     document.querySelectorAll('a[href="#booking"], a[href="./#booking"], a[href="index.html#booking"]').forEach(link => bindAnchor(link, '#booking'));
     document.querySelectorAll('nav a[href^="#"]').forEach(link => {
@@ -153,11 +121,10 @@
     initialized = true;
     normalizeActions();
     const observer = new MutationObserver(() => normalizeActions());
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('hashchange', () => setTimeout(normalizeActions, 50));
     window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') setTimeout(normalizeActions, 20); });
     window.addEventListener('azaadLanguageChanged', () => setTimeout(normalizeActions, 20));
-    setInterval(normalizeActions, 1000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
