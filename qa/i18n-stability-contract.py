@@ -14,6 +14,9 @@ checks = {
     'central runtime remains present': 'central-i18n.js' in bridge,
     'admin language storage remains supported': 'azaad_admin_lang' in central,
     'central language dictionary remains present': 'لوحة إدارة العيادة' in central and 'Clinic Administration Panel' in central,
+    'central runtime uses incremental mutation translation': 'mutation.addedNodes.forEach(queueRoot)' in central and 'requestAnimationFrame(() =>' in central,
+    'central runtime does not rescan the whole document on every mutation': 'apply(getLang())' not in central.split('function queueRoot', 1)[1].split('function bindLanguageControls', 1)[0],
+    'central runtime version is v5': "version: '5.0.0'" in central and '__AZAAD_CENTRAL_I18N_V5__' in central,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
