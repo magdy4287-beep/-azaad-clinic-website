@@ -9,38 +9,28 @@ def read(p):
     except OSError as e:FAILURES.append(f'cannot read {p}: {e}');return ''
 def require(c,m):
     if not c:FAILURES.append(m)
-central=ROOT/'central-i18n.js'; stability=ROOT/'central-i18n-stability.js'; vercel=ROOT/'vercel.json'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; finance=ROOT/'rcm-finance-center.js'
-for p,l in ((central,'central-i18n.js'),(stability,'central-i18n-stability.js'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py')):require(p.exists(),f'{l} is missing')
-ct=read(central); vt=read(vercel); rt=read(role_ui); ft=read(finance)
+central=ROOT/'central-i18n.js'; stability=ROOT/'central-i18n-stability.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; finance=ROOT/'rcm-finance-center.js'
+for p,l in ((central,'central-i18n.js'),(stability,'central-i18n-stability.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py')):require(p.exists(),f'{l} is missing')
+ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); ft=read(finance)
 for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObserver','central I18N dynamic observer'),('azaadLanguageChanged','central language-change event')]:require(token in ct,f'{msg} missing')
-require('location.reload()' not in ct,'central I18N reloads pages');require('qa/inject-central-i18n.py' in vt,'Vercel does not enforce central I18N');require('qa/inject-responsive-shell.py' in vt,'Vercel does not enforce responsive shell');require('azaad-responsive-shell.css' in read(injector),'responsive CSS injection missing');require('azaad-role-experience.js' in read(injector),'admin role UI injection missing')
+require('location.reload()' not in ct,'central I18N reloads pages')
+require('qa/vercel-build.py' in vt,'Vercel does not use the bounded production build runner')
+for step in ('qa/inject-central-i18n.py','qa/inject-responsive-shell.py','.github/patch-admin.py','.github/finalize-auth.py','qa/fix-production-contracts.py','.github/inject-patient-actions.py','.github/inject-doctor-actions.py','qa/lazy-admin-modules.py','qa/verify-production-contracts.py'):
+    require(step in bt,f'Vercel production build runner missing step: {step}')
+require('azaad-responsive-shell.css' in read(injector),'responsive CSS injection missing');require('azaad-role-experience.js' in read(injector),'admin role UI injection missing')
 for r in ('OWNER','ADMIN','MANAGER','SECRETARY','RECEPTION','CASHIER','MARKETING'):require(r in rt,f'role navigation contract missing {r}')
-# Authenticated-role provenance is checked structurally after whitespace normalization.
-# Keep the proof split into independent source/flow checks so harmless formatting,
-# helper extraction, or variable spacing cannot invalidate a real authenticated-role chain.
 normalized=re.sub(r'\s+',' ',rt).strip()
-state_assignment_patterns=(
-    r'(?:const|let|var)\s+authenticatedState\s*=\s*window\.AZAAD\s*&&\s*window\.AZAAD\.state',
-    r'(?:const|let|var)\s+authenticatedState\s*=\s*window\[\s*["\']AZAAD["\']\s*\]\s*\.state',
-)
-role_assignment_patterns=(
-    r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState\s*&&\s*authenticatedState\.role',
-    r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState(?:\?\.)?\.role',
-)
-role_projection_patterns=(
-    r'document\.body\.dataset\.role\s*=\s*current',
-    r'document\.documentElement\.dataset\.role\s*=\s*current',
-)
-state_source=any(re.search(p,normalized) for p in state_assignment_patterns)
-role_source=any(re.search(p,normalized) for p in role_assignment_patterns)
-role_projection=all(re.search(p,normalized) for p in role_projection_patterns)
+state_assignment_patterns=(r'(?:const|let|var)\s+authenticatedState\s*=\s*window\.AZAAD\s*&&\s*window\.AZAAD\.state',r'(?:const|let|var)\s+authenticatedState\s*=\s*window\[\s*["\']AZAAD["\']\s*\]\s*\.state')
+role_assignment_patterns=(r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState\s*&&\s*authenticatedState\.role',r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState(?:\?\.)?\.role')
+role_projection_patterns=(r'document\.body\.dataset\.role\s*=\s*current',r'document\.documentElement\.dataset\.role\s*=\s*current')
+state_source=any(re.search(p,normalized) for p in state_assignment_patterns); role_source=any(re.search(p,normalized) for p in role_assignment_patterns); role_projection=all(re.search(p,normalized) for p in role_projection_patterns)
 require('getAuthenticatedRole' in normalized and state_source and role_source and role_projection,'admin role shell does not expose the authenticated role')
 require(all(x in ft for x in ('OWNER','ADMIN','MANAGER','CASHIER')),'RCM finance role scope missing')
 htmls=sorted(ROOT.rglob('*.html'))
 for h in htmls:
     rel=h.relative_to(ROOT).as_posix();t=read(h)
     if '.git/' in rel:continue
-    if 'central-i18n.js' not in t and 'qa/inject-central-i18n.py' not in vt:FAILURES.append(f'{rel}: no central I18N runtime or build injection')
+    if 'central-i18n.js' not in t and 'qa/inject-central-i18n.py' not in bt:FAILURES.append(f'{rel}: no central I18N runtime or build injection')
     if re.search(r'(?:lang|language)[^\n]{0,180}location\.reload\s*\(',t,re.I):FAILURES.append(f'{rel}: language switching contains location.reload()')
 refund=ROOT/'refund-workflow-ui.js'; rf=read(refund) if refund.exists() else '';require(refund.exists(),'refund workflow missing')
 for x in ('approve_refund_doctor','approve_refund_management','process_refund','doctor_approval_status','management_approval_status'):require(x in rf,f'refund control missing: {x}')
