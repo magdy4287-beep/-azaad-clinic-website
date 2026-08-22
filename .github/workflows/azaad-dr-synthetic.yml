@@ -11,6 +11,7 @@ on:
       - 'AZAAD_*DR*.md'
       - 'qa/fixtures/azaad-dr-synthetic-export.json'
       - 'scripts/azaad-dr-synthetic-restore-check.sh'
+      - 'scripts/azaad-dr-portable-contract-check.sh'
       - '.github/workflows/azaad-dr-synthetic.yml'
 
 permissions:
@@ -24,5 +25,7 @@ jobs:
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
+      - name: Run provider-neutral contract gate
+        run: bash scripts/azaad-dr-portable-contract-check.sh
       - name: Run fail-closed synthetic DR gate
         run: bash scripts/azaad-dr-synthetic-restore-check.sh
