@@ -57,6 +57,34 @@ body { font-family:Cairo, system-ui, sans-serif; color:var(--az-ink); background
 footer { background:var(--az-navy-deep); color:#fff; }
 footer .logo { color:#fff; }
 
+/* Content-first media contract: UI must never crop faces, hair, or post framing. */
+.azaad-team-photo,
+.photo,
+.doctor-card .photo,
+.post-media,
+.feed-media,
+.profile-media,
+.team-media,
+.card-media { position:relative; isolation:isolate; overflow:hidden; min-height:0; }
+
+.azaad-team-photo img,
+.photo img,
+.doctor-card .photo img,
+.post-media img,
+.feed-media img,
+.profile-media img,
+.team-media img,
+.card-media img {
+  display:block;
+  width:100% !important;
+  height:auto !important;
+  max-width:100%;
+  object-fit:contain !important;
+  object-position:center center !important;
+}
+
+.azaad-team-photo { height:auto !important; min-height:0; }
+
 /* No layout jitter when locale changes. Direction follows the single central i18n owner. */
 html[dir="rtl"] body { text-align:initial; }
 html[dir="ltr"] body { text-align:initial; }
