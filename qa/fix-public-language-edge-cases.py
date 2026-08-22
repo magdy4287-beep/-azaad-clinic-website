@@ -84,12 +84,38 @@ for ar, key in pairs.items():
 
 if "azaadPatientBookingGateLanguageListener" not in patient:
     needle = "  init();\n})();"
-    listener = """  window.addEventListener('azaadLanguageChanged', () => renderGate());
+    listener = """  window.azaadPatientBookingGateLanguageListener = true;
+  window.addEventListener('azaadLanguageChanged', () => renderGate());
   window.addEventListener('azaadPublicContentLanguageChanged', () => renderGate());
   init();
 })();"""
     if needle in patient:
         patient = patient.replace(needle, listener, 1)
+
+# IMPORTANT: central-i18n owns key-based translations for dynamic booking UI.
+# The public dictionary P already contains doctor/service/date/session/slots keys.
+# Expose that dictionary inside the central runtime and make central.t(key)
+# resolve keys before falling back to its existing text-based behavior. This
+# prevents dynamic app renders from ever seeing raw keys such as chooseDoctor.
+bridge_marker = "  // __AZAAD_PUBLIC_KEY_TRANSLATION_BRIDGE__\n"
+if bridge_marker not in central:
+    bridge = """  // __AZAAD_PUBLIC_KEY_TRANSLATION_BRIDGE__
+  if (window.AZAAD_I18N && typeof window.AZAAD_I18N.t === 'function') {
+    const __azaadCentralT = window.AZAAD_I18N.t.bind(window.AZAAD_I18N);
+    window.AZAAD_I18N.t = (key) => {
+      const pair = P?.[key];
+      if (Array.isArray(pair) && pair.length >= 2) {
+        const language = window.AZAAD_I18N.language?.() === 'en' ? 'en' : 'ar';
+        return pair[language === 'en' ? 1 : 0] ?? key;
+      }
+      return __azaadCentralT(key);
+    };
+  }
+"""
+    marker = "\n})();\n"
+    if marker not in central:
+        raise SystemExit("Central runtime boundary not found")
+    central = central.replace(marker, "\n" + bridge + marker, 1)
 
 index = index.replace(
     '<div id="address" class="address">دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض</div>',
@@ -100,4 +126,4 @@ index = index.replace(
 CENTRAL.write_text(central, encoding="utf-8")
 PATIENT_GATE.write_text(patient, encoding="utf-8")
 INDEX.write_text(index, encoding="utf-8")
-print("[AZAAD i18n] fixed booking gate and clinic address under central ownership")
+print("[AZAAD i18n] fixed dynamic public booking keys under the central owner")
