@@ -1,6 +1,5 @@
 from pathlib import Path
 import subprocess
-import sys
 
 STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
@@ -20,9 +19,10 @@ for command in STEPS:
     print(f"[AZAAD build] {' '.join(command)}", flush=True)
     subprocess.run(command, check=True)
 
-# Final normalization is deliberately performed after every HTML transformation.
-# A later transform must never be able to reintroduce a duplicate central-i18n runtime.
-final_i18n = ["python3", "qa/inject-central-i18n.py"]
+# The initial injector handles the checked-in source. This final pass is a
+# separate artifact-level canonicalizer because downstream transforms may add
+# relative central-i18n.js tags after the first normalization.
+final_i18n = ["python3", "qa/finalize-central-i18n.py"]
 print(f"[AZAAD build] {' '.join(final_i18n)}", flush=True)
 subprocess.run(final_i18n, check=True)
 
