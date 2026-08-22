@@ -38,7 +38,27 @@
     const menu=$('menu'); if(menu)menu.setAttribute('aria-label',language()==='ar'?'القائمة':'Menu');
     updateContactLinks();
   }
-  function setupCentralLanguage(){syncFromCentral();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
+  function bindCentralLanguageButtons(){
+    document.querySelectorAll('[data-lang]').forEach(button=>{
+      if(button.dataset.centralLanguageBound==='true')return;
+      button.dataset.centralLanguageBound='true';
+      button.addEventListener('click',event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        const target=button.getAttribute('data-lang');
+        if(target!=='ar'&&target!=='en')return;
+        const i18n=central();
+        if(!i18n)return;
+        const setter=i18n.setLanguage||i18n.changeLanguage||i18n.setLocale||i18n.changeLocale||i18n.setLang;
+        if(typeof setter==='function'){
+          setter.call(i18n,target);
+          return;
+        }
+        window.dispatchEvent(new CustomEvent('azaadLanguageRequest',{detail:{language:target}}));
+      });
+    });
+  }
+  function setupCentralLanguage(){syncFromCentral();bindCentralLanguageButtons();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
   function refreshPublicSettings(attempt=0){updateContactLinks();if(attempt>=10)return;if(!window.AZAAD_PUBLIC_CLINIC_DATA)window.setTimeout(()=>refreshPublicSettings(attempt+1),500)}
   function initialize(){setupMobileMenu();setupCentralLanguage();refreshPublicSettings();const year=$('year');if(year)year.textContent=String(new Date().getFullYear());for(const src of ['/public-team-display.js?v=2','/patient-booking-privacy-v2.js?v=2']){const s=document.createElement('script');s.src=src;s.defer=true;document.head.appendChild(s)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
