@@ -1,9 +1,6 @@
 from pathlib import Path
 import re
 
-# These modules are enhancements/features, not required to render or authenticate
-# the admin shell. Loading them only when their surface is opened prevents the
-# initial page from parsing and executing the entire admin application at once.
 LAZY = {
     "bookings": [
         "patient-appointment-actions.js",
@@ -31,7 +28,6 @@ LAZY = {
     ],
     "staff": ["staff-management.js", "patient-merge-tool.js"],
     "settings": [
-        "admin-account-security.js",
         "admin-enhancements-v1.js",
         "admin-nextgen-fixes.js",
         "admin-nextgen-v2.js",
@@ -40,8 +36,6 @@ LAZY = {
     ],
 }
 
-# Only scripts explicitly injected by patch-admin are candidates. Existing
-# application/core scripts remain untouched.
 ALL_LAZY = {name for values in LAZY.values() for name in values}
 
 
@@ -52,7 +46,10 @@ def main():
     text = path.read_text(encoding="utf-8")
 
     for name in sorted(ALL_LAZY):
-        tag = re.compile(r'<script\b[^>]*src=["\'](?:/)?' + re.escape(name) + r'(?:\?[^"\']*)?["\'][^>]*>\s*</script>', re.I)
+        tag = re.compile(
+            r'<script\b[^>]*src=["\'](?:/)?' + re.escape(name) +
+            r'(?:\?[^"\']*)?["\'][^>]*>\s*</script>', re.I
+        )
         text = tag.sub("", text)
 
     payload = """
@@ -84,18 +81,13 @@ def main():
     await Promise.all(files.map(load));
     window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready',{detail:{panel:key}}));
   };
-  const activate=el=>{
-    const panel=el?.getAttribute('data-panel');
-    if(panel) window.AZAAD_LOAD_ADMIN_PANEL(panel).catch(e=>console.error('[AZAAD_ADMIN_MODULE]',e));
-  };
   document.addEventListener('click',e=>{
     const tab=e.target?.closest?.('[data-panel]');
-    if(tab) activate(tab);
+    if(tab) window.AZAAD_LOAD_ADMIN_PANEL(tab.getAttribute('data-panel')).catch(err=>console.error('[AZAAD_ADMIN_MODULE]',err));
   },{passive:true});
   window.addEventListener('load',()=>{
     const active=document.querySelector('.tab.active[data-panel]');
-    // Keep the first screen responsive; bookings are loaded after first paint.
-    if(active) setTimeout(()=>activate(active),0);
+    if(active) setTimeout(()=>window.AZAAD_LOAD_ADMIN_PANEL(active.getAttribute('data-panel')).catch(err=>console.error('[AZAAD_ADMIN_MODULE]',err)),1200);
   },{once:true});
 })();
 </script>
