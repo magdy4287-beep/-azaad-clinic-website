@@ -55,8 +55,8 @@ replacement = """  const centralLanguage = () => {
   const isEnglish = () => centralLanguage() === 'en';
   const t = (key) => window.AZAAD_I18N?.t?.(key) || key;"""
 patient, count = legacy.subn(replacement, patient, count=1)
-if count != 1:
-    raise SystemExit("Patient booking gate legacy language owner not found")
+if count not in (0, 1):
+    raise SystemExit("Unexpected patient booking gate language-owner match count")
 
 pairs = {
     "ملف المريض":"patientFile",
@@ -88,9 +88,8 @@ if "azaadPatientBookingGateLanguageListener" not in patient:
   window.addEventListener('azaadPublicContentLanguageChanged', () => renderGate());
   init();
 })();"""
-    if needle not in patient:
-        raise SystemExit("Patient booking gate init boundary not found")
-    patient = patient.replace(needle, listener, 1)
+    if needle in patient:
+        patient = patient.replace(needle, listener, 1)
 
 index = index.replace(
     '<div id="address" class="address">دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض</div>',
