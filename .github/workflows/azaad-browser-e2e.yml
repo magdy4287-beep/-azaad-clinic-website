@@ -74,6 +74,7 @@ jobs:
           python3 qa/restore-admin-submit-binding.py
           python3 .github/inject-patient-actions.py
           python3 .github/inject-doctor-actions.py
+          python3 qa/fix-production-contracts.py
 
       - name: Validate Admin production-parity JavaScript syntax
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
@@ -82,6 +83,8 @@ jobs:
           set -euo pipefail
           cd /tmp/azaad-build
           node --check ./admin-english-hardening.js
+          node --check ./admin.js
+          node --check ./patient-booking-gate.js
           if [[ -f ./admin-auth-ui-guard.js ]]; then
             node --check ./admin-auth-ui-guard.js
           fi
