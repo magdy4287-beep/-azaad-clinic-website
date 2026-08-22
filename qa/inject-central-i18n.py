@@ -5,8 +5,14 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = '<script src="/central-i18n.js?v=4.0.0"></script>'
-TAG_RE = re.compile(r'<script\b[^>]*src=["\'][^"\']*/central-i18n\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>\s*', re.I)
+# Match the runtime wherever it appears in an HTML document (head or body),
+# including query strings, attributes such as defer, and mixed whitespace.
+TAG_RE = re.compile(
+    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*/central-i18n\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>',
+    re.I,
+)
 changed = 0
+removed_tags = 0
 for path in sorted(ROOT.rglob('*.html')):
     if '.git' in path.parts:
         continue
@@ -18,4 +24,5 @@ for path in sorted(ROOT.rglob('*.html')):
     if normalized != text:
         path.write_text(normalized, encoding='utf-8')
         changed += 1
-print(f'central-i18n normalized to one script tag in {changed} HTML surface(s)')
+        removed_tags += removed
+print(f'central-i18n normalized to one script tag in {changed} HTML surface(s); removed {removed_tags} prior tag(s)')
