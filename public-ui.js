@@ -8,7 +8,7 @@
   const getPublicData=()=>window.AZAAD_PUBLIC_CLINIC_DATA||{};
   const getSettings=()=>getPublicData().settings||{};
   const central=()=>window.AZAAD_I18N;
-  const language=()=>localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'ar';
+  const language=()=>central()?.language?.() || (localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'ar');
   function setting(...keys){for(const key of keys){const value=getSettings()?.[key];if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim();}return ''}
   const getWhatsApp=()=>normalizeDigits(setting('whatsapp','whatsapp_number','whatsapp_phone','phone_whatsapp')||DEFAULT_WHATSAPP);
   const getPhone=()=>setting('phone','phone_number','clinic_phone','contact_phone');
@@ -23,7 +23,7 @@
   function updateContactLinks(){
     const whatsapp=getWhatsApp(),phone=getPhone(),email=getEmail(),address=getAddress(),lang=language();
     const phoneLink=$('phoneLink'),phoneText=$('contactPhone'),emailLink=$('emailLink'),emailText=$('contactEmail'),waLink=$('waLink'),waHero=$('waHero'),mapsLink=$('mapsLink'),shareLocation=$('shareLocation'),addressElement=$('address');
-    if(phoneText)phoneText.textContent=phone||'—'; if(emailText)emailText.textContent=email||'—'; if(addressElement)addressElement.textContent=address;
+    if(phoneText)phoneText.textContent=phone||'—'; if(emailText)emailText.textContent=email||'—'; if(addressElement){addressElement.textContent=address;addressElement.setAttribute('data-i18n','clinicAddress')}
     if(phoneLink)phoneLink.href=phone?`tel:${phone.replace(/[^\d+]/g,'')}`:'#contact'; if(emailLink)emailLink.href=email?`mailto:${email}`:'#contact';
     const waMessage=lang==='en'?'Hello Azaad Clinic, I would like to ask about an appointment.':'مرحبًا عيادة أزاد، أود الاستفسار عن حجز موعد.';
     const waUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(waMessage)}`;
@@ -33,62 +33,52 @@
       shareLocation.dataset.publicShareBound='true';
       shareLocation.addEventListener('click',async event=>{
         event.preventDefault();
-        event.stopPropagation();
-        const pageUrl=window.location.href.split('#')[0];
-        const shareText=language()==='en'?`Azaad Psychotherapy Clinic\n${getAddress()}`:`عيادة آزاد للعلاج النفسي\n${getAddress()}`;
+        event.stopImmediatePropagation();
+        const pageUrl=`${window.location.origin}${window.location.pathname}${window.location.search}`;
+        const title=central()?.t?.('shareDataTitle') || (lang==='en'?'Azaad Clinic | Mental Health Clinic':'Azaad Clinic | عيادة آزاد للصحة النفسية');
+        const text=central()?.t?.('shareDataText') || (lang==='en'?'🌐 Share Azaad Clinic website':'🌐 مشاركة الموقع الإلكتروني للعيادة');
         try{
           if(typeof navigator.share==='function'){
-            await navigator.share({title:'Azaad Psychotherapy',text:shareText,url:pageUrl});
+            await navigator.share({title,text,url:pageUrl});
             return;
           }
         }catch(error){
           if(error?.name==='AbortError')return;
         }
-        const whatsappMessage=`${shareText}\n\n${pageUrl}\n\n${MAPS_URL}`;
-        const whatsappUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(whatsappMessage)}`;
-        const anchor=document.createElement('a');
-        anchor.href=whatsappUrl;
-        anchor.target='_blank';
-        anchor.rel='noopener noreferrer';
-        anchor.style.display='none';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
+        try{
+          await navigator.clipboard?.writeText(pageUrl);
+          const message=central()?.t?.('copied') || (lang==='en'?'The clinic website link has been copied.':'تم نسخ رابط موقع العيادة الإلكتروني.');
+          if(typeof window.alert==='function')window.alert(message);
+          return;
+        }catch(_){
+          const promptText=central()?.t?.('prompt') || (lang==='en'?'Copy the clinic website link:':'انسخ رابط موقع العيادة الإلكتروني:');
+          if(typeof window.prompt==='function')window.prompt(promptText,pageUrl);
+        }
       },{passive:false});
     }
   }
   function syncFromCentral(){
-    document.documentElement.lang=language();
-    document.documentElement.dir=language()==='ar'?'rtl':'ltr';
-    document.querySelectorAll('[data-lang]').forEach(button=>{const active=button.getAttribute('data-lang')===language();button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false')});
-    const menu=$('menu'); if(menu)menu.setAttribute('aria-label',language()==='ar'?'القائمة':'Menu');
+    const lang=language();
+    document.documentElement.lang=lang;
+    document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+    document.querySelectorAll('[data-lang]').forEach(button=>{const active=button.getAttribute('data-lang')===lang;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false')});
+    const menu=$('menu');if(menu)menu.setAttribute('aria-label',lang==='ar'?'القائمة':'Menu');
     updateContactLinks();
   }
-  function changeLanguage(target){
-    if(target!=='ar'&&target!=='en')return;
-    localStorage.setItem(LANGUAGE_KEY,target);
-    document.documentElement.lang=target;
-    document.documentElement.dir=target==='ar'?'rtl':'ltr';
-    window.dispatchEvent(new CustomEvent('azaadLanguageChanged',{detail:{language:target}}));
-    window.dispatchEvent(new CustomEvent('azaadPublicContentLanguageChanged',{detail:{language:target}}));
-    window.location.reload();
-  }
   function bindCentralLanguageButtons(){
-    if(document.documentElement.dataset.centralLanguageCaptureBound!=='true'){
-      document.documentElement.dataset.centralLanguageCaptureBound='true';
-      document.addEventListener('click',event=>{
-        const button=event.target?.closest?.('[data-lang]');
-        if(!button)return;
-        const target=button.getAttribute('data-lang');
-        if(target!=='ar'&&target!=='en')return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        changeLanguage(target);
-      },true);
-    }
+    if(document.documentElement.dataset.centralLanguageCaptureBound==='true')return;
+    document.documentElement.dataset.centralLanguageCaptureBound='true';
+    document.addEventListener('click',event=>{
+      const button=event.target?.closest?.('[data-lang]');if(!button)return;
+      const target=button.getAttribute('data-lang');if(target!=='ar'&&target!=='en')return;
+      event.preventDefault();event.stopImmediatePropagation();
+      const c=central();
+      if(typeof c?.setLanguage==='function')c.setLanguage(target);else localStorage.setItem(LANGUAGE_KEY,target);
+      window.dispatchEvent(new CustomEvent('azaadLanguageChanged',{detail:{language:target}}));
+    },true);
   }
-  function setupCentralLanguage(){syncFromCentral();bindCentralLanguageButtons();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
+  function setupCentralLanguage(){bindCentralLanguageButtons();syncFromCentral();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
   function refreshPublicSettings(attempt=0){updateContactLinks();if(attempt>=10)return;if(!window.AZAAD_PUBLIC_CLINIC_DATA)window.setTimeout(()=>refreshPublicSettings(attempt+1),500)}
-  function initialize(){setupMobileMenu();setupCentralLanguage();refreshPublicSettings();const year=$('year');if(year)year.textContent=String(new Date().getFullYear());for(const src of ['/public-team-display.js?v=2','/patient-booking-privacy-v2.js?v=2']){const s=document.createElement('script');s.src=src;s.defer=true;document.head.appendChild(s)}}
+  function initialize(){setupMobileMenu();setupCentralLanguage();refreshPublicSettings();const year=$('year');if(year)year.textContent=String(new Date().getFullYear());for(const src of ['/public-team-display.js?v=3','/patient-booking-privacy-v2.js?v=3']){const s=document.createElement('script');s.src=src;s.defer=true;document.head.appendChild(s)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
 })();
