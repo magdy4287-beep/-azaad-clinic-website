@@ -6,6 +6,7 @@ STEPS = [
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", ".github/patch-admin.py"],
     ["python3", ".github/finalize-auth.py"],
+    ["python3", "qa/remove-legacy-admin-i18n-runtime.py"],
     ["python3", "qa/fix-production-contracts.py"],
     ["python3", ".github/inject-patient-actions.py"],
     ["python3", ".github/inject-doctor-actions.py"],
