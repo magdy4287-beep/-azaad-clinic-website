@@ -8,7 +8,7 @@
   const getPublicData=()=>window.AZAAD_PUBLIC_CLINIC_DATA||{};
   const getSettings=()=>getPublicData().settings||{};
   const central=()=>window.AZAAD_I18N;
-  const language=()=>central()?.language?.() === 'en' ? 'en' : 'ar';
+  const language=()=>localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'ar';
   function setting(...keys){for(const key of keys){const value=getSettings()?.[key];if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim();}return ''}
   const getWhatsApp=()=>normalizeDigits(setting('whatsapp','whatsapp_number','whatsapp_phone','phone_whatsapp')||DEFAULT_WHATSAPP);
   const getPhone=()=>setting('phone','phone_number','clinic_phone','contact_phone');
@@ -16,8 +16,7 @@
   const getAddress=()=>{
     const ar=setting('address','clinic_address','location','clinic_location')||'دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض';
     if(language()!=='en') return ar;
-    const translated=central()?.t?.(ar);
-    return typeof translated==='string' && translated!==ar ? translated : (setting('address_en','clinic_address_en','location_en','clinic_location_en')||'Damietta - Nafea Street, opposite Al-Mazloum Mosque, above Al-Riyad Pharmacy');
+    return setting('address_en','clinic_address_en','location_en','clinic_location_en')||'Damietta - Nafea Street, opposite Al-Mazloum Mosque, above Al-Riyad Pharmacy';
   };
   function closeMobileMenu(){const nav=$('nav'),menu=$('menu');if(!nav)return;nav.classList.remove('mobile-open');if(menu){menu.setAttribute('aria-expanded','false');menu.textContent='☰'}}
   function setupMobileMenu(){const nav=$('nav'),menu=$('menu');if(!nav||!menu||menu.dataset.publicUiMenuBound==='true')return;menu.dataset.publicUiMenuBound='true';menu.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const open=nav.classList.toggle('mobile-open');menu.setAttribute('aria-expanded',open?'true':'false');menu.textContent=open?'✕':'☰'});nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileMenu));window.addEventListener('resize',()=>{if(window.innerWidth>900)closeMobileMenu()})}
@@ -30,12 +29,13 @@
     const waUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(waMessage)}`;
     if(waLink)waLink.href=waUrl; if(waHero)waHero.href=waUrl;
     if(mapsLink){mapsLink.href=MAPS_URL;mapsLink.target='_blank';mapsLink.rel='noopener noreferrer'}
-    if(shareLocation){
-      shareLocation.onclick=async event=>{
+    if(shareLocation && shareLocation.dataset.publicShareBound!=='true'){
+      shareLocation.dataset.publicShareBound='true';
+      shareLocation.addEventListener('click',async event=>{
         event.preventDefault();
         event.stopPropagation();
         const pageUrl=window.location.href.split('#')[0];
-        const shareText=lang==='en'?`Azaad Psychotherapy Clinic\n${address}`:`عيادة آزاد للعلاج النفسي\n${address}`;
+        const shareText=language()==='en'?`Azaad Psychotherapy Clinic\n${getAddress()}`:`عيادة آزاد للعلاج النفسي\n${getAddress()}`;
         try{
           if(typeof navigator.share==='function'){
             await navigator.share({title:'Azaad Psychotherapy',text:shareText,url:pageUrl});
@@ -46,38 +46,46 @@
         }
         const whatsappMessage=`${shareText}\n\n${pageUrl}\n\n${MAPS_URL}`;
         const whatsappUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(whatsappMessage)}`;
-        const popup=window.open(whatsappUrl,'_blank');
-        if(!popup) window.location.href=whatsappUrl;
-      };
+        const anchor=document.createElement('a');
+        anchor.href=whatsappUrl;
+        anchor.target='_blank';
+        anchor.rel='noopener noreferrer';
+        anchor.style.display='none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      },{passive:false});
     }
   }
   function syncFromCentral(){
-    const i18n=central(); if(!i18n?.t)return;
-    document.documentElement.lang=language(); document.documentElement.dir=language()==='ar'?'rtl':'ltr';
+    document.documentElement.lang=language();
+    document.documentElement.dir=language()==='ar'?'rtl':'ltr';
     document.querySelectorAll('[data-lang]').forEach(button=>{const active=button.getAttribute('data-lang')===language();button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false')});
     const menu=$('menu'); if(menu)menu.setAttribute('aria-label',language()==='ar'?'القائمة':'Menu');
     updateContactLinks();
   }
+  function changeLanguage(target){
+    if(target!=='ar'&&target!=='en')return;
+    localStorage.setItem(LANGUAGE_KEY,target);
+    document.documentElement.lang=target;
+    document.documentElement.dir=target==='ar'?'rtl':'ltr';
+    window.dispatchEvent(new CustomEvent('azaadLanguageChanged',{detail:{language:target}}));
+    window.dispatchEvent(new CustomEvent('azaadPublicContentLanguageChanged',{detail:{language:target}}));
+    window.location.reload();
+  }
   function bindCentralLanguageButtons(){
-    document.querySelectorAll('[data-lang]').forEach(button=>{
-      if(button.dataset.centralLanguageBound==='true')return;
-      button.dataset.centralLanguageBound='true';
-      button.addEventListener('click',event=>{
-        event.preventDefault();
-        event.stopPropagation();
+    if(document.documentElement.dataset.centralLanguageCaptureBound!=='true'){
+      document.documentElement.dataset.centralLanguageCaptureBound='true';
+      document.addEventListener('click',event=>{
+        const button=event.target?.closest?.('[data-lang]');
+        if(!button)return;
         const target=button.getAttribute('data-lang');
         if(target!=='ar'&&target!=='en')return;
-        const i18n=central();
-        if(!i18n)return;
-        const setter=i18n.setLanguage||i18n.changeLanguage||i18n.setLocale||i18n.changeLocale||i18n.setLang;
-        if(typeof setter==='function'){
-          setter.call(i18n,target);
-          return;
-        }
-        localStorage.setItem(LANGUAGE_KEY,target);
-        window.location.reload();
-      });
-    });
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        changeLanguage(target);
+      },true);
+    }
   }
   function setupCentralLanguage(){syncFromCentral();bindCentralLanguageButtons();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
   function refreshPublicSettings(attempt=0){updateContactLinks();if(attempt>=10)return;if(!window.AZAAD_PUBLIC_CLINIC_DATA)window.setTimeout(()=>refreshPublicSettings(attempt+1),500)}
