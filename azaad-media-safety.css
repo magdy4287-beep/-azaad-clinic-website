@@ -1,0 +1,124 @@
+/* Azaad media safety: content-first image framing. */
+
+/* Media containers reserve their own space and never let UI chrome overlap. */
+.photo,
+.doctor-card .photo,
+.post-media,
+.feed-media,
+.profile-media,
+.team-media,
+.card-media {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+/* Do not crop the source image by default. Preserve faces, hair and framing. */
+.photo img,
+.doctor-card .photo img,
+.post-media img,
+.feed-media img,
+.profile-media img,
+.team-media img,
+.card-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center center;
+}
+
+/* Portrait assets get natural height instead of being forced into a crop box. */
+.photo:has(img),
+.doctor-card .photo:has(img),
+.post-media:has(img),
+.feed-media:has(img),
+.profile-media:has(img),
+.team-media:has(img),
+.card-media:has(img) {
+  height: auto;
+  min-height: 0;
+}
+
+/* Keep UI controls outside media bounds. */
+.photo > :not(img),
+.doctor-card .photo > :not(img),
+.post-media > :not(img),
+.feed-media > :not(img),
+.profile-media > :not(img),
+.team-media > :not(img),
+.card-media > :not(img) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Never use decorative overlays to cover important image content. */
+.photo::before,
+.photo::after,
+.doctor-card .photo::before,
+.doctor-card .photo::after,
+.post-media::before,
+.post-media::after,
+.feed-media::before,
+.feed-media::after,
+.profile-media::before,
+.profile-media::after,
+.team-media::before,
+.team-media::after,
+.card-media::before,
+.card-media::after {
+  pointer-events: none;
+}
+
+/* Responsive media must not shrink because neighboring navigation grows. */
+.cards,
+.card,
+.doctor-card,
+.post-card,
+.feed-card {
+  min-width: 0;
+}
+
+/* Avoid layout jumps while media loads. */
+img[width][height] {
+  height: auto;
+  aspect-ratio: auto;
+}
+
+@media (max-width: 720px) {
+  .photo,
+  .doctor-card .photo,
+  .post-media,
+  .feed-media,
+  .profile-media,
+  .team-media,
+  .card-media {
+    max-width: 100%;
+  }
+
+  .photo img,
+  .doctor-card .photo img,
+  .post-media img,
+  .feed-media img,
+  .profile-media img,
+  .team-media img,
+  .card-media img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo,
+  .doctor-card .photo,
+  .post-media,
+  .feed-media,
+  .profile-media,
+  .team-media,
+  .card-media {
+    scroll-behavior: auto;
+  }
+}
