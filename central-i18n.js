@@ -15,6 +15,7 @@
   let queued = false;
   let observer = null;
   let observerSuppressed = false;
+  let pendingRoots = new Set();
 
   const normalize = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 
@@ -67,6 +68,49 @@
     return !parent || !!parent.closest('script,style,textarea,[data-no-i18n]');
   }
 
+  function translateTextNodes(root, lang) {
+    if (!root) return;
+    if (root.nodeType === Node.TEXT_NODE) {
+      if (!shouldSkip(root)) {
+        const source = rememberText(root);
+        const translated = translateText(source, lang);
+        if (root.nodeValue !== translated) root.nodeValue = translated;
+      }
+      return;
+    }
+    if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE && root.nodeType !== Node.DOCUMENT_NODE) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (shouldSkip(node)) continue;
+      const source = rememberText(node);
+      const translated = translateText(source, lang);
+      if (node.nodeValue !== translated) node.nodeValue = translated;
+    }
+  }
+
+  function translateAttributes(root, lang) {
+    if (!root) return;
+    const elements = [];
+    if (root.nodeType === Node.ELEMENT_NODE && root.matches('[placeholder],[title],[aria-label]')) elements.push(root);
+    if (root.querySelectorAll) root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => elements.push(el));
+    for (const el of elements) {
+      for (const attr of ['placeholder', 'title', 'aria-label']) {
+        if (!el.hasAttribute(attr)) continue;
+        const source = rememberAttr(el, attr);
+        if (source == null) continue;
+        const translated = translateText(source, lang);
+        if (el.getAttribute(attr) !== translated) el.setAttribute(attr, translated);
+      }
+    }
+  }
+
+  function translateRoot(root, lang) {
+    translateTextNodes(root, lang);
+    translateAttributes(root, lang);
+    bindLanguageControls(root);
+  }
+
   function apply(lang = getLang()) {
     lang = lang === 'en' ? 'en' : 'ar';
     persist(lang);
@@ -78,35 +122,12 @@
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
       document.documentElement.dataset.language = lang;
-
-      const title = lang === 'en' ? 'Azaad Clinic | Mental Health Clinic' : 'Azaad Clinic | عيادة أزاد للصحة النفسية';
-      document.title = title;
+      document.title = lang === 'en' ? 'Azaad Clinic | Mental Health Clinic' : 'Azaad Clinic | عيادة أزاد للصحة النفسية';
       const description = document.querySelector('meta[name="description"]');
       if (description) description.content = lang === 'en'
         ? 'Azaad Clinic — specialized mental health and psychotherapy care with privacy and compassionate support.'
         : 'Azaad Clinic - عيادة متخصصة في الصحة النفسية والعلاج النفسي';
-
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      const nodes = [];
-      while (walker.nextNode()) nodes.push(walker.currentNode);
-      for (const node of nodes) {
-        if (shouldSkip(node)) continue;
-        const source = rememberText(node);
-        const translated = translateText(source, lang);
-        if (node.nodeValue !== translated) node.nodeValue = translated;
-      }
-
-      document.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => {
-        for (const attr of ['placeholder','title','aria-label']) {
-          if (!el.hasAttribute(attr)) continue;
-          const source = rememberAttr(el, attr);
-          if (source == null) continue;
-          const translated = translateText(source, lang);
-          if (el.getAttribute(attr) !== translated) el.setAttribute(attr, translated);
-        }
-      });
-
-      bindLanguageControls();
+      translateRoot(document.body, lang);
       window.AZAAD_ADMIN_ENGLISH_HARDENING?.run?.();
       window.dispatchEvent(new CustomEvent('azaadLanguageChanged', { detail: { language: lang } }));
     } finally {
@@ -116,19 +137,26 @@
     }
   }
 
-  function queueApply() {
-    if (applying || queued || observerSuppressed) return;
+  function queueRoot(root) {
+    if (!root) return;
+    pendingRoots.add(root);
+    if (queued || applying || observerSuppressed) return;
     queued = true;
-    queueMicrotask(() => {
+    requestAnimationFrame(() => {
       queued = false;
-      if (!applying && !observerSuppressed) apply(getLang());
+      if (applying || observerSuppressed) return;
+      const roots = Array.from(pendingRoots);
+      pendingRoots.clear();
+      for (const pending of roots) translateRoot(pending, getLang());
     });
   }
 
-  function bindLanguageControls() {
-    const controls = document.querySelectorAll('[data-lang],[data-azaad-lang]');
-    controls.forEach(control => {
-      if (control.dataset.azaadCentralBound === 'true') return;
+  function bindLanguageControls(root = document) {
+    const controls = [];
+    if (root.nodeType === Node.ELEMENT_NODE && root.matches?.('[data-lang],[data-azaad-lang]')) controls.push(root);
+    if (root.querySelectorAll) root.querySelectorAll('[data-lang],[data-azaad-lang]').forEach(control => controls.push(control));
+    for (const control of controls) {
+      if (control.dataset.azaadCentralBound === 'true') continue;
       control.dataset.azaadCentralBound = 'true';
       control.addEventListener('click', event => {
         const lang = control.dataset.lang === 'en' || control.dataset.azaadLang === 'en' ? 'en' : 'ar';
@@ -136,21 +164,29 @@
         event.stopImmediatePropagation();
         apply(lang);
       }, true);
-    });
+    }
   }
 
   function init() {
-    if (window.__AZAAD_CENTRAL_I18N_V4__) return;
-    window.__AZAAD_CENTRAL_I18N_V4__ = true;
+    if (window.__AZAAD_CENTRAL_I18N_V5__) return;
+    window.__AZAAD_CENTRAL_I18N_V5__ = true;
     window.AZAAD_I18N = {
-      version: '4.0.0',
+      version: '5.0.0',
       apply,
       language: getLang,
       dictionary: ENGLISH,
       setLanguage: apply
     };
     apply(getLang());
-    observer = new MutationObserver(() => queueApply());
+    observer = new MutationObserver(mutations => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach(queueRoot);
+        } else if (mutation.type === 'characterData') {
+          queueRoot(mutation.target);
+        }
+      }
+    });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     window.addEventListener('storage', event => {
       if (event.key === KEY || event.key === ADMIN_KEY) apply(getLang());
