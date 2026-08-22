@@ -5,5 +5,4 @@
   const original=window.fetch.bind(window);
   window.fetch=async(input,init={})=>{const url=typeof input==='string'?input:(input?.url||'');if(url.startsWith(OLD_LOOKUP)){const next=url.replace(OLD_LOOKUP,PUBLIC_LOOKUP);const response=await original(next,init);try{const clone=response.clone();const body=await clone.json();if(body?.found)return new Response(JSON.stringify({found:true,patient:{id:body.patient?.id,active:true}}),{status:response.status,headers:response.headers})}catch(_){}return response}return original(input,init)};
   const style=document.createElement('style');style.textContent='#azaadPatientBookingGate .azaad-patient-meta{display:none!important}#azaadPatientBookingGate .azaad-upcoming{display:none!important}';document.head.appendChild(style);
-  const s=document.createElement('script');s.src='/booking-share-deeplink.js?v=1';s.defer=true;document.head.appendChild(s);
 })();
