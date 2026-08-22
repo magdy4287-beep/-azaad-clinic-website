@@ -76,14 +76,16 @@
     status.style.setProperty('margin-bottom','0','important');
   }
 
-  const pad2 = (v) => String(v).padStart(2, '0');
   function formatTime12(hour24, minute) {
+    const formatter = window.AZAAD_LOCALE?.formatTime12;
+    if (typeof formatter === 'function') return formatter(hour24, minute);
     const h = Number(hour24), m = Number(minute);
     if (!Number.isFinite(h) || !Number.isFinite(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
     const suffix = h >= 12 ? 'PM' : 'AM';
     let h12 = h % 12; if (h12 === 0) h12 = 12;
-    return `${h12}:${pad2(m)} ${suffix}`;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
   }
+
   const convertTimeString = (value) => String(value || '').replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, (full,h,m) => formatTime12(h,m) || full);
 
   function convertTimeInTextNodes(root) {
@@ -125,7 +127,7 @@
       state.observer = new MutationObserver(schedule);
       state.observer.observe(document.body, { childList:true, subtree:true, characterData:true });
     } catch (_) {}
-    setInterval(refresh, 500);
+    window.addEventListener('azaadLanguageChanged', schedule);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once:true });
