@@ -19,12 +19,17 @@ for command in STEPS:
     print(f"[AZAAD build] {' '.join(command)}", flush=True)
     subprocess.run(command, check=True)
 
-# The initial injector handles the checked-in source. This final pass is a
-# separate artifact-level canonicalizer because downstream transforms may add
-# relative central-i18n.js tags after the first normalization.
+# The initial injector handles checked-in source. Downstream transforms can add
+# relative central-i18n.js tags, so canonicalize the final artifact immediately
+# before verification.
 final_i18n = ["python3", "qa/finalize-central-i18n.py"]
 print(f"[AZAAD build] {' '.join(final_i18n)}", flush=True)
 subprocess.run(final_i18n, check=True)
+
+# Verify the entire generated HTML surface, not only the two primary entrypoints.
+invariants = ["python3", "qa/production-artifact-invariants.py"]
+print(f"[AZAAD build] {' '.join(invariants)}", flush=True)
+subprocess.run(invariants, check=True)
 
 verify = ["python3", "qa/verify-production-contracts.py"]
 print(f"[AZAAD build] {' '.join(verify)}", flush=True)
