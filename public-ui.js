@@ -79,6 +79,6 @@
   }
   function setupCentralLanguage(){bindCentralLanguageButtons();syncFromCentral();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
   function refreshPublicSettings(attempt=0){updateContactLinks();if(attempt>=10)return;if(!window.AZAAD_PUBLIC_CLINIC_DATA)window.setTimeout(()=>refreshPublicSettings(attempt+1),500)}
-  function initialize(){setupMobileMenu();setupCentralLanguage();refreshPublicSettings();const year=$('year');if(year)year.textContent=String(new Date().getFullYear());for(const src of ['/public-team-display.js?v=3','/patient-booking-privacy-v2.js?v=3']){const s=document.createElement('script');s.src=src;s.defer=true;document.head.appendChild(s)}}
+  function initialize(){setupMobileMenu();setupCentralLanguage();refreshPublicSettings();const year=$('year');if(year)year.textContent=String(new Date().getFullYear())}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
 })();
