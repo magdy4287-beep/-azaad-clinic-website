@@ -1,0 +1,31 @@
+name: AZAAD Synthetic DR Gate
+
+on:
+  push:
+    branches:
+      - 'codex/azaad-dr-portability'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'AZAAD_*DR*.md'
+      - 'qa/fixtures/azaad-dr-synthetic-export.json'
+      - 'scripts/azaad-dr-synthetic-restore-check.sh'
+      - 'scripts/azaad-dr-portable-contract-check.sh'
+      - '.github/workflows/azaad-dr-synthetic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-dr:
+    name: Synthetic DR reconciliation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+      - name: Run provider-neutral contract gate
+        run: bash scripts/azaad-dr-portable-contract-check.sh
+      - name: Run fail-closed synthetic DR gate
+        run: bash scripts/azaad-dr-synthetic-restore-check.sh

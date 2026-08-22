@@ -1,0 +1,21 @@
+{
+  "format_version": "1",
+  "fixture": "synthetic-only",
+  "patients": [
+    {"patient_id":"p-synth-001","display_name":"SYNTHETIC PATIENT 001"},
+    {"patient_id":"p-synth-002","display_name":"SYNTHETIC PATIENT 002"}
+  ],
+  "appointments": [
+    {"appointment_id":"a-synth-001","patient_id":"p-synth-001"},
+    {"appointment_id":"a-synth-002","patient_id":"p-synth-002"}
+  ],
+  "visits": [
+    {"visit_id":"v-synth-001","patient_id":"p-synth-001","appointment_id":"a-synth-001"}
+  ],
+  "invoices": [
+    {"invoice_id":"i-synth-001","patient_id":"p-synth-001"}
+  ],
+  "audit_events": [
+    {"event_id":"e-synth-001","entity_id":"v-synth-001","actor":"synthetic-staff"}
+  ]
+}
