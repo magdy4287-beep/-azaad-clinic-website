@@ -12,6 +12,7 @@ STEPS = [
     ["python3", ".github/inject-doctor-actions.py"],
     ["python3", "qa/lazy-admin-modules.py"],
     ["python3", "qa/canonicalize-public-booking-i18n.py"],
+    ["python3", "qa/fix-public-language-edge-cases.py"],
     ["python3", "qa/admin-i18n-single-owner-gate.py"],
 ]
 
