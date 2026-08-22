@@ -43,6 +43,12 @@
     });
   }
 
+  function releasePrepaint() {
+    try {
+      document.documentElement.removeAttribute('data-azaad-i18n-pending');
+    } catch (_) {}
+  }
+
   window.AZAAD_CORE_CONTEXT = Object.freeze({
     version: '1.0.0',
     timeZone: TIME_ZONE,
@@ -53,10 +59,18 @@
     apply,
   });
 
-  window.addEventListener('azaadLanguageChanged', () => apply(document));
+  window.addEventListener('azaadLanguageChanged', () => {
+    apply(document);
+    releasePrepaint();
+  });
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => apply(document), { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      apply(document);
+      releasePrepaint();
+    }, { once: true });
   } else {
     apply(document);
+    releasePrepaint();
   }
 })();
