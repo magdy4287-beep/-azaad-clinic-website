@@ -13,6 +13,8 @@ STEPS = [
     ["python3", ".github/inject-doctor-actions.py"],
     ["python3", "qa/lazy-admin-modules.py"],
     ["python3", "qa/inject-admin-early-recovery.py"],
+    # Canonicalize Admin's external script graph after every injector has run.
+    ["python3", "qa/dedupe-admin-scripts.py"],
     ["python3", "qa/canonicalize-public-booking-i18n.py"],
     ["python3", "qa/fix-public-language-edge-cases.py"],
     ["python3", "qa/final-public-i18n-owner.py"],
