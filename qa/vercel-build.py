@@ -16,12 +16,12 @@ TRANSFORM_STEPS = [
     ["python3", "qa/fix-public-language-edge-cases.py"],
     ["python3", "qa/final-public-i18n-owner.py"],
     ["python3", "qa/admin-i18n-single-owner-gate.py"],
-]
-
-VERIFY_STEPS = [
     ["python3", "qa/finalize-central-i18n.py"],
     ["python3", "qa/inject-public-performance-guard.py"],
     ["python3", "qa/inject-public-experience-hardening.py"],
+]
+
+VERIFY_STEPS = [
     ["python3", "qa/verify-admin-script-graph.py"],
     ["python3", "qa/repository-architecture-gate.py"],
     ["python3", "qa/verify-production-contracts.py"],
