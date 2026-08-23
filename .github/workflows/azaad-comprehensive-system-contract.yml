@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Verify workflow ownership
+        run: python qa/workflow-ownership-gate.py
+
       - name: Run comprehensive system contract
         run: python qa/comprehensive-system-contract.py
 
