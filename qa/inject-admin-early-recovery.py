@@ -1,3 +1,4 @@
+# Production-critical admin recovery injector.
 from pathlib import Path
 
 path = Path("admin.html")
