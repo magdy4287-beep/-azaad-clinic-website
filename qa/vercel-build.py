@@ -5,6 +5,7 @@ STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", ".github/patch-admin.py"],
+    ["python3", "qa/inject-media-editor.py"],
     ["python3", ".github/finalize-auth.py"],
     ["python3", "qa/remove-legacy-admin-i18n-runtime.py"],
     ["python3", "qa/fix-production-contracts.py"],
