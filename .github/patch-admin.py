@@ -34,9 +34,13 @@ ADMIN_FEATURE_SCRIPTS = (
     "admin-auth-ui-guard.js",
 )
 
-
-def _script_srcs(text):
-    return re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', text, flags=re.I)
+# Only these files are permitted to receive the legacy translation-key compatibility
+# rewrite. Never recursively mutate arbitrary JavaScript during a production build.
+ADMIN_COMPATIBILITY_FILES = tuple(dict.fromkeys((
+    "admin.html",
+    "admin-english-hardening.js",
+    *ADMIN_FEATURE_SCRIPTS,
+)))
 
 
 def _canonical_src(src):
@@ -61,8 +65,6 @@ def _inject_once(path_name, script_name, location):
     if not path.exists():
         return
     text = path.read_text(encoding="utf-8")
-    # Remove every existing version of this logical script first. This makes the
-    # operation idempotent even when an older injector used a different query string.
     text = _remove_script_source(text, script_name)
     tag = f'<script src="{script_name}" defer></script>'
     marker = f"</{location}>"
@@ -179,18 +181,17 @@ def patch_admin_injected_compatibility():
 
 
 def patch_nextgen_scripts():
-    english = Path('admin-english-hardening.js')
-    if english.exists():
-        text = english.read_text(encoding='utf-8')
-        fixed = text.replace("'معاد':'Rescheduled'},\nexact:", "'معاد':'Rescheduled',\nexact:")
-        if fixed != text:
-            english.write_text(fixed, encoding='utf-8')
-    for path in Path('.').rglob('*.js'):
-        if '.git' in path.parts:
+    # Explicit ownership list: production builds must never recursively rewrite
+    # arbitrary JavaScript outside the Admin compatibility surface.
+    for relative in ADMIN_COMPATIBILITY_FILES:
+        path = Path(relative)
+        if not path.exists() or path.suffix != '.js':
             continue
         text = path.read_text(encoding='utf-8', errors='replace')
         updated = text.replace("const key=`azaadSrc${a}`;", "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
         updated = updated.replace("const key = `azaadSrc${a}`;", "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
+        if relative == "admin-english-hardening.js":
+            updated = updated.replace("'معاد':'Rescheduled'},\nexact:", "'معاد':'Rescheduled',\nexact:")
         if updated != text:
             path.write_text(updated, encoding='utf-8')
 
@@ -200,12 +201,9 @@ patch_admin_js()
 patch_startup_restore()
 patch_patient_center()
 
-# Admin Shell is the only emergency UI controller. Feature modules are injected once,
-# with their logical source canonicalized so future build runs cannot accumulate duplicates.
 for script in ADMIN_FEATURE_SCRIPTS:
     inject_script("admin.html", script)
 
-# Critical shell is loaded in <head>, before central i18n, auth, feature modules, and build injections.
 inject_head_script("admin.html", ADMIN_SHELL_SRC)
 
 for target, script in [
