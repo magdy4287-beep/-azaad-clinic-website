@@ -12,7 +12,6 @@ STEPS = [
     ["python3", ".github/inject-patient-actions.py"],
     ["python3", ".github/inject-doctor-actions.py"],
     ["python3", "qa/lazy-admin-modules.py"],
-    # Admin Shell is the sole emergency UI owner; competing early-recovery injection is retired.
     ["python3", "qa/dedupe-admin-scripts.py"],
     ["python3", "qa/canonicalize-public-booking-i18n.py"],
     ["python3", "qa/fix-public-language-edge-cases.py"],
@@ -27,25 +26,18 @@ for command in STEPS:
     print(f"[AZAAD build] {' '.join(command)}", flush=True)
     subprocess.run(command, check=True)
 
-final_i18n = ["python3", "qa/finalize-central-i18n.py"]
-print(f"[AZAAD build] {' '.join(final_i18n)}", flush=True)
-subprocess.run(final_i18n, check=True)
-
-performance_guard = ["python3", "qa/inject-public-performance-guard.py"]
-print(f"[AZAAD build] {' '.join(performance_guard)}", flush=True)
-subprocess.run(performance_guard, check=True)
-
-public_experience = ["python3", "qa/inject-public-experience-hardening.py"]
-print(f"[AZAAD build] {' '.join(public_experience)}", flush=True)
-subprocess.run(public_experience, check=True)
-
-# Final fail-closed graph check after every transformation has completed.
-admin_graph = ["python3", "qa/verify-admin-script-graph.py"]
-print(f"[AZAAD build] {' '.join(admin_graph)}", flush=True)
-subprocess.run(admin_graph, check=True)
-
-verify = ["python3", "qa/verify-production-contracts.py"]
-print(f"[AZAAD build] {' '.join(verify)}", flush=True)
-subprocess.run(verify, check=True)
+for command in [
+    ["python3", "qa/finalize-central-i18n.py"],
+    ["python3", "qa/inject-public-performance-guard.py"],
+    ["python3", "qa/inject-public-experience-hardening.py"],
+    ["python3", "qa/verify-admin-script-graph.py"],
+    ["python3", "qa/repository-architecture-gate.py"],
+    ["python3", "qa/verify-production-contracts.py"],
+]:
+    path = Path(command[1])
+    if not path.is_file():
+        raise SystemExit(f"Missing required production verification step: {path}")
+    print(f"[AZAAD build] {' '.join(command)}", flush=True)
+    subprocess.run(command, check=True)
 
 print("[AZAAD build] production transformation pipeline completed", flush=True)
