@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed architecture gate for the canonical AZAAD Admin tree."""
+"""Fail-closed architecture gate for the canonical AZAAD Admin tree and workflow ownership."""
 from pathlib import Path
 import re
 import sys
@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / "admin.html"
 PATCH = ROOT / ".github" / "patch-admin.py"
 BUILD = ROOT / "qa" / "vercel-build.py"
+WORKFLOW_DIR = ROOT / ".github" / "workflows"
+REGISTRY = ROOT / "docs" / "AZAAD_WORKFLOW_OWNERSHIP_REGISTRY.md"
 errors = []
 
 
@@ -22,6 +24,7 @@ for path, label in (
     (ROOT / "admin-shell.js", "canonical Admin Shell"),
     (PATCH, "canonical Admin build patcher"),
     (BUILD, "canonical production build owner"),
+    (REGISTRY, "workflow ownership registry"),
 ):
     require_file(path, label)
 
@@ -33,6 +36,26 @@ for path in (
 ):
     if path.exists():
         errors.append(f"retired Admin runtime/build layer exists: {path.relative_to(ROOT)}")
+
+# Known duplicate certification workflow is retired; do not allow resurrection.
+if WORKFLOW_DIR.is_dir():
+    for retired_workflow in (
+        "azaad-production-certification-v2.yml",
+    ):
+        if (WORKFLOW_DIR / retired_workflow).exists():
+            errors.append(f"retired duplicate workflow exists: .github/workflows/{retired_workflow}")
+
+if REGISTRY.is_file():
+    registry = REGISTRY.read_text(encoding="utf-8", errors="replace")
+    required_registry_markers = (
+        "## Canonical ownership map",
+        "## Retirement rule",
+        "## Anti-recursion rule",
+        "No workflow may create or modify source files",
+    )
+    for marker in required_registry_markers:
+        if marker not in registry:
+            errors.append(f"workflow ownership registry missing required rule: {marker}")
 
 if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
@@ -79,4 +102,4 @@ if errors:
     sys.exit(1)
 
 print("[AZAAD architecture gate] PASS")
-print("[AZAAD architecture gate] Canonical Admin owner + bounded build mutation + duplicate prevention verified")
+print("[AZAAD architecture gate] Canonical Admin owner + bounded build mutation + duplicate prevention + workflow ownership verified")
