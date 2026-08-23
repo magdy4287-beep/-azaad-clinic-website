@@ -55,6 +55,41 @@ if '</head>' not in text:
     raise SystemExit("admin.html head marker not found")
 text = text.replace('</head>', marker + '\n</head>', 1)
 
+# The login surface is a hard security boundary: it must remain interactive
+# before authentication. Normalize only the login controls and remove stale
+# DOM state that could make the password field untargetable after a previous
+# runtime/overlay. This does not alter authentication or authorization.
+LOGIN_SURFACE_STYLE = '''<style id="azaad-admin-login-surface">
+#loginPage{position:relative;z-index:1000;pointer-events:auto!important}
+#loginPage .login-card{position:relative;z-index:1001;pointer-events:auto!important}
+#loginPage form,#loginPage label,#loginPage input,#loginPage button{position:relative;z-index:1002;pointer-events:auto!important}
+#loginPage input{user-select:text!important;-webkit-user-select:text!important;cursor:text!important}
+#loginPage button{cursor:pointer!important}
+</style>'''
+
+# Replace a prior generated copy rather than accumulating CSS on every build.
+text = re.sub(
+    r'\s*<style id="azaad-admin-login-surface">.*?</style>\s*',
+    '\n',
+    text,
+    flags=re.I | re.S,
+)
+text = text.replace('</head>', LOGIN_SURFACE_STYLE + '\n</head>', 1)
+
+# Remove stale interaction-lock attributes from the two actual login inputs.
+for element_id in ('username', 'password'):
+    text = re.sub(
+        rf'(<input\b(?=[^>]*\bid=["\']{element_id}["\']))([^>]*)(>)',
+        lambda match: re.sub(
+            r'\s+(?:disabled|readonly|inert)(?:\s*=\s*(?:["\'][^"\']*["\']|[^\s>]+))?',
+            '',
+            match.group(0),
+            flags=re.I,
+        ),
+        text,
+        flags=re.I | re.S,
+    )
+
 # Fail closed: exactly one canonical external owner and no legacy inline owner.
 if text.count(marker) != 1:
     raise SystemExit("canonical Admin runtime reference was not established exactly once")
@@ -79,4 +114,4 @@ if remaining_inline:
     raise SystemExit("legacy inline Admin runtime remains after canonicalization")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] canonical Admin runtime established: admin.js")
+print("[AZAAD] canonical Admin runtime + interactive login surface established")
