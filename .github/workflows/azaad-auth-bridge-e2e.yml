@@ -7,11 +7,12 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'admin.html'
       - 'admin.js'
-      - 'admin-login-controller.js'
+      - 'admin-shell.js'
       - 'azaad-operations-control-center.js'
-      - '.github/patch-*.py'
-      - '.github/workflows/azaad-auth-bridge-e2e.yml'
+      - '.github/patch-admin.py'
+      - 'qa/vercel-build.py'
       - 'qa/browser-e2e.spec.mjs'
   workflow_dispatch:
 
@@ -40,7 +41,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
 
-      - name: Build immutable production-parity test copy
+      - name: Build exact canonical production artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -48,17 +49,7 @@ jobs:
           mkdir -p /tmp/azaad-build
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
-          python3 qa/inject-central-i18n.py
-          python3 qa/inject-responsive-shell.py
-          python3 .github/patch-admin.py
-          python3 .github/finalize-auth.py
-          python3 .github/patch-admin-auth-lifecycle.py
-          python3 .github/patch-admin-auth-reload.py
-          python3 .github/patch-auth-ready-gate.py
-          python3 .github/patch-frontdesk-auth-bridge.py
-          python3 qa/restore-admin-submit-binding.py
-          python3 .github/inject-patient-actions.py
-          python3 .github/inject-doctor-actions.py
+          python3 qa/vercel-build.py
 
       - name: Validate patched JavaScript
         shell: bash
@@ -68,6 +59,7 @@ jobs:
           node --check ./admin-english-hardening.js
           node --check ./frontdesk-workflow.js
           node --check ./azaad-operations-control-center.js
+          node --check ./admin-shell.js
 
       - name: Start production-parity server
         shell: bash
