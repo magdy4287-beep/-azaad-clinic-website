@@ -12,8 +12,7 @@ STEPS = [
     ["python3", ".github/inject-patient-actions.py"],
     ["python3", ".github/inject-doctor-actions.py"],
     ["python3", "qa/lazy-admin-modules.py"],
-    ["python3", "qa/inject-admin-early-recovery.py"],
-    # Canonicalize Admin's external script graph after every injector has run.
+    # Admin Shell is the sole emergency UI owner; competing early-recovery injection is retired.
     ["python3", "qa/dedupe-admin-scripts.py"],
     ["python3", "qa/canonicalize-public-booking-i18n.py"],
     ["python3", "qa/fix-public-language-edge-cases.py"],
@@ -39,6 +38,11 @@ subprocess.run(performance_guard, check=True)
 public_experience = ["python3", "qa/inject-public-experience-hardening.py"]
 print(f"[AZAAD build] {' '.join(public_experience)}", flush=True)
 subprocess.run(public_experience, check=True)
+
+# Final fail-closed graph check after every transformation has completed.
+admin_graph = ["python3", "qa/verify-admin-script-graph.py"]
+print(f"[AZAAD build] {' '.join(admin_graph)}", flush=True)
+subprocess.run(admin_graph, check=True)
 
 verify = ["python3", "qa/verify-production-contracts.py"]
 print(f"[AZAAD build] {' '.join(verify)}", flush=True)
