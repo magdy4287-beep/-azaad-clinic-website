@@ -1,6 +1,14 @@
 from pathlib import Path
 import re
 
+def inject_script(path_name,script_name):
+    path=Path(path_name)
+    if not path.exists():return
+    text=path.read_text(encoding="utf-8")
+    tag=f'<script src="{script_name}" defer></script>'
+    if tag in text:return
+    if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
+
 def patch_admin_html():
     path=Path("admin.html")
     if not path.exists(): return
@@ -49,8 +57,7 @@ def patch_startup_restore():
     text=path.read_text(encoding="utf-8")
     if 'window.AZAAD_READY' in text:return
     marker='''window.AZAAD = {\n  supabase,\n  state,\n  hasPermission,\n  refresh:load,\n  logout\n};'''
-    if marker not in text:
-        print("Admin readiness marker not found; leaving source unchanged");return
+    if marker not in text:return
     replacement=marker+'''\n\nwindow.AZAAD_READY=(async()=>{try{const restored=await restore();if(restored!==false&&state.session?.access_token&&state.staff){document.getElementById("loginPage")?.classList.add("hidden");document.getElementById("adminPage")?.classList.remove("hidden");return true;}}catch(error){console.error("Admin startup restore failed:",error);}return false;})();'''
     path.write_text(text.replace(marker,replacement,1),encoding="utf-8")
 
@@ -60,18 +67,9 @@ def patch_patient_center():
     text=path.read_text(encoding="utf-8")
     if 'Patient Center waiting for admin restore:' in text:return
     marker='  async function init() {\n    if (state.initialized) {'
-    if marker not in text:
-        print("Patient Center init marker not found; source is already patched or structurally changed");return
+    if marker not in text:return
     replacement='''  async function init() {\n    try {\n      if (window.AZAAD_READY) await window.AZAAD_READY;\n    } catch (error) {\n      console.warn('Patient Center waiting for admin restore:', error);\n    }\n\n    if (state.initialized) {'''
     path.write_text(text.replace(marker,replacement,1),encoding="utf-8")
-
-def inject_script(path_name,script_name):
-    path=Path(path_name)
-    if not path.exists():return
-    text=path.read_text(encoding="utf-8")
-    tag=f'<script src="{script_name}" defer></script>'
-    if tag in text:return
-    if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
 def patch_admin_injected_compatibility():
     path=Path("admin.html")
@@ -81,12 +79,9 @@ def patch_admin_injected_compatibility():
     text=re.sub(r"\bconst\s+queued\s*=\s*false\b", "let queued=false", text)
     bridge='<script>window.$=window.$||function(id){return document.getElementById(id)};</script>'
     if bridge not in text:
-        if '</head>' in text:text=text.replace('</head>',bridge+'\n</head>',1)
-        elif '<body>' in text:text=text.replace('<body>', '<body>\n'+bridge,1)
-        else:text=bridge+'\n'+text
+        text=text.replace('</head>',bridge+'\n</head>',1)
     diagnostic="<script>window.addEventListener('error',function(e){if(e&&e.error&&e.error.stack)console.error('[AZAAD_PAGE_ERROR_STACK]',e.error.stack);});</script>"
-    if diagnostic not in text:
-        text=text.replace('</head>',diagnostic+'\n</head>',1)
+    if diagnostic not in text:text=text.replace('</head>',diagnostic+'\n</head>',1)
     path.write_text(text,encoding="utf-8")
 
 def patch_nextgen_scripts():
@@ -103,16 +98,8 @@ def patch_nextgen_scripts():
         if updated!=text:path.write_text(updated,encoding='utf-8')
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js"):
+for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js","azaad-video-editor-v1.js"):
     inject_script("admin.html",script)
-inject_script("clinical-assessment.html","azaad-platform-kernel.js")
-inject_script("clinical-assessment.html","clinical-followup-widget.js")
-inject_script("clinical-assessment.html","clinician-transfer-widget.js")
-inject_script("clinical-assessment.html","clinician-ai-session-cockpit.js")
-inject_script("clinical-assessment.html","clinician-longitudinal-dashboard.js")
-inject_script("clinical-assessment.html","patient-demographics-editor.js")
-inject_script("invoice-center.html","azaad-platform-kernel.js")
-inject_script("invoice-center.html","invoice-print-email.js")
-patch_nextgen_scripts()
-patch_admin_injected_compatibility()
+for target,script in [("clinical-assessment.html","azaad-platform-kernel.js"),("clinical-assessment.html","clinical-followup-widget.js"),("clinical-assessment.html","clinician-transfer-widget.js"),("clinical-assessment.html","clinician-ai-session-cockpit.js"),("clinical-assessment.html","clinician-longitudinal-dashboard.js"),("clinical-assessment.html","patient-demographics-editor.js"),("invoice-center.html","azaad-platform-kernel.js"),("invoice-center.html","invoice-print-email.js")]:inject_script(target,script)
+patch_nextgen_scripts();patch_admin_injected_compatibility()
 print("patch-admin.py completed successfully")
