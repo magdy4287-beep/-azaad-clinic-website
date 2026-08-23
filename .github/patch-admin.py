@@ -56,7 +56,13 @@ def patch_startup_restore():
     if not path.exists(): return
     text=path.read_text(encoding="utf-8")
     if 'window.AZAAD_READY' in text:return
-    marker='''window.AZAAD = {\n  supabase,\n  state,\n  hasPermission,\n  refresh:load,\n  logout\n};'''
+    marker='''window.AZAAD = {
+  supabase,
+  state,
+  hasPermission,
+  refresh:load,
+  logout
+};'''
     if marker not in text:return
     replacement=marker+'''\n\nwindow.AZAAD_READY=(async()=>{try{const restored=await restore();if(restored!==false&&state.session?.access_token&&state.staff){document.getElementById("loginPage")?.classList.add("hidden");document.getElementById("adminPage")?.classList.remove("hidden");return true;}}catch(error){console.error("Admin startup restore failed:",error);}return false;})();'''
     path.write_text(text.replace(marker,replacement,1),encoding="utf-8")
@@ -98,7 +104,7 @@ def patch_nextgen_scripts():
         if updated!=text:path.write_text(updated,encoding='utf-8')
 
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
-for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js","azaad-video-editor-v1.js"):
+for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js"):
     inject_script("admin.html",script)
 for target,script in [("clinical-assessment.html","azaad-platform-kernel.js"),("clinical-assessment.html","clinical-followup-widget.js"),("clinical-assessment.html","clinician-transfer-widget.js"),("clinical-assessment.html","clinician-ai-session-cockpit.js"),("clinical-assessment.html","clinician-longitudinal-dashboard.js"),("clinical-assessment.html","patient-demographics-editor.js"),("invoice-center.html","azaad-platform-kernel.js"),("invoice-center.html","invoice-print-email.js")]:inject_script(target,script)
 patch_nextgen_scripts();patch_admin_injected_compatibility()
