@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           timeout 15m npx playwright install chromium
 
-      - name: Create immutable local production-parity build copy for pull requests and branch dispatches
+      - name: Create immutable canonical production build copy for pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         shell: bash
         run: |
@@ -64,19 +64,9 @@ jobs:
           mkdir -p /tmp/azaad-build
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
-          python3 qa/inject-central-i18n.py
-          python3 qa/inject-responsive-shell.py
-          python3 .github/patch-admin.py
-          python3 .github/finalize-auth.py
-          python3 .github/patch-admin-auth-lifecycle.py
-          python3 .github/patch-admin-auth-reload.py
-          python3 .github/patch-frontdesk-auth-bridge.py
-          python3 qa/restore-admin-submit-binding.py
-          python3 .github/inject-patient-actions.py
-          python3 .github/inject-doctor-actions.py
-          python3 qa/fix-production-contracts.py
+          python3 qa/vercel-build.py
 
-      - name: Validate Admin production-parity JavaScript syntax
+      - name: Validate Admin production artifact JavaScript syntax
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         shell: bash
         run: |
@@ -84,6 +74,7 @@ jobs:
           cd /tmp/azaad-build
           node --check ./admin-english-hardening.js
           node --check ./admin.js
+          node --check ./admin-shell.js
           node --check ./patient-booking-gate.js
           if [[ -f ./admin-auth-ui-guard.js ]]; then
             node --check ./admin-auth-ui-guard.js
@@ -112,10 +103,10 @@ jobs:
                   failed = 1
           if failed:
               raise SystemExit(1)
-          print('Admin production-parity JavaScript syntax validation passed.')
+          print('Admin production artifact JavaScript syntax validation passed.')
           PY
 
-      - name: Start local checked-out production-parity build server for pull requests and branch dispatches
+      - name: Start local canonical production build server for pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         shell: bash
         run: |
@@ -125,7 +116,7 @@ jobs:
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              echo "Local Azaad immutable production-parity build is ready."
+              echo "Local Azaad canonical production build is ready."
               exit 0
             fi
             sleep 1
@@ -150,7 +141,7 @@ jobs:
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs
 
-      - name: Run browser shell/control-plane/responsive E2E against exact checked-out production-parity build copy on pull requests and branch dispatches
+      - name: Run browser shell/control-plane/responsive E2E against exact checked-out canonical production build on pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
