@@ -1,6 +1,4 @@
 /* Azaad media safety: content-first image framing. */
-
-/* Media containers reserve their own space and never let UI chrome overlap. */
 .photo,
 .doctor-card .photo,
 .post-media,
@@ -10,13 +8,13 @@
 .card-media {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
-  contain: layout paint;
+  overflow: visible !important;
+  contain: layout !important;
   height: auto !important;
   min-height: 0 !important;
 }
 
-/* Preserve the complete source image. Inline crop rules must not override this contract. */
+/* Doctor/source photos are displayed completely: no cover crop, fixed ratio, or hidden edges. */
 .photo img,
 .doctor-card .photo img,
 .post-media img,
@@ -33,7 +31,6 @@
   object-position: center center !important;
 }
 
-/* Keep UI controls outside media bounds. */
 .photo > :not(img),
 .doctor-card .photo > :not(img),
 .post-media > :not(img),
@@ -45,7 +42,6 @@
   z-index: 1;
 }
 
-/* Never use decorative overlays to cover important image content. */
 .photo::before,
 .photo::after,
 .doctor-card .photo::before,
@@ -63,7 +59,6 @@
   pointer-events: none;
 }
 
-/* Responsive media must not shrink because neighboring navigation grows. */
 .cards,
 .card,
 .doctor-card,
@@ -72,7 +67,6 @@
   min-width: 0;
 }
 
-/* Avoid layout jumps while media loads without forcing a crop ratio. */
 img[width][height] {
   height: auto !important;
   aspect-ratio: auto !important;
@@ -87,8 +81,8 @@ img[width][height] {
   .team-media,
   .card-media {
     max-width: 100%;
+    overflow: visible !important;
   }
-
   .photo img,
   .doctor-card .photo img,
   .post-media img,
@@ -109,7 +103,5 @@ img[width][height] {
   .feed-media,
   .profile-media,
   .team-media,
-  .card-media {
-    scroll-behavior: auto;
-  }
+  .card-media { scroll-behavior: auto; }
 }
