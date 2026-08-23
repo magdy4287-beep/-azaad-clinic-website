@@ -9,6 +9,14 @@ def inject_script(path_name,script_name):
     if tag in text:return
     if '</body>' in text:path.write_text(text.replace('</body>',tag+'\n</body>',1),encoding="utf-8")
 
+def inject_head_script(path_name,script_name):
+    path=Path(path_name)
+    if not path.exists():return
+    text=path.read_text(encoding="utf-8")
+    tag=f'<script src="{script_name}" defer></script>'
+    if tag in text:return
+    if '</head>' in text:path.write_text(text.replace('</head>',tag+'\n</head>',1),encoding="utf-8")
+
 def patch_admin_html():
     path=Path("admin.html")
     if not path.exists(): return
@@ -105,6 +113,8 @@ def patch_nextgen_scripts():
 patch_admin_html();patch_admin_js();patch_startup_restore();patch_patient_center()
 for script in ("azaad-platform-kernel.js","azaad-operations-role-guard.js","azaad-operations-control-center.js","frontdesk-workflow.js","patient-merge-tool.js","patient-clinical-history.js","admin-enhancements-v1.js","admin-english-hardening.js","doctors-center-v2.js","services-center-v2.js","patient-mrn-display-v2.js","marketing-workspace-v2.js","marketing-platform-expansion.js","marketing-studio-v3.js","public-team-admin.js","ai-operating-center.js","admin-patient-icon-guard.js","admin-nextgen-v2.js","waiting-list-center.js","doctor-staff-binding.js","doctor-staff-convert.js","patient-financial-summary.js","patient-appointment-actions.js","doctor-visit-actions.js","secretary-hybrid-workflow.js","azaad-platform-control-plane.js","admin-auth-ui-guard.js","admin-login-controller.js","admin-ui-failsafe.js"):
     inject_script("admin.html",script)
+# Critical shell is loaded in <head>, before central i18n, auth, feature modules, and build injections.
+inject_head_script("admin.html","/admin-shell.js?v=1")
 for target,script in [("clinical-assessment.html","azaad-platform-kernel.js"),("clinical-assessment.html","clinical-followup-widget.js"),("clinical-assessment.html","clinician-transfer-widget.js"),("clinical-assessment.html","clinician-ai-session-cockpit.js"),("clinical-assessment.html","clinician-longitudinal-dashboard.js"),("clinical-assessment.html","patient-demographics-editor.js"),("invoice-center.html","azaad-platform-kernel.js"),("invoice-center.html","invoice-print-email.js")]:inject_script(target,script)
 patch_nextgen_scripts();patch_admin_injected_compatibility()
 print("patch-admin.py completed successfully")
