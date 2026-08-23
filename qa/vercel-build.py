@@ -2,8 +2,9 @@ from pathlib import Path
 import subprocess
 
 # Canonical production artifact owner. Every mutating step belongs here.
+# The Admin runtime canonicalizer intentionally runs LAST so no earlier
+# compatibility/injection transform can reintroduce a competing inline owner.
 TRANSFORM_STEPS = [
-    ["python3", "qa/canonicalize-admin-runtime.py"],
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", ".github/patch-admin.py"],
@@ -21,6 +22,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-central-i18n.py"],
     ["python3", "qa/inject-public-performance-guard.py"],
     ["python3", "qa/inject-public-experience-hardening.py"],
+    ["python3", "qa/canonicalize-admin-runtime.py"],
 ]
 
 # Verification is strictly read-only. It may inspect and fail, but must never
