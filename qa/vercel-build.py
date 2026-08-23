@@ -28,6 +28,10 @@ final_i18n = ["python3", "qa/finalize-central-i18n.py"]
 print(f"[AZAAD build] {' '.join(final_i18n)}", flush=True)
 subprocess.run(final_i18n, check=True)
 
+performance_guard = ["python3", "qa/inject-public-performance-guard.py"]
+print(f"[AZAAD build] {' '.join(performance_guard)}", flush=True)
+subprocess.run(performance_guard, check=True)
+
 public_experience = ["python3", "qa/inject-public-experience-hardening.py"]
 print(f"[AZAAD build] {' '.join(public_experience)}", flush=True)
 subprocess.run(public_experience, check=True)
