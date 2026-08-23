@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed repository architecture gate for AZAAD.
-
-The gate protects the canonical Admin tree from the duplication pattern that caused
-runtime dead UI: competing shells/controllers, legacy recovery layers, duplicate
-script sources, and build ownership drift.
-"""
+"""Fail-closed architecture gate for the canonical AZAAD Admin tree."""
 from pathlib import Path
 import re
 import sys
@@ -13,12 +8,13 @@ ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / "admin.html"
 PATCH = ROOT / ".github" / "patch-admin.py"
 BUILD = ROOT / "qa" / "vercel-build.py"
-
 errors = []
+
 
 def require_file(path: Path, label: str):
     if not path.is_file():
         errors.append(f"missing {label}: {path.relative_to(ROOT)}")
+
 
 for path, label in (
     (ADMIN, "Admin entrypoint"),
@@ -29,7 +25,7 @@ for path, label in (
 ):
     require_file(path, label)
 
-# These were temporary competing owners and must never return.
+# Temporary recovery/controllers must never return as parallel owners.
 for path in (
     ROOT / "admin-ui-failsafe.js",
     ROOT / "admin-login-controller.js",
@@ -57,8 +53,12 @@ if ADMIN.is_file():
 
 if PATCH.is_file():
     text = PATCH.read_text(encoding="utf-8", errors="replace")
-    if 'inject_head_script("admin.html","/admin-shell.js?v=1")' not in text:
-        errors.append("Admin Shell is not the canonical head injection")
+    if 'inject_head_script("admin.html", ADMIN_SHELL_SRC)' not in text:
+        errors.append("Admin Shell is not injected through the canonical patcher owner")
+    if "rglob('*.js')" in text or "rglob(\"*.js\")" in text:
+        errors.append("Admin patcher must not recursively mutate arbitrary JavaScript")
+    if "Path('.').rglob" in text or "Path(\".\").rglob" in text:
+        errors.append("Admin patcher has an unbounded repository scan/mutation")
     for retired in ("admin-ui-failsafe.js", "admin-login-controller.js", "inject-admin-early-recovery.py"):
         if retired in text:
             errors.append(f"retired Admin layer still referenced by patch-admin.py: {retired}")
@@ -79,4 +79,4 @@ if errors:
     sys.exit(1)
 
 print("[AZAAD architecture gate] PASS")
-print("[AZAAD architecture gate] Canonical Admin owner + duplicate prevention verified")
+print("[AZAAD architecture gate] Canonical Admin owner + bounded build mutation + duplicate prevention verified")
