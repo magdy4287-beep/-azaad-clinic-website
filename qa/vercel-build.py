@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 
+# Canonical production artifact owner. Every mutating step belongs here.
 TRANSFORM_STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
@@ -21,6 +22,8 @@ TRANSFORM_STEPS = [
     ["python3", "qa/inject-public-experience-hardening.py"],
 ]
 
+# Verification is strictly read-only. It may inspect and fail, but must never
+# mutate the production artifact or conceal the owner of a regression.
 VERIFY_STEPS = [
     ["python3", "qa/verify-admin-script-graph.py"],
     ["python3", "qa/repository-architecture-gate.py"],
@@ -39,4 +42,4 @@ def run_steps(steps, phase):
 
 run_steps(TRANSFORM_STEPS, "transform")
 run_steps(VERIFY_STEPS, "verify")
-print("[AZAAD build] canonical production transformation + verification completed", flush=True)
+print("[AZAAD build] canonical production transformation + read-only verification completed", flush=True)
