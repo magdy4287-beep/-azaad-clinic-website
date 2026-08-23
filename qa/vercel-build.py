@@ -3,6 +3,7 @@ import subprocess
 
 # Canonical production artifact owner. Every mutating step belongs here.
 TRANSFORM_STEPS = [
+    ["python3", "qa/canonicalize-admin-runtime.py"],
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", ".github/patch-admin.py"],
