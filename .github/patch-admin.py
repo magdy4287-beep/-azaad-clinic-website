@@ -60,6 +60,24 @@ def _remove_script_source(text, script_name):
     return pattern.sub(replace, text)
 
 
+def _remove_legacy_inline_admin_controller(text):
+    """Remove the old inline Admin application so admin.js is the sole owner."""
+    pattern = re.compile(
+        r'\s*<script\b[^>]*\btype=["\']module["\'][^>]*>.*?</script>\s*',
+        flags=re.I | re.S,
+    )
+    matches = pattern.findall(text)
+    for block in matches:
+        if (
+            "createClient" in block
+            and "STAFF_LOGIN_FUNCTION" in block
+            and "function login" in block
+            and "clinic_staff" in block
+        ):
+            text = text.replace(block, "\n", 1)
+    return text
+
+
 def _inject_once(path_name, script_name, location):
     path = Path(path_name)
     if not path.exists():
@@ -86,6 +104,7 @@ def patch_admin_html():
     if not path.exists():
         return
     text = path.read_text(encoding="utf-8")
+    text = _remove_legacy_inline_admin_controller(text)
     legacy = re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)', re.S)
     modern = '''async function restoreStaff(){
   if(!state.user?.id || !state.session?.access_token) return false;
