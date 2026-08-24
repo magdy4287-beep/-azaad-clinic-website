@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V3__';
+  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V4__';
   if (window[STATE_KEY]) return;
   const state = { timer: null, running: false, success: false, context: null, observer: null };
   window[STATE_KEY] = state;
@@ -61,12 +61,13 @@
     return body.includes('تم إنشاء الحجز بنجاح') || body.includes('تم إنشاء طلب الحجز بنجاح') ||
       body.includes('تم تأكيد الحجز') || body.includes('booking created successfully') ||
       body.includes('your booking request was created successfully') || body.includes('booking number') ||
-      body.includes('رقم الحجز');
+      body.includes('رقم الحجز') || /AZD-[A-Z0-9-]{6,}/i.test(body);
   }
 
   function bookingCode() {
     const body = String(document.body?.innerText || '');
-    return body.match(/(?:رقم الحجز|Booking number)\s*:?\s*([A-Za-z0-9-]+)/i)?.[1] || '';
+    return body.match(/(?:رقم الحجز|Booking number)\s*:?\s*([A-Za-z0-9-]+)/i)?.[1] ||
+      body.match(/\b(AZD-[A-Z0-9-]{6,})\b/i)?.[1] || '';
   }
 
   function submitButton() {
@@ -105,18 +106,44 @@
     return lines.join('\n');
   }
 
+  // Last-mile guard: raw translation keys must never reach the user's confirmation UI.
+  function sanitizeRawI18nText() {
+    const en = language() === 'en';
+    const replacements = en ? {
+      bookingCreated: 'Booking created successfully', bookingNumber: 'Booking number',
+      whatsappTitle: 'Booking created successfully', whatsappDescription: 'To complete the booking process, send the appointment details to the clinic WhatsApp.',
+      sendToWhatsApp: 'Send the appointment to the clinic via WhatsApp', whatsappReady: 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
+    } : {
+      bookingCreated: 'تم إنشاء الحجز بنجاح', bookingNumber: 'رقم الحجز',
+      whatsappTitle: 'تم إنشاء الحجز بنجاح', whatsappDescription: 'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
+      sendToWhatsApp: 'إرسال الموعد إلى العيادة عبر WhatsApp', whatsappReady: 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
+    };
+    const keys = Object.keys(replacements);
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      let text = node.nodeValue || '';
+      let changed = false;
+      for (const key of keys) {
+        const pattern = new RegExp(`\\b${key}\\b`, 'g');
+        if (pattern.test(text)) { text = text.replace(pattern, replacements[key]); changed = true; }
+      }
+      if (changed) node.nodeValue = text;
+    }
+  }
+
   async function ensureWhatsAppStep() {
     if (!state.success || !state.context) return;
     const c = copy(); const code = bookingCode();
     let container = $('whatsappBookingStep');
 
-    // If the canonical app already rendered the CTA, only localize/style it.
-    // Do not rewrite the DOM on every MutationObserver cycle.
     if (container?.dataset?.azaadGuaranteed !== 'true' && $('sendBookingWhatsApp')) {
       const button = $('sendBookingWhatsApp');
       button.textContent = c.button;
       button.setAttribute('aria-label', c.button);
       container.dir = language() === 'en' ? 'ltr' : 'rtl';
+      sanitizeRawI18nText();
       return;
     }
 
@@ -128,12 +155,12 @@
       if (form?.parentNode) form.parentNode.insertBefore(container, form.nextSibling);
     }
 
-    // Existing guaranteed container: update language text without recreating it.
     if (container.dataset.azaadRenderedCode === code && $('sendBookingWhatsApp')) {
       const button = $('sendBookingWhatsApp');
       button.textContent = c.button;
       button.setAttribute('aria-label', c.button);
       container.dir = language() === 'en' ? 'ltr' : 'rtl';
+      sanitizeRawI18nText();
       return;
     }
 
@@ -155,12 +182,14 @@
       source.hidden = true; source.setAttribute('aria-hidden', 'true'); source.setAttribute('tabindex', '-1');
       source.style.setProperty('display', 'none', 'important');
     }
+    sanitizeRawI18nText();
   }
 
   function refresh() {
     if (state.running) return;
     state.running = true;
     try {
+      sanitizeRawI18nText();
       if (!state.success && bookingSucceeded()) state.success = true;
       if (state.success) void ensureWhatsAppStep();
     } finally { state.running = false; }
