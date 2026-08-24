@@ -124,9 +124,10 @@ if CANONICALIZER.is_file():
     text = CANONICALIZER.read_text(encoding="utf-8", errors="replace")
     for marker in (
         "CANONICAL = '/admin.js?v=2026-08-24-login-fix'",
-        "LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=2'",
+        "LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=3'",
         "LOGIN_SURFACE_STYLE",
         "legacy inline Admin runtime remains after canonicalization",
+        "Canonicalize absolute/relative duplicates created by the Admin feature injectors.",
     ):
         if marker not in text:
             errors.append(f"Admin runtime canonicalizer missing required invariant: {marker}")
