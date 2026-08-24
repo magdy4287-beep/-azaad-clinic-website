@@ -1,4 +1,4 @@
-/* AZAAD Admin Login Bootstrap
+/* AZAAD Admin Login Bootstrap v2
  * Dependency-free guard that runs before the module-based Admin controller.
  * It prevents a slow/failed module import from falling back to native form
  * navigation, which used to erase the password and return to the username.
@@ -12,14 +12,16 @@
     const username = document.getElementById('username');
     const password = document.getElementById('password');
     if (!form || !username || !password) return false;
-    if (form.dataset.azaadLoginBootstrap === '1') return true;
+    if (form.dataset.azaadLoginBootstrap === '2') return true;
 
-    form.dataset.azaadLoginBootstrap = '1';
+    form.dataset.azaadLoginBootstrap = '2';
     form.noValidate = false;
     username.disabled = false;
     username.readOnly = false;
     password.disabled = false;
     password.readOnly = false;
+    password.removeAttribute('inert');
+    password.tabIndex = 0;
 
     const state = { queued: false };
 
@@ -27,7 +29,7 @@
       if (form.dataset.azaadBound === 'true') return;
 
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
 
       state.queued = true;
       const button = event.submitter || form.querySelector('button[type="submit"]');
@@ -38,14 +40,16 @@
       }
     }, true);
 
-    password.addEventListener('focus', () => {
-      password.dataset.azaadLoginFocused = '1';
+    // Keep the password field a normal browser input. We deliberately do not
+    // stop input propagation: password managers and accessibility tooling must
+    // receive the normal input/focus events.
+    password.addEventListener('pointerdown', () => {
+      password.disabled = false;
+      password.readOnly = false;
     }, true);
 
-    password.addEventListener('input', (event) => {
-      // Do not let unrelated document-level handlers treat password typing as
-      // a UI refresh. The password value itself is never copied or persisted.
-      event.stopPropagation();
+    password.addEventListener('focus', () => {
+      password.dataset.azaadLoginFocused = '1';
     }, true);
 
     const release = () => {
@@ -61,7 +65,7 @@
       queueMicrotask(() => form.requestSubmit());
     };
 
-    window.addEventListener('azaad:login-controller-bound', release);
+    window.addEventListener('azaad:login-controller-bound', release, { once: true });
     const timer = window.setInterval(() => {
       if (form.dataset.azaadBound === 'true') {
         window.clearInterval(timer);
