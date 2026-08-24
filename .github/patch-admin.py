@@ -29,6 +29,7 @@ ADMIN_FEATURE_SCRIPTS = (
     "patient-financial-summary.js",
     "patient-appointment-actions.js",
     "doctor-visit-actions.js",
+    "doctor-visit-actions.js",
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
     "admin-auth-ui-guard.js",
@@ -61,20 +62,19 @@ def _remove_script_source(text, script_name):
 
 
 def _remove_legacy_inline_admin_controller(text):
-    """Remove the old inline Admin application so admin.js is the sole owner."""
+    """Detection helper retained for tests; canonicalizer owns the mutation."""
     pattern = re.compile(
         r'\s*<script\b[^>]*\btype=["\']module["\'][^>]*>.*?</script>\s*',
         flags=re.I | re.S,
     )
-    matches = pattern.findall(text)
-    for block in matches:
+    for block in pattern.findall(text):
         if (
             "createClient" in block
             and "STAFF_LOGIN_FUNCTION" in block
             and "function login" in block
             and "clinic_staff" in block
         ):
-            text = text.replace(block, "\n", 1)
+            return text.replace(block, "\n", 1)
     return text
 
 
@@ -104,7 +104,8 @@ def patch_admin_html():
     if not path.exists():
         return
     text = path.read_text(encoding="utf-8")
-    text = _remove_legacy_inline_admin_controller(text)
+    # Legacy inline controller removal is intentionally owned by
+    # qa/canonicalize-admin-runtime.py, which runs after all Admin transforms.
     legacy = re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)', re.S)
     modern = '''async function restoreStaff(){
   if(!state.user?.id || !state.session?.access_token) return false;
