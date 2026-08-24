@@ -1,0 +1,1 @@
+AZAAD Admin login hardening marker. The canonical production build owns admin.js and admin-login-bootstrap.js; login surface must remain interactive and stale controller assets must not survive deployment.
