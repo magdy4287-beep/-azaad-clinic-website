@@ -68,15 +68,15 @@ if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
 
     canonical_refs = re.findall(
-        r'<script\b[^>]*\bsrc=["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>',
+        r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>',
         text,
         flags=re.I,
     )
     if len(canonical_refs) != 1:
-        errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}")
+        errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}: {canonical_refs}")
 
     inline_module_blocks = re.findall(
-        r'<script\b[^>]*\btype=["\']module["\'][^>]*>(.*?)</script>',
+        r'<script\b[^>]*\btype\s*=\s*["\']module["\'][^>]*>(.*?)</script>',
         text,
         flags=re.I | re.S,
     )
@@ -124,7 +124,7 @@ if PATCH.is_file():
     if "Path('.').rglob" in text or 'Path(".").rglob' in text:
         errors.append("Admin patcher has an unbounded repository scan/mutation")
     if "_remove_legacy_inline_admin_controller" not in text:
-        errors.append("Admin patcher must remove the legacy inline controller before production injection")
+        errors.append("Admin patcher must retain explicit legacy-controller ownership documentation")
     for retired in RETIRED_ADMIN_LAYERS:
         if retired in text:
             errors.append(f"retired Admin layer still referenced by patch-admin.py: {retired}")
