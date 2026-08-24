@@ -28,7 +28,7 @@
       };
 
   const threePartName = (value) =>
-    String(value || '').trim().split(/\s+/).filter(Boolean).length >= 3;
+    String(value || '').trim().split(/\s+/).filter(Boolean).length === 3;
 
   const validPhone = (value) => {
     const digits = String(value || '').replace(/\D/g, '');
