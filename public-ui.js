@@ -15,20 +15,27 @@
   const getEmail=()=>setting('email','clinic_email','contact_email');
   const getAddress=()=>{const ar=setting('address','clinic_address','location','clinic_location')||'دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض';if(language()!=='en') return ar;return setting('address_en','clinic_address_en','location_en','clinic_location_en')||'Damietta - Nafea Street, opposite Al-Mazloum Mosque, above Al-Riyad Pharmacy';};
   const getSocial=()=>({facebook:setting('facebook_url','facebook','facebookUrl'),instagram:setting('instagram_url','instagram','instagramUrl'),linkedin:setting('linkedin_url','linkedin','linkedinUrl'),tiktok:setting('tiktok_url','tiktok','tiktokUrl')});
+  const whatsappIcon='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20.52 3.48A11.84 11.84 0 0 0 12.05 0C5.5 0 .17 5.33.17 11.89c0 2.1.55 4.15 1.59 5.95L.07 24l6.3-1.65a11.9 11.9 0 0 0 5.67 1.44h.01c6.55 0 11.88-5.33 11.88-11.9 0-3.17-1.23-6.15-3.41-8.41ZM12.05 21.77h-.01a9.86 9.86 0 0 1-5.03-1.37l-.36-.21-3.74.98 1-3.65-.23-.37a9.88 9.88 0 0 1-1.51-5.26C2.17 6.43 6.6 2 12.06 2a9.86 9.86 0 0 1 7.02 2.92 9.89 9.89 0 0 1 2.9 7.04c0 5.46-4.44 9.89-9.93 9.81Zm5.43-7.4c-.3-.15-1.78-.88-2.05-.98-.28-.1-.48-.15-.69.15-.2.3-.79.98-.97 1.18-.18.2-.36.23-.66.08-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.76-1.67-2.06-.18-.3-.02-.46.13-.61.14-.14.3-.36.45-.54.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.69-1.66-.94-2.28-.25-.6-.5-.52-.69-.53h-.59c-.2 0-.53.08-.81.38-.28.3-1.06 1.04-1.06 2.54 0 1.5 1.09 2.94 1.24 3.14.15.2 2.14 3.27 5.18 4.58.72.31 1.29.5 1.73.64.73.23 1.39.2 1.91.12.58-.09 1.78-.73 2.03-1.44.25-.71.25-1.32.18-1.44-.07-.13-.27-.2-.57-.35Z"/></svg>';
   const socialMarkup=(social,compact=false)=>{
+    const whatsapp=getWhatsApp();
     const items=[
       ['facebook','f','Facebook','#1877F2'],
       ['instagram','◎','Instagram','#E4405F'],
       ['linkedin','in','LinkedIn','#0A66C2'],
       ['tiktok','♪','TikTok','#000000']
     ];
-    return items.filter(([key])=>social[key]).map(([key,icon,label,color])=>`<a class="azaad-social${compact?' azaad-social-hero':''}" href="${social[key]}" target="_blank" rel="noopener noreferrer" aria-label="${label}" title="${label}" style="--social-brand:${color}">${icon}</a>`).join('');
+    const socialHtml=items.filter(([key])=>social[key]).map(([key,icon,label,color])=>`<a class="azaad-social${compact?' azaad-social-hero':''}" href="${social[key]}" target="_blank" rel="noopener noreferrer" aria-label="${label}" title="${label}" style="--social-brand:${color}">${icon}</a>`).join('');
+    const wa=`<a id="waHero" class="azaad-social${compact?' azaad-social-hero':''} azaad-social-whatsapp" href="https://wa.me/${whatsapp}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" title="WhatsApp" style="--social-brand:#25D366">${whatsappIcon}</a>`;
+    return socialHtml+wa;
   };
   function injectFooterStyles(){
     if(document.getElementById('azaad-footer-styles'))return;
     const style=document.createElement('style');style.id='azaad-footer-styles';style.textContent=`
-      .azaad-hero-socials{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:14px;direction:ltr}
+      .azaad-hero-socials{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:10px;direction:ltr}
+      .hero-social-block{display:flex;flex-direction:column;align-items:flex-start;margin-top:14px}
+      .hero-social-title{font-size:13px;font-weight:700;color:var(--navy,#101b56);line-height:1.7;margin-bottom:2px}
       .azaad-social{width:42px;height:42px;border:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:var(--social-brand,#101b56);font-weight:800;font-size:17px;line-height:1;transition:transform .2s ease,filter .2s ease,box-shadow .2s ease}
+      .azaad-social svg{width:23px;height:23px;display:block}
       .azaad-social:hover{transform:translateY(-2px);filter:brightness(.96);box-shadow:0 8px 20px color-mix(in srgb,var(--social-brand) 28%,transparent)}
       .azaad-social-hero{width:42px;height:42px;border-radius:8px;font-size:16px;box-shadow:0 4px 14px color-mix(in srgb,var(--social-brand) 22%,transparent)}
       .azaad-social-hero:hover{background:var(--social-brand);filter:brightness(.94);box-shadow:0 8px 18px color-mix(in srgb,var(--social-brand) 36%,transparent)}
@@ -47,7 +54,7 @@
       .azaad-footer-contact strong{color:var(--navy,#101b56);font-size:13px}
       .azaad-footer-bottom{margin-top:34px;padding-top:18px;border-top:1px solid var(--line,#e5e3ea);display:flex;justify-content:space-between;gap:18px;color:var(--muted,#687089);font-size:12px}
       @media(max-width:800px){.azaad-footer-grid{grid-template-columns:1fr 1fr}.azaad-footer-brand{grid-column:1/-1}}
-      @media(max-width:560px){.azaad-footer{padding:38px 0 20px}.azaad-footer-grid{grid-template-columns:1fr;gap:25px}.azaad-footer-brand{grid-column:auto}.azaad-footer-bottom{flex-direction:column;gap:5px}.azaad-hero-socials{justify-content:center}}
+      @media(max-width:560px){.azaad-footer{padding:38px 0 20px}.azaad-footer-grid{grid-template-columns:1fr;gap:25px}.azaad-footer-brand{grid-column:auto}.azaad-footer-bottom{flex-direction:column;gap:5px}.azaad-hero-socials{justify-content:center}.hero-social-block{align-items:center;width:100%}.hero-social-title{text-align:center}}
     `;document.head.appendChild(style);
   }
   function mergeContactIntoFooter(){const duplicateContact=document.querySelector('main > #contact');const footer=document.querySelector('footer');if(!footer)return;if(duplicateContact)duplicateContact.remove();footer.id='contact';}
