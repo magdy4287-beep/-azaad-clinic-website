@@ -1,0 +1,108 @@
+/* Canonical public services presentation: compact 4-up service cards with a visual identity. */
+#servicesGrid.cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+#servicesGrid .card {
+  padding: 14px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.azaad-service-visual {
+  position: relative;
+  height: 132px;
+  border-radius: 14px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  margin-bottom: 13px;
+  background: linear-gradient(145deg, #f2eef8, #e7f4f1);
+}
+
+.azaad-service-visual::before,
+.azaad-service-visual::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.azaad-service-visual::before {
+  width: 105px;
+  height: 105px;
+  border: 1px solid rgba(16, 27, 86, .10);
+  transform: translate(28px, -22px);
+}
+
+.azaad-service-visual::after {
+  width: 70px;
+  height: 70px;
+  border: 1px solid rgba(184, 139, 58, .18);
+  transform: translate(-42px, 28px);
+}
+
+.azaad-service-icon {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.92);
+  color: var(--navy);
+  box-shadow: 0 10px 24px rgba(16,27,86,.12);
+  border: 1px solid rgba(16,27,86,.08);
+}
+
+.azaad-service-icon svg {
+  width: 38px;
+  height: 38px;
+  display: block;
+}
+
+.azaad-service-badge {
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  inset-inline-end: 9px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--navy);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  box-shadow: 0 6px 14px rgba(16,27,86,.16);
+}
+
+#servicesGrid .card h3 {
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0 0 5px;
+}
+
+#servicesGrid .card p {
+  font-size: 13px;
+  line-height: 1.75;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  #servicesGrid.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  #servicesGrid.cards { grid-template-columns: 1fr; }
+  .azaad-service-visual { height: 145px; }
+}
+
+/* The hero social links remain available; only their explanatory title is hidden. */
+.hero-social-title { display: none !important; }
