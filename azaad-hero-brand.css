@@ -1,0 +1,17 @@
+/* Canonical hero brand lockup sizing.
+   Scoped to the public hero so other section eyebrows keep their existing hierarchy. */
+
+.hero-content > .eyebrow {
+  font-size: clamp(15px, 1.55vw, 20px);
+  line-height: 1.35;
+  letter-spacing: clamp(1.5px, 0.16vw, 2.5px);
+  margin-bottom: 10px;
+}
+
+@media (max-width: 640px) {
+  .hero-content > .eyebrow {
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    line-height: 1.4;
+  }
+}
