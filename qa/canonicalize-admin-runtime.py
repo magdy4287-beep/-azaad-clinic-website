@@ -15,7 +15,7 @@ text = ADMIN.read_text(encoding="utf-8")
 # readiness marker is unsafe: a changed legacy block could survive and compete
 # with admin.js. Identify the runtime by its stable ownership signature instead.
 INLINE_MODULE = re.compile(
-    r'\s*<script\s+type=["\']module["\']\s*>.*?</script>\s*',
+    r'\s*<script\b[^>]*\btype\s*=\s*["\']module["\'][^>]*>.*?</script>\s*',
     re.I | re.S,
 )
 
@@ -43,16 +43,17 @@ if legacy_matches:
     match = legacy_matches[0]
     text = text[:match.start()] + '\n' + text[match.end():]
 
-# Remove every external admin.js reference and install exactly one canonical
-# application owner. Query strings are ignored when matching old references.
+# Remove every external admin.js reference, including variants with whitespace
+# around src=, arbitrary attribute order, query strings, defer, or module type.
+# The canonical owner is installed exactly once below.
 SCRIPT_RE = re.compile(
-    r'\s*<script\s+[^>]*src=["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>\s*',
+    r'\s*<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*admin\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>\s*',
     re.I,
 )
 text = SCRIPT_RE.sub('', text)
 
 BOOTSTRAP_RE = re.compile(
-    r'\s*<script\s+[^>]*src=["\']([^"\']*admin-login-bootstrap\.js[^"\']*)["\'][^>]*>\s*</script>\s*',
+    r'\s*<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*admin-login-bootstrap\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script>\s*',
     re.I,
 )
 text = BOOTSTRAP_RE.sub('', text)
@@ -75,7 +76,6 @@ LOGIN_SURFACE_STYLE = '''<style id="azaad-admin-login-surface">
 #loginPage button{cursor:pointer!important}
 </style>'''
 
-# Replace a prior generated copy rather than accumulating CSS on every build.
 text = re.sub(
     r'\s*<style id="azaad-admin-login-surface">.*?</style>\s*',
     '\n',
@@ -87,7 +87,7 @@ text = text.replace('</head>', LOGIN_SURFACE_STYLE + '\n</head>', 1)
 # Remove stale interaction-lock attributes from the two actual login inputs.
 for element_id in ('username', 'password'):
     text = re.sub(
-        rf'(<input\b(?=[^>]*\bid=["\']{element_id}["\']))([^>]*)(>)',
+        rf'(<input\b(?=[^>]*\bid\s*=\s*["\']{element_id}["\']))([^>]*)(>)',
         lambda match: re.sub(
             r'\s+(?:disabled|readonly|inert)(?:\s*=\s*(?:["\'][^"\']*["\']|[^\s>]+))?',
             '',
