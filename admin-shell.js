@@ -7,6 +7,15 @@
   if (window.__AZAAD_ADMIN_SHELL_V2__) return;
   window.__AZAAD_ADMIN_SHELL_V2__ = true;
 
+  function loadCentralSchedulingSync() {
+    if (document.querySelector('script[data-azaad-central-scheduling-sync]')) return;
+    var script = document.createElement('script');
+    script.src = '/central-scheduling-sync.js?v=2026.08.24.1';
+    script.defer = true;
+    script.dataset.azaadCentralSchedulingSync = '1';
+    document.head.appendChild(script);
+  }
+
   function activate(panel, button) {
     if (!panel) return;
     document.querySelectorAll('.tab[data-panel]').forEach(function (item) {
@@ -29,6 +38,7 @@
 
   function ready() {
     bindExisting();
+    loadCentralSchedulingSync();
     window.AZAAD_ADMIN_SHELL_READY = true;
     try {
       window.dispatchEvent(new CustomEvent('azaad:admin-shell-ready'));
