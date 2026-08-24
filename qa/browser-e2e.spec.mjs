@@ -25,6 +25,29 @@ test('admin login shell loads with the canonical credential fields', async ({ pa
   const html = await htmlResponse.text();
   expect(html).toContain('autocomplete="username"');
   expect(html).toContain('autocomplete="current-password"');
+  expect(html).toContain('/admin-login-bootstrap.js?v=1');
+});
+
+test('admin password remains interactive while the module controller is loading', async ({ page }) => {
+  await page.route('**/admin.js*', async route => {
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    await route.continue();
+  });
+
+  await page.goto(`${baseURL}/admin.html`, navigation);
+  await expect(page.locator('#loginForm')).toBeVisible({ timeout: 5000 });
+
+  const password = page.locator('#password');
+  await password.fill('temporary-e2e-value');
+  await expect(password).toHaveValue('temporary-e2e-value');
+
+  const submit = page.locator('#loginForm button[type="submit"]');
+  await submit.click();
+
+  // The bootstrap must prevent native form navigation while admin.js is still
+  // loading. A reload would erase the password and recreate the username field.
+  await expect(page).toHaveURL(/\/admin\.html(?:\?.*)?$/);
+  await expect(password).toHaveValue('temporary-e2e-value');
 });
 
 test('Patient 360 appointment action bridge resource is available', async ({ page }) => {
@@ -58,8 +81,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
       });
     }
     if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
-      // Capture the response body while the response is still attached to the
-      // current page context. Navigation/reload can invalidate response.text().
       const record = {
         response,
         status: response.status(),
@@ -113,8 +134,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     staff: expect.objectContaining({ id: expect.anything() })
   }));
 
-  // The production controller performs the real reload itself after the
-  // session is persisted. Do not assert the pre-reload DOM as the final state.
   await expect.poll(
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
@@ -134,8 +153,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 
-  // Second reload proves persisted-session restoration independently of the
-  // login controller's first navigation. No token or session is injected.
   await page.reload(navigation);
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
