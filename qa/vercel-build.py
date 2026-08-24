@@ -2,9 +2,10 @@ from pathlib import Path
 import subprocess
 
 # Canonical production artifact owner. Every mutating step belongs here.
-# The Admin runtime syntax repair runs after all Admin transforms and before
-# read-only verification so generated JavaScript cannot ship syntactically invalid.
+# Admin login isolation MUST run first so the unauthenticated login surface
+# never boots the heavy Admin runtime before credentials are submitted.
 TRANSFORM_STEPS = [
+    ["python3", "qa/inject-admin-login-isolation.py"],
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", ".github/patch-admin.py"],
