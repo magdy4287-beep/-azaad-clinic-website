@@ -48,13 +48,13 @@
     const instruction = container.querySelector('[data-booking-whatsapp-instruction]');
     const button = document.getElementById('sendBookingWhatsApp');
     const ready = container.querySelector('[data-booking-whatsapp-ready]');
-    if (instruction) instruction.textContent = copy.instruction;
+    if (instruction && instruction.textContent !== copy.instruction) instruction.textContent = copy.instruction;
     if (button) {
-      button.textContent = copy.button;
-      button.setAttribute('aria-label', copy.button);
+      if (button.textContent !== copy.button) button.textContent = copy.button;
+      if (button.getAttribute('aria-label') !== copy.button) button.setAttribute('aria-label', copy.button);
       button.dir = isEn ? 'ltr' : 'rtl';
     }
-    if (ready) ready.textContent = copy.ready;
+    if (ready && ready.textContent !== copy.ready) ready.textContent = copy.ready;
     container.dir = isEn ? 'ltr' : 'rtl';
     copyButtonStyle();
   }
