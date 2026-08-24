@@ -10,18 +10,15 @@ def read(name):
 index = read("index.html")
 admin = read("admin.html")
 app = read("app.js")
-booking_gate = read("patient-booking-gate.js")
 patient_center = read("patients-center.js")
 
-# Public booking identity contract: the booking gate owns patient identity.
-assert "patient-booking-gate.js" in index
-assert "patient_id" in booking_gate
-assert "mrn" in booking_gate.lower()
-assert "mobile" in booking_gate.lower() or "phone" in booking_gate.lower()
-
-# Booking exposes the booking code; patient identity is supplied by the booking gate.
+# Public booking contract: direct booking is the canonical patient experience.
+# The obsolete phone-first lookup gate must not be part of the public page.
+assert "patient-booking-gate.js" not in index
+assert "bookingForm" in app
 assert "booking_code" in app
-assert "patient_id" in booking_gate
+assert "phone" in app.lower()
+assert "name" in app.lower()
 
 # Patient 360/admin search must understand MRN and booking identifiers.
 assert "booking_code" in patient_center
