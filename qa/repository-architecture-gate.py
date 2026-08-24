@@ -68,12 +68,27 @@ if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
 
     canonical_refs = re.findall(
-        r'<script\b[^>]*\btype=["\']module["\'][^>]*\bsrc=["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>',
+        r'<script\b[^>]*\bsrc=["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>',
         text,
         flags=re.I,
     )
     if len(canonical_refs) != 1:
         errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}")
+
+    inline_module_blocks = re.findall(
+        r'<script\b[^>]*\btype=["\']module["\'][^>]*>(.*?)</script>',
+        text,
+        flags=re.I | re.S,
+    )
+    for block in inline_module_blocks:
+        if (
+            "createClient" in block
+            and "STAFF_LOGIN_FUNCTION" in block
+            and "function login" in block
+            and "clinic_staff" in block
+        ):
+            errors.append("legacy inline Admin application controller is present")
+            break
 
     if "const SUPABASE_URL" in text and "function renderDoctors" in text and "window.AZAAD_AUTH_READY" in text:
         errors.append("legacy inline Admin application controller is present")
@@ -108,6 +123,8 @@ if PATCH.is_file():
         errors.append("Admin patcher must not recursively mutate arbitrary JavaScript")
     if "Path('.').rglob" in text or 'Path(".").rglob' in text:
         errors.append("Admin patcher has an unbounded repository scan/mutation")
+    if "_remove_legacy_inline_admin_controller" not in text:
+        errors.append("Admin patcher must remove the legacy inline controller before production injection")
     for retired in RETIRED_ADMIN_LAYERS:
         if retired in text:
             errors.append(f"retired Admin layer still referenced by patch-admin.py: {retired}")
