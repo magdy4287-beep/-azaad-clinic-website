@@ -3,6 +3,7 @@ import re
 
 ADMIN = Path("admin.html")
 CANONICAL = '/admin.js?v=canonical'
+LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=1'
 
 if not ADMIN.exists():
     raise SystemExit("admin.html not found")
@@ -50,10 +51,17 @@ SCRIPT_RE = re.compile(
 )
 text = SCRIPT_RE.sub('', text)
 
+BOOTSTRAP_RE = re.compile(
+    r'\s*<script\s+[^>]*src=["\']([^"\']*admin-login-bootstrap\.js[^"\']*)["\'][^>]*>\s*</script>\s*',
+    re.I,
+)
+text = BOOTSTRAP_RE.sub('', text)
+
 marker = '<script type="module" src="/admin.js?v=canonical"></script>'
+bootstrap_marker = '<script src="/admin-login-bootstrap.js?v=1" defer></script>'
 if '</head>' not in text:
     raise SystemExit("admin.html head marker not found")
-text = text.replace('</head>', marker + '\n</head>', 1)
+text = text.replace('</head>', bootstrap_marker + '\n' + marker + '\n</head>', 1)
 
 # The login surface is a hard security boundary: it must remain interactive
 # before authentication. Normalize only the login controls and remove stale
@@ -93,6 +101,8 @@ for element_id in ('username', 'password'):
 # Fail closed: exactly one canonical external owner and no legacy inline owner.
 if text.count(marker) != 1:
     raise SystemExit("canonical Admin runtime reference was not established exactly once")
+if text.count(bootstrap_marker) != 1:
+    raise SystemExit("Admin login bootstrap reference was not established exactly once")
 
 remaining_inline = []
 for match in INLINE_MODULE.finditer(text):
@@ -114,4 +124,4 @@ if remaining_inline:
     raise SystemExit("legacy inline Admin runtime remains after canonicalization")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] canonical Admin runtime + interactive login surface established")
+print("[AZAAD] canonical Admin runtime + dependency-free login bootstrap + interactive login surface established")
