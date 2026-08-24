@@ -20,9 +20,9 @@
       altEn: 'Online psychotherapy consultation between a doctor and patient through a laptop video call'
     },
     {
-      src: 'https://images.pexels.com/photos/7579190/pexels-photo-7579190.jpeg?auto=compress&cs=tinysrgb&w=1200',
-      altAr: 'تقييم نفسي وحوار مهني بين معالج ومريضة في بيئة علاجية مريحة',
-      altEn: 'Psychological assessment and professional discussion between a therapist and female patient in a comfortable setting'
+      src: 'https://images.pexels.com/photos/7579302/pexels-photo-7579302.jpeg?auto=compress&cs=tinysrgb&w=1200',
+      altAr: 'تقييم نفسي بين طبيب ومريضة في جلسة مهنية ومريحة',
+      altEn: 'Psychological assessment between a therapist and female patient in a professional comfortable setting'
     }
   ];
 
