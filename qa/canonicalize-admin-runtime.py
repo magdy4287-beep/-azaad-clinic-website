@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 
 ADMIN = Path("admin.html")
 CANONICAL = '/admin.js?v=2026-08-24-login-fix'
@@ -73,6 +74,28 @@ for element_id in ('username', 'password'):
         text, flags=re.I | re.S,
     )
 
+# Canonicalize absolute/relative duplicates created by the Admin feature injectors.
+# Preserve the first occurrence and remove only later external script tags with the
+# same URL path, so query-versioned copies of the same controller cannot compete.
+EXTERNAL_SCRIPT_TAG = re.compile(
+    r'<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>(?:\s*</script>)?',
+    re.I,
+)
+seen_scripts = set()
+def dedupe_script(match):
+    src = match.group(1)
+    path = (urlsplit(src).path or src).lstrip('/').lower()
+    if path in seen_scripts:
+        return ''
+    seen_scripts.add(path)
+    return match.group(0)
+text = EXTERNAL_SCRIPT_TAG.sub(dedupe_script, text)
+
+# Re-establish the canonical login pair after global deduplication.
+text = re.sub(r'\s*<script\b[^>]*\bsrc=["\'][^"\']*admin-login-bootstrap\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?\s*', '\n', text, flags=re.I)
+text = re.sub(r'\s*<script\b[^>]*\bsrc=["\'][^"\']*(?:^|[/._])admin\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?\s*', '\n', text, flags=re.I)
+text = text.replace('</head>', bootstrap_marker + '\n' + marker + '\n</head>', 1)
+
 if text.count(marker) != 1:
     raise SystemExit("canonical Admin runtime reference was not established exactly once")
 if text.count(bootstrap_marker) != 1:
@@ -90,4 +113,4 @@ if remaining_inline:
     raise SystemExit("legacy inline Admin runtime remains after canonicalization")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] canonical Admin runtime + versioned login bootstrap v3 + interactive login surface established")
+print("[AZAAD] canonical Admin runtime + login bootstrap v3 + duplicate external script cleanup established")
