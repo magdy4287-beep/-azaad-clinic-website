@@ -1,4 +1,4 @@
-/* Canonical public services presentation: compact 4-up service cards with a visual identity. */
+/* Canonical public services presentation: compact 4-up cards with real photography. */
 #servicesGrid.cards {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
@@ -17,57 +17,54 @@
   height: 132px;
   border-radius: 14px;
   overflow: hidden;
-  display: grid;
-  place-items: center;
   margin-bottom: 13px;
-  background: linear-gradient(145deg, #f2eef8, #e7f4f1);
+  background: #eef1f5;
+  isolation: isolate;
 }
 
-.azaad-service-visual::before,
+.azaad-service-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+}
+
 .azaad-service-visual::after {
   content: "";
   position: absolute;
-  border-radius: 999px;
+  inset: 0;
+  z-index: 1;
   pointer-events: none;
-}
-
-.azaad-service-visual::before {
-  width: 105px;
-  height: 105px;
-  border: 1px solid rgba(16, 27, 86, .10);
-  transform: translate(28px, -22px);
-}
-
-.azaad-service-visual::after {
-  width: 70px;
-  height: 70px;
-  border: 1px solid rgba(184, 139, 58, .18);
-  transform: translate(-42px, 28px);
+  background: linear-gradient(180deg, rgba(16,27,86,.02) 45%, rgba(16,27,86,.28) 100%);
 }
 
 .azaad-service-icon {
-  position: relative;
-  z-index: 1;
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
+  position: absolute;
+  z-index: 3;
+  inset-inline-start: 10px;
+  bottom: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
   display: grid;
   place-items: center;
-  background: rgba(255,255,255,.92);
+  background: rgba(255,255,255,.94);
   color: var(--navy);
-  box-shadow: 0 10px 24px rgba(16,27,86,.12);
-  border: 1px solid rgba(16,27,86,.08);
+  box-shadow: 0 8px 18px rgba(16,27,86,.18);
+  border: 1px solid rgba(255,255,255,.72);
+  backdrop-filter: blur(5px);
 }
 
 .azaad-service-icon svg {
-  width: 38px;
-  height: 38px;
+  width: 25px;
+  height: 25px;
   display: block;
 }
 
 .azaad-service-badge {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   top: 9px;
   inset-inline-end: 9px;
   width: 30px;
@@ -80,7 +77,7 @@
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .5px;
-  box-shadow: 0 6px 14px rgba(16,27,86,.16);
+  box-shadow: 0 6px 14px rgba(16,27,86,.22);
 }
 
 #servicesGrid .card h3 {
