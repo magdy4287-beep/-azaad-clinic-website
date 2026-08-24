@@ -56,9 +56,7 @@ if WORKFLOW_DIR.is_dir():
 if REGISTRY.is_file():
     registry = REGISTRY.read_text(encoding="utf-8", errors="replace")
     for marker in (
-        "## Canonical ownership map",
-        "## Retirement rule",
-        "## Anti-recursion rule",
+        "## Canonical ownership map", "## Retirement rule", "## Anti-recursion rule",
         "No workflow may create or modify source files",
     ):
         if marker not in registry:
@@ -68,20 +66,16 @@ if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
 
     canonical_refs = re.findall(
-        r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']*(?:^|[/._-])admin\.js(?:\?[^"\']*)?)["\'][^>]*>\s*</script>',
-        text,
-        flags=re.I,
+        r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\'][^>]*>\s*</script>',
+        text, flags=re.I,
     )
-    # Use an exact basename check rather than substring matching so
-    # doctor-services-admin.js is not mistaken for the canonical admin.js.
     canonical_refs = [src for src in canonical_refs if Path(src.split("?", 1)[0]).name == "admin.js"]
     if len(canonical_refs) != 1:
         errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}: {canonical_refs}")
 
     inline_module_blocks = re.findall(
         r'<script\b[^>]*\btype\s*=\s*["\']module["\'][^>]*>(.*?)</script>',
-        text,
-        flags=re.I | re.S,
+        text, flags=re.I | re.S,
     )
     for block in inline_module_blocks:
         if "createClient" in block and "STAFF_LOGIN_FUNCTION" in block and "function login" in block and "clinic_staff" in block:
@@ -96,8 +90,7 @@ if ADMIN.is_file():
 
     bootstrap_refs = re.findall(
         r'<script\b[^>]*\bsrc=["\']([^"\']*admin-login-bootstrap\.js[^"\']*)["\'][^>]*>',
-        text,
-        flags=re.I,
+        text, flags=re.I,
     )
     if len(bootstrap_refs) != 1:
         errors.append(f"Admin login bootstrap must have exactly one source reference; found {len(bootstrap_refs)}")
@@ -130,8 +123,8 @@ if PATCH.is_file():
 if CANONICALIZER.is_file():
     text = CANONICALIZER.read_text(encoding="utf-8", errors="replace")
     for marker in (
-        "CANONICAL = '/admin.js?v=canonical'",
-        "LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=1'",
+        "CANONICAL = '/admin.js?v=2026-08-24-login-fix'",
+        "LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=2'",
         "LOGIN_SURFACE_STYLE",
         "legacy inline Admin runtime remains after canonicalization",
     ):
