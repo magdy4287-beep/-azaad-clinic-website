@@ -1,12 +1,22 @@
 /* ============================================================
    AZAAD CLINIC — CENTRAL SCHEDULING SYNC
    ------------------------------------------------------------
-   One scheduling truth for Patient + Admin.
-   - Postgres clinic_bookings is the source of truth.
-   - Realtime is an invalidation signal, never the data source.
-   - Every change triggers a fresh canonical Availability/Admin read.
-   - A bounded polling fallback protects against missed WebSocket events.
-   - No booking data is duplicated into localStorage/sessionStorage.
+   ONE scheduling truth for Patient + Admin.
+
+   Source of truth:
+     PostgreSQL clinic_bookings + doctor_weekly_schedules
+
+   Realtime design:
+     - Public Broadcast carries ONLY an invalidation signal.
+     - No patient/booking row data is exposed to public clients.
+     - Every signal causes a fresh canonical read/render.
+     - Polling is only a recovery path if WebSocket delivery fails.
+     - No booking truth is stored in localStorage/sessionStorage.
+
+   Ownership:
+     - app.js is the sole owner of patient #slots rendering.
+     - admin.js remains the sole owner of admin booking rendering.
+     - this file only invalidates/requests a fresh read.
    ============================================================ */
 (() => {
   'use strict';
@@ -17,8 +27,10 @@
   const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
   const PUBLIC_SCHEDULING_API = `${SUPABASE_URL}/functions/v1/azaad-public-scheduling`;
   const SUPABASE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
-  const POLL_MS = 8000;
-  const EVENT_DEBOUNCE_MS = 250;
+  const BROADCAST_TOPIC = 'azaad:scheduling';
+  const BROADCAST_EVENT = 'availability_invalidated';
+  const FALLBACK_POLL_MS = 15000;
+  const EVENT_DEBOUNCE_MS = 150;
 
   let supabase = null;
   let channel = null;
@@ -28,15 +40,16 @@
   let refreshQueued = false;
   let lastFingerprint = '';
 
-  const isAdmin = () => !!window.AZAAD?.supabase;
   const isPatient = () => !!document.getElementById('bookingForm');
+  const isAdmin = () => !!document.getElementById('adminPage');
 
   function currentBookingContext() {
-    const doctor = document.getElementById('doctor')?.value || '';
-    const service = document.getElementById('service')?.value || '';
-    const date = document.getElementById('date')?.value || '';
-    const mode = document.getElementById('mode')?.value || 'clinic';
-    return { doctor, service, date, mode };
+    return {
+      doctor: document.getElementById('doctor')?.value || '',
+      service: document.getElementById('service')?.value || '',
+      date: document.getElementById('date')?.value || '',
+      mode: document.getElementById('mode')?.value || 'clinic'
+    };
   }
 
   function fingerprint() {
@@ -49,37 +62,48 @@
     const ctx = currentBookingContext();
     if (!ctx.doctor || !ctx.service || !ctx.date) return;
 
-    // app.js remains the sole owner of #slots. We only request a fresh read.
+    // app.js remains the sole owner of #slots.
+    // A synthetic date change makes it perform a fresh canonical request.
     const date = document.getElementById('date');
-    if (!date) return;
-    date.dispatchEvent(new Event('change', { bubbles: true }));
+    if (date) date.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  async function adminRefresh() {
+  function adminRefresh() {
     if (!isAdmin()) return;
-    try {
-      if (typeof window.AZAAD.refresh === 'function') {
-        await window.AZAAD.refresh();
-      } else {
-        window.dispatchEvent(new CustomEvent('azaad:bookings-invalidated'));
-      }
-    } catch (error) {
-      console.warn('[AZAAD scheduling] admin refresh failed:', error);
+
+    // admin.js owns booking data/rendering. Use its canonical Refresh UI rather
+    // than maintaining a second admin data loader in this synchronization layer.
+    const button = document.getElementById('refreshBookings');
+    if (button && !button.disabled) {
+      button.click();
+      return;
     }
+
+    const topRefresh = document.getElementById('refreshBtn');
+    if (topRefresh && !topRefresh.disabled) {
+      topRefresh.click();
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent('azaad:bookings-invalidated'));
   }
 
   function scheduleRefresh(reason = 'change') {
     if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(async () => {
+
+    refreshTimer = setTimeout(() => {
       refreshTimer = null;
+
       if (refreshInFlight) {
         refreshQueued = true;
         return;
       }
+
       refreshInFlight = true;
       try {
         if (isPatient()) patientRefresh();
-        if (isAdmin()) await adminRefresh();
+        if (isAdmin()) adminRefresh();
+
         window.dispatchEvent(new CustomEvent('azaad:scheduling-refreshed', {
           detail: { reason, at: new Date().toISOString() }
         }));
@@ -93,50 +117,50 @@
     }, EVENT_DEBOUNCE_MS);
   }
 
-  function startPolling() {
+  function startFallbackPolling() {
     if (pollTimer) clearInterval(pollTimer);
+
     pollTimer = setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+
       const next = fingerprint();
       if (next !== lastFingerprint) {
         lastFingerprint = next;
         scheduleRefresh('context-change');
         return;
       }
-      if (document.visibilityState !== 'hidden') scheduleRefresh('fallback-poll');
-    }, POLL_MS);
+
+      scheduleRefresh('fallback-poll');
+    }, FALLBACK_POLL_MS);
   }
 
-  async function startRealtime() {
+  async function startRealtimeBroadcast() {
     try {
-      if (window.AZAAD?.supabase) {
-        supabase = window.AZAAD.supabase;
-      } else {
-        const mod = await import('https://esm.sh/@supabase/supabase-js@2');
-        supabase = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
-          auth: { persistSession: false, autoRefreshToken: false }
-        });
-      }
+      const mod = await import('https://esm.sh/@supabase/supabase-js@2');
+      supabase = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
 
       channel = supabase
-        .channel('azaad-central-scheduling-v1')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'clinic_bookings' }, payload => {
-          console.info('[AZAAD scheduling] booking change received', payload.eventType);
-          scheduleRefresh(`booking-${payload.eventType}`);
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'doctor_weekly_schedules' }, payload => {
-          console.info('[AZAAD scheduling] schedule change received', payload.eventType);
-          scheduleRefresh(`schedule-${payload.eventType}`);
+        .channel(BROADCAST_TOPIC)
+        .on('broadcast', { event: BROADCAST_EVENT }, payload => {
+          console.info('[AZAAD scheduling] availability invalidated');
+          scheduleRefresh('broadcast-invalidation');
         })
         .subscribe(status => {
           if (status === 'SUBSCRIBED') {
-            console.info('[AZAAD scheduling] realtime connected');
+            console.info('[AZAAD scheduling] central broadcast connected');
           }
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.warn('[AZAAD scheduling] realtime unavailable; fallback polling remains active');
+            console.warn('[AZAAD scheduling] broadcast unavailable; fallback polling remains active');
           }
         });
     } catch (error) {
-      console.warn('[AZAAD scheduling] realtime setup failed; fallback polling remains active:', error);
+      console.warn('[AZAAD scheduling] broadcast setup failed; fallback polling remains active:', error);
     }
   }
 
@@ -151,12 +175,14 @@
   });
 
   window.addEventListener('beforeunload', () => {
-    try { if (channel && supabase) supabase.removeChannel(channel); } catch (_) {}
+    try {
+      if (channel && supabase) supabase.removeChannel(channel);
+    } catch (_) {}
     if (pollTimer) clearInterval(pollTimer);
     if (refreshTimer) clearTimeout(refreshTimer);
   });
 
   lastFingerprint = fingerprint();
-  startPolling();
-  startRealtime();
+  startFallbackPolling();
+  startRealtimeBroadcast();
 })();
