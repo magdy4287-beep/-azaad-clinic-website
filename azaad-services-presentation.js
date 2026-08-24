@@ -2,28 +2,27 @@
   'use strict';
 
   // Free-to-use Pexels photography selected for a polished, premium healthcare look.
-  // The people are photogenic and professionally presented while the service data remains
-  // owned by the central clinic-data flow.
+  // Service data remains owned by the central clinic-data flow.
   const serviceImages = [
     {
-      src: 'https://images.pexels.com/photos/7176315/pexels-photo-7176315.jpeg?auto=compress&cs=tinysrgb&w=900',
+      src: 'https://images.pexels.com/photos/7176315/pexels-photo-7176315.jpeg?auto=compress&cs=tinysrgb&w=1200',
       altAr: 'جلسة علاج نفسي بين معالج ومريضة في أجواء مريحة وإيجابية',
       altEn: 'Psychotherapy session between a therapist and patient in a warm positive setting'
     },
     {
-      src: 'https://images.pexels.com/photos/7176300/pexels-photo-7176300.jpeg?auto=compress&cs=tinysrgb&w=900',
+      src: 'https://images.pexels.com/photos/7176300/pexels-photo-7176300.jpeg?auto=compress&cs=tinysrgb&w=1200',
       altAr: 'جلسة علاج نفسي جماعي مع معالج ومجموعة من المرضى في أجواء داعمة',
       altEn: 'Group psychotherapy session with a therapist and several patients in a supportive setting'
     },
     {
-      src: 'https://images.pexels.com/photos/7195091/pexels-photo-7195091.jpeg?auto=compress&cs=tinysrgb&w=900',
+      src: 'https://images.pexels.com/photos/7195091/pexels-photo-7195091.jpeg?auto=compress&cs=tinysrgb&w=1200',
       altAr: 'جلسة علاج نفسي أونلاين بين طبيبة ومريض عبر مكالمة فيديو باستخدام الكمبيوتر',
       altEn: 'Online psychotherapy consultation between a doctor and patient through a laptop video call'
     },
     {
-      src: 'https://images.pexels.com/photos/7579302/pexels-photo-7579302.jpeg?auto=compress&cs=tinysrgb&w=900',
-      altAr: 'تقييم نفسي وحوار مهني بين المعالج والمريض في بيئة مريحة',
-      altEn: 'Psychological assessment and professional discussion between therapist and patient in a comfortable setting'
+      src: 'https://images.pexels.com/photos/7579190/pexels-photo-7579190.jpeg?auto=compress&cs=tinysrgb&w=1200',
+      altAr: 'تقييم نفسي وحوار مهني بين معالج ومريضة في بيئة علاجية مريحة',
+      altEn: 'Psychological assessment and professional discussion between a therapist and female patient in a comfortable setting'
     }
   ];
 
