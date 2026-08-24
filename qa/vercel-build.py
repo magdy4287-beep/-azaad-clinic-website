@@ -22,10 +22,9 @@ TRANSFORM_STEPS = [
     ["python3", "qa/inject-public-experience-hardening.py"],
     ["python3", "qa/inject-doctor-services-admin.py"],
     ["python3", "qa/canonicalize-admin-runtime.py"],
+    ["python3", "qa/finalize-doctor-services-admin.py"],
 ]
 
-# Verification is strictly read-only. It may inspect and fail, but must never
-# mutate the production artifact or conceal the owner of a regression.
 VERIFY_STEPS = [
     ["python3", "qa/verify-admin-script-graph.py"],
     ["python3", "qa/repository-architecture-gate.py"],
