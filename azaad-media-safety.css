@@ -5,7 +5,9 @@
 .feed-media,
 .profile-media,
 .team-media,
-.card-media {
+.card-media,
+.azaad-doctor-media,
+.clinic-doctor-media {
   position: relative;
   isolation: isolate;
   overflow: visible !important;
@@ -21,7 +23,9 @@
 .feed-media img,
 .profile-media img,
 .team-media img,
-.card-media img {
+.card-media img,
+.azaad-doctor-media img,
+.clinic-doctor-media img {
   display: block;
   width: 100% !important;
   height: auto !important;
@@ -29,6 +33,7 @@
   max-height: none !important;
   object-fit: contain !important;
   object-position: center center !important;
+  overflow: visible !important;
 }
 
 .photo > :not(img),
@@ -37,7 +42,9 @@
 .feed-media > :not(img),
 .profile-media > :not(img),
 .team-media > :not(img),
-.card-media > :not(img) {
+.card-media > :not(img),
+.azaad-doctor-media > :not(img),
+.clinic-doctor-media > :not(img) {
   position: relative;
   z-index: 1;
 }
@@ -55,7 +62,11 @@
 .team-media::before,
 .team-media::after,
 .card-media::before,
-.card-media::after {
+.card-media::after,
+.azaad-doctor-media::before,
+.azaad-doctor-media::after,
+.clinic-doctor-media::before,
+.clinic-doctor-media::after {
   pointer-events: none;
 }
 
@@ -79,9 +90,12 @@ img[width][height] {
   .feed-media,
   .profile-media,
   .team-media,
-  .card-media {
+  .card-media,
+  .azaad-doctor-media,
+  .clinic-doctor-media {
     max-width: 100%;
     overflow: visible !important;
+    height: auto !important;
   }
   .photo img,
   .doctor-card .photo img,
@@ -89,10 +103,13 @@ img[width][height] {
   .feed-media img,
   .profile-media img,
   .team-media img,
-  .card-media img {
+  .card-media img,
+  .azaad-doctor-media img,
+  .clinic-doctor-media img {
     width: 100% !important;
     height: auto !important;
     object-fit: contain !important;
+    object-position: center center !important;
   }
 }
 
@@ -103,5 +120,7 @@ img[width][height] {
   .feed-media,
   .profile-media,
   .team-media,
-  .card-media { scroll-behavior: auto; }
+  .card-media,
+  .azaad-doctor-media,
+  .clinic-doctor-media { scroll-behavior: auto; }
 }
