@@ -29,7 +29,6 @@ ADMIN_FEATURE_SCRIPTS = (
     "patient-financial-summary.js",
     "patient-appointment-actions.js",
     "doctor-visit-actions.js",
-    "doctor-visit-actions.js",
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
     "admin-auth-ui-guard.js",
