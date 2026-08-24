@@ -1,27 +1,32 @@
 from pathlib import Path
+import re
+from urllib.parse import urlsplit
 
 path = Path('admin.html')
 if not path.exists():
     raise SystemExit('admin.html not found')
 text = path.read_text(encoding='utf-8')
 
-# Guarantee the feature is present after every other Admin canonicalization pass.
+# Single owner: doctor-services-admin.js is loaded once as a static Admin feature.
+# Remove every absolute/relative/query-string variant before inserting one canonical tag.
+pattern = re.compile(
+    r'\s*<script\b[^>]*\bsrc=["\'][^"\']*doctor-services-admin\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?\s*',
+    re.I,
+)
+text = pattern.sub('\n', text)
+
 tag = '<script src="/doctor-services-admin.js" defer></script>'
-while tag in text:
-    text = text.replace(tag, '')
 text = text.replace('</body>', tag + '\n</body>', 1)
 
-# Guarantee the doctors tab loads both the public doctor profile editor and the
-# per-doctor service editor. This is intentionally idempotent.
+# The doctors tab must not lazy-load the same controller again. It may still load
+# the public doctor editor, while the service editor remains owned by the static tag.
 start = text.find("const groups = {'")
 if start != -1:
     end = text.find('};', start)
     if end != -1:
         block = text[start:end]
-        if "'public-team-admin.js'" not in block:
-            block = block.replace("'doctors': [", "'doctors': ['public-team-admin.js', 'doctor-services-admin.js', ", 1)
-        elif "'doctor-services-admin.js'" not in block:
-            block = block.replace("'public-team-admin.js'", "'public-team-admin.js', 'doctor-services-admin.js'", 1)
+        block = block.replace("'doctor-services-admin.js', ", "")
+        block = block.replace(", 'doctor-services-admin.js'", "")
         text = text[:start] + block + text[end:]
 
 path.write_text(text, encoding='utf-8')
@@ -33,4 +38,4 @@ if admin_js.exists():
     js = js.replace('''  const suffix =\n    hour < 12\n      ? "ص"\n      : "م";''', '''  const suffix =\n    hour < 12\n      ? "AM"\n      : "PM";''')
     admin_js.write_text(js, encoding='utf-8')
 
-print('[AZAAD] final doctor service editor + AM/PM contract established')
+print('[AZAAD] final doctor service editor single-owner + AM/PM contract established')
