@@ -68,10 +68,13 @@ if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
 
     canonical_refs = re.findall(
-        r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>',
+        r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']*(?:^|[/._-])admin\.js(?:\?[^"\']*)?)["\'][^>]*>\s*</script>',
         text,
         flags=re.I,
     )
+    # Use an exact basename check rather than substring matching so
+    # doctor-services-admin.js is not mistaken for the canonical admin.js.
+    canonical_refs = [src for src in canonical_refs if Path(src.split("?", 1)[0]).name == "admin.js"]
     if len(canonical_refs) != 1:
         errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}: {canonical_refs}")
 
@@ -81,12 +84,7 @@ if ADMIN.is_file():
         flags=re.I | re.S,
     )
     for block in inline_module_blocks:
-        if (
-            "createClient" in block
-            and "STAFF_LOGIN_FUNCTION" in block
-            and "function login" in block
-            and "clinic_staff" in block
-        ):
+        if "createClient" in block and "STAFF_LOGIN_FUNCTION" in block and "function login" in block and "clinic_staff" in block:
             errors.append("legacy inline Admin application controller is present")
             break
 
