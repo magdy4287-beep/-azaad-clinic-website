@@ -31,6 +31,7 @@
   const BROADCAST_EVENT = 'availability_invalidated';
   const FALLBACK_POLL_MS = 15000;
   const EVENT_DEBOUNCE_MS = 150;
+  const SLOT_RESTORE_TIMEOUT_MS = 6000;
 
   let supabase = null;
   let channel = null;
@@ -57,22 +58,67 @@
     return `${c.doctor}|${c.service}|${c.date}|${c.mode}`;
   }
 
+  function restoreSelectedSlotAfterRefresh(slotValue) {
+    if (!slotValue || !isPatient()) return;
+    const slots = document.getElementById('slots');
+    if (!slots) return;
+
+    let restored = false;
+    let observer = null;
+    let timer = null;
+
+    const finish = () => {
+      if (observer) observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+
+    const tryRestore = () => {
+      if (restored) return true;
+      const button = [...slots.querySelectorAll('.slot')]
+        .find((item) => item.dataset.slot === slotValue);
+      if (!button) return false;
+      button.click();
+      restored = true;
+      finish();
+      return true;
+    };
+
+    if (tryRestore()) return;
+
+    try {
+      observer = new MutationObserver(() => {
+        if (tryRestore()) finish();
+      });
+      observer.observe(slots, { childList: true, subtree: true });
+    } catch (_) {}
+
+    timer = setTimeout(finish, SLOT_RESTORE_TIMEOUT_MS);
+  }
+
   function patientRefresh() {
     if (!isPatient()) return;
     const ctx = currentBookingContext();
     if (!ctx.doctor || !ctx.service || !ctx.date) return;
 
-    // app.js remains the sole owner of #slots.
-    // A synthetic date change makes it perform a fresh canonical request.
+    // Once a booking succeeds, the confirmation + WhatsApp step owns the
+    // post-booking UI. Do not let background invalidation remove it.
+    if (document.getElementById('whatsappBookingStep')) return;
+
+    // Preserve a patient-selected slot across a canonical availability refresh.
+    // The previous implementation dispatched a synthetic change event, which
+    // caused app.js to clear selectedSlot before the user could submit.
+    const selected = document.querySelector('#slots .slot.selected')?.dataset.slot || '';
+
     const date = document.getElementById('date');
-    if (date) date.dispatchEvent(new Event('change', { bubbles: true }));
+    if (date) {
+      date.dispatchEvent(new Event('change', { bubbles: true }));
+      restoreSelectedSlotAfterRefresh(selected);
+    }
   }
 
   function adminRefresh() {
     if (!isAdmin()) return;
 
-    // admin.js owns booking data/rendering. Use its canonical Refresh UI rather
-    // than maintaining a second admin data loader in this synchronization layer.
     const button = document.getElementById('refreshBookings');
     if (button && !button.disabled) {
       button.click();
