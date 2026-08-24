@@ -3,7 +3,7 @@ import re
 
 ADMIN = Path("admin.html")
 CANONICAL = '/admin.js?v=2026-08-24-login-fix'
-LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=2'
+LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=3'
 
 if not ADMIN.exists():
     raise SystemExit("admin.html not found")
@@ -90,4 +90,4 @@ if remaining_inline:
     raise SystemExit("legacy inline Admin runtime remains after canonicalization")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] canonical Admin runtime + versioned login bootstrap + interactive login surface established")
+print("[AZAAD] canonical Admin runtime + versioned login bootstrap v3 + interactive login surface established")
