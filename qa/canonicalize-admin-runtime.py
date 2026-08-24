@@ -2,8 +2,8 @@ from pathlib import Path
 import re
 
 ADMIN = Path("admin.html")
-CANONICAL = '/admin.js?v=canonical'
-LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=1'
+CANONICAL = '/admin.js?v=2026-08-24-login-fix'
+LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=2'
 
 if not ADMIN.exists():
     raise SystemExit("admin.html not found")
@@ -19,12 +19,8 @@ legacy_matches = []
 for match in INLINE_MODULE.finditer(text):
     block = match.group(0)
     stable_markers = (
-        'const SUPABASE_URL',
-        'staff-login',
-        'function restoreStaff',
-        'function renderDoctors',
-        'function renderServices',
-        'function load()',
+        'const SUPABASE_URL', 'staff-login', 'function restoreStaff',
+        'function renderDoctors', 'function renderServices', 'function load()',
     )
     if sum(marker in block for marker in stable_markers) >= 4:
         legacy_matches.append(match)
@@ -36,24 +32,20 @@ if legacy_matches:
     match = legacy_matches[0]
     text = text[:match.start()] + '\n' + text[match.end():]
 
-# Remove all prior Admin controller references regardless of attribute order,
-# whitespace, query string, or whether the tag is module/defer.
+# Match the exact basename admin.js. This must never match doctor-services-admin.js.
 ADMIN_SCRIPT_TAG = re.compile(
-    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*admin\.js[^"\']*["\'][^>]*>(?:\s*</script>)?',
+    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*(?:^|[/._])admin\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?',
     re.I | re.S,
 )
 BOOTSTRAP_SCRIPT_TAG = re.compile(
-    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*admin-login-bootstrap\.js[^"\']*["\'][^>]*>(?:\s*</script>)?',
+    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*admin-login-bootstrap\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?',
     re.I | re.S,
 )
 text = ADMIN_SCRIPT_TAG.sub('', text)
 text = BOOTSTRAP_SCRIPT_TAG.sub('', text)
 
-marker = '<script type="module" src="/admin.js?v=canonical"></script>'
-bootstrap_marker = '<script src="/admin-login-bootstrap.js?v=1" defer></script>'
-
-# Deterministically collapse any previously generated canonical markers before
-# installing exactly one of each.
+marker = f'<script type="module" src="{CANONICAL}"></script>'
+bootstrap_marker = f'<script src="{LOGIN_BOOTSTRAP}" defer></script>'
 text = text.replace(marker, '')
 text = text.replace(bootstrap_marker, '')
 if '</head>' not in text:
@@ -98,4 +90,4 @@ if remaining_inline:
     raise SystemExit("legacy inline Admin runtime remains after canonicalization")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] canonical Admin runtime + dependency-free login bootstrap + interactive login surface established")
+print("[AZAAD] canonical Admin runtime + versioned login bootstrap + interactive login surface established")
