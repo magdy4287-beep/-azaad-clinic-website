@@ -15,16 +15,30 @@
   const getEmail=()=>setting('email','clinic_email','contact_email');
   const getAddress=()=>{const ar=setting('address','clinic_address','location','clinic_location')||'دمياط - شارع نافع، مقابل مسجد المظلوم - أعلى صيدلية الرياض';if(language()!=='en') return ar;return setting('address_en','clinic_address_en','location_en','clinic_location_en')||'Damietta - Nafea Street, opposite Al-Mazloum Mosque, above Al-Riyad Pharmacy';};
   const getSocial=()=>({facebook:setting('facebook_url','facebook','facebookUrl'),instagram:setting('instagram_url','instagram','instagramUrl'),linkedin:setting('linkedin_url','linkedin','linkedinUrl'),tiktok:setting('tiktok_url','tiktok','tiktokUrl')});
+  const socialMarkup=(social,compact=false)=>{
+    const items=[
+      ['facebook','f','Facebook','#1877F2'],
+      ['instagram','◎','Instagram','#E4405F'],
+      ['linkedin','in','LinkedIn','#0A66C2'],
+      ['tiktok','♪','TikTok','#000000']
+    ];
+    return items.filter(([key])=>social[key]).map(([key,icon,label,color])=>`<a class="azaad-social${compact?' azaad-social-hero':''}" href="${social[key]}" target="_blank" rel="noopener noreferrer" aria-label="${label}" title="${label}" style="--social-brand:${color}">${icon}</a>`).join('');
+  };
   function injectFooterStyles(){
     if(document.getElementById('azaad-footer-styles'))return;
     const style=document.createElement('style');style.id='azaad-footer-styles';style.textContent=`
+      .azaad-hero-socials{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:14px;direction:ltr}
+      .azaad-social{width:42px;height:42px;border:1px solid var(--line,#e5e3ea);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;color:var(--social-brand,var(--navy,#101b56));background:#fff;font-weight:800;font-size:17px;transition:transform .2s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease,color .2s ease}
+      .azaad-social:hover{transform:translateY(-2px);background:#fff;border-color:var(--social-brand,var(--navy,#101b56));box-shadow:0 8px 20px rgba(16,27,86,.08)}
+      .azaad-social-hero{width:40px;height:40px;border-radius:50%;font-size:16px;border-color:color-mix(in srgb,var(--social-brand) 22%,#e5e3ea);box-shadow:0 4px 14px rgba(16,27,86,.06)}
+      .azaad-social-hero:hover{background:color-mix(in srgb,var(--social-brand) 8%,#fff);box-shadow:0 8px 18px color-mix(in srgb,var(--social-brand) 18%,transparent)}
       .azaad-footer{background:#fff;color:var(--navy,#101b56);padding:48px 0 24px;border-top:1px solid var(--line,#e5e3ea)}
       .azaad-footer-grid{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:34px;align-items:start}
-      .azaad-footer-brand .logo{display:block;margin-bottom:8px;color:var(--navy,#101b56)}
+      .azaad-footer-brand .logo{display:block;margin-bottom:8px;color:var(--az-navy,var(--navy,#101b56))}
+      .azaad-footer-brand .logo span{color:var(--az-coral,var(--gold,#b88b3a))}
       .azaad-footer-tagline{margin:0;color:var(--muted,#687089);font-size:14px;max-width:330px}
-      .azaad-socials{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
-      .azaad-social{width:42px;height:42px;border:1px solid var(--line,#e5e3ea);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;color:var(--navy,#101b56);background:#fff;font-weight:800;font-size:17px;transition:transform .2s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease}
-      .azaad-social:hover{transform:translateY(-2px);background:var(--soft,#f7f4f8);border-color:var(--navy,#101b56);box-shadow:0 8px 20px rgba(16,27,86,.08)}
+      .azaad-socials{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;direction:ltr}
+      .azaad-footer .azaad-social{color:var(--social-brand,var(--navy,#101b56))}
       .azaad-footer-title{margin:0 0 13px;color:var(--navy,#101b56);font-size:16px;font-weight:800}
       .azaad-footer-list{display:grid;gap:9px;margin:0;padding:0;list-style:none}
       .azaad-footer-list a,.azaad-footer-contact{color:var(--muted,#687089);font-size:13px;line-height:1.8;overflow-wrap:anywhere}
@@ -33,7 +47,7 @@
       .azaad-footer-contact strong{color:var(--navy,#101b56);font-size:13px}
       .azaad-footer-bottom{margin-top:34px;padding-top:18px;border-top:1px solid var(--line,#e5e3ea);display:flex;justify-content:space-between;gap:18px;color:var(--muted,#687089);font-size:12px}
       @media(max-width:800px){.azaad-footer-grid{grid-template-columns:1fr 1fr}.azaad-footer-brand{grid-column:1/-1}}
-      @media(max-width:560px){.azaad-footer{padding:38px 0 20px}.azaad-footer-grid{grid-template-columns:1fr;gap:25px}.azaad-footer-brand{grid-column:auto}.azaad-footer-bottom{flex-direction:column;gap:5px}}
+      @media(max-width:560px){.azaad-footer{padding:38px 0 20px}.azaad-footer-grid{grid-template-columns:1fr;gap:25px}.azaad-footer-brand{grid-column:auto}.azaad-footer-bottom{flex-direction:column;gap:5px}.azaad-hero-socials{justify-content:center}}
     `;document.head.appendChild(style);
   }
   function mergeContactIntoFooter(){
@@ -47,8 +61,7 @@
     const footer=document.querySelector('footer');if(!footer)return;
     mergeContactIntoFooter();injectFooterStyles();const lang=language(),social=getSocial();
     const labels=lang==='en'?{quick:'Quick Links',contact:'Contact Us',phone:'Phone',email:'Email',address:'Clinic Address',home:'Home',about:'About Us',services:'Services',doctors:'Doctors',booking:'Book an Appointment',contactLink:'Contact Us',tagline:'Mental health and psychotherapy',rights:'All rights reserved.',maps:'Open location on Google Maps',share:'Share clinic website'}:{quick:'روابط سريعة',contact:'تواصل معنا',phone:'الهاتف',email:'البريد الإلكتروني',address:'عنوان العيادة',home:'الرئيسية',about:'عن العيادة',services:'الخدمات',doctors:'الأطباء',booking:'حجز موعد',contactLink:'تواصل معنا',tagline:'للصحة النفسية والعلاج النفسي',rights:'جميع الحقوق محفوظة.',maps:'فتح الموقع على Google Maps',share:'مشاركة الموقع الإلكتروني للعيادة'};
-    const socialItems=[['facebook','f','Facebook'],['instagram','◎','Instagram'],['linkedin','in','LinkedIn'],['tiktok','♪','TikTok']].filter(([key])=>social[key]).map(([key,icon,label])=>`<a class="azaad-social" href="${social[key]}" target="_blank" rel="noopener noreferrer" aria-label="${label}" title="${label}">${icon}</a>`).join('');
-    const phone=getPhone(),email=getEmail(),address=getAddress(),whatsapp=getWhatsApp();
+    const socialItems=socialMarkup(social);const phone=getPhone(),email=getEmail(),address=getAddress(),whatsapp=getWhatsApp();
     const waUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(lang==='en'?'Hello Azaad Clinic, I would like to ask about an appointment.':'مرحبًا عيادة أزاد، أود الاستفسار عن حجز موعد.')}`;
     footer.className='azaad-footer';
     footer.innerHTML=`<div class="container">
@@ -60,13 +73,20 @@
     </div>`;
     const year=$('year');if(year)year.textContent=String(new Date().getFullYear());
   }
+  function renderHeroSocials(){
+    const container=$('heroSocials');if(!container)return;
+    injectFooterStyles();
+    const social=getSocial();
+    container.innerHTML=socialMarkup(social,true);
+    container.setAttribute('aria-label',language()==='en'?'Clinic social media':'وسائل التواصل الاجتماعي للعيادة');
+  }
   function closeMobileMenu(){const nav=$('nav'),menu=$('menu');if(!nav)return;nav.classList.remove('mobile-open');if(menu){menu.setAttribute('aria-expanded','false');menu.textContent='☰'}}
   function setupMobileMenu(){const nav=$('nav'),menu=$('menu');if(!nav||!menu||menu.dataset.publicUiMenuBound==='true')return;menu.dataset.publicUiMenuBound='true';menu.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const open=nav.classList.toggle('mobile-open');menu.setAttribute('aria-expanded',open?'true':'false');menu.textContent=open?'✕':'☰'});nav.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileMenu));window.addEventListener('resize',()=>{if(window.innerWidth>900)closeMobileMenu()})}
   function updateContactLinks(){const whatsapp=getWhatsApp(),phone=getPhone(),email=getEmail(),address=getAddress(),lang=language();const phoneLink=$('phoneLink'),phoneText=$('contactPhone'),emailLink=$('emailLink'),emailText=$('contactEmail'),waLink=$('waLink'),waHero=$('waHero'),mapsLink=$('mapsLink'),shareLocation=$('shareLocation'),addressElement=$('address');if(phoneText)phoneText.textContent=phone||'—';if(emailText)emailText.textContent=email||'—';if(addressElement){addressElement.textContent=address;addressElement.setAttribute('data-i18n','clinicAddress')}if(phoneLink)phoneLink.href=phone?`tel:${phone.replace(/[^\d+]/g,'')}`:'#contact';if(emailLink)emailLink.href=email?`mailto:${email}`:'#contact';const waMessage=lang==='en'?'Hello Azaad Clinic, I would like to ask about an appointment.':'مرحبًا عيادة أزاد، أود الاستفسار عن حجز موعد.';const waUrl=`https://wa.me/${whatsapp}?text=${encodeURIComponent(waMessage)}`;if(waLink)waLink.href=waUrl;if(waHero)waHero.href=waUrl;if(mapsLink){mapsLink.href=MAPS_URL;mapsLink.target='_blank';mapsLink.rel='noopener noreferrer'}if(shareLocation&&shareLocation.dataset.publicShareBound!=='true'){shareLocation.dataset.publicShareBound='true';shareLocation.addEventListener('click',async event=>{event.preventDefault();event.stopImmediatePropagation();const pageUrl=`${window.location.origin}${window.location.pathname}${window.location.search}`;const title=central()?.t?.('shareDataTitle')||(lang==='en'?'Azaad Clinic | Mental Health Clinic':'Azaad Clinic | عيادة آزاد للصحة النفسية');const text=central()?.t?.('shareDataText')||(lang==='en'?'🌐 Share Azaad Clinic website':'🌐 مشاركة الموقع الإلكتروني للعيادة');try{if(typeof navigator.share==='function'){await navigator.share({title,text,url:pageUrl});return}}catch(error){if(error?.name==='AbortError')return}try{await navigator.clipboard?.writeText(pageUrl);const message=central()?.t?.('copied')||(lang==='en'?'The clinic website link has been copied.':'تم نسخ رابط موقع العيادة الإلكتروني.');if(typeof window.alert==='function')window.alert(message);return}catch(_){const promptText=central()?.t?.('prompt')||(lang==='en'?'Copy the clinic website link:':'انسخ رابط موقع العيادة الإلكتروني:');if(typeof window.prompt==='function')window.prompt(promptText,pageUrl)}},{passive:false})}}
-  function syncFromCentral(){const lang=language();document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.querySelectorAll('[data-lang]').forEach(button=>{const active=button.getAttribute('data-lang')===lang;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false')});const menu=$('menu');if(menu)menu.setAttribute('aria-label',lang==='ar'?'القائمة':'Menu');updateContactLinks();renderFooter()}
+  function syncFromCentral(){const lang=language();document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.querySelectorAll('[data-lang]').forEach(button=>{const active=button.getAttribute('data-lang')===lang;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active?'true':'false')});const menu=$('menu');if(menu)menu.setAttribute('aria-label',lang==='ar'?'القائمة':'Menu');updateContactLinks();renderHeroSocials();renderFooter()}
   function bindCentralLanguageButtons(){if(document.documentElement.dataset.centralLanguageCaptureBound==='true')return;document.documentElement.dataset.centralLanguageCaptureBound='true';document.addEventListener('click',event=>{const button=event.target?.closest?.('[data-lang]');if(!button)return;const target=button.getAttribute('data-lang');if(target!=='ar'&&target!=='en')return;event.preventDefault();event.stopImmediatePropagation();const c=central();if(typeof c?.setLanguage==='function')c.setLanguage(target);else localStorage.setItem(LANGUAGE_KEY,target);window.dispatchEvent(new CustomEvent('azaadLanguageChanged',{detail:{language:target}}))},true)}
   function setupCentralLanguage(){bindCentralLanguageButtons();syncFromCentral();window.addEventListener('azaadLanguageChanged',syncFromCentral);window.addEventListener('azaadPublicContentLanguageChanged',syncFromCentral)}
-  function refreshPublicSettings(attempt=0){updateContactLinks();renderFooter();if(attempt>=10)return;if(!window.AZAAD_PUBLIC_CLINIC_DATA)window.setTimeout(()=>refreshPublicSettings(attempt+1),500)}
+  function refreshPublicSettings(attempt=0){updateContactLinks();renderHeroSocials();renderFooter();if(attempt>=10)return;if(!window.AZAAD_PUBLIC_CLINIC_DATA)window.setTimeout(()=>refreshPublicSettings(attempt+1),500)}
   function initialize(){setupMobileMenu();setupCentralLanguage();refreshPublicSettings()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
 })();
