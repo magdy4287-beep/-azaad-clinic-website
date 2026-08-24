@@ -110,10 +110,12 @@ if PATCH.is_file():
 
 if CANONICALIZER.is_file():
     text = CANONICALIZER.read_text(encoding="utf-8", errors="replace")
+    # Validate the canonicalizer's real responsibilities. AUTH_READY was a
+    # retired inline-runtime marker and must not be required from the normalizer.
     for marker in (
-        "function renderDoctors",
-        "window.AZAAD_AUTH_READY",
-        "admin.js?v=canonical",
+        "CANONICAL = '/admin.js?v=canonical'",
+        "LOGIN_SURFACE_STYLE",
+        "legacy inline Admin runtime remains after canonicalization",
     ):
         if marker not in text:
             errors.append(f"Admin runtime canonicalizer missing required invariant: {marker}")
