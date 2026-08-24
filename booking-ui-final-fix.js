@@ -76,6 +76,9 @@
     status.style.setProperty('margin-bottom','0','important');
   }
 
+  // The canonical slot renderer in app.js owns #slots and stores raw HH:MM in data-slot.
+  // This hardening layer must never rewrite slot text or slot accessibility labels.
+  // It only formats incidental time text outside the canonical slots container.
   function formatTime12(hour24, minute) {
     const formatter = window.AZAAD_LOCALE?.formatTime12;
     if (typeof formatter === 'function') {
@@ -89,23 +92,31 @@
     return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
   }
 
-  // IMPORTANT: this formatter runs from a MutationObserver. It must be idempotent.
-  // Once a time has an AM/PM suffix, never match and format the numeric part again.
-  const TIME_TOKEN_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*(?:AM|PM)\b)/gi;
-  const convertTimeString = (value) => String(value || '').replace(TIME_TOKEN_RE, (full,h,m) => formatTime12(h,m) || full);
+  const TIME_TOKEN_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*(?:AM|PM)\b)/i;
+  const convertTimeString = (value) => String(value || '').replace(
+    /\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*(?:AM|PM)\b)/gi,
+    (full, h, m) => formatTime12(h, m) || full
+  );
 
   function convertTimeInTextNodes(root) {
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         const p = node.parentElement;
-        if (!p || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA'].includes(p.tagName) || p.closest('[data-time-format-lock="true"]')) return NodeFilter.FILTER_REJECT;
+        // Never touch the canonical slot renderer or any explicitly protected subtree.
+        if (!p || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA'].includes(p.tagName) || p.closest('#slots,[data-no-i18n],[data-time-format-lock="true"]')) {
+          return NodeFilter.FILTER_REJECT;
+        }
         return TIME_TOKEN_RE.test(node.nodeValue || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
-    TIME_TOKEN_RE.lastIndex = 0;
-    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(n => { const before = String(n.nodeValue || ''); TIME_TOKEN_RE.lastIndex = 0; const after = convertTimeString(before); if (before !== after) n.nodeValue = after; });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((n) => {
+      const before = String(n.nodeValue || '');
+      const after = convertTimeString(before);
+      if (before !== after) n.nodeValue = after;
+    });
   }
 
   function refresh() {
