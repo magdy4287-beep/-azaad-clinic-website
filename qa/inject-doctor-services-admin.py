@@ -13,6 +13,16 @@ def inject_admin_script():
     if '</body>' not in text:
         raise SystemExit('admin.html body marker not found')
     text = text.replace('</body>', tag + '\n</body>', 1)
+    doctors_marker = '"doctors": ['
+    if doctors_marker in text:
+        start = text.find(doctors_marker)
+        block_end = text.find('],', start)
+        if block_end != -1:
+            block = text[start:block_end]
+            for script in ('public-team-admin.js', 'doctor-services-admin.js'):
+                if script not in block:
+                    block += f'\n        "{script}",'
+            text = text[:start] + block + text[block_end:]
     path.write_text(text, encoding='utf-8')
 
 
