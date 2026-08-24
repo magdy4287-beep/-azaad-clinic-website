@@ -20,6 +20,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-central-i18n.py"],
     ["python3", "qa/inject-public-performance-guard.py"],
     ["python3", "qa/inject-public-experience-hardening.py"],
+    ["python3", "qa/inject-doctor-services-admin.py"],
     ["python3", "qa/canonicalize-admin-runtime.py"],
 ]
 
