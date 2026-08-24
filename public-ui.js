@@ -28,9 +28,9 @@
     if(document.getElementById('azaad-footer-styles'))return;
     const style=document.createElement('style');style.id='azaad-footer-styles';style.textContent=`
       .azaad-hero-socials{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:14px;direction:ltr}
-      .azaad-social{width:42px;height:42px;border:1px solid var(--social-brand,#e5e3ea);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:var(--social-brand,#101b56);font-weight:800;font-size:17px;transition:transform .2s ease,filter .2s ease,box-shadow .2s ease}
+      .azaad-social{width:42px;height:42px;border:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:var(--social-brand,#101b56);font-weight:800;font-size:17px;line-height:1;transition:transform .2s ease,filter .2s ease,box-shadow .2s ease}
       .azaad-social:hover{transform:translateY(-2px);filter:brightness(.96);box-shadow:0 8px 20px color-mix(in srgb,var(--social-brand) 28%,transparent)}
-      .azaad-social-hero{width:40px;height:40px;border-radius:50%;font-size:16px;border-color:var(--social-brand);box-shadow:0 4px 14px color-mix(in srgb,var(--social-brand) 22%,transparent)}
+      .azaad-social-hero{width:42px;height:42px;border-radius:8px;font-size:16px;box-shadow:0 4px 14px color-mix(in srgb,var(--social-brand) 22%,transparent)}
       .azaad-social-hero:hover{background:var(--social-brand);filter:brightness(.94);box-shadow:0 8px 18px color-mix(in srgb,var(--social-brand) 36%,transparent)}
       .azaad-footer{background:#fff;color:var(--navy,#101b56);padding:48px 0 24px;border-top:1px solid var(--line,#e5e3ea)}
       .azaad-footer-grid{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:34px;align-items:start}
