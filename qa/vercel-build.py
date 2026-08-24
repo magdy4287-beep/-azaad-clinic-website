@@ -2,8 +2,8 @@ from pathlib import Path
 import subprocess
 
 # Canonical production artifact owner. Every mutating step belongs here.
-# The Admin runtime canonicalizer intentionally runs LAST so no earlier
-# compatibility/injection transform can reintroduce a competing inline owner.
+# The Admin runtime syntax repair runs after all Admin transforms and before
+# read-only verification so generated JavaScript cannot ship syntactically invalid.
 TRANSFORM_STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
@@ -23,6 +23,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/inject-doctor-services-admin.py"],
     ["python3", "qa/canonicalize-admin-runtime.py"],
     ["python3", "qa/finalize-doctor-services-admin.py"],
+    ["python3", "qa/fix-admin-runtime-syntax.py"],
 ]
 
 VERIFY_STEPS = [
