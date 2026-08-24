@@ -78,7 +78,10 @@
 
   function formatTime12(hour24, minute) {
     const formatter = window.AZAAD_LOCALE?.formatTime12;
-    if (typeof formatter === 'function') return formatter(hour24, minute);
+    if (typeof formatter === 'function') {
+      const formatted = String(formatter(hour24, minute) || '').trim();
+      if (formatted) return formatted;
+    }
     const h = Number(hour24), m = Number(minute);
     if (!Number.isFinite(h) || !Number.isFinite(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
     const suffix = h >= 12 ? 'PM' : 'AM';
@@ -86,7 +89,10 @@
     return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
   }
 
-  const convertTimeString = (value) => String(value || '').replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, (full,h,m) => formatTime12(h,m) || full);
+  // IMPORTANT: this formatter runs from a MutationObserver. It must be idempotent.
+  // Once a time has an AM/PM suffix, never match and format the numeric part again.
+  const TIME_TOKEN_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*(?:AM|PM)\b)/gi;
+  const convertTimeString = (value) => String(value || '').replace(TIME_TOKEN_RE, (full,h,m) => formatTime12(h,m) || full);
 
   function convertTimeInTextNodes(root) {
     if (!root) return;
@@ -94,11 +100,12 @@
       acceptNode(node) {
         const p = node.parentElement;
         if (!p || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA'].includes(p.tagName) || p.closest('[data-time-format-lock="true"]')) return NodeFilter.FILTER_REJECT;
-        return /\b([01]?\d|2[0-3]):([0-5]\d)\b/.test(node.nodeValue || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        return TIME_TOKEN_RE.test(node.nodeValue || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
+    TIME_TOKEN_RE.lastIndex = 0;
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(n => { const before = String(n.nodeValue || ''), after = convertTimeString(before); if (before !== after) n.nodeValue = after; });
+    nodes.forEach(n => { const before = String(n.nodeValue || ''); TIME_TOKEN_RE.lastIndex = 0; const after = convertTimeString(before); if (before !== after) n.nodeValue = after; });
   }
 
   function refresh() {
