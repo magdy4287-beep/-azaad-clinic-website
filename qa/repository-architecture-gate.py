@@ -9,6 +9,7 @@ ADMIN = ROOT / "admin.html"
 PATCH = ROOT / ".github" / "patch-admin.py"
 BUILD = ROOT / "qa" / "vercel-build.py"
 CANONICALIZER = ROOT / "qa" / "canonicalize-admin-runtime.py"
+LOGIN_BOOTSTRAP = ROOT / "admin-login-bootstrap.js"
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 REGISTRY = ROOT / "docs" / "AZAAD_WORKFLOW_OWNERSHIP_REGISTRY.md"
 errors = []
@@ -34,6 +35,7 @@ for path, label in (
     (ADMIN, "Admin entrypoint"),
     (ROOT / "admin.js", "canonical Admin application controller"),
     (ROOT / "admin-shell.js", "canonical Admin navigation shell"),
+    (LOGIN_BOOTSTRAP, "dependency-free Admin login bootstrap"),
     (PATCH, "canonical Admin feature build patcher"),
     (BUILD, "canonical production build owner"),
     (CANONICALIZER, "canonical Admin runtime normalizer"),
@@ -65,7 +67,6 @@ if REGISTRY.is_file():
 if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
 
-    # The Admin application has exactly one runtime owner: admin.js.
     canonical_refs = re.findall(
         r'<script\b[^>]*\btype=["\']module["\'][^>]*\bsrc=["\']([^"\']*admin\.js[^"\']*)["\'][^>]*>\s*</script>',
         text,
@@ -74,16 +75,19 @@ if ADMIN.is_file():
     if len(canonical_refs) != 1:
         errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}")
 
-    # The old giant inline controller must never return.
-    if (
-        "const SUPABASE_URL" in text
-        and "function renderDoctors" in text
-        and "window.AZAAD_AUTH_READY" in text
-    ):
+    if "const SUPABASE_URL" in text and "function renderDoctors" in text and "window.AZAAD_AUTH_READY" in text:
         errors.append("legacy inline Admin application controller is present")
 
     if text.count("admin-shell.js") != 1:
         errors.append("Admin navigation Shell must have exactly one source reference")
+
+    bootstrap_refs = re.findall(
+        r'<script\b[^>]*\bsrc=["\']([^"\']*admin-login-bootstrap\.js[^"\']*)["\'][^>]*>',
+        text,
+        flags=re.I,
+    )
+    if len(bootstrap_refs) != 1:
+        errors.append(f"Admin login bootstrap must have exactly one source reference; found {len(bootstrap_refs)}")
 
     for retired in RETIRED_ADMIN_LAYERS:
         if retired in text:
@@ -110,10 +114,9 @@ if PATCH.is_file():
 
 if CANONICALIZER.is_file():
     text = CANONICALIZER.read_text(encoding="utf-8", errors="replace")
-    # Validate the canonicalizer's real responsibilities. AUTH_READY was a
-    # retired inline-runtime marker and must not be required from the normalizer.
     for marker in (
         "CANONICAL = '/admin.js?v=canonical'",
+        "LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=1'",
         "LOGIN_SURFACE_STYLE",
         "legacy inline Admin runtime remains after canonicalization",
     ):
@@ -146,4 +149,4 @@ if errors:
     sys.exit(1)
 
 print("[AZAAD architecture gate] PASS")
-print("[AZAAD architecture gate] One Admin application owner + navigation-only shell + bounded build mutation + duplicate prevention verified")
+print("[AZAAD architecture gate] One Admin application owner + navigation-only shell + bounded build mutation + duplicate prevention + dependency-free login bootstrap verified")
