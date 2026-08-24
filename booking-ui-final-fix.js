@@ -1,7 +1,10 @@
 (() => {
   'use strict';
 
-  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V4__';
+  // Canonical booking-confirmation guard.
+  // app.js owns the success message and booking number. This module owns only
+  // the WhatsApp CTA, so the two renderers can never duplicate confirmation UI.
+  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V5__';
   if (window[STATE_KEY]) return;
   const state = { timer: null, running: false, success: false, context: null, observer: null };
   window[STATE_KEY] = state;
@@ -17,13 +20,11 @@
   };
   const copy = () => language() === 'en'
     ? {
-        title: 'Booking created successfully', bookingNumber: 'Booking number',
         instruction: 'Please click here 👇 to send the appointment to the clinic',
         button: 'Send the appointment to the clinic via WhatsApp',
         ready: 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
       }
     : {
-        title: 'تم إنشاء الحجز بنجاح', bookingNumber: 'رقم الحجز',
         instruction: 'يجب الضغط هنا 👇 لإرسال الموعد إلى العيادة',
         button: 'إرسال الموعد إلى العيادة عبر WhatsApp',
         ready: 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
@@ -49,9 +50,12 @@
     state.context = {
       doctorName: doctor?.selectedOptions?.[0]?.textContent?.trim() || '',
       serviceName: service?.selectedOptions?.[0]?.textContent?.trim() || '',
-      date: $('date')?.value || '', time: selected?.dataset?.slot || '',
-      mode: $('mode')?.value || 'clinic', patientName: $('name')?.value?.trim() || '',
-      phone: $('phone')?.value?.trim() || '', email: $('email')?.value?.trim() || '',
+      date: $('date')?.value || '',
+      time: selected?.dataset?.slot || '',
+      mode: $('mode')?.value || 'clinic',
+      patientName: $('name')?.value?.trim() || '',
+      phone: $('phone')?.value?.trim() || '',
+      email: $('email')?.value?.trim() || '',
       notes: $('notes')?.value?.trim() || ''
     };
   }
@@ -78,7 +82,8 @@
     try {
       const r = await fetch('https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data?api=data&_=' + Date.now(), { cache: 'no-store', headers: { Accept: 'application/json' } });
       if (r.ok) {
-        const d = await r.json(); const s = d?.settings || {};
+        const d = await r.json();
+        const s = d?.settings || {};
         const n = String(s.whatsapp || s.whatsapp_number || s.whatsapp_phone || s.phone_whatsapp || '').replace(/\D/g, '');
         if (n) return n;
       }
@@ -87,7 +92,8 @@
   }
 
   function whatsappMessage(code) {
-    const c = state.context || {}; const en = language() === 'en';
+    const c = state.context || {};
+    const en = language() === 'en';
     const service = (c.serviceName || (en ? 'Service' : 'الخدمة')).replace(/\s+—?\s*\d+\s*(?:دقيقة|minutes?)\s*$/i, '');
     const mode = c.mode === 'online' ? (en ? 'Online' : 'جلسة أونلاين') : (en ? 'In-clinic' : 'داخل العيادة');
     const lines = [
@@ -106,17 +112,23 @@
     return lines.join('\n');
   }
 
-  // Last-mile guard: raw translation keys must never reach the user's confirmation UI.
+  // Never allow raw translation keys to reach visible confirmation text.
   function sanitizeRawI18nText() {
     const en = language() === 'en';
     const replacements = en ? {
-      bookingCreated: 'Booking created successfully', bookingNumber: 'Booking number',
-      whatsappTitle: 'Booking created successfully', whatsappDescription: 'To complete the booking process, send the appointment details to the clinic WhatsApp.',
-      sendToWhatsApp: 'Send the appointment to the clinic via WhatsApp', whatsappReady: 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
+      bookingCreated: 'Booking created successfully',
+      bookingNumber: 'Booking number',
+      whatsappTitle: 'Booking created successfully',
+      whatsappDescription: 'To complete the booking process, send the appointment details to the clinic WhatsApp.',
+      sendToWhatsApp: 'Send the appointment to the clinic via WhatsApp',
+      whatsappReady: 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
     } : {
-      bookingCreated: 'تم إنشاء الحجز بنجاح', bookingNumber: 'رقم الحجز',
-      whatsappTitle: 'تم إنشاء الحجز بنجاح', whatsappDescription: 'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
-      sendToWhatsApp: 'إرسال الموعد إلى العيادة عبر WhatsApp', whatsappReady: 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
+      bookingCreated: 'تم إنشاء الحجز بنجاح',
+      bookingNumber: 'رقم الحجز',
+      whatsappTitle: 'تم إنشاء الحجز بنجاح',
+      whatsappDescription: 'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
+      sendToWhatsApp: 'إرسال الموعد إلى العيادة عبر WhatsApp',
+      whatsappReady: 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
     };
     const keys = Object.keys(replacements);
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -127,22 +139,78 @@
       let changed = false;
       for (const key of keys) {
         const pattern = new RegExp(`\\b${key}\\b`, 'g');
-        if (pattern.test(text)) { text = text.replace(pattern, replacements[key]); changed = true; }
+        if (pattern.test(text)) {
+          text = text.replace(pattern, replacements[key]);
+          changed = true;
+        }
       }
       if (changed) node.nodeValue = text;
     }
   }
 
+  // app.js owns the success message and booking number. We deliberately do
+  // NOT render another title/booking number here. This is the key invariant
+  // that prevents the duplicate confirmation reported in Production.
+  function normalizeExistingWhatsAppStep(container) {
+    const c = copy();
+    const button = $('sendBookingWhatsApp');
+    if (!button) return false;
+
+    button.textContent = c.button;
+    button.setAttribute('aria-label', c.button);
+    button.setAttribute('data-azaad-whatsapp-cta', 'true');
+    container.dir = language() === 'en' ? 'ltr' : 'rtl';
+
+    // Remove duplicated success-title / booking-number content introduced by
+    // an older renderer, while retaining the actual WhatsApp description.
+    const direct = [...container.querySelectorAll('div, p')];
+    for (const node of direct) {
+      if (node === button || node.contains(button)) continue;
+      const text = String(node.textContent || '').trim();
+      if (!text) continue;
+      if (/^(تم إنشاء الحجز بنجاح|Booking created successfully)$/i.test(text) ||
+          /^(رقم الحجز|Booking number)\s*:?\s*AZD-[A-Z0-9-]+$/i.test(text)) {
+        node.remove();
+      }
+    }
+
+    const paragraphs = [...container.querySelectorAll('p')];
+    const ready = paragraphs.find((p) => /WhatsApp/i.test(p.textContent || '') && p !== button);
+    if (ready) ready.textContent = c.ready;
+
+    let instruction = container.querySelector('[data-azaad-whatsapp-instruction]');
+    if (!instruction) {
+      instruction = document.createElement('span');
+      instruction.dataset.azaadWhatsappInstruction = 'true';
+      instruction.style.cssText = 'display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px';
+      button.parentNode?.insertBefore(instruction, button);
+    }
+    instruction.textContent = c.instruction;
+
+    const source = submitButton();
+    if (source) {
+      const s = getComputedStyle(source);
+      button.style.background = s.backgroundColor || '#101b56';
+      button.style.backgroundColor = s.backgroundColor || '#101b56';
+      button.style.border = s.border;
+      button.style.borderRadius = s.borderRadius;
+      button.style.fontFamily = s.fontFamily;
+      button.style.fontWeight = s.fontWeight || '700';
+      button.style.color = '#fff';
+    } else {
+      button.style.background = '#101b56';
+    }
+    return true;
+  }
+
   async function ensureWhatsAppStep() {
     if (!state.success || !state.context) return;
-    const c = copy(); const code = bookingCode();
+    const code = bookingCode();
     let container = $('whatsappBookingStep');
 
-    if (container?.dataset?.azaadGuaranteed !== 'true' && $('sendBookingWhatsApp')) {
-      const button = $('sendBookingWhatsApp');
-      button.textContent = c.button;
-      button.setAttribute('aria-label', c.button);
-      container.dir = language() === 'en' ? 'ltr' : 'rtl';
+    // Prefer and normalize app.js's canonical container. Do not create a
+    // second success/booking-number renderer.
+    if (container && normalizeExistingWhatsAppStep(container)) {
       sanitizeRawI18nText();
       return;
     }
@@ -151,37 +219,23 @@
       container = document.createElement('div');
       container.id = 'whatsappBookingStep';
       container.dataset.azaadGuaranteed = 'true';
+      container.style.marginTop = '20px';
+      container.style.padding = '20px';
+      container.style.borderRadius = '14px';
+      container.style.background = '#f1fbf5';
+      container.style.border = '1px solid #ccebd8';
       const form = $('bookingForm');
       if (form?.parentNode) form.parentNode.insertBefore(container, form.nextSibling);
     }
 
-    if (container.dataset.azaadRenderedCode === code && $('sendBookingWhatsApp')) {
-      const button = $('sendBookingWhatsApp');
-      button.textContent = c.button;
-      button.setAttribute('aria-label', c.button);
-      container.dir = language() === 'en' ? 'ltr' : 'rtl';
-      sanitizeRawI18nText();
-      return;
-    }
-
     const number = await whatsappNumber();
     const href = `https://wa.me/${number}?text=${encodeURIComponent(whatsappMessage(code))}`;
-    container.innerHTML = `<div style="text-align:center"><div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#16734a">${escapeHtml(c.title)}</div><p style="line-height:1.8;margin:0 0 14px">${escapeHtml(c.bookingNumber)}: <strong>${escapeHtml(code)}</strong><br><span style="display:block;font-size:18px;font-weight:700;line-height:1.8;margin-top:8px">${escapeHtml(c.instruction)}</span></p><a id="sendBookingWhatsApp" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:16px;min-height:52px">${escapeHtml(c.button)}</a><p style="font-size:13px;color:#666;margin-top:12px;line-height:1.7">${escapeHtml(c.ready)}</p></div>`;
+    const c = copy();
+    // Recovery-only renderer: success and booking number remain owned by app.js.
+    container.innerHTML = `<div style="text-align:center"><span data-azaad-whatsapp-instruction="true" style="display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px">${escapeHtml(c.instruction)}</span><a id="sendBookingWhatsApp" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" data-azaad-whatsapp-cta="true" style="display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:16px;min-height:52px">${escapeHtml(c.button)}</a><p style="font-size:13px;color:#666;margin-top:12px;line-height:1.7">${escapeHtml(c.ready)}</p></div>`;
     container.dataset.azaadRenderedCode = code;
     container.dir = language() === 'en' ? 'ltr' : 'rtl';
-
-    const button = $('sendBookingWhatsApp'); const source = submitButton();
-    if (button && source) {
-      const s = getComputedStyle(source);
-      button.style.background = s.backgroundColor || '#101b56';
-      button.style.backgroundColor = s.backgroundColor || '#101b56';
-      button.style.border = s.border; button.style.borderRadius = s.borderRadius;
-      button.style.fontFamily = s.fontFamily; button.style.fontWeight = s.fontWeight || '700'; button.style.color = '#fff';
-    } else if (button) button.style.background = '#101b56';
-    if (source) {
-      source.hidden = true; source.setAttribute('aria-hidden', 'true'); source.setAttribute('tabindex', '-1');
-      source.style.setProperty('display', 'none', 'important');
-    }
+    normalizeExistingWhatsAppStep(container);
     sanitizeRawI18nText();
   }
 
@@ -192,12 +246,19 @@
       sanitizeRawI18nText();
       if (!state.success && bookingSucceeded()) state.success = true;
       if (state.success) void ensureWhatsAppStep();
-    } finally { state.running = false; }
+    } finally {
+      state.running = false;
+    }
   }
+
   function schedule() {
     if (state.timer) return;
-    state.timer = setTimeout(() => { state.timer = null; refresh(); }, 40);
+    state.timer = setTimeout(() => {
+      state.timer = null;
+      refresh();
+    }, 40);
   }
+
   function init() {
     const form = $('bookingForm');
     if (form) form.addEventListener('submit', captureBookingContext, true);
@@ -207,9 +268,12 @@
     } catch (_) {}
     window.addEventListener('azaadLanguageChanged', schedule);
     window.addEventListener('azaad:language-changed', schedule);
-    window.addEventListener('storage', (e) => { if (e.key === 'azaadClinicLanguage') schedule(); });
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'azaadClinicLanguage') schedule();
+    });
     refresh();
   }
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
 })();
