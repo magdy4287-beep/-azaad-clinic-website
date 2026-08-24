@@ -1,11 +1,11 @@
-/* Canonical public services presentation: compact 4-up cards with real photography. */
+/* Canonical public services presentation: compact 4-up cards with prominent real photography. */
 #servicesGrid.cards {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
 #servicesGrid .card {
-  padding: 14px;
+  padding: 12px;
   border-radius: 18px;
   display: flex;
   flex-direction: column;
@@ -14,7 +14,7 @@
 
 .azaad-service-visual {
   position: relative;
-  height: 132px;
+  height: 190px;
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 13px;
@@ -94,11 +94,12 @@
 
 @media (max-width: 900px) {
   #servicesGrid.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .azaad-service-visual { height: 180px; }
 }
 
 @media (max-width: 560px) {
   #servicesGrid.cards { grid-template-columns: 1fr; }
-  .azaad-service-visual { height: 145px; }
+  .azaad-service-visual { height: 210px; }
 }
 
 /* The hero social links remain available; only their explanatory title is hidden. */
