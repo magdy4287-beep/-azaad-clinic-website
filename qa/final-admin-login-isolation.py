@@ -112,9 +112,9 @@ for match in inline.finditer(text):
     if not re.search(r"(?<![-\w])src\s*=", attrs, re.I) and sum(marker in body for marker in legacy_markers) >= 3:
         raise SystemExit("Legacy inline Admin Login controller remains")
 
-# Lazy-module registry ownership is verified by lazy-admin-modules.py and the
-# final read-only graph gate. This shell isolation stage must not duplicate that
-# responsibility or reject a valid registry whose formatting changed upstream.
+# This stage is intentionally non-owning: lazy-admin-modules.py creates the
+# canonical registry, while its dedicated verification gates own cardinality
+# and loader semantics. Requiring the registry here creates an ordering race.
 registry_pattern = re.compile(
     r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
     re.I | re.S,
@@ -126,7 +126,7 @@ if registry_matches:
     registry = registry_matches[0]
     loader_assignment_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
     if len(loader_assignment_pattern.findall(registry.group(0))) != 1:
-        raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
+        raise SystemExit("Canonical lazy registry loader is malformed")
 
 executable = []
 for match in script_open.finditer(text):
