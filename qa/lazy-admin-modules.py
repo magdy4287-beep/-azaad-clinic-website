@@ -26,6 +26,7 @@ LAZY = {
     "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
     "staff": ["staff-management.js", "patient-merge-tool.js", "hr-performance-analytics.js"],
     "settings": [],
+    "calendar": ["admin-calendar-center.js"],
 }
 
 # These files are intentionally not browser runtime modules:
@@ -70,12 +71,18 @@ def main():
         )
         text = tag.sub("", text)
 
-    # The core layer is non-blocking and loaded exactly once. It owns the
-    # cross-cutting admin enhancements; panel-specific code remains lazy.
+    # The core layer is non-blocking and loaded exactly once. Panel-specific code remains lazy.
     core_marker = 'data-azaad-admin-core="1"'
     if core_marker not in text:
         payload = "\n".join(script_tag(name) for name in CORE)
         text = text.replace("</body>", payload + "\n</body>", 1)
+
+    # Canonical calendar UI is created by this registry, not by another controller.
+    if 'id="calendarPanel"' not in text:
+        calendar_tab = '''\n<button class="tab" data-panel="calendar" type="button">🗓️ التقويم</button>\n'''
+        text = text.replace('</div>\n\n  <section\n    id="bookings"', calendar_tab + '</div>\n\n  <section\n    id="bookings"', 1)
+        calendar_panel = '''\n<section id="calendarPanel" class="panel">\n  <div class="card">\n    <div class="panel-head">\n      <div>\n        <h2>🗓️ التقويم المركزي</h2>\n        <div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div>\n      </div>\n    </div>\n    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>\n  </div>\n</section>\n'''
+        text = text.replace('\n  <section\n    id="bookings"', calendar_panel + '\n  <section\n    id="bookings"', 1)
 
     groups = repr(LAZY)
     payload = f"""
@@ -113,7 +120,10 @@ def main():
 
   window.AZAAD_LOAD_ADMIN_PANEL = async function(panel) {{
     const key = String(panel || '');
-    if (loadedForPanel.has(key)) return;
+    if (loadedForPanel.has(key)) {{
+      window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }}));
+      return;
+    }}
     loadedForPanel.add(key);
     for (const src of (groups[key] || [])) {{
       await yieldToBrowser();
@@ -126,9 +136,9 @@ def main():
     window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }}));
   }};
 
-  // Never block navigation/auth. Loading begins after the browser gets a frame.
+  // One delegated navigation owner. It never calls switchPanel or auth code.
   document.addEventListener('click', event => {{
-    const tab = event.target?.closest?.('[data-panel]');
+    const tab = event.target?.closest?.('.tab[data-panel]');
     if (!tab) return;
     const key = tab.getAttribute('data-panel');
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
