@@ -7,59 +7,121 @@ if not path.exists():
 
 js = path.read_text(encoding="utf-8")
 
-# Authentication must never await application initialization. Earlier transforms
-# may already have converted this call; keep the operation idempotent.
-blocking_pattern = r"\bawait\s+initializeApplication\s*\(\s*\)\s*;"
-js, count = re.subn(
-    blocking_pattern,
-    '''void initializeApplication().catch(error =>
-    console.error("Admin initialization error:", error
-  ));''',
+
+def function_bounds(source, marker):
+    start = source.find(marker)
+    if start < 0:
+        return None
+    brace = source.find("{", start)
+    if brace < 0:
+        return None
+    depth = 0
+    for i in range(brace, len(source)):
+        if source[i] == "{":
+            depth += 1
+        elif source[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return start, i + 1
+    return None
+
+# Authentication must never await application initialization.
+js = re.sub(
+    r"\bawait\s+initializeApplication\s*\(\s*\)\s*;",
+    '''void initializeApplication().catch(error =>\n    console.error("Admin initialization error:", error\n  ));''',
     js,
 )
 
-if re.search(blocking_pattern, js):
-    raise SystemExit("Blocking initializeApplication() call remains")
-
 marker = "async function initializeApplication()"
-init_start = js.find(marker)
-if init_start < 0:
-    raise SystemExit("initializeApplication() not found")
+bounds = function_bounds(js, marker)
+if bounds is None:
+    raise SystemExit("initializeApplication() not found or malformed")
 
-brace_start = js.find("{", init_start)
-if brace_start < 0:
-    raise SystemExit("initializeApplication() opening brace not found")
+start, end = bounds
 
-depth = 0
-init_end = None
-for i in range(brace_start, len(js)):
-    if js[i] == "{":
-        depth += 1
-    elif js[i] == "}":
-        depth -= 1
-        if depth == 0:
-            init_end = i + 1
-            break
+# Canonicalize the whole critical function instead of trying to reorder arbitrary
+# earlier transforms. This makes the final production artifact deterministic.
+canonical = '''async function initializeApplication() {
+  if (state.initialized || state.initializing) {
+    return;
+  }
 
-if init_end is None:
-    raise SystemExit("initializeApplication() boundary could not be determined")
+  if (
+    !state.session ||
+    !state.user ||
+    !state.staff ||
+    !state.currentRole
+  ) {
+    return;
+  }
 
-init_body = js[init_start:init_end]
+  state.initializing = true;
 
-# The earlier freeze fix intentionally changes `await loadBookings()` into a
-# nonblocking `void loadBookings().catch(...)`. Accept either form. The final
-# gate must validate the critical UI boundary, not require one implementation
-# detail that an earlier canonical transform has already removed.
-load_patterns = (
-    r"\bawait\s+loadBookings\s*\(\s*\)\s*;",
-    r"\bvoid\s+loadBookings\s*\(\s*\)",
-    r"\bloadBookings\s*\(\s*\)",
-)
-load_match = None
-for pattern in load_patterns:
-    load_match = re.search(pattern, init_body)
-    if load_match:
-        break
+  const loginPage = $("loginPage");
+  const adminPage = $("adminPage");
+
+  if (loginPage) loginPage.classList.add("hidden");
+  if (adminPage) adminPage.classList.remove("hidden");
+
+  // Critical interaction ownership is established before any network work.
+  updateUserIdentity();
+  bindTabs();
+  bindBookingFilters();
+  bindLogout();
+  bindPatientPage();
+  buildCommandCenter();
+
+  // The shell is interactive now. Background work must never gate it.
+  state.initialized = true;
+  state.initializing = false;
+
+  void loadBookings().catch(error =>
+    console.error("Background booking load error:", error)
+  );
+
+  if (
+    window.AZAAD_STAFF &&
+    typeof window.AZAAD_STAFF.init === "function"
+  ) {
+    Promise.resolve()
+      .then(() => window.AZAAD_STAFF.init())
+      .catch(error =>
+        console.error("Staff management init error:", error)
+      );
+  }
+
+  showToast(
+    `🟢 تم تسجيل الدخول بنجاح — ${state.currentRole}`,
+    "success"
+  );
+}
+'''
+
+js = js[:start] + canonical + js[end:]
+
+# Ensure the state has the explicit initialization race guard required by the
+# canonical contract. Add it only when absent; never duplicate it.
+if "initializing: false" not in js:
+    js = js.replace(
+        "  initialized: false,\n  loadingBookings: false",
+        "  initialized: false,\n  loadingBookings: false,\n  initializing: false",
+        1,
+    )
+
+# Optional post-auth runtimes are not part of the authentication critical path.
+runtime_marker = "async function loadAfterAuthRuntimes()"
+runtime_bounds = function_bounds(js, runtime_marker)
+if runtime_bounds is not None:
+    rstart, rend = runtime_bounds
+    rbrace = js.find("{", rstart)
+    rbody = '''{\n  // DISABLED: optional runtimes must be explicitly loaded by their owning panel.\n  return;\n}\n'''
+    js = js[:rstart] + "async function loadAfterAuthRuntimes() " + rbody + js[rend:]
+
+# Fail closed against the exact regressions this canonicalizer owns.
+bounds = function_bounds(js, marker)
+if bounds is None:
+    raise SystemExit("Final initializeApplication() boundary could not be determined")
+final_body = js[bounds[0]:bounds[1]]
 
 required = (
     "bindTabs();",
@@ -68,100 +130,20 @@ required = (
     "bindPatientPage();",
     "buildCommandCenter();",
 )
-
-if load_match:
-    before_load = init_body[:load_match.start()]
-    after_load = init_body[load_match.start():]
-
-    # Remove duplicate copies anywhere in initializeApplication, then insert
-    # exactly one canonical block before background booking initialization.
-    for statement in required:
-        before_load = re.sub(
-            r"(?m)^\s*" + re.escape(statement) + r"\s*$\n?",
-            "",
-            before_load,
-        )
-        after_load = re.sub(
-            r"(?m)^\s*" + re.escape(statement) + r"\s*$\n?",
-            "",
-            after_load,
-        )
-
-    binding_block = """  // Critical UI bindings first: network/data work cannot delay interaction.\n  bindTabs();\n  bindBookingFilters();\n  bindLogout();\n  bindPatientPage();\n  buildCommandCenter();\n\n"""
-
-    new_init_body = (
-        before_load.rstrip()
-        + "\n\n"
-        + binding_block
-        + after_load.lstrip()
-    )
-
-    js = js[:init_start] + new_init_body + js[init_end:]
-else:
-    # A prior canonical transform may have fully removed booking initialization.
-    # That is valid: verify that the critical bindings are already present rather
-    # than manufacturing a synthetic loadBookings contract.
-    init_body = js[init_start:init_end]
-    if not all(statement in init_body for statement in required):
-        raise SystemExit(
-            "Admin initialization contains no booking load and is missing required critical UI bindings"
-        )
-
-# Disable the legacy automatic post-auth orchestrator. Optional runtimes must be
-# explicitly loaded by their owning panel so they can never monopolize the main
-# thread immediately after authentication.
-runtime_marker = "async function loadAfterAuthRuntimes()"
-runtime_start = js.find(runtime_marker)
-if runtime_start >= 0:
-    runtime_brace = js.find("{", runtime_start)
-    if runtime_brace < 0:
-        raise SystemExit("loadAfterAuthRuntimes() opening brace not found")
-    body_start = runtime_brace + 1
-    # Replace only the beginning of the function body; preserve the registry and
-    # function structure after the early return for future explicit callers.
-    if "// DISABLED: optional runtimes" not in js[body_start:body_start + 180]:
-        js = (
-            js[:body_start]
-            + '\n  // DISABLED: optional runtimes must be explicitly loaded by their owning panel.\n  return;\n'
-            + js[body_start:]
-        )
-
-# Final fail-closed proof.
-if re.search(blocking_pattern, js):
-    raise SystemExit("Blocking initializeApplication() call remains after finalization")
-
-init_start = js.find(marker)
-brace_start = js.find("{", init_start)
-depth = 0
-init_end = None
-for i in range(brace_start, len(js)):
-    if js[i] == "{":
-        depth += 1
-    elif js[i] == "}":
-        depth -= 1
-        if depth == 0:
-            init_end = i + 1
-            break
-
-if init_end is None:
-    raise SystemExit("Final Admin initialization boundary could not be determined")
-
-final_body = js[init_start:init_end]
+load_match = re.search(r"\b(?:void\s+)?loadBookings\s*\(", final_body)
+if not load_match:
+    raise SystemExit("Background booking initialization call is missing")
 for statement in required:
     positions = [m.start() for m in re.finditer(re.escape(statement), final_body)]
-    if len(positions) != 1:
-        raise SystemExit(
-            f"Critical Admin binding must appear exactly once: {statement}"
-        )
+    if len(positions) != 1 or positions[0] >= load_match.start():
+        raise SystemExit(f"Critical Admin binding ordering invalid: {statement}")
 
-if runtime_start >= 0:
-    runtime_start = js.find(runtime_marker)
-    runtime_brace = js.find("{", runtime_start)
-    runtime_prefix = js[runtime_brace + 1:runtime_brace + 220]
-    if "return;" not in runtime_prefix:
-        raise SystemExit("Post-auth runtime orchestrator was not disabled")
+if "await loadBookings();" in final_body:
+    raise SystemExit("Admin initialization still awaits bookings")
+if "await loadAfterAuthRuntimes();" in final_body:
+    raise SystemExit("Admin initialization still awaits optional runtimes")
+if "state.initialized = true;" not in final_body or "state.initializing = false;" not in final_body:
+    raise SystemExit("Admin interactive state transition is missing")
 
 path.write_text(js, encoding="utf-8")
-print(
-    f"[AZAAD] Admin critical path finalized: {count} blocking init call(s) converted; critical UI bindings verified exactly once; nonblocking booking initialization accepted; automatic post-auth runtime orchestration disabled"
-)
+print("[AZAAD] Admin critical initialization canonicalized deterministically and verified")
