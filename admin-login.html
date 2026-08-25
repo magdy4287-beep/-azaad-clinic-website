@@ -47,6 +47,21 @@ button:disabled{opacity:.7}.error{background:#fff0f2;color:#a32939;padding:11px;
   if(!form||!username||!password||!button||!errorBox) return;
   function showError(message){errorBox.textContent=message||'تعذر تسجيل الدخول.';errorBox.classList.remove('hidden');button.disabled=false;}
   function clearError(){errorBox.textContent='';errorBox.classList.add('hidden');}
+  function persistCanonicalSupabaseSession(session,user){
+    var expiresAt=session.expires_at;
+    if(!expiresAt && session.expires_in){expiresAt=Math.floor(Date.now()/1000)+Number(session.expires_in);}
+    var canonical={
+      access_token:session.access_token,
+      refresh_token:session.refresh_token,
+      expires_in:session.expires_in,
+      expires_at:expiresAt,
+      token_type:session.token_type||'bearer',
+      user:user||session.user||null
+    };
+    var key='sb-derofsthjivlkcdnojww-auth-token';
+    localStorage.setItem(key,JSON.stringify(canonical));
+    try{sessionStorage.setItem('azaad_admin_token',session.access_token);}catch(_){ }
+  }
   form.addEventListener('submit',function(event){
     event.preventDefault();
     clearError();
@@ -62,8 +77,7 @@ button:disabled{opacity:.7}.error{background:#fff0f2;color:#a32939;padding:11px;
         if(!payload.ok) throw new Error(result.error||result.message||'بيانات الدخول غير صحيحة.');
         if(!result.session||!result.session.access_token||!result.session.refresh_token) throw new Error('تعذر إنشاء جلسة الدخول.');
         if(!result.staff||result.staff.active===false) throw new Error('حساب الموظف غير فعال.');
-        try{sessionStorage.setItem('azaad_admin_token',result.session.access_token);}catch(_){ }
-        try{localStorage.setItem('azaad_admin_login_session',JSON.stringify(result.session));}catch(_){ }
+        persistCanonicalSupabaseSession(result.session,result.user);
         location.replace('/admin.html');
       })
       .catch(function(error){showError(error&&error.message?error.message:'تعذر تسجيل الدخول.');});
