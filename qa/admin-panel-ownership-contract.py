@@ -5,28 +5,29 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / "admin.html").read_text(encoding="utf-8")
 adminjs = (ROOT / "admin.js").read_text(encoding="utf-8")
+enterprise = (ROOT / "admin-enterprise-centers.js").read_text(encoding="utf-8")
 loader = (ROOT / "qa" / "lazy-admin-modules.py").read_text(encoding="utf-8")
 shell = (ROOT / "admin-shell.js").read_text(encoding="utf-8")
 
 EXPECTED = {
-    "bookings": ("lazy", ["patient-appointment-actions.js"]),
-    "doctors": ("lazy", ["doctors-center-v2.js"]),
-    "services": ("lazy", ["services-center-v2.js"]),
-    "schedules": ("lazy", ["scheduling-v2.js"]),
-    "posts": ("lazy", ["marketing-studio-v3.js"]),
-    "staff": ("lazy", ["staff-management.js"]),
-    "calendar": ("lazy", ["admin-calendar-center.js"]),
-    "holidays": ("core", ["admin-enhancements-v1.js"]),
-    "hours": ("core", ["admin-enhancements-v1.js"]),
-    "settings": ("core", ["admin-enhancements-v1.js"]),
-    "account": ("core", ["admin-enhancements-v1.js"]),
+    "bookings": ["patient-appointment-actions.js"],
+    "doctors": ["doctors-center-v2.js"],
+    "services": ["services-center-v2.js"],
+    "schedules": ["scheduling-v2.js"],
+    "posts": ["marketing-studio-v3.js"],
+    "staff": ["staff-management.js"],
+    "calendar": ["admin-calendar-center.js"],
+    "holidays": ["admin-enhancements-v1.js"],
+    "hours": ["admin-enhancements-v1.js"],
+    "settings": ["admin-enhancements-v1.js"],
+    "account": ["admin-enhancements-v1.js"],
 }
 
 checks = []
 def check(name, ok, detail=""):
     checks.append((name, ok, detail))
 
-for panel, (kind, owners) in EXPECTED.items():
+for panel, owners in EXPECTED.items():
     tabs = len(re.findall(r'data-panel=["\']' + re.escape(panel) + r'["\']', admin))
     if panel == "calendar" and tabs == 0 and 'data-panel="calendar"' in loader:
         tabs = 1
@@ -37,20 +38,13 @@ for panel, (kind, owners) in EXPECTED.items():
 for group in re.findall(r'\n\s*"([a-z]+)"\s*:\s*\[', loader):
     if group == "calendar" and 'data-panel="calendar"' in loader:
         continue
-    check(
-        f"registry group has UI panel: {group}",
-        bool(re.search(r'data-panel=["\']' + re.escape(group) + r'["\']', admin)),
-    )
+    check(f"registry group has UI panel: {group}", bool(re.search(r'data-panel=["\']' + re.escape(group) + r'["\']', admin)))
 
-for obsolete in [
-    "marketing-workspace-v2.js",
-    "marketing-platform-expansion.js",
-    "scheduling-v2-waiting.js",
-]:
+for obsolete in ["marketing-workspace-v2.js", "marketing-platform-expansion.js", "scheduling-v2-waiting.js"]:
     check(f"superseded module excluded: {obsolete}", obsolete in loader and "LEGACY_OR_CONTRACT" in loader)
 
-# Navigation has exactly one owner: admin-shell.js. admin.js is the application/data core
-# and may issue navigation requests, but must not implement panel activation itself.
+# Exactly one navigation owner: admin-shell.js. Core and enterprise runtimes only issue/render
+# through lifecycle events; they never activate panels through their own tab listeners.
 check("navigation owner is admin-shell", "document.addEventListener('click'" in shell)
 check("shell emits panel activation", "azaad:admin-panel-activated" in shell)
 check("shell accepts internal panel requests", "azaad:admin-panel-requested" in shell)
@@ -59,6 +53,8 @@ check("registry has no delegated tab click owner", "document.addEventListener('c
 check("admin core has no bindTabs owner", "function bindTabs(" not in adminjs)
 check("admin core has no switchPanel owner", "function switchPanel(" not in adminjs)
 check("admin core uses request bridge", "azaad:admin-panel-requested" in adminjs)
+check("enterprise has no tab click owner", "tab.addEventListener('click'" not in enterprise)
+check("enterprise consumes panel activation", "azaad:admin-panel-activated" in enterprise)
 check("registry remains sole panel-loader definition", adminjs.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 0 and loader.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 1)
 
 failed = False
