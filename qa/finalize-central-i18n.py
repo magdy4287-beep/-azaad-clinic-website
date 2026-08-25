@@ -6,7 +6,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 I18N = '<script src="/central-i18n.js?v=6.0.0"></script>'
 CORE = '<script src="/azaad-core-context.js?v=1.0.0"></script>'
-LOGIN_SURFACES = {"admin-login.html"}
+LOGIN_SURFACES = {"admin-login.html", "admin-auth.html"}
 TAG_RE = re.compile(
     r'<script\b(?=[^>]*\bsrc\s*=\s*["\'][^"\']*(?:central-i18n|azaad-core-context)\.js(?:\?[^"\']*)?["\'])[^>]*>\s*</script\s*>',
     re.I,
@@ -31,4 +31,4 @@ for path in sorted(ROOT.rglob('*.html')):
         changed += 1
         removed += count
 
-print(f'central i18n production canonicalization: {changed} application HTML surface(s), removed {removed} prior runtime tag(s); excluded isolated login surfaces: {sorted(LOGIN_SURFACES)}')
+print(f'central i18n production canonicalization: {changed} application HTML surface(s), removed {removed} prior runtime tag(s); excluded isolated auth surfaces: {sorted(LOGIN_SURFACES)}')
