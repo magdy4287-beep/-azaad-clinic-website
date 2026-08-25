@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V7__';
+  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V8__';
   if (window[KEY]) return;
   window[KEY] = true;
 
@@ -25,6 +25,8 @@
     ['الصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
     ['عيادة آزاد للصحة النفسية','Azaad Mental Health Clinic'],
     ['عيادة أزاد للصحة النفسية','Azaad Mental Health Clinic'],
+    ['عيادة أزاد للعلاج النفسي','Azaad Psychotherapy Clinic'],
+    ['عيادة آزاد للعلاج النفسي','Azaad Psychotherapy Clinic'],
     ['علاج نفسي','Psychotherapy'],
     ['العلاج النفسي','Psychotherapy'],
     ['الصحة النفسية','Mental health'],
@@ -38,7 +40,10 @@
     ['علاج الاكتئاب','Depression treatment'],
     ['العلاج السلوكي المعرفي','Cognitive behavioral therapy'],
     ['العلاج الأسري','Family therapy'],
-    ['العلاج الزوجي','Couples therapy']
+    ['العلاج الزوجي','Couples therapy'],
+    ['المواعيد المتاحة','Available appointments'],
+    ['اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.','Choose a doctor, service, and date to see available appointments.'],
+    ['اختر الطبيب والخدمة والتاريخ والوقت المناسب لك.','Choose the doctor, service, date, and time that work for you.']
   ]);
 
   const transliterate = value => {
@@ -116,7 +121,7 @@
     while (walker.nextNode()) {
       const node = walker.currentNode;
       const parent = node.parentElement;
-      if (!parent || parent.closest('script,style,textarea,[data-no-i18n]')) continue;
+      if (!parent || parent.closest('script,style,textarea')) continue;
       if (!/[\u0600-\u06FF]/.test(node.nodeValue || '')) continue;
       const original = String(node.nodeValue || '');
       const converted = englishText(original);
@@ -129,7 +134,12 @@
   const observer = new MutationObserver(mutations => {
     if (!observing || lang() !== 'en') return;
     if (!mutations.some(m => m.type === 'childList')) return;
-    schedule();
+    observing = false;
+    observer.disconnect();
+    try { repair(); } finally {
+      observing = true;
+      observer.observe(document.body, {childList:true, subtree:true});
+    }
   });
 
   const schedule = () => {
@@ -145,35 +155,17 @@
     }, 0);
   };
 
-  window.addEventListener('azaadPublicClinicDataReady', schedule);
-  window.addEventListener('azaadPublicClinicDataChanged', schedule);
-  // Language switching is synchronous from the user's point of view.
-  // Repair dynamic booking content immediately when the central owner emits
-  // the language event; waiting for a timer allowed Playwright and fast
-  // desktop clicks to observe the old Arabic doctor/service labels.
+  window.addEventListener('azaadPublicClinicDataReady', () => {
+    if (lang() === 'en') repair(); else schedule();
+  });
+  window.addEventListener('azaadPublicClinicDataChanged', () => {
+    if (lang() === 'en') repair(); else schedule();
+  });
   window.addEventListener('azaadLanguageChanged', () => {
-    if (lang() === 'en') {
-      observing = false;
-      observer.disconnect();
-      try { repair(); } finally {
-        observing = true;
-        observer.observe(document.body, {childList:true, subtree:true});
-      }
-    } else {
-      schedule();
-    }
+    if (lang() === 'en') repair(); else schedule();
   });
   window.addEventListener('azaadPublicContentLanguageChanged', () => {
-    if (lang() === 'en') {
-      observing = false;
-      observer.disconnect();
-      try { repair(); } finally {
-        observing = true;
-        observer.observe(document.body, {childList:true, subtree:true});
-      }
-    } else {
-      schedule();
-    }
+    if (lang() === 'en') repair(); else schedule();
   });
   window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') schedule(); });
 
