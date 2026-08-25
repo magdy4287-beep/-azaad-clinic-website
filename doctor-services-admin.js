@@ -25,7 +25,9 @@
 
   function renderServiceEditor(card, profile, doctorId, services, overrides) {
     if (!card || !doctorId) return;
-    card.querySelector('[data-doctor-services-editor]')?.remove();
+    // Idempotent render: never tear down/rebuild an existing editor on a DOM mutation.
+    // Rebuilding here used to generate another mutation, which re-scheduled load().
+    if (card.querySelector('[data-doctor-services-editor]')) return;
 
     const byService = new Map(
       overrides
@@ -137,14 +139,22 @@
 
   function scheduleLoad() {
     clearTimeout(renderTimer);
-    renderTimer = setTimeout(load, 150);
+    renderTimer = setTimeout(load, 300);
   }
 
   function boot() {
     if (!db()) return;
     scheduleLoad();
-    const observer = new MutationObserver(scheduleLoad);
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Observe only the feature host, not the whole Admin document. The previous
+    // body-wide observer reacted to unrelated navigation/UI mutations and could
+    // repeatedly reload the database and rebuild this feature.
+    const host = document.getElementById('azaadPublicTeamAdmin');
+    if (host) {
+      const observer = new MutationObserver(mutations => {
+        if (mutations.some(mutation => mutation.addedNodes.length || mutation.removedNodes.length)) scheduleLoad();
+      });
+      observer.observe(host, { childList: true, subtree: true });
+    }
     window.AZAAD_DOCTOR_SERVICES_ADMIN = { load };
   }
 
