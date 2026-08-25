@@ -29,8 +29,8 @@ html,body{margin:0;padding:0;width:100%;min-height:100%;background:#f5f7fb;color
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL="https://derofsthjivlkcdnojww.supabase.co";
 const SUPABASE_KEY="sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa";
-const AUTH_STORAGE_KEY="sb-derofsthjivlkcdnojww-auth-token";
-const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const ADMIN_AUTH_STORAGE_KEY="azaad-clinic-admin-auth";
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 const form=document.getElementById("loginForm");
 const username=document.getElementById("username");
 const password=document.getElementById("password");
@@ -48,10 +48,10 @@ function installCanonicalSession(session,user){
     user:user||null
   };
   const serialized=JSON.stringify(payload);
-  try{localStorage.setItem(AUTH_STORAGE_KEY,serialized);}catch(error){throw new Error("تعذر حفظ جلسة الإدارة في المتصفح.");}
+  try{localStorage.setItem(ADMIN_AUTH_STORAGE_KEY,serialized);}catch(error){throw new Error("تعذر حفظ جلسة الإدارة في المتصفح.");}
   try{sessionStorage.setItem("azaad_admin_token",session.access_token);}catch(_){ }
   try{
-    const stored=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||"null");
+    const stored=JSON.parse(localStorage.getItem(ADMIN_AUTH_STORAGE_KEY)||"null");
     if(!stored?.access_token||!stored?.refresh_token) throw new Error("SESSION_STORAGE_VERIFY_FAILED");
   }catch(error){throw new Error("تعذر التحقق من جلسة الإدارة.");}
 }
