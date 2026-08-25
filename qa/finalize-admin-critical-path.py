@@ -13,8 +13,8 @@ blocking_pattern = r"\bawait\s+initializeApplication\s*\(\s*\)\s*;"
 js, count = re.subn(
     blocking_pattern,
     '''void initializeApplication().catch(error =>
-    console.error("Admin initialization error:", error)
-  );''',
+    console.error("Admin initialization error:", error
+  ));''',
     js,
 )
 
@@ -87,6 +87,23 @@ new_init_body = (
 
 js = js[:init_start] + new_init_body + js[init_end:]
 
+# Hard safety boundary: the old post-auth orchestrator was capable of loading
+# a large collection of independent scripts after login. That creates a second
+# runtime owner and can monopolize the main thread after the shell is visible.
+# Keep the registry/function for future explicit, panel-scoped loading, but make
+# the automatic orchestrator a no-op in the production canonical artifact.
+runtime_marker = "async function loadAfterAuthRuntimes()"
+runtime_start = js.find(runtime_marker)
+if runtime_start >= 0:
+    runtime_brace = js.find("{", runtime_start)
+    if runtime_brace < 0:
+        raise SystemExit("loadAfterAuthRuntimes() opening brace not found")
+    js = (
+        js[:runtime_brace + 1]
+        + '\n  // DISABLED: optional runtimes must be explicitly loaded by their owning panel.\n  return;\n'
+        + js[runtime_brace + 1:]
+    )
+
 # Final fail-closed proof.
 if re.search(blocking_pattern, js):
     raise SystemExit("Blocking initializeApplication() call remains after finalization")
@@ -116,7 +133,13 @@ for statement in required:
             f"Critical Admin binding must appear exactly once before loadBookings(): {statement}"
         )
 
+if runtime_start >= 0:
+    runtime_start = js.find(runtime_marker)
+    runtime_body = js[runtime_start:]
+    if "return;" not in runtime_body.split("{", 1)[1][:120]:
+        raise SystemExit("Post-auth runtime orchestrator was not disabled")
+
 path.write_text(js, encoding="utf-8")
 print(
-    f"[AZAAD] Admin critical path finalized: {count} blocking init call(s) converted; critical UI bindings precede booking initialization"
+    f"[AZAAD] Admin critical path finalized: {count} blocking init call(s) converted; critical UI bindings precede booking initialization; automatic post-auth runtime orchestration disabled"
 )
