@@ -20,12 +20,7 @@ LAZY = {
         "scheduling-v2-waiting.js",
         "scheduling-actions-contract.js",
     ],
-    "posts": [
-        "clinic-posts.js",
-        "marketing-workspace-v2.js",
-        "marketing-platform-expansion.js",
-        "marketing-studio-v3.js",
-    ],
+    "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
     "staff": ["staff-management.js", "patient-merge-tool.js"],
     "settings": [
         "admin-enhancements-v1.js",
@@ -43,8 +38,14 @@ def main():
         return
     text = path.read_text(encoding="utf-8")
 
-    # Remove every eager/static copy. The runtime below is the single owner.
-    for name in sorted(ALL_LAZY | {"admin-nextgen-fixes.js", "admin-nextgen-v2.js"}):
+    # Remove legacy/duplicate Marketing owners from the Admin shell.
+    for name in sorted(ALL_LAZY | {
+        "clinic-posts.js",
+        "marketing-workspace-v2.js",
+        "marketing-platform-expansion.js",
+        "admin-nextgen-fixes.js",
+        "admin-nextgen-v2.js",
+    }):
         tag = re.compile(
             r'<script\b[^>]*src=["\'](?:/)?' + re.escape(name) +
             r'(?:\?[^"\']*)?["\'][^>]*>\s*</script>', re.I
@@ -58,7 +59,6 @@ def main():
   const loaded = new Map();
   const loading = new Map();
   const loadedForPanel = new Set();
-
   const yieldToBrowser = () => new Promise(resolve => {
     if (typeof window.requestIdleCallback === 'function') {
       window.requestIdleCallback(() => resolve(), { timeout: 250 });
@@ -66,11 +66,9 @@ def main():
     }
     window.setTimeout(resolve, 0);
   });
-
   const load = src => {
     if (loaded.has(src)) return Promise.resolve(true);
     if (loading.has(src)) return loading.get(src);
-
     const p = new Promise((resolve,reject)=>{
       const s=document.createElement('script');
       s.src='/' + src;
@@ -82,37 +80,24 @@ def main():
     loading.set(src,p);
     return p;
   };
-
   window.AZAAD_LOAD_ADMIN_PANEL = async function(panel){
     const key=String(panel||'');
     if(loadedForPanel.has(key)) return;
-
     const files=groups[key]||[];
     if (!files.length) return;
-
     loadedForPanel.add(key);
-
-    // Load only after an explicit panel interaction. Never auto-load the
-    // active bookings panel after login; admin.js owns the critical shell.
     for (const src of files) {
       await yieldToBrowser();
-      try {
-        await load(src);
-      } catch (err) {
-        console.error('[AZAAD_ADMIN_MODULE]', err);
-      }
+      try { await load(src); }
+      catch (err) { console.error('[AZAAD_ADMIN_MODULE]',err); }
     }
-
     window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready',{detail:{panel:key}}));
   };
-
   document.addEventListener('click',e=>{
     const tab=e.target?.closest?.('[data-panel]');
     if(!tab) return;
     const key=tab.getAttribute('data-panel');
-    // Defer module evaluation until after the click event and paint.
-    yieldToBrowser()
-      .then(() => window.AZAAD_LOAD_ADMIN_PANEL(key))
+    yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key))
       .catch(err => console.error('[AZAAD_ADMIN_MODULE]',err));
   },{passive:true});
 })();
