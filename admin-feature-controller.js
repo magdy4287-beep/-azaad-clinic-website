@@ -1,6 +1,5 @@
 /* AZAAD ADMIN FEATURE CONTROLLER
- * One post-auth feature owner for the legacy core management panels that were
- * previously embedded in admin.html and removed from the auth shell.
+ * One post-auth feature owner for the legacy core management panels.
  * Authentication/session ownership remains exclusively in admin.js.
  */
 (() => {
@@ -31,13 +30,9 @@
       if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
       state.data = body || {};
       return state.data;
-    } finally {
-      state.loading = false;
-    }
+    } finally { state.loading = false; }
   }
 
-  function panel(id) { return $(id); }
-  function body(id) { return $(`${id}Body`) || panel(id)?.querySelector('.items'); }
   function empty(text) { return `<div class="empty">${text}</div>`; }
 
   function renderDoctors(data) {
@@ -74,18 +69,15 @@
   }
 
   function renderSettings(data) {
-    const out = $('settingsList'); if (!out) return;
+    const out = $('settingsForm'); if (!out) return;
     const settings = data?.settings && typeof data.settings === 'object' ? data.settings : {};
     const rows = Object.entries(settings);
     out.innerHTML = rows.length ? rows.map(([k,v]) => `<div class="item"><div><b>⚙️ ${esc(k)}</b><div class="muted">${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</div></div></div>`).join('') : empty('لا توجد إعدادات إضافية لعرضها.');
   }
 
   function toast(message, error = false) {
-    const x = $('toast') || $('adminToast');
-    if (!x) return;
-    x.textContent = message;
-    x.classList.add('show');
-    x.style.background = error ? '#a32939' : '#17214f';
+    const x = $('toast') || $('adminToast'); if (!x) return;
+    x.textContent = message; x.classList.add('show'); x.style.background = error ? '#a32939' : '#17214f';
     setTimeout(() => x.classList.remove('show'), 3200);
   }
 
@@ -103,9 +95,7 @@
     const old = $('featureControllerModal'); old?.remove();
     const wrap = document.createElement('div'); wrap.id = 'featureControllerModal'; wrap.className = 'modal show';
     wrap.innerHTML = `<div class="modal-box"><div class="panel-head"><h2>${title}</h2><button id="featureModalClose" class="btn btn-secondary" type="button">إغلاق</button></div>${html}</div>`;
-    document.body.appendChild(wrap);
-    $('featureModalClose').onclick = () => wrap.remove();
-    submit(wrap);
+    document.body.appendChild(wrap); $('featureModalClose').onclick = () => wrap.remove(); submit(wrap);
   }
 
   function editDoctor(id) {
