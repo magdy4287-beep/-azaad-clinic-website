@@ -29,13 +29,6 @@ LAZY = {
     "calendar": ["admin-calendar-center.js"],
 }
 
-# These files are intentionally not browser runtime modules:
-# - clinic-posts.js owns public-site rendering, not Admin.
-# - marketing-workspace-v2.js / marketing-platform-expansion.js were superseded
-#   by marketing-studio-v3.js.
-# - scheduling-v2-waiting.js was a second waiting-list submit handler and depended
-#   on an obsolete global; Scheduling V2 now remains the single scheduling UI owner.
-# - scheduling-actions-contract.js is a QA contract, never a runtime dependency.
 LEGACY_OR_CONTRACT = {
     "clinic-posts.js",
     "marketing-workspace-v2.js",
@@ -50,9 +43,7 @@ ALL_RUNTIME = {name for values in LAZY.values() for name in values} | set(CORE)
 
 
 def script_tag(name):
-    return (
-        f'<script src="/{name}" defer data-azaad-admin-core="1"></script>'
-    )
+    return f'<script src="/{name}" defer data-azaad-admin-core="1"></script>'
 
 
 def main():
@@ -61,8 +52,6 @@ def main():
         return
     text = path.read_text(encoding="utf-8")
 
-    # Remove all previously injected module tags before installing one canonical
-    # runtime registry. This is intentionally idempotent.
     names_to_remove = ALL_RUNTIME | LEGACY_OR_CONTRACT
     for name in sorted(names_to_remove):
         tag = re.compile(
@@ -71,33 +60,32 @@ def main():
         )
         text = tag.sub("", text)
 
-    # The core layer is non-blocking and loaded exactly once. Panel-specific code remains lazy.
     core_marker = 'data-azaad-admin-core="1"'
     if core_marker not in text:
         payload = "\n".join(script_tag(name) for name in CORE)
         text = text.replace("</body>", payload + "\n</body>", 1)
 
-    # Marketing Studio V3 expects a dedicated host. The canonical Admin panel is
-    # still #posts; the host is an internal mount point, not a second panel/owner.
     if 'id="marketing-center"' not in text:
         marketing_mount = '''\n      <div id="marketing-center" data-azaad-marketing-mount="1"></div>\n'''
-        text = text.replace(
-            '\n  <section\n    id="posts"',
-            '\n  <section\n    id="posts"',
-            1,
-        )
         posts_marker = re.compile(
             r'(\n  <section\n    id="posts"\n    class="panel"\n  >\n)',
             re.I,
         )
         text = posts_marker.sub(r'\1' + marketing_mount, text, count=1)
 
-    # Canonical calendar UI is created by this registry, not by another controller.
     if 'id="calendarPanel"' not in text:
         calendar_tab = '''\n<button class="tab" data-panel="calendar" type="button">🗓️ التقويم</button>\n'''
-        text = text.replace('</div>\n\n  <section\n    id="bookings"', calendar_tab + '</div>\n\n  <section\n    id="bookings"', 1)
+        text = text.replace(
+            '</div>\n\n  <section\n    id="bookings"',
+            calendar_tab + '</div>\n\n  <section\n    id="bookings"',
+            1,
+        )
         calendar_panel = '''\n<section id="calendarPanel" class="panel">\n  <div class="card">\n    <div class="panel-head">\n      <div>\n        <h2>🗓️ التقويم المركزي</h2>\n        <div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div>\n      </div>\n    </div>\n    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>\n  </div>\n</section>\n'''
-        text = text.replace('\n  <section\n    id="bookings"', calendar_panel + '\n  <section\n    id="bookings"', 1)
+        text = text.replace(
+            '\n  <section\n    id="bookings"',
+            calendar_panel + '\n  <section\n    id="bookings"',
+            1,
+        )
 
     groups = repr(LAZY)
     payload = f"""
@@ -151,13 +139,12 @@ def main():
     window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }}));
   }};
 
-  // One delegated navigation owner. It never calls switchPanel or auth code.
-  document.addEventListener('click', event => {{
-    const tab = event.target?.closest?.('.tab[data-panel]');
-    if (!tab) return;
-    const key = tab.getAttribute('data-panel');
+  // Navigation is owned by admin-shell.js. The registry owns only panel-module loading.
+  window.addEventListener('azaad:admin-panel-activated', event => {{
+    const key = event.detail?.panel;
+    if (!key) return;
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
-  }}, {{ passive: true }});
+  }});
 
   window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{
     core: {CORE!r},
