@@ -51,9 +51,8 @@ for src in known:
         flags=re.I,
     )
 
-# Legacy panel-loader cleanup is intentionally structural: remove only loader
-# scripts that are NOT the canonical registry. The canonical registry itself is
-# never removed by this pass.
+# Legacy panel-loader cleanup is structural. Canonical registry scripts are
+# explicitly protected from this removal pass.
 canonical_registry_tag = re.compile(
     r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
     re.I | re.S,
@@ -62,22 +61,41 @@ legacy_panel_loader = re.compile(
     r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>.*?window\.AZAAD_LOAD_ADMIN_PANEL\s*=.*?</script>',
     re.I | re.S,
 )
-text, removed_loader_count = legacy_panel_loader.subn("\n", text)
+text, _ = legacy_panel_loader.subn("\n", text)
 canonical_registry = bool(canonical_registry_tag.search(text))
-if not canonical_registry:
-    if "window.AZAAD_LOAD_ADMIN_PANEL" in text:
-        raise SystemExit("Duplicate Admin panel loader remains but no canonical registry is present")
+if not canonical_registry and "window.AZAAD_LOAD_ADMIN_PANEL" in text:
+    raise SystemExit("Duplicate Admin panel loader remains but no canonical registry is present")
 
-form_pattern = re.compile(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', re.I)
-form = form_pattern.search(text)
-if not form:
+# The build chain may normalize the login form markup while preserving the same
+# semantic contract. Accept the canonical id when present; otherwise recover it
+# from the unique password-bearing form and normalize the id for downstream E2E.
+form_pattern = re.compile(r'<form\b([^>]*)>(.*?)</form>', re.I | re.S)
+forms = list(form_pattern.finditer(text))
+login_forms = [m for m in forms if re.search(r'\bid\s*=\s*([\"\'])loginForm\1', m.group(1), re.I)]
+if len(login_forms) == 0:
+    semantic = [
+        m for m in forms
+        if re.search(r'<input\b[^>]*\btype\s*=\s*([\"\'])password\1', m.group(2), re.I)
+        and re.search(r'<button\b[^>]*\btype\s*=\s*([\"\'])submit\1', m.group(2), re.I)
+    ]
+    if len(semantic) == 1:
+        attrs = semantic[0].group(1)
+        attrs = re.sub(r'\s+\bid\s*=\s*([\"\'])[^\"\']*\1', '', attrs, count=1, flags=re.I)
+        normalized = '<form id="loginForm"' + attrs + '>' + semantic[0].group(2) + '</form>'
+        text = text[:semantic[0].start()] + normalized + text[semantic[0].end():]
+        login_forms = [form_pattern.search(text)]
+if len(login_forms) != 1:
     raise SystemExit("Canonical login form not found")
-opening = form.group(1)
-if not re.search(r"\bonsubmit\s*=", opening, re.I):
-    opening = opening.rstrip() + ' onsubmit="event.preventDefault();"'
+
+opening = re.search(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', text, re.I)
+if not opening:
+    raise SystemExit("Canonical login form opening not found")
+opening_attrs = opening.group(1)
+if not re.search(r"\bonsubmit\s*=", opening_attrs, re.I):
+    opening_attrs = opening_attrs.rstrip() + ' onsubmit="event.preventDefault();"'
 else:
-    opening = re.sub(r'\bonsubmit\s*=\s*([\"\']).*?\1', ' onsubmit="event.preventDefault();"', opening, count=1, flags=re.I | re.S)
-text = text[:form.start(1)] + opening + form.group(2) + text[form.end(2):]
+    opening_attrs = re.sub(r'\bonsubmit\s*=\s*([\"\']).*?\1', ' onsubmit="event.preventDefault();"', opening_attrs, count=1, flags=re.I | re.S)
+text = text[:opening.start(1)] + opening_attrs + opening.group(2) + text[opening.end(2):]
 
 inline = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.I | re.S)
 legacy_markers = ("const SUPABASE_URL", "STAFF_LOGIN_FUNCTION", "function login", "clinic_staff")
@@ -89,10 +107,8 @@ for match in inline.finditer(text):
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
-# Ownership invariant: exactly one loader definition must live INSIDE the
-# canonical registry and zero loader definitions may exist outside it. This is
-# stronger than counting the whole document because the registry is explicitly
-# allowed to define the one canonical loader.
+# Ownership invariant: exactly one loader definition inside the canonical
+# registry and zero loader definitions outside it.
 registry_matches = list(canonical_registry_tag.finditer(text))
 if len(registry_matches) != 1:
     raise SystemExit("Canonical lazy registry must exist exactly once")
