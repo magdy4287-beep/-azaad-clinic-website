@@ -51,6 +51,16 @@
     ? window.AZAAD.state.bookings
     : [];
 
+  const isCalendarVisible = () => {
+    const panel = $('calendarPanel');
+    if (!panel) return false;
+
+    const style = window.getComputedStyle(panel);
+    return !panel.hidden &&
+      style.display !== 'none' &&
+      style.visibility !== 'hidden';
+  };
+
   const renderDay = (value) => {
     const panel = $('calendarPanel');
     const body = $('calendarBody');
@@ -117,6 +127,33 @@
     renderDay(selected);
   }
 
+  let bookingPanelObserver = null;
+  let refreshQueued = false;
+
+  const queueRefreshFromBookingRender = () => {
+    if (!isCalendarVisible() || refreshQueued) return;
+
+    refreshQueued = true;
+    requestAnimationFrame(() => {
+      refreshQueued = false;
+      render();
+    });
+  };
+
+  const observeBookingPanel = () => {
+    const panel = $('bookingsPanel');
+    if (!panel || bookingPanelObserver) return;
+
+    bookingPanelObserver = new MutationObserver(() => {
+      queueRefreshFromBookingRender();
+    });
+
+    bookingPanelObserver.observe(panel, {
+      childList: true,
+      subtree: true
+    });
+  };
+
   window.AZAAD_ADMIN_CALENDAR = Object.freeze({
     render,
     refresh: render
@@ -128,5 +165,6 @@
 
   window.addEventListener('azaad:admin-bookings-updated', render);
 
+  observeBookingPanel();
   render();
 })();
