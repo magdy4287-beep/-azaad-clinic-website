@@ -22,7 +22,6 @@ TRANSFORM_STEPS = [
     ["python3", "qa/inject-doctor-services-admin.py"],
     ["python3", "qa/canonicalize-admin-runtime.py"],
     ["python3", "qa/isolate-admin-login-runtime.py"],
-    ["python3", "qa/harden-admin-login-shell.py"],
     ["python3", "qa/finalize-doctor-services-admin.py"],
     ["python3", "qa/fix-admin-runtime-syntax.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
