@@ -38,6 +38,8 @@ TRANSFORM_STEPS = [
 ]
 
 VERIFY_STEPS = [
+    ["python3", "qa/dedupe-admin-scripts.py"],
+    ["python3", "qa/admin-panel-ownership-contract.py"],
     ["python3", "qa/verify-admin-script-graph.py"],
     ["python3", "qa/repository-architecture-gate.py"],
     ["python3", "qa/verify-production-contracts.py"],
@@ -56,4 +58,4 @@ def run_steps(steps, phase):
 
 run_steps(TRANSFORM_STEPS, "transform")
 run_steps(VERIFY_STEPS, "verify")
-print("[AZAAD build] canonical production transformation + read-only verification completed", flush=True)
+print("[AZAAD build] canonical production transformation + fail-closed verification completed", flush=True)
