@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V6__';
+  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V7__';
   if (window[KEY]) return;
   window[KEY] = true;
 
@@ -112,9 +112,6 @@
       repairCards(data);
     }
 
-    // Central language remains the owner. This final public-layer sweep only
-    // handles dynamic text that arrives after the central i18n pass and has no
-    // explicit data-i18n key. It never runs in Arabic mode.
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const node = walker.currentNode;
@@ -150,8 +147,34 @@
 
   window.addEventListener('azaadPublicClinicDataReady', schedule);
   window.addEventListener('azaadPublicClinicDataChanged', schedule);
-  window.addEventListener('azaadLanguageChanged', schedule);
-  window.addEventListener('azaadPublicContentLanguageChanged', schedule);
+  // Language switching is synchronous from the user's point of view.
+  // Repair dynamic booking content immediately when the central owner emits
+  // the language event; waiting for a timer allowed Playwright and fast
+  // desktop clicks to observe the old Arabic doctor/service labels.
+  window.addEventListener('azaadLanguageChanged', () => {
+    if (lang() === 'en') {
+      observing = false;
+      observer.disconnect();
+      try { repair(); } finally {
+        observing = true;
+        observer.observe(document.body, {childList:true, subtree:true});
+      }
+    } else {
+      schedule();
+    }
+  });
+  window.addEventListener('azaadPublicContentLanguageChanged', () => {
+    if (lang() === 'en') {
+      observing = false;
+      observer.disconnect();
+      try { repair(); } finally {
+        observing = true;
+        observer.observe(document.body, {childList:true, subtree:true});
+      }
+    } else {
+      schedule();
+    }
+  });
   window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') schedule(); });
 
   observer.observe(document.body, {childList:true, subtree:true});
