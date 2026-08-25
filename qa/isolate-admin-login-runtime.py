@@ -23,9 +23,6 @@ def strip_legacy(match):
 
 html = inline.sub(strip_legacy, html)
 
-# Isolate external runtimes that exist at this stage. A final build transform
-# runs again after every remaining Admin transform, so later injections cannot
-# silently restore an executable login-path runtime.
 opening = re.compile(r"<script\b([^>]*)>", re.I | re.S)
 src_attr = re.compile(r"\bsrc\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
 type_module = re.compile(r"\btype\s*=\s*([\"'])module\1", re.I)
@@ -61,22 +58,36 @@ loader = r'''
 
 /* ============================================================
    POST-AUTH RUNTIME LOADER
+   ------------------------------------------------------------
+   Non-critical feature scripts are deliberately loaded only after
+   the Admin shell is interactive. Loading them is never awaited by
+   authentication or initialization.
    ============================================================ */
 async function loadAfterAuthRuntimes() {
   if (window.__AZAAD_AFTER_AUTH_RUNTIMES_LOADED) return;
   window.__AZAAD_AFTER_AUTH_RUNTIMES_LOADED = true;
-  const manifests = Array.from(document.querySelectorAll("script[data-azaad-after-auth-src]"));
+
+  const manifests = Array.from(
+    document.querySelectorAll("script[data-azaad-after-auth-src]")
+  );
+
   for (const manifest of manifests) {
     const src = manifest.dataset.azaadAfterAuthSrc;
     if (!src) continue;
-    await new Promise((resolve, reject) => {
+
+    await new Promise(resolve => {
       const script = document.createElement("script");
       script.src = src;
-      if (manifest.dataset.azaadAfterAuthType === "module") script.type = "module";
+      if (manifest.dataset.azaadAfterAuthType === "module") {
+        script.type = "module";
+      }
       script.onload = resolve;
-      script.onerror = () => reject(new Error(`Failed to load Admin runtime: ${src}`));
+      script.onerror = resolve;
       document.body.appendChild(script);
     });
+
+    // Yield between optional modules so the browser keeps input/paint responsive.
+    await new Promise(resolve => setTimeout(resolve, 0));
   }
 }
 '''
@@ -87,12 +98,17 @@ if "async function loadAfterAuthRuntimes()" not in js:
         raise SystemExit("Admin START marker not found")
     js = js.replace(marker, loader + "\n" + marker, 1)
 
-if "await loadAfterAuthRuntimes();" not in js:
-    needle = "  await loadBookings();\n\n  bindTabs();"
-    replacement = "  await loadBookings();\n\n  try {\n    await loadAfterAuthRuntimes();\n  } catch (error) {\n    console.error(\"Post-auth Admin runtime load error:\", error);\n  }\n\n  bindTabs();"
-    if needle not in js:
-        raise SystemExit("initializeApplication load boundary not found")
-    js = js.replace(needle, replacement, 1)
+# Do NOT inject an awaited runtime load into initializeApplication. The
+# post-auth freeze hardening owns the scheduling boundary and will start the
+# optional loader only after the critical shell bindings are complete.
+needle = '''  try {
+    await loadAfterAuthRuntimes();
+  } catch (error) {
+    console.error("Post-auth Admin runtime load error:", error);
+  }
+
+'''
+js = js.replace(needle, "", 1)
 
 ADMIN_JS.write_text(js, encoding="utf-8")
-print("[AZAAD] Admin login runtime isolation stage completed; final post-transform gate remains authoritative")
+print("[AZAAD] Admin login runtime isolation stage completed; optional modules are no longer awaited during initialization")
