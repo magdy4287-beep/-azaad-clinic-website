@@ -1,6 +1,0 @@
-# disabled after successful migration; intentionally inert
-name: Migrated public booking endpoint
-on:
-  workflow_dispatch:
-permissions:
-  contents: read
