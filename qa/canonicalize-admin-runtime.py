@@ -4,113 +4,98 @@ from urllib.parse import urlsplit
 
 ADMIN = Path("admin.html")
 CANONICAL = '/admin.js?v=2026-08-24-login-fix'
-LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=3'
 
 if not ADMIN.exists():
     raise SystemExit("admin.html not found")
 
 text = ADMIN.read_text(encoding="utf-8")
 
-INLINE_MODULE = re.compile(
-    r'\s*<script\b[^>]*\btype\s*=\s*["\']module["\'][^>]*>.*?</script>\s*',
+# Remove any legacy inline Admin controller regardless of whether it was marked
+# type=module. The previous detector only handled module scripts, leaving the
+# real plain inline controller alive and competing with /admin.js.
+INLINE_SCRIPT = re.compile(
+    r'<script\b([^>]*)>(.*?)</script>',
     re.I | re.S,
 )
-
-legacy_matches = []
-for match in INLINE_MODULE.finditer(text):
-    block = match.group(0)
-    stable_markers = (
-        'const SUPABASE_URL', 'staff-login', 'function restoreStaff',
-        'function renderDoctors', 'function renderServices', 'function load()',
-    )
-    if sum(marker in block for marker in stable_markers) >= 4:
-        legacy_matches.append(match)
-
-if len(legacy_matches) > 1:
-    raise SystemExit(f"multiple legacy inline Admin runtimes found: {len(legacy_matches)}")
-
-if legacy_matches:
-    match = legacy_matches[0]
-    text = text[:match.start()] + '\n' + text[match.end():]
-
-# Match the exact basename admin.js. This must never match doctor-services-admin.js.
-ADMIN_SCRIPT_TAG = re.compile(
-    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*(?:^|[/._])admin\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?',
-    re.I | re.S,
+LEGACY_MARKERS = (
+    'const SUPABASE_URL',
+    'STAFF_LOGIN_FUNCTION',
+    'function login',
+    'clinic_staff',
 )
-BOOTSTRAP_SCRIPT_TAG = re.compile(
-    r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*admin-login-bootstrap\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?',
-    re.I | re.S,
-)
-text = ADMIN_SCRIPT_TAG.sub('', text)
-text = BOOTSTRAP_SCRIPT_TAG.sub('', text)
 
-marker = f'<script type="module" src="{CANONICAL}"></script>'
-bootstrap_marker = f'<script src="{LOGIN_BOOTSTRAP}" defer></script>'
-text = text.replace(marker, '')
-text = text.replace(bootstrap_marker, '')
-if '</head>' not in text:
-    raise SystemExit("admin.html head marker not found")
-text = text.replace('</head>', bootstrap_marker + '\n' + marker + '\n</head>', 1)
+def strip_legacy_inline(match):
+    attrs, body = match.group(1), match.group(2)
+    if re.search(r'\bsrc\s*=', attrs, re.I):
+        return match.group(0)
+    if sum(marker in body for marker in LEGACY_MARKERS) >= 3:
+        return '\n'
+    return match.group(0)
 
-LOGIN_SURFACE_STYLE = '''<style id="azaad-admin-login-surface">
-#loginPage{position:relative;z-index:1000;pointer-events:auto!important}
-#loginPage .login-card{position:relative;z-index:1001;pointer-events:auto!important}
-#loginPage form,#loginPage label,#loginPage input,#loginPage button{position:relative;z-index:1002;pointer-events:auto!important}
-#loginPage input{user-select:text!important;-webkit-user-select:text!important;cursor:text!important}
-#loginPage button{cursor:pointer!important}
-</style>'''
+text = INLINE_SCRIPT.sub(strip_legacy_inline, text)
 
-text = re.sub(r'\s*<style id="azaad-admin-login-surface">.*?</style>\s*', '\n', text, flags=re.I | re.S)
-text = text.replace('</head>', LOGIN_SURFACE_STYLE + '\n</head>', 1)
-
-for element_id in ('username', 'password'):
-    text = re.sub(
-        rf'(<input\b(?=[^>]*\bid\s*=\s*["\']{element_id}["\']))([^>]*)(>)',
-        lambda match: re.sub(
-            r'\s+(?:disabled|readonly|inert)(?:\s*=\s*(?:["\'][^"\']*["\']|[^\s>]+))?',
-            '', match.group(0), flags=re.I,
-        ),
-        text, flags=re.I | re.S,
-    )
-
-# Canonicalize absolute/relative duplicates created by the Admin feature injectors.
-# Preserve the first occurrence and remove only later external script tags with the
-# same URL path, so query-versioned copies of the same controller cannot compete.
+# Remove every previous Admin controller/bootstrap reference and establish exactly
+# one external controller. No frozen login page, no redirect bootstrap.
 EXTERNAL_SCRIPT_TAG = re.compile(
     r'<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>(?:\s*</script>)?',
     re.I,
 )
-seen_scripts = set()
-def dedupe_script(match):
+
+def is_admin_auth_surface(src):
+    path = (urlsplit(src).path or src).lstrip('/').lower()
+    return path in {
+        'admin.js',
+        'admin-login-bootstrap.js',
+    }
+
+text = EXTERNAL_SCRIPT_TAG.sub(
+    lambda m: '' if is_admin_auth_surface(m.group(1)) else m.group(0),
+    text,
+)
+
+# Remove any prior login isolation styles/guards.
+text = re.sub(
+    r'\s*<style id=["\']azaad-admin-login-surface["\']>.*?</style>\s*',
+    '\n', text, flags=re.I | re.S,
+)
+text = re.sub(
+    r'\s*<script id=["\']AZAAD_ADMIN_AUTH_ISOLATION_V[0-9]+["\']>.*?</script>\s*',
+    '\n', text, flags=re.I | re.S,
+)
+
+# Remove duplicate external scripts by URL path while preserving the first copy.
+seen = set()
+def dedupe(match):
     src = match.group(1)
     path = (urlsplit(src).path or src).lstrip('/').lower()
-    if path in seen_scripts:
+    if path in seen:
         return ''
-    seen_scripts.add(path)
+    seen.add(path)
     return match.group(0)
-text = EXTERNAL_SCRIPT_TAG.sub(dedupe_script, text)
+text = EXTERNAL_SCRIPT_TAG.sub(dedupe, text)
 
-# Re-establish the canonical login pair after global deduplication.
-text = re.sub(r'\s*<script\b[^>]*\bsrc=["\'][^"\']*admin-login-bootstrap\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?\s*', '\n', text, flags=re.I)
-text = re.sub(r'\s*<script\b[^>]*\bsrc=["\'][^"\']*(?:^|[/._])admin\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?\s*', '\n', text, flags=re.I)
-text = text.replace('</head>', bootstrap_marker + '\n' + marker + '\n</head>', 1)
+marker = f'<script type="module" src="{CANONICAL}"></script>'
+text = text.replace(marker, '')
+if '</head>' not in text:
+    raise SystemExit("admin.html head marker not found")
+text = text.replace('</head>', marker + '\n</head>', 1)
 
 if text.count(marker) != 1:
-    raise SystemExit("canonical Admin runtime reference was not established exactly once")
-if text.count(bootstrap_marker) != 1:
-    raise SystemExit("Admin login bootstrap reference was not established exactly once")
+    raise SystemExit("canonical admin.js reference was not established exactly once")
 
-remaining_inline = []
-for match in INLINE_MODULE.finditer(text):
-    block = match.group(0)
-    if sum(marker_text in block for marker_text in (
-        'const SUPABASE_URL', 'staff-login', 'function restoreStaff',
-        'function renderDoctors', 'function renderServices',
-    )) >= 3:
-        remaining_inline.append(match)
-if remaining_inline:
-    raise SystemExit("legacy inline Admin runtime remains after canonicalization")
+# Hard fail if a second login controller survived.
+remaining_legacy = []
+for match in INLINE_SCRIPT.finditer(text):
+    attrs, body = match.group(1), match.group(2)
+    if re.search(r'\bsrc\s*=', attrs, re.I):
+        continue
+    if sum(marker_text in body for marker_text in LEGACY_MARKERS) >= 3:
+        remaining_legacy.append(match)
+if remaining_legacy:
+    raise SystemExit("legacy inline Admin login/controller remains after canonicalization")
+
+if 'admin-login-bootstrap.js' in text or 'AZAAD_ADMIN_AUTH_ISOLATION_V' in text:
+    raise SystemExit("legacy frozen Admin login surface remains in admin.html")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] canonical Admin runtime + login bootstrap v3 + duplicate external script cleanup established")
+print("[AZAAD] admin.html is now the single canonical Admin authentication owner")
