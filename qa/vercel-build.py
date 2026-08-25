@@ -27,6 +27,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/fix-admin-post-auth-freeze.py"],
     ["python3", "qa/finalize-admin-critical-path.py"],
     ["python3", "qa/final-admin-interaction-safety.py"],
+    ["python3", "qa/normalize-admin-login-form.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
     ["python3", "qa/finalize-admin-operational-data.py"],
