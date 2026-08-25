@@ -1,153 +1,216 @@
 (() => {
   'use strict';
 
-  // Single-owner booking confirmation guard.
-  // app.js owns the success message + booking number. This module owns only
-  // the WhatsApp CTA and canonicalizes its container so duplicate renderers
-  // cannot leave duplicate success/booking-number content behind.
-  const KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V6__';
-  if (window[KEY]) return;
-  const state = { timer: null, running: false, success: false, context: null };
-  window[KEY] = state;
+  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V1__';
+  if (window[STATE_KEY]) return;
+  const state = { observer: null, timer: null, running: false, lastSuccess: false };
+  window[STATE_KEY] = state;
 
   const $ = (id) => document.getElementById(id);
-  const lang = () => {
+  const visible = (el) => {
+    if (!el) return false;
+    const s = getComputedStyle(el), r = el.getBoundingClientRect();
+    return s.display !== 'none' && s.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+  };
+  const textOf = (el) => String(el?.textContent || '').replace(/\s+/g, ' ').trim();
+  const currentLanguage = () => {
     try {
-      const v = localStorage.getItem('azaadClinicLanguage');
-      if (v === 'ar' || v === 'en') return v;
+      const saved = localStorage.getItem('azaadClinicLanguage');
+      if (saved === 'en' || saved === 'ar') return saved;
     } catch (_) {}
-    return String(document.documentElement.lang || '').toLowerCase().startsWith('en') ? 'en' : 'ar';
+    const lang = String(document.documentElement.lang || '').toLowerCase();
+    return lang === 'en' || lang.startsWith('en-') ? 'en' : 'ar';
   };
-  const copy = () => lang() === 'en' ? {
-    instruction: 'Please click here 👇 to send the appointment to the clinic',
-    button: 'Send the appointment to the clinic via WhatsApp',
-    ready: 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
-  } : {
-    instruction: 'يجب الضغط هنا 👇 لإرسال الموعد إلى العيادة',
-    button: 'إرسال الموعد إلى العيادة عبر WhatsApp',
-    ready: 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
+  const bookingCopy = () => currentLanguage() === 'en'
+    ? {
+        success: 'Booking created successfully.',
+        bookingRequest: 'Your booking request was created successfully.',
+        bookingNumber: 'Booking number',
+        title: 'Booking created successfully',
+        instruction: 'Please click here 👇 to send the appointment to the clinic',
+        button: 'Send the appointment to the clinic via WhatsApp',
+        ready: 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
+      }
+    : {
+        success: 'تم إنشاء الحجز بنجاح.',
+        bookingRequest: 'تم إنشاء طلب الحجز بنجاح.',
+        bookingNumber: 'رقم الحجز',
+        title: 'تم إنشاء الحجز بنجاح',
+        instruction: 'يجب الضغط هنا 👇 لإرسال الموعد إلى العيادة',
+        button: 'إرسال الموعد إلى العيادة عبر WhatsApp',
+        ready: 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
+      };
+  const isWhatsAppAction = (el) => {
+    if (!el || !visible(el)) return false;
+    const href = String(el.getAttribute?.('href') || '').toLowerCase();
+    const text = textOf(el).toLowerCase();
+    return href.includes('wa.me/') || href.includes('api.whatsapp.com/') || href.includes('whatsapp.com/send') || text.includes('whatsapp') || text.includes('واتساب');
   };
-  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  const time12 = (v) => {
-    const m = String(v || '').trim().match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) return String(v || '');
-    let h = Number(m[1]);
-    if (h < 0 || h > 23) return String(v || '');
-    const p = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}:${m[2]} ${p}`;
+  const findWhatsAppAction = () => [...document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"], button, [role="button"]')].find(isWhatsAppAction) || null;
+  const findBookingSubmit = () => $('bookingForm')?.querySelector('.booking-submit[type="submit"]') || $('bookingForm')?.querySelector('button[type="submit"]') || document.querySelector('.booking-submit[type="submit"]');
+  const successTextPresent = () => {
+    const t = String(document.body?.innerText || '').toLowerCase();
+    return t.includes('تم إنشاء الحجز بنجاح') || t.includes('تم إنشاء طلب الحجز بنجاح') || t.includes('booking created successfully') || t.includes('your booking request was created successfully') || t.includes('رقم الحجز') || t.includes('bookingcreated');
   };
-  function capture() {
-    const selected = document.querySelector('#slots .slot.selected');
-    state.context = {
-      doctor: $('doctor')?.selectedOptions?.[0]?.textContent?.trim() || '',
-      service: $('service')?.selectedOptions?.[0]?.textContent?.trim() || '',
-      date: $('date')?.value || '', time: selected?.dataset?.slot || '',
-      mode: $('mode')?.value || 'clinic', name: $('name')?.value?.trim() || '',
-      phone: $('phone')?.value?.trim() || '', email: $('email')?.value?.trim() || '', notes: $('notes')?.value?.trim() || ''
-    };
+  const successMarkerPresent = () => ['[data-booking-success]','.booking-success','.booking-result','.booking-confirmation','.whatsapp-step','#whatsappStep','#whatsappBookingStep'].some(s => [...document.querySelectorAll(s)].some(visible));
+  const bookingSucceeded = () => {
+    const wa = findWhatsAppAction();
+    return Boolean(wa && (successTextPresent() || successMarkerPresent()));
+  };
+
+  function hideConfirmationButton() {
+    const button = findBookingSubmit();
+    if (!button) return;
+    button.dataset.azaadHiddenAfterBooking = 'true';
+    button.setAttribute('aria-hidden', 'true');
+    button.setAttribute('tabindex', '-1');
+    button.hidden = true;
+    ['display','visibility','pointer-events','opacity','height','margin','padding','overflow'].forEach((p, i) => {
+      const values = ['none','hidden','none','0','0','0','0','hidden'];
+      button.style.setProperty(p, values[i], 'important');
+    });
   }
-  function succeeded() {
-    const text = String(document.body?.innerText || '');
-    return /تم إنشاء الحجز بنجاح|تم تأكيد الحجز|booking created successfully|رقم الحجز|Booking number|\bAZD-[A-Z0-9-]{6,}\b/i.test(text);
+
+  function styleWhatsAppAction(action) {
+    if (!action) return;
+    const submit = findBookingSubmit();
+    const submitStyle = submit ? getComputedStyle(submit) : null;
+    const background = submitStyle?.backgroundColor || '#101b56';
+    const border = submitStyle?.borderTopColor || background;
+    action.dataset.azaadPrimaryWhatsApp = 'true';
+    action.style.setProperty('background', background, 'important');
+    action.style.setProperty('background-color', background, 'important');
+    action.style.setProperty('color', '#ffffff', 'important');
+    action.style.setProperty('border-color', border, 'important');
+    action.style.setProperty('font-weight', '700', 'important');
+    action.style.setProperty('text-decoration', 'none', 'important');
+    action.style.setProperty('opacity', '1', 'important');
+    action.style.setProperty('visibility', 'visible', 'important');
+    action.style.setProperty('min-height', '52px', 'important');
+    action.style.setProperty('cursor', 'pointer', 'important');
+    if (action.tagName === 'A') {
+      action.style.setProperty('display', 'inline-flex', 'important');
+      action.style.setProperty('align-items', 'center', 'important');
+      action.style.setProperty('justify-content', 'center', 'important');
+    }
   }
-  function code() {
-    const text = String(document.body?.innerText || '');
-    return text.match(/\bAZD-[A-Z0-9-]{6,}\b/i)?.[0] || '';
+
+  function moveStatusBelowWhatsApp(action) {
+    const status = $('message') || document.querySelector('.booking-message,.booking-status,.booking-success,.booking-result,[data-booking-status]');
+    if (!action || !status || action === status) return;
+    if (action.nextElementSibling !== status) action.insertAdjacentElement('afterend', status);
+    status.dataset.azaadBookingStatusBelowWhatsApp = 'true';
+    status.style.setProperty('display','block','important');
+    status.style.setProperty('margin-top','12px','important');
+    status.style.setProperty('margin-bottom','0','important');
   }
-  async function clinicWhatsApp() {
+
+  function localizeBookingConfirmation() {
+    const copy = bookingCopy();
+    const step = $('whatsappBookingStep');
+    if (step && visible(step)) {
+      const title = step.querySelector('div > div');
+      if (title) title.textContent = copy.title;
+      const paragraphs = [...step.querySelectorAll('p')];
+      const details = paragraphs[0];
+      const ready = paragraphs[paragraphs.length - 1];
+      if (details) {
+        const strong = details.querySelector('strong');
+        const code = strong ? strong.textContent.trim() : '';
+        details.innerHTML = `${copy.bookingNumber}: <strong>${escapeHtml(code)}</strong><br><span data-azaad-whatsapp-instruction="true"></span>`;
+        const instruction = details.querySelector('[data-azaad-whatsapp-instruction]');
+        if (instruction) instruction.textContent = copy.instruction;
+      }
+      if (ready) ready.textContent = copy.ready;
+      const action = step.querySelector('#sendBookingWhatsApp') || findWhatsAppAction();
+      if (action) {
+        action.textContent = copy.button;
+        action.setAttribute('aria-label', copy.button);
+      }
+    }
+
+    const status = $('message');
+    if (status && visible(status)) {
+      const raw = textOf(status);
+      if (/bookingCreated|bookingSuccess|bookingNumber|whatsappTitle|whatsappDescription|sendToWhatsApp|whatsappReady/.test(raw)) {
+        const match = raw.match(/(?:bookingNumber\s*:\s*|رقم الحجز\s*:\s*)([A-Za-z0-9-]+)/i);
+        status.textContent = match ? `${copy.success} ${copy.bookingNumber}: ${match[1]}` : copy.success;
+      }
+    }
+  }
+
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  }[char]));
+
+  const formatTime12 = (hour24, minute) => {
+    const h = Number(hour24), m = Number(minute);
+    if (!Number.isFinite(h) || !Number.isFinite(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12; if (h12 === 0) h12 = 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  };
+
+  const TIME_TOKEN_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*(?:AM|PM)\b)/i;
+  const convertTimeString = (value) => String(value || '').replace(
+    /\b([01]?\d|2[0-3]):([0-5]\d)\b(?!\s*(?:AM|PM)\b)/gi,
+    (full, h, m) => formatTime12(h, m) || full
+  );
+
+  function convertTimeInTextNodes(root) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const p = node.parentElement;
+        if (!p || ['SCRIPT','STYLE','NOSCRIPT','TEXTAREA'].includes(p.tagName) || p.closest('#slots,[data-no-i18n],[data-time-format-lock="true"]')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        const value = node.nodeValue || '';
+        return TIME_TOKEN_RE.test(value) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((n) => {
+      const before = String(n.nodeValue || '');
+      const after = convertTimeString(before);
+      if (before !== after) n.nodeValue = after;
+    });
+  }
+
+  function refresh() {
+    if (state.running) return;
+    state.running = true;
     try {
-      const r = await fetch('https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data?api=data&_=' + Date.now(), {cache:'no-store',headers:{Accept:'application/json'}});
-      if (r.ok) {
-        const s = (await r.json())?.settings || {};
-        const n = String(s.whatsapp || s.whatsapp_number || s.whatsapp_phone || s.phone_whatsapp || '').replace(/\D/g,'');
-        if (n) return n;
+      convertTimeInTextNodes(document.body);
+      if (bookingSucceeded()) {
+        state.lastSuccess = true;
+        const wa = findWhatsAppAction();
+        hideConfirmationButton();
+        styleWhatsAppAction(wa);
+        localizeBookingConfirmation();
+        moveStatusBelowWhatsApp(wa);
       }
-    } catch (_) {}
-    return '201140526294';
+    } finally { state.running = false; }
   }
-  function message(c) {
-    const en = lang() === 'en', x = state.context || {};
-    const service = (x.service || (en ? 'Service' : 'الخدمة')).replace(/\s+—?\s*\d+\s*(?:دقيقة|minutes?)\s*$/i,'');
-    const mode = x.mode === 'online' ? (en ? 'Online' : 'جلسة أونلاين') : (en ? 'In-clinic' : 'داخل العيادة');
-    return [
-      `🏥 ${en ? 'New appointment from Azaad Clinic website' : 'موعد جديد من موقع عيادة آزاد'}`,
-      `📌 ${en ? 'Booking number' : 'رقم الحجز'}: ${code() || (en ? 'Not available' : 'غير متوفر')}`,
-      `👤 ${en ? 'Patient name' : 'اسم المريض'}: ${x.name || (en ? 'Not specified' : 'غير محدد')}`,
-      `📱 ${en ? 'Phone' : 'رقم الهاتف'}: ${x.phone || (en ? 'Not specified' : 'غير محدد')}`,
-      `👨‍⚕️ ${en ? 'Doctor' : 'الطبيب'}: ${x.doctor || (en ? 'Doctor' : 'الطبيب')}`,
-      `🩺 ${en ? 'Service' : 'الخدمة'}: ${service}`,
-      `📅 ${en ? 'Date' : 'التاريخ'}: ${x.date || (en ? 'Not specified' : 'غير محدد')}`,
-      `⏰ ${en ? 'Time' : 'الوقت'}: ${time12(x.time) || (en ? 'Not specified' : 'غير محدد')}`,
-      `💻 ${en ? 'Session type' : 'نوع الجلسة'}: ${mode}`,
-      ...(x.email ? [`📧 ${en ? 'Email' : 'البريد الإلكتروني'}: ${x.email}`] : []),
-      ...(x.notes ? [`📝 ${en ? 'Notes' : 'ملاحظات'}: ${x.notes}`] : [])
-    ].join('\n');
+
+  function schedule() {
+    if (state.timer) return;
+    state.timer = setTimeout(() => { state.timer = null; refresh(); }, 40);
   }
-  function sanitizeRawKeys() {
-    const en = lang() === 'en';
-    const map = en ? {
-      bookingCreated:'Booking created successfully', bookingNumber:'Booking number', whatsappTitle:'Booking created successfully',
-      whatsappDescription:'To complete the booking process, send the appointment details to the clinic WhatsApp.',
-      sendToWhatsApp:'Send the appointment to the clinic via WhatsApp',
-      whatsappReady:'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
-    } : {
-      bookingCreated:'تم إنشاء الحجز بنجاح', bookingNumber:'رقم الحجز', whatsappTitle:'تم إنشاء الحجز بنجاح',
-      whatsappDescription:'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
-      sendToWhatsApp:'إرسال الموعد إلى العيادة عبر WhatsApp',
-      whatsappReady:'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
-    };
-    const root = $('bookingForm')?.parentElement || document.body;
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes=[];
-    while(w.nextNode()) nodes.push(w.currentNode);
-    for(const n of nodes){
-      let t=n.nodeValue||'', changed=false;
-      for(const [k,v] of Object.entries(map)){const re=new RegExp(`\\b${k}\\b`,'g'); if(re.test(t)){t=t.replace(re,v);changed=true;}}
-      if(changed)n.nodeValue=t;
-    }
-  }
-  async function ensure() {
-    if (!state.success || !state.context) return;
-    let box = $('whatsappBookingStep');
-    const existing = $('sendBookingWhatsApp');
-    if (box && existing) {
-      if (!existing.getAttribute('href')) {
-        const n = await clinicWhatsApp();
-        existing.setAttribute('href', `https://wa.me/${n}?text=${encodeURIComponent(message())}`);
-      }
-      sanitizeRawKeys();
-      return;
-    }
-    if (!box) {
-      box=document.createElement('div'); box.id='whatsappBookingStep';
-      box.style.cssText='margin-top:20px;padding:20px;border-radius:14px;background:#f1fbf5;border:1px solid #ccebd8;';
-      const form=$('bookingForm'); if(form?.parentNode) form.parentNode.insertBefore(box,form.nextSibling);
-    }
-    const c=copy();
-    const n=await clinicWhatsApp();
-    const url=`https://wa.me/${n}?text=${encodeURIComponent(message())}`;
-    box.innerHTML=`<div style="text-align:center"><span data-booking-whatsapp-instruction="true" style="display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px">${esc(c.instruction)}</span><a id="sendBookingWhatsApp" data-azaad-whatsapp-cta="true" href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:16px;min-height:52px">${esc(c.button)}</a><p data-booking-whatsapp-ready="true" style="font-size:13px;color:#666;margin-top:12px;line-height:1.7">${esc(c.ready)}</p></div>`;
-    box.dir=lang()==='en'?'ltr':'rtl';
-    const source=document.querySelector('.booking-submit'); const btn=$('sendBookingWhatsApp');
-    if(source&&btn){const s=getComputedStyle(source); btn.style.background=s.background;btn.style.backgroundColor=s.backgroundColor;btn.style.color='#fff';btn.style.border=s.border;btn.style.borderRadius=s.borderRadius;btn.style.fontFamily=s.fontFamily;btn.style.fontSize=s.fontSize;btn.style.fontWeight=s.fontWeight;btn.style.padding=s.padding;btn.style.boxShadow=s.boxShadow;}
-    sanitizeRawKeys();
-  }
-  function refresh(){
-    if(state.running)return; state.running=true;
-    try{sanitizeRawKeys();if(!state.success&&succeeded())state.success=true;if(state.success)void ensure();}
-    finally{state.running=false;}
-  }
-  function schedule(){if(state.timer)return;state.timer=setTimeout(()=>{state.timer=null;refresh();},60);}
-  function init(){
-    const form=$('bookingForm');
-    if(form) {
-      form.addEventListener('submit',capture,true);
-      const observerRoot = form.parentElement || form;
-      try{new MutationObserver(schedule).observe(observerRoot,{childList:true,subtree:true,characterData:true});}catch(_){ }
-    }
-    window.addEventListener('azaad:language-changed',schedule);
-    window.addEventListener('azaadLanguageChanged',schedule);
+
+  function init() {
     refresh();
+    try {
+      state.observer = new MutationObserver(schedule);
+      state.observer.observe(document.body, { childList:true, subtree:true, characterData:true });
+    } catch (_) {}
+    window.addEventListener('azaadLanguageChanged', schedule);
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'azaadClinicLanguage') schedule();
+    });
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once:true });
+  else init();
 })();
