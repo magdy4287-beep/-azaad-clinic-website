@@ -145,7 +145,7 @@
       const observerRoot = form.parentElement || form;
       try{new MutationObserver(schedule).observe(observerRoot,{childList:true,subtree:true,characterData:true});}catch(_){ }
     }
-    window.addEventListener('azaad:language-changed',schedule);
+    window.addEventListener('azaa:language-changed',schedule);
     window.addEventListener('azaadLanguageChanged',schedule);
     refresh();
   }
