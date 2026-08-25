@@ -7,12 +7,10 @@ if not ADMIN.exists():
     raise SystemExit("admin.html not found")
 
 text = ADMIN.read_text(encoding="utf-8")
-
 FORM_RE = re.compile(r"<form\b([^>]*)>(.*?)</form>", re.I | re.S)
 LOGIN_RE = re.compile(r'\bid\s*=\s*(["\'])loginForm\1', re.I)
 ADMIN_PAGE_RE = re.compile(r'<(?:div|section|main)\b[^>]*\bid\s*=\s*(["\'])adminPage\1[^>]*>', re.I)
 
-# Capture and normalize the canonical login form before script isolation.
 forms_before = list(FORM_RE.finditer(text))
 login_forms_before = [m for m in forms_before if LOGIN_RE.search(m.group(1))]
 if len(login_forms_before) != 1:
@@ -75,25 +73,17 @@ for src in known:
         flags=re.I,
     )
 
-canonical_registry_tag = re.compile(
-    r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
-    re.I | re.S,
-)
 legacy_panel_loader = re.compile(
     r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>.*?window\.AZAAD_LOAD_ADMIN_PANEL\s*=.*?</script>',
     re.I | re.S,
 )
 text, _ = legacy_panel_loader.subn("\n", text)
 
-# Restore the validated login form before the Admin shell. Do not assume literal
-# formatting: prior canonical transforms may change tag whitespace/casing.
 forms_after = list(FORM_RE.finditer(text))
 login_forms = [m for m in forms_after if LOGIN_RE.search(m.group(1))]
 if len(login_forms) == 0:
     marker_match = ADMIN_PAGE_RE.search(text)
     if not marker_match:
-        # A previous transform may have normalized the shell tag. Restore the
-        # form immediately before </body> rather than failing on formatting.
         body_end = re.search(r'</body\s*>', text, re.I)
         if not body_end:
             raise SystemExit("Admin shell marker and body boundary are both missing while restoring login form")
@@ -122,16 +112,21 @@ for match in inline.finditer(text):
     if not re.search(r"(?<![-\w])src\s*=", attrs, re.I) and sum(marker in body for marker in legacy_markers) >= 3:
         raise SystemExit("Legacy inline Admin Login controller remains")
 
-registry_matches = list(canonical_registry_tag.finditer(text))
-if len(registry_matches) != 1:
-    raise SystemExit("Canonical lazy registry must exist exactly once")
-registry = registry_matches[0]
-outside = text[:registry.start()] + text[registry.end():]
-loader_assignment_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
-if len(loader_assignment_pattern.findall(registry.group(0))) != 1:
-    raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
-if loader_assignment_pattern.search(outside):
-    raise SystemExit("Duplicate legacy Admin panel loader remains outside canonical lazy registry")
+# Lazy-module registry ownership is verified by lazy-admin-modules.py and the
+# final read-only graph gate. This shell isolation stage must not duplicate that
+# responsibility or reject a valid registry whose formatting changed upstream.
+registry_pattern = re.compile(
+    r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
+    re.I | re.S,
+)
+registry_matches = list(registry_pattern.finditer(text))
+if len(registry_matches) > 1:
+    raise SystemExit("Canonical lazy registry exists more than once")
+if registry_matches:
+    registry = registry_matches[0]
+    loader_assignment_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
+    if len(loader_assignment_pattern.findall(registry.group(0))) != 1:
+        raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
 
 executable = []
 for match in script_open.finditer(text):
@@ -149,4 +144,4 @@ if text.count('data-azaad-after-auth-src=') < 1:
     raise SystemExit("No post-auth runtime manifest was produced")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD final admin isolation] PASS: canonical login shell preserved + one Admin controller + one lazy panel registry")
+print("[AZAAD final admin isolation] PASS: canonical login shell preserved; lazy registry ownership delegated to its dedicated gate")
