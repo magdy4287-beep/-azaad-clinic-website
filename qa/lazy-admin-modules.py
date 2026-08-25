@@ -77,6 +77,21 @@ def main():
         payload = "\n".join(script_tag(name) for name in CORE)
         text = text.replace("</body>", payload + "\n</body>", 1)
 
+    # Marketing Studio V3 expects a dedicated host. The canonical Admin panel is
+    # still #posts; the host is an internal mount point, not a second panel/owner.
+    if 'id="marketing-center"' not in text:
+        marketing_mount = '''\n      <div id="marketing-center" data-azaad-marketing-mount="1"></div>\n'''
+        text = text.replace(
+            '\n  <section\n    id="posts"',
+            '\n  <section\n    id="posts"',
+            1,
+        )
+        posts_marker = re.compile(
+            r'(\n  <section\n    id="posts"\n    class="panel"\n  >\n)',
+            re.I,
+        )
+        text = posts_marker.sub(r'\1' + marketing_mount, text, count=1)
+
     # Canonical calendar UI is created by this registry, not by another controller.
     if 'id="calendarPanel"' not in text:
         calendar_tab = '''\n<button class="tab" data-panel="calendar" type="button">🗓️ التقويم</button>\n'''
