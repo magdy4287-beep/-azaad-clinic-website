@@ -1,5 +1,5 @@
 """Harden the canonical Admin login shell against pre-module navigation and
-keep non-critical synchronous runtimes from freezing the login controls.
+keep non-auth runtimes completely off the login critical path.
 
 Authentication remains exclusively owned by admin.js. This transform only
 protects the login shell; it does not validate credentials, create sessions,
@@ -26,8 +26,6 @@ def remove_retired_guard(match):
 
 text = script_pattern.sub(remove_retired_guard, text)
 
-# Keep the login controls native and interactive even while the module graph is
-# loading. Authentication remains exclusively handled by admin.js.
 form_pattern = re.compile(r'(<form\b[^>]*\bid=["\']loginForm["\'][^>]*)(>)', re.I)
 match = form_pattern.search(text)
 if not match:
@@ -46,9 +44,8 @@ else:
         flags=re.I | re.S,
     ) + match.group(2) + text[match.end(2):]
 
-# The login shell is already completely rendered by HTML. Global runtimes are
-# not required to make Username/Password editable. Running them synchronously
-# before authentication can monopolize the main thread, so defer them.
+# These global runtimes are not needed to make Username/Password editable.
+# Defer them so the browser can paint and accept input immediately.
 def defer_source(source_name):
     pattern = re.compile(
         r'<script\b([^>]*\bsrc=["\'](?:/)?' + re.escape(source_name) + r'(?:\?[^"\']*)?["\'][^>]*)></script>',
@@ -64,38 +61,75 @@ def defer_source(source_name):
 text = defer_source('central-i18n.js')
 text = defer_source('azaad-core-context.js')
 
-# Critical hardening: every legacy/non-auth external runtime that appears in
-# the document body must not execute synchronously while the login controls are
-# waiting for authentication. This removes parser-blocking work from the login
-# critical path without creating another controller or changing feature code.
+# Strong isolation: post-auth feature runtimes must not execute at all while
+# the login screen is visible. Merely adding `defer` is insufficient because a
+# large deferred graph can still monopolize the main thread before interaction.
+# Convert body external scripts into inert data attributes and activate them
+# only after admin.js has hidden #loginPage. Existing lazy loaders remain the
+# owners of their feature modules and duplicate loads are prevented by src check.
 body_match = re.search(r'<body\b[^>]*>(.*)</body>', text, re.I | re.S)
 if not body_match:
     raise SystemExit("body element not found")
 
 body = body_match.group(1)
-external_script = re.compile(r'<script\b([^>]*\bsrc=["\'][^"\']+["\'][^>]*)></script>', re.I)
+external_script = re.compile(r'<script\b([^>]*\bsrc=["\']([^"\']+)["\'][^>]*)></script>', re.I)
 
-def defer_body_script(match):
+def isolate_body_script(match):
     attrs = match.group(1)
-    if re.search(r'\bdefer(?:\s*=|\b)', attrs, re.I):
+    src = match.group(2)
+    if not src:
         return match.group(0)
-    # Modules are already deferred by specification; adding defer to ordinary
-    # scripts is safe and prevents parser-blocking legacy runtimes.
-    return '<script' + attrs.rstrip() + ' defer></script>'
+    return '<script data-azaad-after-auth-src="' + src.replace('"', '&quot;') + '"></script>'
 
-body = external_script.sub(defer_body_script, body)
-text = text[:body_match.start(1)] + body + text[body_match.end(1):]
+body = external_script.sub(isolate_body_script, body)
 
-# Fail closed: exactly one login form, no retired auth guard, native navigation
-# guard, and no parser-blocking external body scripts in the final artifact.
+loader = r'''<script>
+(function () {
+  'use strict';
+  if (window.__AZAAD_POST_AUTH_RUNTIME_LOADER__) return;
+  window.__AZAAD_POST_AUTH_RUNTIME_LOADER__ = true;
+
+  function activate() {
+    var login = document.getElementById('loginPage');
+    if (!login || !login.classList.contains('hidden')) return false;
+
+    document.querySelectorAll('script[data-azaad-after-auth-src]').forEach(function (placeholder) {
+      var src = placeholder.getAttribute('data-azaad-after-auth-src');
+      if (!src || document.querySelector('script[src="' + CSS.escape(src) + '"]')) {
+        placeholder.remove();
+        return;
+      }
+      var script = document.createElement('script');
+      script.src = src;
+      script.defer = true;
+      script.setAttribute('data-azaad-post-auth-runtime', '1');
+      placeholder.replaceWith(script);
+    });
+    return true;
+  }
+
+  var observer = new MutationObserver(function () {
+    if (activate()) observer.disconnect();
+  });
+  observer.observe(document.documentElement, {subtree: true, attributes: true, attributeFilter: ['class']});
+  if (document.readyState !== 'loading') activate();
+  else document.addEventListener('DOMContentLoaded', activate, {once: true});
+})();
+</script>'''
+
+text = text[:body_match.start(1)] + body + loader + text[body_match.end(1):]
+
+# Fail closed.
 if len(re.findall(r'<form\b[^>]*\bid=["\']loginForm["\']', text, re.I)) != 1:
     raise SystemExit("canonical login form count is not exactly one")
 if 'admin-auth-ui-guard.js' in text:
     raise SystemExit("retired admin-auth-ui-guard.js remains in admin.html")
 if not re.search(r'<form\b[^>]*\bid=["\']loginForm["\'][^>]*\bonsubmit=["\']event\.preventDefault\(\);["\']', text, re.I):
     raise SystemExit("login form native-navigation guard was not established")
-if re.search(r'<body\b[^>]*>.*?<script\b(?![^>]*\bdefer\b)[^>]*\bsrc=', text, re.I | re.S):
-    raise SystemExit("parser-blocking external body script remains on Admin login path")
+if re.search(r'<body\b[^>]*>.*?<script\b[^>]*\bsrc=', text, re.I | re.S):
+    raise SystemExit("post-auth external script still executes on initial Admin login path")
+if 'data-azaad-after-auth-src=' not in text:
+    raise SystemExit("post-auth runtime isolation was not established")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] Admin login shell hardened: native navigation blocked and all non-critical external body runtimes deferred")
+print("[AZAAD] Admin login isolated: only canonical auth runtime executes before login; post-auth runtimes are inert until authentication")
