@@ -1,9 +1,6 @@
 from pathlib import Path
 import subprocess
 
-# Canonical production artifact owner. Authentication is owned by admin.html + admin.js.
-# Do not inject a second login page, bootstrap, or redirect guard.
-# The Admin runtime has one canonical inline core plus the lazy-admin-modules registry.
 TRANSFORM_STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
@@ -15,6 +12,7 @@ TRANSFORM_STEPS = [
     ["python3", ".github/inject-patient-actions.py"],
     ["python3", ".github/inject-doctor-actions.py"],
     ["python3", "qa/lazy-admin-modules.py"],
+    ["python3", "qa/finalize-enterprise-admin.py"],
     ["python3", "qa/final-public-i18n-owner.py"],
     ["python3", "qa/admin-i18n-single-owner-gate.py"],
     ["python3", "qa/finalize-central-i18n.py"],
@@ -41,7 +39,6 @@ VERIFY_STEPS = [
     ["python3", "qa/verify-admin-auth-critical-path.py"],
 ]
 
-
 def run_steps(steps, phase):
     for command in steps:
         path = Path(command[1])
@@ -49,7 +46,6 @@ def run_steps(steps, phase):
             raise SystemExit(f"Missing required production {phase} step: {path}")
         print(f"[AZAAD build:{phase}] {' '.join(command)}", flush=True)
         subprocess.run(command, check=True)
-
 
 run_steps(TRANSFORM_STEPS, "transform")
 run_steps(VERIFY_STEPS, "verify")
