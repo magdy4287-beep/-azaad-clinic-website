@@ -67,7 +67,11 @@ def patch_admin_html():
     html = path.read_text(encoding='utf-8')
     start = html.find('async function logout()')
     if start < 0:
-        raise SystemExit('inline admin.html logout function not found')
+        # The canonical Admin runtime may already have removed the legacy
+        # inline controller. In that architecture admin.js owns logout and
+        # this transform is intentionally a no-op for admin.html.
+        print('[AZAAD final logout] admin.html inline logout absent; admin.js is canonical owner')
+        return
 
     brace = html.find('{', start)
     if brace < 0:
