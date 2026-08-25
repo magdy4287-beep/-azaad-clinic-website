@@ -31,6 +31,17 @@
   height: auto !important;
   max-width: 100% !important;
   max-height: none !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  overflow: visible !important;
+}
+
+/* Final global media boundary: late component CSS must not restore destructive crop. */
+img {
+  height: auto !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
   object-fit: contain !important;
   object-position: center center !important;
   overflow: visible !important;
