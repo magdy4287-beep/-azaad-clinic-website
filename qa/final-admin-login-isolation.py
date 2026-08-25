@@ -51,19 +51,17 @@ for src in known:
         flags=re.I,
     )
 
-# Remove the retired second Admin module loader. It was an independent inline
-# loader that could load the active panel 1.2s after page load, even while the
-# login page was still visible, and it duplicated the canonical post-auth loader
-# owned by admin.js. Keeping two loaders is a direct freeze/duplicate-runtime risk.
+# Remove only a retired legacy panel loader. The canonical lazy-admin-modules
+# registry is intentionally preserved and is the single active panel loader.
 legacy_panel_loader = re.compile(
     r'<script\b[^>]*>\s*\(function\(\)\{\s*const groups\s*=\s*\{.*?window\.AZAAD_LOAD_ADMIN_PANEL.*?\}\)\(\);\s*</script>',
     re.I | re.S,
 )
 text, removed_loader_count = legacy_panel_loader.subn("\n", text, count=1)
-if removed_loader_count == 0:
-    # Do not fail if an earlier canonical transform already removed it.
+canonical_registry = 'data-azaad-admin-module-registry="1"' in text
+if removed_loader_count == 0 and not canonical_registry:
     if "window.AZAAD_LOAD_ADMIN_PANEL" in text or "const groups = {'bookings'" in text:
-        raise SystemExit("Duplicate Admin panel loader remains but could not be removed")
+        raise SystemExit("Duplicate Admin panel loader remains but no canonical registry is present")
 
 form_pattern = re.compile(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', re.I)
 form = form_pattern.search(text)
@@ -86,8 +84,12 @@ for match in inline.finditer(text):
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
-if "window.AZAAD_LOAD_ADMIN_PANEL" in text or "const groups = {'bookings'" in text:
-    raise SystemExit("Duplicate Admin panel loader remains")
+canonical_registry = 'data-azaad-admin-module-registry="1"' in text
+loader_count = text.count("window.AZAAD_LOAD_ADMIN_PANEL")
+if loader_count and not canonical_registry:
+    raise SystemExit("Duplicate Admin panel loader remains outside canonical lazy registry")
+if canonical_registry and loader_count != 1:
+    raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
 
 executable = []
 for match in script_open.finditer(text):
@@ -106,4 +108,4 @@ if text.count('data-azaad-after-auth-src=') < 1:
     raise SystemExit("No post-auth runtime manifest was produced")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD final admin isolation] PASS: one canonical Admin loader; duplicate panel loader removed")
+print("[AZAAD final admin isolation] PASS: one canonical Admin controller plus one canonical lazy panel registry")
