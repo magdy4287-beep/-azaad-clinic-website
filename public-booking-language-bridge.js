@@ -1,13 +1,13 @@
 (() => {
   'use strict';
-  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V2__';
+  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V3__';
   if (window[KEY]) return;
   window[KEY] = true;
 
   const lang = () => {
     try {
-      const saved = localStorage.getItem('azaadClinicLanguage');
-      if (saved === 'en' || saved === 'ar') return saved;
+      const value = localStorage.getItem('azaadClinicLanguage');
+      if (value === 'en' || value === 'ar') return value;
     } catch (_) {}
     return String(document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
   };
@@ -20,48 +20,33 @@
     return '';
   };
 
-  const knownArabic = new Map([
-    ['للصحة النفسية والعلاج النفسي', 'Mental health and psychotherapy'],
-    ['الصحة النفسية والعلاج النفسي', 'Mental health and psychotherapy'],
-    ['علاج نفسي', 'Psychotherapy'],
-    ['العلاج النفسي', 'Psychotherapy'],
-    ['الصحة النفسية', 'Mental health'],
-    ['الطب النفسي', 'Psychiatry'],
-    ['جلسة علاج نفسي', 'Psychotherapy session'],
-    ['جلسة أونلاين', 'Online session'],
-    ['داخل العيادة', 'In-clinic'],
-    ['تقييم نفسي', 'Psychological assessment'],
-    ['استشارة نفسية', 'Psychological consultation'],
-    ['علاج القلق', 'Anxiety treatment'],
-    ['علاج الاكتئاب', 'Depression treatment'],
-    ['العلاج السلوكي المعرفي', 'Cognitive behavioral therapy'],
-    ['العلاج الأسري', 'Family therapy'],
-    ['العلاج الزوجي', 'Couples therapy']
+  const known = new Map([
+    ['للصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
+    ['الصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
+    ['علاج نفسي','Psychotherapy'],['العلاج النفسي','Psychotherapy'],
+    ['الصحة النفسية','Mental health'],['الطب النفسي','Psychiatry'],
+    ['جلسة علاج نفسي','Psychotherapy session'],['جلسة أونلاين','Online session'],
+    ['داخل العيادة','In-clinic'],['تقييم نفسي','Psychological assessment'],
+    ['استشارة نفسية','Psychological consultation'],['علاج القلق','Anxiety treatment'],
+    ['علاج الاكتئاب','Depression treatment'],['العلاج السلوكي المعرفي','Cognitive behavioral therapy'],
+    ['العلاج الأسري','Family therapy'],['العلاج الزوجي','Couples therapy']
   ]);
 
-  const phraseTranslate = value => {
-    let text = String(value || '').trim();
-    if (!text) return '';
-    if (knownArabic.has(text)) return knownArabic.get(text);
-    for (const [ar, en] of knownArabic) text = text.replaceAll(ar, en);
-    if (!/[\u0600-\u06FF]/.test(text)) return text;
-    return text.replace(/[\u0600-\u06FF]+/g, token => {
-      const normalized = token.trim();
-      if (knownArabic.has(normalized)) return knownArabic.get(normalized);
-      return transliterateArabic(normalized);
-    });
+  const transliterate = value => {
+    const map = {'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ة':'a','ء':'a','ؤ':'w','ئ':'y','لا':'la','ّ':'','َ':'','ً':'','ُ':'','ٌ':'','ِ':'','ٍ':'','ْ':'','ـ':''};
+    return String(value).split('').map(ch => map[ch] ?? ch).join('').replace(/\s+/g,' ').trim();
   };
 
-  const transliterateArabic = value => {
-    const map = {
-      'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ة':'a','ء':'a','ؤ':'w','ئ':'y','ﻻ':'la','لا':'la','ّ':'','َ':'','ً':'','ُ':'','ٌ':'','ِ':'','ٍ':'','ْ':'','ـ':''
-    };
-    return String(value).split('').map(ch => map[ch] ?? ch).join('').replace(/\s+/g, ' ').trim();
+  const englishText = value => {
+    let text = String(value || '').trim();
+    if (!text) return '';
+    for (const [ar, en] of known) text = text.replaceAll(ar, en);
+    return text.replace(/[\u0600-\u06FF]+/g, token => known.get(token.trim()) || transliterate(token));
   };
 
   const localized = (item, arKeys, enKeys) => {
-    if (lang() !== 'en') return first(item, arKeys.concat(enKeys));
-    return phraseTranslate(first(item, enKeys) || first(item, arKeys));
+    if (lang() !== 'en') return first(item, [...arKeys, ...enKeys]);
+    return englishText(first(item, enKeys) || first(item, arKeys));
   };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -70,28 +55,36 @@
     const select = document.getElementById(id);
     if (!select || !Array.isArray(rows)) return;
     const current = select.value;
-    const english = lang() === 'en';
-    const placeholder = type === 'doctor'
-      ? (english ? 'Select doctor' : 'اختر الطبيب')
-      : (english ? 'Select service' : 'اختر الخدمة');
+    const en = lang() === 'en';
+    const placeholder = type === 'doctor' ? (en ? 'Select doctor' : 'اختر الطبيب') : (en ? 'Select service' : 'اختر الخدمة');
     const html = [`<option value="">${esc(placeholder)}</option>`];
-    for (const item of rows) {
-      const name = localized(
-        item,
-        ['name', 'title', 'full_name', 'display_name'],
-        ['name_en', 'title_en', 'full_name_en', 'display_name_en', 'english_name', 'english_full_name']
-      );
-      const title = type === 'doctor'
-        ? localized(item, ['title', 'specialty'], ['title_en', 'specialty_en', 'english_title', 'english_specialty'])
-        : '';
-      const duration = type === 'service' && item?.duration_minutes
-        ? ` — ${esc(item.duration_minutes)} ${english ? 'minutes' : 'دقيقة'}`
-        : '';
-      if (!item?.id || !name) continue;
-      html.push(`<option value="${esc(item.id)}">${esc(name)}${title && title !== name ? ` — ${esc(title)}` : ''}${duration}</option>`);
-    }
+    rows.forEach(item => {
+      const name = localized(item, ['name','title','full_name','display_name'], ['name_en','full_name_en','display_name_en','english_name','english_full_name']);
+      const title = type === 'doctor' ? localized(item, ['title','specialty'], ['title_en','specialty_en','english_title','english_specialty']) : '';
+      const duration = type === 'service' && item?.duration_minutes ? ` — ${esc(item.duration_minutes)} ${en ? 'minutes' : 'دقيقة'}` : '';
+      if (item?.id && name) html.push(`<option value="${esc(item.id)}">${esc(name)}${title && title !== name ? ` — ${esc(title)}` : ''}${duration}</option>`);
+    });
     select.innerHTML = html.join('');
-    if ([...select.options].some(o => o.value === current)) select.value = current;
+    if ([...select.options].some(option => option.value === current)) select.value = current;
+  }
+
+  function repairCards(data) {
+    if (!data || lang() !== 'en') return;
+    const doctors = Array.isArray(data.doctors) ? data.doctors : [];
+    document.querySelectorAll('#doctorsGrid .azaad-doctor-card').forEach((card, index) => {
+      const item = doctors[index]; if (!item) return;
+      const h = card.querySelector('h3'); const strong = card.querySelector('strong'); const p = card.querySelector('p');
+      if (h) h.textContent = localized(item, ['name','full_name','display_name'], ['name_en','full_name_en','display_name_en','english_name','english_full_name']);
+      if (strong) strong.textContent = localized(item, ['title','specialty'], ['title_en','specialty_en','english_title','english_specialty']);
+      if (p) p.textContent = localized(item, ['bio','description'], ['bio_en','description_en','english_bio','english_description']);
+    });
+    const services = Array.isArray(data.services) ? data.services : [];
+    document.querySelectorAll('#servicesGrid .azaad-service-card').forEach((card, index) => {
+      const item = services[index]; if (!item) return;
+      const h = card.querySelector('h3'); const p = card.querySelector('p');
+      if (h) h.textContent = localized(item, ['name','title'], ['name_en','title_en','english_name']);
+      if (p) p.textContent = localized(item, ['description'], ['description_en','english_description']);
+    });
   }
 
   function repair() {
@@ -99,30 +92,18 @@
     if (data) {
       renderSelect('doctor', data.doctors, 'doctor');
       renderSelect('service', data.services, 'service');
+      repairCards(data);
     }
-
     const tagline = document.querySelector('.azaad-footer-tagline');
-    if (tagline) {
-      tagline.textContent = lang() === 'en'
-        ? 'Mental health and psychotherapy'
-        : 'للصحة النفسية والعلاج النفسي';
-      tagline.dataset.azaadLocalized = lang();
-    }
+    if (tagline) tagline.textContent = lang() === 'en' ? 'Mental health and psychotherapy' : 'للصحة النفسية والعلاج النفسي';
   }
 
   let timer;
-  const schedule = () => {
-    clearTimeout(timer);
-    timer = setTimeout(repair, 0);
-  };
-
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(repair, 0); };
   window.addEventListener('azaadPublicClinicDataReady', schedule);
   window.addEventListener('azaadPublicClinicDataChanged', schedule);
   window.addEventListener('azaadLanguageChanged', schedule);
-  window.addEventListener('storage', event => {
-    if (event.key === 'azaadClinicLanguage') schedule();
-  });
-
+  window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') schedule(); });
   new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
-  [0, 200, 500, 1000, 2000, 4000].forEach(ms => setTimeout(repair, ms));
+  [0,200,500,1000,2000,4000].forEach(ms => setTimeout(repair, ms));
 })();
