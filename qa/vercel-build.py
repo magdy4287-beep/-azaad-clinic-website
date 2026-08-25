@@ -3,7 +3,7 @@ import subprocess
 
 # Canonical production artifact owner. Authentication is owned by admin.html + admin.js.
 # Do not inject a second login page, bootstrap, or redirect guard.
-# Deployment marker: admin navigation v4 + feature controller + CI gate fix are the intended production artifact.
+# The Admin runtime has one canonical inline core plus the lazy-admin-modules registry.
 TRANSFORM_STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
@@ -30,7 +30,6 @@ TRANSFORM_STEPS = [
     ["python3", "qa/final-admin-interaction-safety.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
-    ["python3", "qa/finalize-admin-navigation-v4.py"],
 ]
 
 VERIFY_STEPS = [
