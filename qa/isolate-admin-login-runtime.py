@@ -10,9 +10,6 @@ if not ADMIN_HTML.exists() or not ADMIN_JS.exists():
 
 html = ADMIN_HTML.read_text(encoding="utf-8")
 
-# Remove every legacy inline authentication/controller implementation. This is
-# marker-based rather than type-based because the historical owner was a plain
-# inline script and escaped module-only canonicalizers.
 inline = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.I | re.S)
 markers = ("const SUPABASE_URL", "STAFF_LOGIN_FUNCTION", "function login", "clinic_staff")
 
@@ -31,23 +28,24 @@ if not body_match:
     raise SystemExit("Admin body not found")
 
 body = body_match.group(1)
-
-# Transform every executable body script opening tag into an inert manifest.
-# This deliberately does not depend on a closing-tag shape or attribute order.
 opening = re.compile(r"<script\b([^>]*)>", re.I | re.S)
+
+# Quoted or unquoted src attributes are both accepted by HTML. Normalize both.
+src_attr = re.compile(r"\bsrc\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
+type_module = re.compile(r"\btype\s*=\s*([\"'])module\1", re.I)
 
 def isolate_opening(match):
     attrs = match.group(1)
-    src_match = re.search(r"\bsrc\s*=\s*([\"'])(.*?)\1", attrs, re.I | re.S)
+    src_match = src_attr.search(attrs)
     if not src_match:
         return match.group(0)
 
-    src = src_match.group(2)
+    src = src_match.group(2) if src_match.group(2) is not None else src_match.group(3)
     path = (urlsplit(src).path or src).lstrip("/").lower()
     if path == "admin.js":
         return match.group(0)
 
-    is_module = bool(re.search(r"\btype\s*=\s*([\"'])module\1", attrs, re.I))
+    is_module = bool(type_module.search(attrs))
     module_attr = ' data-azaad-after-auth-type="module"' if is_module else ''
     without_src = attrs[:src_match.start()] + attrs[src_match.end():]
     without_src = without_src.strip()
@@ -56,7 +54,6 @@ def isolate_opening(match):
 body = opening.sub(isolate_opening, body)
 html = html[:body_match.start(1)] + body + html[body_match.end(1):]
 
-# Fail closed against a parser/runtime owner returning to the login surface.
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', html, re.I)) != 1:
     raise SystemExit("Admin must contain exactly one login form")
 if re.search(r'<body\b[^>]*>.*?<script\b[^>]*\bsrc\s*=', html, re.I | re.S):
@@ -67,7 +64,6 @@ if sum(1 for m in inline.finditer(html) if sum(marker in m.group(2) for marker i
 ADMIN_HTML.write_text(html, encoding="utf-8")
 
 js = ADMIN_JS.read_text(encoding="utf-8")
-
 loader = r'''
 
 /* ============================================================
@@ -92,9 +88,7 @@ async function loadAfterAuthRuntimes() {
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = src;
-      if (manifest.dataset.azaadAfterAuthType === "module") {
-        script.type = "module";
-      }
+      if (manifest.dataset.azaadAfterAuthType === "module") script.type = "module";
       script.onload = resolve;
       script.onerror = () => reject(new Error(`Failed to load Admin runtime: ${src}`));
       document.body.appendChild(script);
@@ -109,8 +103,7 @@ if "async function loadAfterAuthRuntimes()" not in js:
         raise SystemExit("Admin START marker not found")
     js = js.replace(marker, loader + "\n" + marker, 1)
 
-needle = "  await loadBookings();\n\n  try {\n    await loadAfterAuthRuntimes();\n  } catch (error) {\n    console.error(\"Post-auth Admin runtime load error:\", error);\n  }\n\n  bindTabs();"
-if needle not in js:
+if "await loadAfterAuthRuntimes();" not in js:
     needle = "  await loadBookings();\n\n  bindTabs();"
     replacement = "  await loadBookings();\n\n  try {\n    await loadAfterAuthRuntimes();\n  } catch (error) {\n    console.error(\"Post-auth Admin runtime load error:\", error);\n  }\n\n  bindTabs();"
     if needle not in js:
