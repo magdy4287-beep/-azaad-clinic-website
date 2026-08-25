@@ -30,6 +30,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/final-admin-interaction-safety.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
+    ["python3", "qa/finalize-admin-operational-data.py"],
 ]
 
 VERIFY_STEPS = [
