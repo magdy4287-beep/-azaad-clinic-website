@@ -113,8 +113,10 @@ for match in inline.finditer(text):
         raise SystemExit("Legacy inline Admin Login controller remains")
 
 # This stage is intentionally non-owning: lazy-admin-modules.py creates the
-# canonical registry, while its dedicated verification gates own cardinality
-# and loader semantics. Requiring the registry here creates an ordering race.
+# canonical registry. We validate loader *definitions* rather than references:
+# the registry contains one assignment and may legitimately invoke that loader
+# multiple times for different panels. A duplicate assignment outside the
+# canonical registry remains forbidden.
 registry_pattern = re.compile(
     r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
     re.I | re.S,
@@ -122,11 +124,18 @@ registry_pattern = re.compile(
 registry_matches = list(registry_pattern.finditer(text))
 if len(registry_matches) > 1:
     raise SystemExit("Canonical lazy registry exists more than once")
-if registry_matches:
-    registry = registry_matches[0]
-    loader_assignment_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
-    if len(loader_assignment_pattern.findall(registry.group(0))) != 1:
-        raise SystemExit("Canonical lazy registry loader is malformed")
+
+loader_definition_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
+loader_definitions = list(loader_definition_pattern.finditer(text))
+if len(loader_definitions) != 1:
+    raise SystemExit(
+        "Canonical lazy registry must expose exactly one panel loader definition"
+    )
+if not registry_matches:
+    raise SystemExit("Canonical lazy registry is missing")
+registry = registry_matches[0]
+if not (registry.start() <= loader_definitions[0].start() < registry.end()):
+    raise SystemExit("Admin panel loader definition exists outside canonical lazy registry")
 
 executable = []
 for match in script_open.finditer(text):
@@ -144,4 +153,4 @@ if text.count('data-azaad-after-auth-src=') < 1:
     raise SystemExit("No post-auth runtime manifest was produced")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD final admin isolation] PASS: canonical login shell preserved; lazy registry ownership delegated to its dedicated gate")
+print("[AZAAD final admin isolation] PASS: canonical login shell preserved; exactly one lazy panel-loader definition inside the canonical registry")
