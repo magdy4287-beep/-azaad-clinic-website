@@ -93,7 +93,11 @@ jobs:
           echo "Checking ${url}"
           curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
           test -s /tmp/azaad-vercel.html
-          grep -Fq 'Azaad Clinic' /tmp/azaad-vercel.html
+          # Production currently identifies the public clinic surface as
+          # Azaad Psychotherapy; the old 'Azaad Clinic' literal was stale gate
+          # text and caused a false-negative despite HTTP 200 and the canonical
+          # central-i18n runtime being present.
+          grep -Fq 'Azaad Psychotherapy' /tmp/azaad-vercel.html
           grep -Fq 'central-i18n.js' /tmp/azaad-vercel.html
           echo "Vercel production HTTP/content health: PASS"
 
