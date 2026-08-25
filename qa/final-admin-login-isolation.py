@@ -85,11 +85,11 @@ if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
 canonical_registry = 'data-azaad-admin-module-registry="1"' in text
-loader_count = text.count("window.AZAAD_LOAD_ADMIN_PANEL")
-if loader_count and not canonical_registry:
+loader_definitions = len(re.findall(r"window\.AZAAD_LOAD_ADMIN_PANEL\s*=", text))
+if not canonical_registry and "window.AZAAD_LOAD_ADMIN_PANEL" in text:
     raise SystemExit("Duplicate Admin panel loader remains outside canonical lazy registry")
-if canonical_registry and loader_count != 1:
-    raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
+if canonical_registry and loader_definitions != 1:
+    raise SystemExit("Canonical lazy registry must expose exactly one panel-loader definition")
 
 executable = []
 for match in script_open.finditer(text):
