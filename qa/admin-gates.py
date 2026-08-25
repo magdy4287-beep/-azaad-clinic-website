@@ -23,10 +23,9 @@ check(
     or ("patch-admin.py completed successfully" in patcher and "admin-english-hardening.js" in patcher),
 )
 
-# Language ownership is now intentionally centralized. The business-hardening
-# module owns MRN/search normalization only; central-i18n owns language state,
-# translation, persistence, and RTL/LTR direction. These checks therefore target
-# the actual canonical owner instead of an obsolete pre-centralization contract.
+# Language ownership is centralized. central-i18n owns language state,
+# translation, persistence, direction, and dynamic DOM handling. Do not couple
+# this gate to an obsolete helper name such as a literal "translate" function.
 check(
     "Arabic/English direction switching exists",
     "document.documentElement.dir" in central_i18n and "document.documentElement.lang" in central_i18n
@@ -52,11 +51,20 @@ check(
 check("Patient display accepts canonical AZA MRN", "^AZA-?(\\d{6})$" in mrn_display)
 check("Patient display produces five digits", "slice(-5)" in mrn_display)
 
-# Dynamic translation is owned by the central i18n runtime, not by the legacy
-# business-hardening module.
+# Dynamic translation is owned by the central i18n runtime. The canonical
+# implementation applies keyed and legacy translations, binds language
+# controls, and observes dynamically inserted DOM. The gate checks those
+# actual contract primitives instead of requiring an incidental helper name.
 check(
     "Dynamic DOM translation is enabled",
-    "MutationObserver" in central_i18n and "translate" in central_i18n.lower(),
+    all(token in central_i18n for token in (
+        "function keyed(",
+        "function legacy(",
+        "function bind(",
+        "MutationObserver",
+        "childList:true",
+        "window.dispatchEvent(new CustomEvent('azaadLanguageChanged'",
+    )),
 )
 check("Service-role key is not embedded", "service_role" not in admin.lower() and "service_role" not in hardening.lower())
 check("Existing admin baseline remains present", 'id="adminPage"' in admin and 'id="loginPage"' in admin)
@@ -97,8 +105,6 @@ if "window.AZAAD_LOAD_ADMIN_PANEL = async function(panel)" in lazy_registry:
     groups_match = re.search(r"LAZY\s*=\s*\{(.*?)\n\}\n\n#", lazy_registry, re.S)
     groups_source = groups_match.group(1) if groups_match else ""
     for panel in CANONICAL_PANELS:
-        # Core-owned panels intentionally have no lazy module entry. They are
-        # represented by CORE and Admin core runtime instead of a fake module.
         owned_by_lazy = re.search(r"[\"']" + re.escape(panel) + r"[\"']\s*:", groups_source) is not None
         owned_by_core = panel in {"holidays", "hours", "settings", "account"}
         check(
