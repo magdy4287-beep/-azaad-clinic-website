@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Normalize every HTML surface to exactly one central I18N runtime."""
+"""Normalize central I18N only on application surfaces."""
 from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = '<script src="/central-i18n.js?v=4.0.0"></script>'
-# Match the runtime wherever it appears in an HTML document (head or body),
-# including query strings, attributes such as defer, and mixed whitespace.
+LOGIN_SURFACES = {"admin-login.html"}
 TAG_RE = re.compile(
     r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*/central-i18n\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>',
     re.I,
@@ -15,6 +14,8 @@ changed = 0
 removed_tags = 0
 for path in sorted(ROOT.rglob('*.html')):
     if '.git' in path.parts:
+        continue
+    if path.name in LOGIN_SURFACES:
         continue
     text = path.read_text(encoding='utf-8', errors='replace')
     if '</head>' not in text:
@@ -25,4 +26,4 @@ for path in sorted(ROOT.rglob('*.html')):
         path.write_text(normalized, encoding='utf-8')
         changed += 1
         removed_tags += removed
-print(f'central-i18n normalized to one script tag in {changed} HTML surface(s); removed {removed_tags} prior tag(s)')
+print(f'central-i18n normalized to one application script tag in {changed} HTML surface(s); removed {removed_tags} prior tag(s); excluded isolated login surfaces: {sorted(LOGIN_SURFACES)}')
