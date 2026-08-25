@@ -51,14 +51,21 @@ for src in known:
         flags=re.I,
     )
 
-legacy_panel_loader = re.compile(
-    r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>\s*\(function\(\)\{\s*const groups\s*=\s*\{.*?window\.AZAAD_LOAD_ADMIN_PANEL\s*=.*?\}\)\(\);\s*</script>',
+# Legacy panel-loader cleanup is intentionally structural: remove only loader
+# scripts that are NOT the canonical registry. The canonical registry itself is
+# never removed by this pass.
+canonical_registry_tag = re.compile(
+    r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
     re.I | re.S,
 )
-text, removed_loader_count = legacy_panel_loader.subn("\n", text, count=1)
-canonical_registry = 'data-azaad-admin-module-registry="1"' in text
-if removed_loader_count == 0 and not canonical_registry:
-    if "window.AZAAD_LOAD_ADMIN_PANEL" in text or "const groups = {'bookings'" in text:
+legacy_panel_loader = re.compile(
+    r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>.*?window\.AZAAD_LOAD_ADMIN_PANEL\s*=.*?</script>',
+    re.I | re.S,
+)
+text, removed_loader_count = legacy_panel_loader.subn("\n", text)
+canonical_registry = bool(canonical_registry_tag.search(text))
+if not canonical_registry:
+    if "window.AZAAD_LOAD_ADMIN_PANEL" in text:
         raise SystemExit("Duplicate Admin panel loader remains but no canonical registry is present")
 
 form_pattern = re.compile(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', re.I)
@@ -82,13 +89,23 @@ for match in inline.finditer(text):
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
-canonical_registry = 'data-azaad-admin-module-registry="1"' in text
+# Ownership invariant: exactly one loader definition must live INSIDE the
+# canonical registry and zero loader definitions may exist outside it. This is
+# stronger than counting the whole document because the registry is explicitly
+# allowed to define the one canonical loader.
+registry_matches = list(canonical_registry_tag.finditer(text))
+if len(registry_matches) != 1:
+    raise SystemExit("Canonical lazy registry must exist exactly once")
+registry = registry_matches[0]
+registry_body = registry.group(0)
+outside = text[:registry.start()] + text[registry.end():]
 active_loader_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*(?:async\s+)?function\b', re.I)
-loader_definitions = len(active_loader_pattern.findall(text))
-if not canonical_registry and active_loader_pattern.search(text):
-    raise SystemExit("Duplicate Admin panel loader remains outside canonical lazy registry")
-if canonical_registry and loader_definitions != 1:
-    raise SystemExit("Canonical lazy registry must expose exactly one active panel-loader definition")
+canonical_loader_definitions = len(active_loader_pattern.findall(registry_body))
+legacy_loader_definitions = len(active_loader_pattern.findall(outside))
+if canonical_loader_definitions != 1:
+    raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
+if legacy_loader_definitions != 0:
+    raise SystemExit("Duplicate legacy Admin panel loader remains outside canonical lazy registry")
 
 executable = []
 for match in script_open.finditer(text):
