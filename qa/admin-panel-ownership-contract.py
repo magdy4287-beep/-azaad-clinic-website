@@ -4,6 +4,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / "admin.html").read_text(encoding="utf-8")
+adminjs = (ROOT / "admin.js").read_text(encoding="utf-8")
 loader = (ROOT / "qa" / "lazy-admin-modules.py").read_text(encoding="utf-8")
 shell = (ROOT / "admin-shell.js").read_text(encoding="utf-8")
 
@@ -48,13 +49,17 @@ for obsolete in [
 ]:
     check(f"superseded module excluded: {obsolete}", obsolete in loader and "LEGACY_OR_CONTRACT" in loader)
 
-# Navigation has exactly one owner: admin-shell.js.
-# The lazy registry owns loading only and must react to the shell's activation event.
+# Navigation has exactly one owner: admin-shell.js. admin.js is the application/data core
+# and may issue navigation requests, but must not implement panel activation itself.
 check("navigation owner is admin-shell", "document.addEventListener('click'" in shell)
 check("shell emits panel activation", "azaad:admin-panel-activated" in shell)
+check("shell accepts internal panel requests", "azaad:admin-panel-requested" in shell)
 check("registry consumes panel activation", "azaad:admin-panel-activated" in loader)
 check("registry has no delegated tab click owner", "document.addEventListener('click'" not in loader)
-check("registry remains sole panel-loader definition", loader.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 1)
+check("admin core has no bindTabs owner", "function bindTabs(" not in adminjs)
+check("admin core has no switchPanel owner", "function switchPanel(" not in adminjs)
+check("admin core uses request bridge", "azaad:admin-panel-requested" in adminjs)
+check("registry remains sole panel-loader definition", adminjs.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 0 and loader.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 1)
 
 failed = False
 for name, ok, detail in checks:
