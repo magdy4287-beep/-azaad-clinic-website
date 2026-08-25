@@ -5,8 +5,8 @@
  */
 (function () {
   'use strict';
-  if (window.__AZAAD_ADMIN_SHELL_V3__) return;
-  window.__AZAAD_ADMIN_SHELL_V3__ = true;
+  if (window.__AZAAD_ADMIN_SHELL_V4__) return;
+  window.__AZAAD_ADMIN_SHELL_V4__ = true;
 
   function loadCentralSchedulingSync() {
     if (document.querySelector('script[data-azaad-central-scheduling-sync]')) return;
@@ -41,6 +41,13 @@
       }, false);
     });
   }
+
+  window.addEventListener('azaad:admin-panel-requested', function (event) {
+    var panel = event && event.detail ? event.detail.panel : null;
+    if (!panel) return;
+    var button = document.querySelector('.tab[data-panel="' + CSS.escape(String(panel)) + '"]');
+    activate(String(panel), button || null);
+  });
 
   function ready() {
     bindExisting();
