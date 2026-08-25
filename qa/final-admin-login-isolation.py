@@ -32,6 +32,19 @@ def isolate(match):
 
 text = script_open.sub(isolate, text)
 
+# Protect the login surface even before admin.js executes. This is not an auth
+# controller; it only prevents native form navigation from destroying the form.
+form_pattern = re.compile(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', re.I)
+form = form_pattern.search(text)
+if not form:
+    raise SystemExit("Canonical login form not found")
+opening = form.group(1)
+if not re.search(r"\bonsubmit\s*=", opening, re.I):
+    opening = opening.rstrip() + ' onsubmit="event.preventDefault();"'
+else:
+    opening = re.sub(r'\bonsubmit\s*=\s*([\"\']).*?\1', ' onsubmit="event.preventDefault();"', opening, count=1, flags=re.I | re.S)
+text = text[:form.start(1)] + opening + form.group(2) + text[form.end(2):]
+
 # The legacy inline controller must be absent regardless of script type.
 inline = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.I | re.S)
 legacy_markers = ("const SUPABASE_URL", "STAFF_LOGIN_FUNCTION", "function login", "clinic_staff")
@@ -40,7 +53,6 @@ for match in inline.finditer(text):
     if not re.search(r"\bsrc\s*=", attrs, re.I) and sum(marker in body for marker in legacy_markers) >= 3:
         raise SystemExit("Legacy inline Admin Login controller remains")
 
-# Exactly one canonical Login form and one executable external controller.
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
