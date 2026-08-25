@@ -1,7 +1,7 @@
 name: Azaad Admin Acceptance Gates
 
 # Free-first acceptance gate: every main push and every PR to main is verified.
-
+# CI revalidation marker: 2026-08-25 canonical-admin-loader gate verification.
 on:
   push:
     branches:
