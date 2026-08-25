@@ -29,9 +29,9 @@ TRANSFORM_STEPS = [
     ["python3", "qa/final-admin-interaction-safety.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
-    # Final Admin navigation owner: restore feature access without restoring
-    # eager post-auth runtimes or a second authentication controller.
-    ["python3", "qa/finalize-admin-navigation-v3.py"],
+    # Final Admin navigation owner. It restores the post-auth feature surface
+    # without reinstating the old blocking/duplicate panel loader.
+    ["python3", "qa/finalize-admin-navigation-v4.py"],
 ]
 
 VERIFY_STEPS = [
