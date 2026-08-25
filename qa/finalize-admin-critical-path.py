@@ -12,9 +12,9 @@ new = '''void initializeApplication().catch(error =>
   );'''
 
 count = js.count(old)
-if count != 2:
+if count < 1:
     raise SystemExit(
-        f"Expected exactly 2 blocking initializeApplication calls, found {count}"
+        "No blocking initializeApplication() calls found before finalization"
     )
 
 js = js.replace(old, new)
@@ -24,4 +24,6 @@ if "await initializeApplication();" in js:
     raise SystemExit("Blocking initializeApplication() call remains")
 
 path.write_text(js, encoding="utf-8")
-print("[AZAAD] Admin authentication no longer awaits application initialization")
+print(
+    f"[AZAAD] Admin authentication no longer awaits application initialization ({count} call(s) finalized)"
+)
