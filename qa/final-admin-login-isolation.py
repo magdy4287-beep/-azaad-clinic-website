@@ -73,11 +73,17 @@ for src in known:
         flags=re.I,
     )
 
+# Remove retired legacy panel loaders, but preserve the canonical registry.
 legacy_panel_loader = re.compile(
-    r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>.*?window\.AZAAD_LOAD_ADMIN_PANEL\s*=.*?</script>',
+    r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>.*?</script>',
     re.I | re.S,
 )
-text, _ = legacy_panel_loader.subn("\n", text)
+def strip_legacy_panel_loader(match):
+    block = match.group(0)
+    if re.search(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', block, re.I):
+        return "\n"
+    return block
+text = legacy_panel_loader.sub(strip_legacy_panel_loader, text)
 
 forms_after = list(FORM_RE.finditer(text))
 login_forms = [m for m in forms_after if LOGIN_RE.search(m.group(1))]
@@ -113,10 +119,9 @@ for match in inline.finditer(text):
         raise SystemExit("Legacy inline Admin Login controller remains")
 
 # This stage is intentionally non-owning: lazy-admin-modules.py creates the
-# canonical registry. We validate loader *definitions* rather than references:
-# the registry contains one assignment and may legitimately invoke that loader
-# multiple times for different panels. A duplicate assignment outside the
-# canonical registry remains forbidden.
+# canonical registry. Validate loader *definitions*, not invocations: the
+# registry may call its one loader repeatedly for different panels. Any legacy
+# loader definition outside the registry is removed above and is forbidden here.
 registry_pattern = re.compile(
     r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
     re.I | re.S,
@@ -124,6 +129,9 @@ registry_pattern = re.compile(
 registry_matches = list(registry_pattern.finditer(text))
 if len(registry_matches) > 1:
     raise SystemExit("Canonical lazy registry exists more than once")
+if not registry_matches:
+    raise SystemExit("Canonical lazy registry is missing")
+registry = registry_matches[0]
 
 loader_definition_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
 loader_definitions = list(loader_definition_pattern.finditer(text))
@@ -131,9 +139,6 @@ if len(loader_definitions) != 1:
     raise SystemExit(
         "Canonical lazy registry must expose exactly one panel loader definition"
     )
-if not registry_matches:
-    raise SystemExit("Canonical lazy registry is missing")
-registry = registry_matches[0]
 if not (registry.start() <= loader_definitions[0].start() < registry.end()):
     raise SystemExit("Admin panel loader definition exists outside canonical lazy registry")
 
