@@ -29,7 +29,8 @@ html,body{margin:0;padding:0;width:100%;min-height:100%;background:#f5f7fb;color
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL="https://derofsthjivlkcdnojww.supabase.co";
 const SUPABASE_KEY="sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa";
-const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+const ADMIN_AUTH_STORAGE_KEY="azaad-clinic-admin-auth";
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:ADMIN_AUTH_STORAGE_KEY,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const form=document.getElementById("loginForm");
 const username=document.getElementById("username");
 const password=document.getElementById("password");
@@ -37,7 +38,7 @@ const button=document.getElementById("loginButton");
 const errorBox=document.getElementById("loginError");
 function showError(message){errorBox.textContent=message||"تعذر تسجيل الدخول.";errorBox.classList.remove("hidden");button.disabled=false;}
 function clearError(){errorBox.textContent="";errorBox.classList.add("hidden");}
-async function installCanonicalSession(session,user){
+async function installCanonicalSession(session){
   const {data,error}=await supabase.auth.setSession({access_token:session.access_token,refresh_token:session.refresh_token});
   if(error||!data?.session?.access_token) throw error||new Error("تعذر تثبيت جلسة الإدارة.");
   try{sessionStorage.setItem("azaad_admin_token",data.session.access_token);}catch(_){ }
@@ -55,7 +56,7 @@ form.addEventListener("submit",async event=>{
   if(!response.ok) throw new Error(result.error||result.message||"بيانات الدخول غير صحيحة.");
   if(!result?.session?.access_token||!result?.session?.refresh_token) throw new Error("تعذر إنشاء جلسة تسجيل الدخول.");
   if(!result?.staff||result.staff.active===false) throw new Error("حساب الموظف غير فعال.");
-  await installCanonicalSession(result.session,result.user);
+  await installCanonicalSession(result.session);
   password.value="";
   location.replace("/admin.html");
  }catch(error){showError(error?.message||"تعذر تسجيل الدخول. حاول مرة أخرى.");button.disabled=false;}
