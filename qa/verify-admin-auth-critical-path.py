@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 path = Path("admin.js")
 if not path.exists():
@@ -7,19 +6,14 @@ if not path.exists():
 
 js = path.read_text(encoding="utf-8")
 
-for name in ("login", "restoreSession"):
-    match = re.search(
-        rf"(?:async )?function {name}\([^)]*\)\s*\{{(?P<body>.*?)\n\}}",
-        js,
-        re.S,
-    )
-    if not match:
-        raise SystemExit(f"{name}() not found")
+blocking = "await initializeApplication();"
+if blocking in js:
+    raise SystemExit("Admin auth still contains a blocking initializeApplication() call")
 
-    body = match.group("body")
-    if "await initializeApplication();" in body:
-        raise SystemExit(f"{name}() still blocks on application initialization")
-    if "void initializeApplication().catch(" not in body:
-        raise SystemExit(f"{name}() must schedule initialization without awaiting it")
+scheduled = "void initializeApplication().catch("
+if js.count(scheduled) != 2:
+    raise SystemExit(
+        f"Expected exactly 2 nonblocking initialization schedules, found {js.count(scheduled)}"
+    )
 
 print("[AZAAD] Admin auth critical-path contract: PASS")
