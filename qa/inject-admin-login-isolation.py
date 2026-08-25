@@ -1,13 +1,10 @@
 from pathlib import Path
+import re
 
 path = Path("admin.html")
 if not path.exists():
     raise SystemExit("admin.html missing")
 text = path.read_text(encoding="utf-8")
-marker = "AZAAD_ADMIN_AUTH_ISOLATION_V3"
-if marker in text:
-    print("admin auth isolation already installed")
-    raise SystemExit(0)
 
 script = r'''<script id="AZAAD_ADMIN_AUTH_ISOLATION_V3">
 /* AZAAD_ADMIN_AUTH_ISOLATION_V3
@@ -33,6 +30,15 @@ script = r'''<script id="AZAAD_ADMIN_AUTH_ISOLATION_V3">
   }
 })();
 </script>'''
+
+# Replace any prior auth-isolation block rather than stacking another guard.
+text = re.sub(
+    r'\s*<script id="AZAAD_ADMIN_AUTH_ISOLATION_V[0-9]+">.*?</script>\s*',
+    "\n",
+    text,
+    count=1,
+    flags=re.I | re.S,
+)
 
 if "</head>" not in text:
     raise SystemExit("admin.html has no </head>")
