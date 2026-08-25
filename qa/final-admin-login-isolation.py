@@ -9,7 +9,9 @@ if not ADMIN.exists():
 text = ADMIN.read_text(encoding="utf-8")
 
 script_open = re.compile(r"<script\b([^>]*)>", re.I | re.S)
-src_attr = re.compile(r"\bsrc\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
+# Negative lookbehind prevents matching the `src=` suffix inside
+# `data-azaad-after-auth-src=`, which is intentionally inert.
+src_attr = re.compile(r"(?<![-\w])src\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
 type_module = re.compile(r"\btype\s*=\s*([\"'])module\1", re.I)
 
 def isolate(match):
@@ -45,7 +47,7 @@ known = [
 for src in known:
     escaped = re.escape(src)
     text = re.sub(
-        rf'\bsrc\s*=\s*([\"\']){escaped}\1',
+        rf'(?<![-\w])src\s*=\s*([\"\']){escaped}\1',
         lambda m: f'data-azaad-after-auth-src={m.group(1)}{src}{m.group(1)}',
         text,
         flags=re.I,
@@ -66,7 +68,7 @@ inline = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.I | re.S)
 legacy_markers = ("const SUPABASE_URL", "STAFF_LOGIN_FUNCTION", "function login", "clinic_staff")
 for match in inline.finditer(text):
     attrs, body = match.group(1), match.group(2)
-    if not re.search(r"\bsrc\s*=", attrs, re.I) and sum(marker in body for marker in legacy_markers) >= 3:
+    if not re.search(r"(?<![-\w])src\s*=", attrs, re.I) and sum(marker in body for marker in legacy_markers) >= 3:
         raise SystemExit("Legacy inline Admin Login controller remains")
 
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
