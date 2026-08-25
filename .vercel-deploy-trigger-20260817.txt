@@ -1,2 +1,0 @@
-Vercel production deployment trigger. No application logic.
-Admin navigation v3 canonical build trigger: 2026-08-25T10:00Z
