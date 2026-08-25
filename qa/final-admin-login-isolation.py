@@ -132,21 +132,28 @@ for match in inline.finditer(text):
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
-# Ownership invariant: exactly one loader definition inside the canonical
-# registry and zero loader definitions outside it.
+# Ownership invariant: exactly one canonical loader assignment inside the canonical
+# registry and zero loader assignments outside it. The contract intentionally checks
+# the assignment rather than the function syntax so harmless formatting or an
+# equivalent async/arrow implementation cannot make the gate fail spuriously.
 registry_matches = list(canonical_registry_tag.finditer(text))
 if len(registry_matches) != 1:
     raise SystemExit("Canonical lazy registry must exist exactly once")
 registry = registry_matches[0]
-registry_body = registry.group(0)
 outside = text[:registry.start()] + text[registry.end():]
-active_loader_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*(?:async\s+)?function\b', re.I)
-canonical_loader_definitions = len(active_loader_pattern.findall(registry_body))
-legacy_loader_definitions = len(active_loader_pattern.findall(outside))
+loader_assignment_pattern = re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*', re.I)
+canonical_loader_definitions = len(loader_assignment_pattern.findall(registry.group(0)))
+legacy_loader_definitions = len(loader_assignment_pattern.findall(outside))
 if canonical_loader_definitions != 1:
-    raise SystemExit("Canonical lazy registry must expose exactly one panel loader")
+    raise SystemExit(
+        "Canonical lazy registry must expose exactly one panel loader "
+        f"(found {canonical_loader_definitions})"
+    )
 if legacy_loader_definitions != 0:
-    raise SystemExit("Duplicate legacy Admin panel loader remains outside canonical lazy registry")
+    raise SystemExit(
+        "Duplicate legacy Admin panel loader remains outside canonical lazy registry "
+        f"(found {legacy_loader_definitions})"
+    )
 
 executable = []
 for match in script_open.finditer(text):
