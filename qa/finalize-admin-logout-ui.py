@@ -1,4 +1,6 @@
 from pathlib import Path
+import re
+from urllib.parse import urlsplit
 
 
 def patch_admin_js():
@@ -66,43 +68,37 @@ def patch_admin_html():
 
     html = path.read_text(encoding='utf-8')
     start = html.find('async function logout()')
-    if start < 0:
-        # The canonical Admin runtime may already have removed the legacy
-        # inline controller. In that architecture admin.js owns logout and
-        # this transform is intentionally a no-op for admin.html.
-        print('[AZAAD final logout] admin.html inline logout absent; admin.js is canonical owner')
-        return
+    if start >= 0:
+        brace = html.find('{', start)
+        if brace < 0:
+            raise SystemExit('inline admin.html logout body not found')
 
-    brace = html.find('{', start)
-    if brace < 0:
-        raise SystemExit('inline admin.html logout body not found')
+        depth = 0
+        quote = None
+        escape = False
+        i = brace
+        while i < len(html):
+            ch = html[i]
+            if quote:
+                if escape:
+                    escape = False
+                elif ch == '\\':
+                    escape = True
+                elif ch == quote:
+                    quote = None
+            else:
+                if ch in "'\"`":
+                    quote = ch
+                elif ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        i += 1
+                        break
+            i += 1
 
-    depth = 0
-    quote = None
-    escape = False
-    i = brace
-    while i < len(html):
-        ch = html[i]
-        if quote:
-            if escape:
-                escape = False
-            elif ch == '\\':
-                escape = True
-            elif ch == quote:
-                quote = None
-        else:
-            if ch in "'\"`":
-                quote = ch
-            elif ch == '{':
-                depth += 1
-            elif ch == '}':
-                depth -= 1
-                if depth == 0:
-                    i += 1
-                    break
-        i += 1
-
-    new_logout = '''async function logout(){
+        new_logout = '''async function logout(){
   const loginPage = document.getElementById("loginPage");
   const adminPage = document.getElementById("adminPage");
 
@@ -134,9 +130,38 @@ def patch_admin_html():
   loginPage?.classList.remove("hidden");
 }'''
 
-    html = html[:start] + new_logout + html[i:]
+        html = html[:start] + new_logout + html[i:]
+        print('[AZAAD final logout] admin.html inline logout normalized')
+    else:
+        # The canonical Admin runtime may already have removed the legacy
+        # inline controller. In that architecture admin.js owns logout.
+        print('[AZAAD final logout] admin.html inline logout absent; admin.js is canonical owner')
+
+    # Final production invariant: the canonical controller must remain an
+    # executable external script after every preceding Admin transform. Some
+    # earlier isolation stages intentionally convert optional scripts to inert
+    # manifests; admin.js is never optional and must be restored last.
+    script_re = re.compile(
+        r'\s*<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>(?:\s*</script>)?\s*',
+        re.I,
+    )
+
+    def remove_admin_script(match):
+        src = match.group(1)
+        path_name = (urlsplit(src).path or src).lstrip('/').lower()
+        return '' if path_name == 'admin.js' else match.group(0)
+
+    html = script_re.sub(remove_admin_script, html)
+    canonical_tag = '<script type="module" src="/admin.js?v=2026-08-24-login-fix"></script>'
+    if '</head>' not in html:
+        raise SystemExit('admin.html head marker not found while restoring canonical admin.js')
+    html = html.replace('</head>', canonical_tag + '\n</head>', 1)
+
+    if html.count(canonical_tag) != 1:
+        raise SystemExit('canonical admin.js reference was not restored exactly once')
+
     path.write_text(html, encoding='utf-8')
-    print('[AZAAD final logout] admin.html PASS')
+    print('[AZAAD final logout] admin.html canonical admin.js reference PASS')
 
 
 patch_admin_js()
