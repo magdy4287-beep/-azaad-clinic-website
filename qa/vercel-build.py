@@ -28,8 +28,10 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-admin-critical-path.py"],
     ["python3", "qa/final-admin-interaction-safety.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
-    # Absolute last Admin transform: one structural owner of the critical shell.
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
+    # Final Admin navigation owner: restore feature access without restoring
+    # eager post-auth runtimes or a second authentication controller.
+    ["python3", "qa/finalize-admin-navigation-v3.py"],
 ]
 
 VERIFY_STEPS = [
