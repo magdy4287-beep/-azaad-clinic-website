@@ -1,8 +1,9 @@
-"""Harden the canonical Admin login shell against pre-module form navigation.
+"""Harden the canonical Admin login shell against pre-module navigation and
+keep non-critical synchronous head runtimes from freezing the login controls.
 
 Authentication remains exclusively owned by admin.js. This transform only
-prevents the browser's native form default action before the module controller
-has loaded; it does not validate credentials, create sessions, or redirect.
+protects the login shell; it does not validate credentials, create sessions,
+or redirect.
 """
 from pathlib import Path
 import re
@@ -14,8 +15,6 @@ if not ADMIN.exists():
 
 text = ADMIN.read_text(encoding="utf-8")
 
-# The retired UI guard is not an authentication owner and must not participate
-# in the canonical Admin login lifecycle. Remove it from the final artifact.
 script_pattern = re.compile(
     r'\s*<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>\s*</script>\s*',
     re.I,
@@ -27,10 +26,8 @@ def remove_retired_guard(match):
 
 text = script_pattern.sub(remove_retired_guard, text)
 
-# Prevent a valid login-form submit from performing the browser's native GET
-# navigation while admin.js is still loading. The handler is deliberately
-# declarative and contains no authentication logic; admin.js remains the sole
-# owner of submit processing once its module is ready.
+# Keep the login controls native and interactive even while the module graph is
+# loading. Authentication remains exclusively handled by admin.js.
 form_pattern = re.compile(r'(<form\b[^>]*\bid=["\']loginForm["\'][^>]*)(>)', re.I)
 match = form_pattern.search(text)
 if not match:
@@ -49,8 +46,29 @@ else:
         flags=re.I | re.S,
     ) + match.group(2) + text[match.end(2):]
 
-# Fail closed: there must be exactly one login form and the retired guard must
-# be absent from the production HTML.
+# The login page is already fully rendered by HTML. These two legacy/global
+# runtimes are not required to make Username/Password editable. Running them
+# synchronously in <head> can monopolize the main thread before admin.js has
+# initialized. Defer them so the browser can paint and accept input first.
+def defer_head_runtime(source_name):
+    pattern = re.compile(
+        r'<script\b([^>]*\bsrc=["\'](?:/)?' + re.escape(source_name) + r'(?:\?[^"\']*)?["\'][^>]*)></script>',
+        re.I,
+    )
+
+    def add_defer(match):
+        attrs = match.group(1)
+        if re.search(r'\bdefer(?:\s*=|\b)', attrs, re.I):
+            return match.group(0)
+        return '<script' + attrs.rstrip() + ' defer></script>'
+
+    return pattern.sub(add_defer, text)
+
+text = defer_head_runtime('central-i18n.js')
+text = defer_head_runtime('azaad-core-context.js')
+
+# Fail closed: exactly one login form, no retired auth guard, and the native
+# navigation guard must exist in the final production artifact.
 if len(re.findall(r'<form\b[^>]*\bid=["\']loginForm["\']', text, re.I)) != 1:
     raise SystemExit("canonical login form count is not exactly one")
 if 'admin-auth-ui-guard.js' in text:
@@ -59,4 +77,4 @@ if not re.search(r'<form\b[^>]*\bid=["\']loginForm["\'][^>]*\bonsubmit=["\']even
     raise SystemExit("login form native-navigation guard was not established")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD] Admin login shell hardened: native submit navigation blocked before admin.js loads")
+print("[AZAAD] Admin login shell hardened: native navigation blocked and non-critical head runtimes deferred")
