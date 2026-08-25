@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AZAAD Patient Portal</title>
+  <meta name="description" content="AZAAD secure patient portal">
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f7f9fc}
+    body{margin:0}.shell{max-width:1100px;margin:auto;padding:24px}.card{background:#fff;border:1px solid #e4e8ef;border-radius:16px;padding:24px;box-shadow:0 4px 18px #17203312}button{border:0;border-radius:10px;padding:10px 16px;cursor:pointer}.muted{color:#667085}.hidden{display:none}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section id="patientAuth" class="card">
+      <h1>AZAAD Patient Portal</h1>
+      <p class="muted">Secure patient access. Sign in to view your own clinic information.</p>
+      <button id="patientSignIn" type="button">Sign in</button>
+      <p id="patientAuthError" class="muted" role="status"></p>
+    </section>
+    <section id="patientApp" class="hidden">
+      <div class="card"><h1 id="patientName">Patient Portal</h1><p id="patientStatus" class="muted">Loading your data…</p></div>
+      <div class="grid" style="margin-top:16px">
+        <article class="card"><h2>Appointments</h2><div id="patientBookings">Loading…</div></article>
+        <article class="card"><h2>Invoices & Payments</h2><div id="patientInvoices">Loading…</div></article>
+        <article class="card"><h2>Visits</h2><div id="patientVisits">Loading…</div></article>
+        <article class="card"><h2>Follow-ups</h2><div id="patientFollowups">Loading…</div></article>
+      </div>
+    </section>
+  </main>
+  <script src="/patient-portal.js" defer></script>
+</body>
+</html>
