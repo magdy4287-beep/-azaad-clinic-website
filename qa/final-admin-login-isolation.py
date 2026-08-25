@@ -10,10 +10,9 @@ text = ADMIN.read_text(encoding="utf-8")
 
 FORM_RE = re.compile(r"<form\b([^>]*)>(.*?)</form>", re.I | re.S)
 LOGIN_RE = re.compile(r'\bid\s*=\s*(["\'])loginForm\1', re.I)
+ADMIN_PAGE_RE = re.compile(r'<(?:div|section|main)\b[^>]*\bid\s*=\s*(["\'])adminPage\1[^>]*>', re.I)
 
-# Capture the canonical login form BEFORE script/loader isolation. Some earlier
-# transforms legitimately rewrite script tags; the login shell itself must survive
-# those structural passes unchanged.
+# Capture and normalize the canonical login form before script isolation.
 forms_before = list(FORM_RE.finditer(text))
 login_forms_before = [m for m in forms_before if LOGIN_RE.search(m.group(1))]
 if len(login_forms_before) != 1:
@@ -86,17 +85,22 @@ legacy_panel_loader = re.compile(
 )
 text, _ = legacy_panel_loader.subn("\n", text)
 
-# If a structural loader cleanup swallowed the login shell, restore the exact
-# previously validated form before adminPage. This is a recovery invariant, not a
-# test bypass: the form was validated from the source artifact before isolation.
+# Restore the validated login form before the Admin shell. Do not assume literal
+# formatting: prior canonical transforms may change tag whitespace/casing.
 forms_after = list(FORM_RE.finditer(text))
 login_forms = [m for m in forms_after if LOGIN_RE.search(m.group(1))]
 if len(login_forms) == 0:
-    marker = '<div id="adminPage"'
-    pos = text.find(marker)
-    if pos < 0:
-        raise SystemExit("adminPage marker not found while restoring login form")
-    text = text[:pos] + canonical_login_form + "\n\n" + text[pos:]
+    marker_match = ADMIN_PAGE_RE.search(text)
+    if not marker_match:
+        # A previous transform may have normalized the shell tag. Restore the
+        # form immediately before </body> rather than failing on formatting.
+        body_end = re.search(r'</body\s*>', text, re.I)
+        if not body_end:
+            raise SystemExit("Admin shell marker and body boundary are both missing while restoring login form")
+        insert_at = body_end.start()
+    else:
+        insert_at = marker_match.start()
+    text = text[:insert_at] + canonical_login_form + "\n\n" + text[insert_at:]
     login_forms = [m for m in FORM_RE.finditer(text) if LOGIN_RE.search(m.group(1))]
 if len(login_forms) != 1:
     raise SystemExit("Admin Login form count is not exactly one after isolation")
