@@ -9,7 +9,6 @@ ADMIN = ROOT / "admin.html"
 PATCH = ROOT / ".github" / "patch-admin.py"
 BUILD = ROOT / "qa" / "vercel-build.py"
 CANONICALIZER = ROOT / "qa" / "canonicalize-admin-runtime.py"
-LOGIN_BOOTSTRAP = ROOT / "admin-login-bootstrap.js"
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 REGISTRY = ROOT / "docs" / "AZAAD_WORKFLOW_OWNERSHIP_REGISTRY.md"
 errors = []
@@ -17,6 +16,7 @@ errors = []
 RETIRED_ADMIN_LAYERS = (
     "admin-ui-failsafe.js",
     "admin-login-controller.js",
+    "admin-login-bootstrap.js",
     "inject-admin-early-recovery.py",
     "patch-admin-auth-lifecycle.py",
     "patch-admin-auth-reload.py",
@@ -30,12 +30,10 @@ def require_file(path: Path, label: str):
     if not path.is_file():
         errors.append(f"missing {label}: {path.relative_to(ROOT)}")
 
-
 for path, label in (
     (ADMIN, "Admin entrypoint"),
     (ROOT / "admin.js", "canonical Admin application controller"),
     (ROOT / "admin-shell.js", "canonical Admin navigation shell"),
-    (LOGIN_BOOTSTRAP, "dependency-free Admin login bootstrap"),
     (PATCH, "canonical Admin feature build patcher"),
     (BUILD, "canonical production build owner"),
     (CANONICALIZER, "canonical Admin runtime normalizer"),
@@ -64,7 +62,6 @@ if REGISTRY.is_file():
 
 if ADMIN.is_file():
     text = ADMIN.read_text(encoding="utf-8", errors="replace")
-
     canonical_refs = re.findall(
         r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\'][^>]*>\s*</script>',
         text, flags=re.I,
@@ -73,27 +70,19 @@ if ADMIN.is_file():
     if len(canonical_refs) != 1:
         errors.append(f"canonical Admin application must have exactly one admin.js module reference; found {len(canonical_refs)}: {canonical_refs}")
 
-    inline_module_blocks = re.findall(
-        r'<script\b[^>]*\btype\s*=\s*["\']module["\'][^>]*>(.*?)</script>',
-        text, flags=re.I | re.S,
-    )
-    for block in inline_module_blocks:
-        if "createClient" in block and "STAFF_LOGIN_FUNCTION" in block and "function login" in block and "clinic_staff" in block:
-            errors.append("legacy inline Admin application controller is present")
-            break
+    if "admin-login-bootstrap.js" in text or "AZAAD_ADMIN_AUTH_ISOLATION_V" in text:
+        errors.append("frozen duplicate Admin login surface is referenced by admin.html")
 
-    if "const SUPABASE_URL" in text and "function renderDoctors" in text and "window.AZAAD_AUTH_READY" in text:
-        errors.append("legacy inline Admin application controller is present")
+    inline_blocks = re.findall(r'<script\b([^>]*)>(.*?)</script>', text, flags=re.I | re.S)
+    for attrs, block in inline_blocks:
+        if re.search(r'\bsrc\s*=', attrs, re.I):
+            continue
+        if sum(marker in block for marker in ("const SUPABASE_URL", "STAFF_LOGIN_FUNCTION", "function login", "clinic_staff")) >= 3:
+            errors.append("legacy inline Admin application/login controller is present")
+            break
 
     if text.count("admin-shell.js") != 1:
         errors.append("Admin navigation Shell must have exactly one source reference")
-
-    bootstrap_refs = re.findall(
-        r'<script\b[^>]*\bsrc=["\']([^"\']*admin-login-bootstrap\.js[^"\']*)["\'][^>]*>',
-        text, flags=re.I,
-    )
-    if len(bootstrap_refs) != 1:
-        errors.append(f"Admin login bootstrap must have exactly one source reference; found {len(bootstrap_refs)}")
 
     for retired in RETIRED_ADMIN_LAYERS:
         if retired in text:
@@ -124,13 +113,15 @@ if CANONICALIZER.is_file():
     text = CANONICALIZER.read_text(encoding="utf-8", errors="replace")
     for marker in (
         "CANONICAL = '/admin.js?v=2026-08-24-login-fix'",
-        "LOGIN_BOOTSTRAP = '/admin-login-bootstrap.js?v=3'",
-        "LOGIN_SURFACE_STYLE",
-        "legacy inline Admin runtime remains after canonicalization",
-        "Canonicalize absolute/relative duplicates created by the Admin feature injectors.",
+        "legacy inline Admin controller",
+        "Remove every previous Admin controller/bootstrap reference",
+        "Remove duplicate external scripts",
     ):
         if marker not in text:
             errors.append(f"Admin runtime canonicalizer missing required invariant: {marker}")
+    for forbidden_marker in ("LOGIN_BOOTSTRAP", "LOGIN_SURFACE_STYLE", "AZAAD_ADMIN_AUTH_ISOLATION_V"):
+        if forbidden_marker in text:
+            errors.append(f"retired login isolation invariant remains in canonicalizer: {forbidden_marker}")
 
 if BUILD.is_file():
     text = BUILD.read_text(encoding="utf-8", errors="replace")
@@ -158,4 +149,4 @@ if errors:
     sys.exit(1)
 
 print("[AZAAD architecture gate] PASS")
-print("[AZAAD architecture gate] One Admin application owner + navigation-only shell + bounded build mutation + duplicate prevention + dependency-free login bootstrap verified")
+print("[AZAAD architecture gate] One Admin application owner + navigation-only shell + bounded build mutation + duplicate prevention + no duplicate login surface verified")
