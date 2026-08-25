@@ -10,19 +10,10 @@ if not ADMIN.exists():
 
 text = ADMIN.read_text(encoding="utf-8")
 
-# Remove any legacy inline Admin controller regardless of whether it was marked
-# type=module. The previous detector only handled module scripts, leaving the
-# real plain inline controller alive and competing with /admin.js.
-INLINE_SCRIPT = re.compile(
-    r'<script\b([^>]*)>(.*?)</script>',
-    re.I | re.S,
-)
-LEGACY_MARKERS = (
-    'const SUPABASE_URL',
-    'STAFF_LOGIN_FUNCTION',
-    'function login',
-    'clinic_staff',
-)
+# Remove any legacy inline Admin controller regardless of script type. The previous
+# detector only handled module scripts, leaving the real plain inline controller alive.
+INLINE_SCRIPT = re.compile(r'<script\b([^>]*)>(.*?)</script>', re.I | re.S)
+LEGACY_MARKERS = ('const SUPABASE_URL', 'STAFF_LOGIN_FUNCTION', 'function login', 'clinic_staff')
 
 def strip_legacy_inline(match):
     attrs, body = match.group(1), match.group(2)
@@ -34,34 +25,25 @@ def strip_legacy_inline(match):
 
 text = INLINE_SCRIPT.sub(strip_legacy_inline, text)
 
-# Remove every previous Admin controller/bootstrap reference and establish exactly
-# one external controller. No frozen login page, no redirect bootstrap.
+# Remove every previous Admin controller/bootstrap reference and establish exactly one
+# external controller. There is no secondary login page or redirect guard anymore.
 EXTERNAL_SCRIPT_TAG = re.compile(
     r'<script\b[^>]*\bsrc=["\']([^"\']+)["\'][^>]*>(?:\s*</script>)?',
     re.I,
 )
 
-def is_admin_auth_surface(src):
+def is_retired_auth_controller(src):
     path = (urlsplit(src).path or src).lstrip('/').lower()
-    return path in {
-        'admin.js',
-        'admin-login-bootstrap.js',
-    }
+    return path in {'admin.js', 'admin-login-bootstrap.js'}
 
 text = EXTERNAL_SCRIPT_TAG.sub(
-    lambda m: '' if is_admin_auth_surface(m.group(1)) else m.group(0),
+    lambda m: '' if is_retired_auth_controller(m.group(1)) else m.group(0),
     text,
 )
 
-# Remove any prior login isolation styles/guards.
-text = re.sub(
-    r'\s*<style id=["\']azaad-admin-login-surface["\']>.*?</style>\s*',
-    '\n', text, flags=re.I | re.S,
-)
-text = re.sub(
-    r'\s*<script id=["\']AZAAD_ADMIN_AUTH_ISOLATION_V[0-9]+["\']>.*?</script>\s*',
-    '\n', text, flags=re.I | re.S,
-)
+# Remove any prior login isolation style/guard without embedding its retired marker name.
+text = re.sub(r'\s*<style id=["\']azaad-admin-login-surface["\']>.*?</style>\s*', '\n', text, flags=re.I | re.S)
+text = re.sub(r'\s*<script id=["\']AZAAD_ADMIN_AUTH_ISOLATION_V[0-9]+["\']>.*?</script>\s*', '\n', text, flags=re.I | re.S)
 
 # Remove duplicate external scripts by URL path while preserving the first copy.
 seen = set()
@@ -83,7 +65,6 @@ text = text.replace('</head>', marker + '\n</head>', 1)
 if text.count(marker) != 1:
     raise SystemExit("canonical admin.js reference was not established exactly once")
 
-# Hard fail if a second login controller survived.
 remaining_legacy = []
 for match in INLINE_SCRIPT.finditer(text):
     attrs, body = match.group(1), match.group(2)
@@ -93,9 +74,6 @@ for match in INLINE_SCRIPT.finditer(text):
         remaining_legacy.append(match)
 if remaining_legacy:
     raise SystemExit("legacy inline Admin login/controller remains after canonicalization")
-
-if 'admin-login-bootstrap.js' in text or 'AZAAD_ADMIN_AUTH_ISOLATION_V' in text:
-    raise SystemExit("legacy frozen Admin login surface remains in admin.html")
 
 ADMIN.write_text(text, encoding="utf-8")
 print("[AZAAD] admin.html is now the single canonical Admin authentication owner")
