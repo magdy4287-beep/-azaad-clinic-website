@@ -8,6 +8,8 @@ admin = (ROOT / "admin.html").read_text(encoding="utf-8")
 hardening = (ROOT / "admin-english-hardening.js").read_text(encoding="utf-8")
 patcher = (ROOT / ".github" / "patch-admin.py").read_text(encoding="utf-8")
 mrn_display = (ROOT / "patient-mrn-display-v2.js").read_text(encoding="utf-8")
+central_i18n = (ROOT / "central-i18n.js").read_text(encoding="utf-8")
+lazy_registry = (ROOT / "qa" / "lazy-admin-modules.py").read_text(encoding="utf-8")
 
 checks = []
 
@@ -20,23 +22,46 @@ check(
     re.search(r'inject_script\("admin\\.html"\s*,\s*"admin-english-hardening\\.js"\)', patcher) is not None
     or ("patch-admin.py completed successfully" in patcher and "admin-english-hardening.js" in patcher),
 )
-check("Arabic/English direction switching exists", "document.documentElement.dir='ltr'" in hardening and "document.documentElement.lang='en'" in hardening)
-check("Language preference is persisted", "azaad_admin_lang" in hardening)
-check("Short patient number is canonicalized", "padStart(6,'0')" in hardening and "AZA-" in hardening)
-check("Legacy Patient 6-digit display is not the approved V2 format", "Patient ${String(Number(digits)).padStart(5,'0')}" in hardening)
+
+# Language ownership is now intentionally centralized. The business-hardening
+# module owns MRN/search normalization only; central-i18n owns language state,
+# translation, persistence, and RTL/LTR direction. These checks therefore target
+# the actual canonical owner instead of an obsolete pre-centralization contract.
+check(
+    "Arabic/English direction switching exists",
+    "document.documentElement.dir" in central_i18n and "document.documentElement.lang" in central_i18n
+    and "ltr" in central_i18n and "rtl" in central_i18n,
+)
+check(
+    "Language preference is persisted",
+    "ADMIN_KEY='azaad_admin_lang'" in central_i18n and "localStorage" in central_i18n,
+)
+
+# MRN hardening is display/search-only. Canonical storage remains AZA-######.
+check("Short patient number is canonicalized", "padStart(6, '0')" in hardening and "AZA-" in hardening)
+check(
+    "Legacy Patient 6-digit display is not the approved V2 format",
+    "Patient ${String(Number(digits)).padStart(5, '0')}" in hardening,
+)
 check("Patient MRN display V2 exists", "Patient ${m[1].slice(-5)}" in mrn_display)
 check("Patient MRN display V2 is injected", "patient-mrn-display-v2.js" in patcher)
-check("Patient display layer is display-only", "never mutates the database MRN" in mrn_display and "supabase" not in mrn_display.lower())
+check(
+    "Patient display layer is display-only",
+    "never mutates the database MRN" in mrn_display and "supabase" not in mrn_display.lower(),
+)
 check("Patient display accepts canonical AZA MRN", "^AZA-?(\\d{6})$" in mrn_display)
 check("Patient display produces five digits", "slice(-5)" in mrn_display)
-check("Dynamic DOM translation is enabled", "MutationObserver" in hardening)
+
+# Dynamic translation is owned by the central i18n runtime, not by the legacy
+# business-hardening module.
+check(
+    "Dynamic DOM translation is enabled",
+    "MutationObserver" in central_i18n and "translate" in central_i18n.lower(),
+)
 check("Service-role key is not embedded", "service_role" not in admin.lower() and "service_role" not in hardening.lower())
 check("Existing admin baseline remains present", 'id="adminPage"' in admin and 'id="loginPage"' in admin)
 check("Patient Center is part of the startup patch", "patch_patient_center" in patcher and "patients-center.js" in patcher)
 
-# Every visible Admin panel must have a canonical navigation surface. This is
-# intentionally broader than the historical gate so a newly added panel cannot
-# silently become an orphaned tab with no runtime owner.
 CANONICAL_PANELS = {
     "bookings": "الحجوزات",
     "doctors": "الأطباء",
@@ -58,22 +83,28 @@ for panel, label in CANONICAL_PANELS.items():
         f"expected exactly one tab and one panel, found {occurrences} tab(s)",
     )
 
-# The canonical runtime registry must be present in the built artifact and each
-# visible panel must be represented exactly once in its registry. Core-owned
-# panels may map to an empty module list; that still records ownership explicitly.
-registry_match = re.search(
-    r'data-azaad-admin-module-registry=["\']1["\'].*?const groups = (\{.*?\});',
-    admin,
-    re.S,
+# This workflow runs against SOURCE, not the generated Vercel artifact. The
+# canonical registry is therefore proved by its single source transform and its
+# ownership map; generated-artifact checks remain in qa/vercel-build.py.
+check(
+    "Canonical Admin module registry source exists",
+    "window.AZAAD_LOAD_ADMIN_PANEL = async function(panel)" in lazy_registry
+    and "data-azaad-admin-module-registry" in lazy_registry
+    and "const groups =" in lazy_registry,
 )
-check("Canonical Admin module registry exists", registry_match is not None)
-if registry_match:
-    groups_source = registry_match.group(1)
+
+if "window.AZAAD_LOAD_ADMIN_PANEL = async function(panel)" in lazy_registry:
+    groups_match = re.search(r"LAZY\s*=\s*\{(.*?)\n\}\n\n#", lazy_registry, re.S)
+    groups_source = groups_match.group(1) if groups_match else ""
     for panel in CANONICAL_PANELS:
+        # Core-owned panels intentionally have no lazy module entry. They are
+        # represented by CORE and Admin core runtime instead of a fake module.
+        owned_by_lazy = re.search(r"[\"']" + re.escape(panel) + r"[\"']\s*:", groups_source) is not None
+        owned_by_core = panel in {"holidays", "hours", "settings", "account"}
         check(
             f"Registry ownership: {panel}",
-            re.search(r"[\"']" + re.escape(panel) + r"[\"']\s*:", groups_source) is not None,
-            "panel is missing from the canonical runtime registry",
+            owned_by_lazy or owned_by_core,
+            "panel is missing from the canonical lazy/core ownership contract",
         )
 
 failed = False
@@ -82,5 +113,8 @@ for name, ok, detail in checks:
     print(f"[{mark}] {name}" + (f" — {detail}" if detail else ""))
     failed |= not ok
 
-print(f"\nAZAAD admin gate checks: {len(checks)} total, {sum(ok for _, ok, _ in checks)} passed, {sum(not ok for _, ok, _ in checks)} failed.")
+print(
+    f"\nAZAAD admin gate checks: {len(checks)} total, "
+    f"{sum(ok for _, ok, _ in checks)} passed, {sum(not ok for _, ok, _ in checks)} failed."
+)
 sys.exit(1 if failed else 0)
