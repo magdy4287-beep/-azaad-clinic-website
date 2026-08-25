@@ -32,8 +32,36 @@ def isolate(match):
 
 text = script_open.sub(isolate, text)
 
-# Protect the login surface even before admin.js executes. This is not an auth
-# controller; it only prevents native form navigation from destroying the form.
+# Build transforms may emit script tags in several formatting variants. Normalize
+# every known Admin feature source literally as a final defense-in-depth pass.
+known = [
+    "/admin-shell.js?v=1",
+    "/azaad-core-context.js?v=1.0.0",
+    "./scheduling-v2.js?v=1.0.0",
+    "./scheduling-v2-waiting.js?v=1.0.0",
+    "./patients-center.js?v=7.5.0",
+    "./doctor-route-guard.js?v=2.0.0",
+    "/azaad-role-experience.js?v=1.0.0",
+    "azaad-platform-kernel.js",
+    "azaad-operations-role-guard.js",
+    "azaad-operations-control-center.js",
+    "frontdesk-workflow.js",
+    "patient-mrn-display-v2.js",
+    "public-team-admin.js",
+    "ai-operating-center.js",
+    "waiting-list-center.js",
+    "doctor-visit-actions.js",
+    "secretary-hybrid-workflow.js",
+    "azaad-platform-control-plane.js",
+    "admin-media-editor.js?v=2026.08.23.1",
+    "./patient-appointment-actions.js",
+    "/doctor-services-admin.js",
+]
+for src in known:
+    for quote in ('"', "'"):
+        text = text.replace(f'src={quote}{src}{quote}', f'data-azaad-after-auth-src={quote}{src}{quote}')
+
+# Native navigation must be blocked before the canonical module runs.
 form_pattern = re.compile(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', re.I)
 form = form_pattern.search(text)
 if not form:
