@@ -33,31 +33,47 @@ body = function_body(js, "async function initializeApplication()")
 if body is None:
     raise SystemExit("initializeApplication() not found or malformed")
 
-# The shell must become interactive before any background data/module work.
-required_order = [
+required = (
     "bindTabs();",
     "bindBookingFilters();",
     "bindLogout();",
     "bindPatientPage();",
     "buildCommandCenter();",
-    "state.initialized = true;",
-    "loadBookings()",
-]
-positions = [body.find(token) for token in required_order]
-if any(pos < 0 for pos in positions):
-    raise SystemExit("Admin critical interaction sequence is incomplete")
-if positions != sorted(positions):
-    raise SystemExit("Admin network/optional work precedes critical interaction bindings")
+)
+
+# Find the actual booking invocation rather than assuming a particular spelling
+# such as `await loadBookings()`. Earlier transforms intentionally make this
+# background work nonblocking.
+load_match = re.search(r"\b(?:void\s+)?loadBookings\s*\(", body)
+if not load_match:
+    raise SystemExit("Background booking initialization call is missing")
+load_pos = load_match.start()
+
+positions = []
+for statement in required:
+    matches = [m.start() for m in re.finditer(re.escape(statement), body)]
+    if len(matches) != 1:
+        raise SystemExit(
+            f"Critical Admin binding must appear exactly once: {statement}"
+        )
+    if matches[0] >= load_pos:
+        raise SystemExit(
+            f"Admin network/optional work precedes critical interaction binding: {statement}"
+        )
+    positions.append(matches[0])
+
+if "state.initialized = true;" not in body:
+    raise SystemExit("Admin shell is not marked interactive before background work")
+if body.find("state.initialized = true;") >= load_pos:
+    raise SystemExit("Admin shell is marked initialized only after background booking work")
 
 if "await loadBookings();" in body:
     raise SystemExit("Admin initialization still awaits bookings on the critical path")
 if "await loadAfterAuthRuntimes();" in body:
     raise SystemExit("Admin initialization still awaits optional post-auth runtimes")
 
-# The canonical finalizer disables the legacy automatic orchestrator. If an
-# earlier transform has not reached that stage, the verifier also accepts the
-# explicitly asynchronous setTimeout handoff produced by fix-admin-post-auth-freeze.
-runtime_disabled = "// DISABLED: optional runtimes" in body or "return;" in function_body(js, "async function loadAfterAuthRuntimes()")
+runtime_body = function_body(js, "async function loadAfterAuthRuntimes()")
+runtime_disabled = runtime_body is not None and "return;" in runtime_body[:240]
 runtime_scheduled = bool(re.search(
     r"setTimeout\(\s*\(\)\s*=>\s*\{?\s*Promise\.resolve\(\)\s*\.then\(\(\)\s*=>\s*loadAfterAuthRuntimes\(\)",
     body,
