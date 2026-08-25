@@ -97,7 +97,8 @@
       sendToWhatsApp:'إرسال الموعد إلى العيادة عبر WhatsApp',
       whatsappReady:'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.'
     };
-    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), nodes=[];
+    const root = $('bookingForm')?.parentElement || document.body;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes=[];
     while(w.nextNode()) nodes.push(w.currentNode);
     for(const n of nodes){
       let t=n.nodeValue||'', changed=false;
@@ -109,20 +110,22 @@
     if (!state.success || !state.context) return;
     let box = $('whatsappBookingStep');
     const existing = $('sendBookingWhatsApp');
-    const href = existing?.getAttribute('href') || '';
+    if (box && existing) {
+      if (!existing.getAttribute('href')) {
+        const n = await clinicWhatsApp();
+        existing.setAttribute('href', `https://wa.me/${n}?text=${encodeURIComponent(message())}`);
+      }
+      sanitizeRawKeys();
+      return;
+    }
     if (!box) {
       box=document.createElement('div'); box.id='whatsappBookingStep';
       box.style.cssText='margin-top:20px;padding:20px;border-radius:14px;background:#f1fbf5;border:1px solid #ccebd8;';
       const form=$('bookingForm'); if(form?.parentNode) form.parentNode.insertBefore(box,form.nextSibling);
     }
     const c=copy();
-    // Canonicalize the entire CTA container. This deliberately removes the
-    // old renderer's success title and booking-number copy from this box.
-    let url=href;
-    if(!url){
-      const n=await clinicWhatsApp();
-      url=`https://wa.me/${n}?text=${encodeURIComponent(message())}`;
-    }
+    const n=await clinicWhatsApp();
+    const url=`https://wa.me/${n}?text=${encodeURIComponent(message())}`;
     box.innerHTML=`<div style="text-align:center"><span data-booking-whatsapp-instruction="true" style="display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px">${esc(c.instruction)}</span><a id="sendBookingWhatsApp" data-azaad-whatsapp-cta="true" href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:16px;min-height:52px">${esc(c.button)}</a><p data-booking-whatsapp-ready="true" style="font-size:13px;color:#666;margin-top:12px;line-height:1.7">${esc(c.ready)}</p></div>`;
     box.dir=lang()==='en'?'ltr':'rtl';
     const source=document.querySelector('.booking-submit'); const btn=$('sendBookingWhatsApp');
@@ -136,8 +139,12 @@
   }
   function schedule(){if(state.timer)return;state.timer=setTimeout(()=>{state.timer=null;refresh();},60);}
   function init(){
-    const form=$('bookingForm'); if(form)form.addEventListener('submit',capture,true);
-    try{new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,characterData:true});}catch(_){ }
+    const form=$('bookingForm');
+    if(form) {
+      form.addEventListener('submit',capture,true);
+      const observerRoot = form.parentElement || form;
+      try{new MutationObserver(schedule).observe(observerRoot,{childList:true,subtree:true,characterData:true});}catch(_){ }
+    }
     window.addEventListener('azaad:language-changed',schedule);
     window.addEventListener('azaadLanguageChanged',schedule);
     refresh();
