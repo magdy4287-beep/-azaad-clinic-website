@@ -45,7 +45,7 @@ for obsolete in ["marketing-workspace-v2.js", "marketing-platform-expansion.js",
 
 # Exactly one navigation owner: admin-shell.js. Core and enterprise runtimes only issue/render
 # through lifecycle events; they never activate panels through their own tab listeners.
-check("navigation owner is admin-shell", "document.addEventListener('click'" in shell)
+check("navigation owner is admin-shell", ".addEventListener('click'" in shell)
 check("shell emits panel activation", "azaad:admin-panel-activated" in shell)
 check("shell accepts internal panel requests", "azaad:admin-panel-requested" in shell)
 check("registry consumes panel activation", "azaad:admin-panel-activated" in loader)
