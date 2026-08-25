@@ -2,10 +2,8 @@
 
 This runs after all Admin source transforms and before production verification.
 It closes the exact failure mode where a generated ROLE_PERMISSIONS array is
-left syntactically invalid (for example a missing comma before finance.view),
-which prevents admin.js from parsing at all. When admin.js does not parse, the
-login submit handler never attaches and the browser performs a native form
-submit/reload, making the password disappear and restoring the username field.
+left syntactically invalid and, critically, publishes the login-controller
+readiness marker only after the real submit listener has been attached.
 """
 from pathlib import Path
 import re
@@ -17,10 +15,10 @@ if not ADMIN_JS.exists():
 
 text = ADMIN_JS.read_text(encoding="utf-8")
 
-# Normalize every permission entry inside ROLE_PERMISSIONS blocks so every
-# entry is comma-terminated. Trailing commas are valid JavaScript and make the
-# generated block stable across repeated build transforms.
-role_block = re.compile(r"(?P<head>\b(?:OWNER|ADMIN|MANAGER|SECRETARY|RECEPTION|CASHIER|DOCTOR|MARKETING):\s*\[)(?P<body>.*?)(?P<tail>\])", re.S)
+role_block = re.compile(
+    r"(?P<head>\b(?:OWNER|ADMIN|MANAGER|SECRETARY|RECEPTION|CASHIER|DOCTOR|MARKETING):\s*\[)(?P<body>.*?)(?P<tail>\])",
+    re.S,
+)
 entry = re.compile(r"^(\s*\"[^\"]+\")(\s*,?\s*)$")
 
 def normalize_role(match: re.Match[str]) -> str:
@@ -37,30 +35,38 @@ def normalize_role(match: re.Match[str]) -> str:
 
 text = role_block.sub(normalize_role, text)
 
-# Publish explicit readiness markers consumed by production E2E. They are
-# diagnostic state only and contain no credentials.
+# Publish an explicit Supabase readiness marker after the canonical client is
+# created. This marker is diagnostic state only and contains no credentials.
 if "window.AZAAD_SUPABASE_READY = true;" not in text:
     marker = "const supabase = createClient("
     if marker not in text:
         raise SystemExit("Could not locate canonical Supabase client marker")
-    # Place the marker immediately after the createClient expression closes.
     close = text.find("\n);", text.find(marker))
     if close == -1:
         raise SystemExit("Could not locate Supabase client terminator")
     insert_at = close + len("\n);")
     text = text[:insert_at] + "\nwindow.AZAAD_SUPABASE_READY = true;" + text[insert_at:]
 
-if "window.AZAAD_LOGIN_CONTROLLER_READY = true;" not in text:
-    marker = "function bindLogin() {"
-    if marker not in text:
-        raise SystemExit("Could not locate canonical login controller")
-    # The marker is safe to expose before submit; it only says the controller
-    # source parsed and the binder exists.
-    text = text.replace(marker, "window.AZAAD_LOGIN_CONTROLLER_READY = true;\n\n" + marker, 1)
+# Remove any stale readiness marker from an earlier transform version.
+text = re.sub(
+    r"\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?",
+    "\n",
+    text,
+    count=1,
+)
+
+# Readiness is a synchronization contract: it must become true only after the
+# actual submit listener is installed, never merely because bindLogin exists.
+marker = "    }\n  );\n}\n\n/* ============================================================\n   AUTH STATE"
+if marker not in text:
+    raise SystemExit("Could not locate canonical login listener terminator")
+text = text.replace(
+    marker,
+    "    }\n  );\n\n  window.AZAAD_LOGIN_CONTROLLER_READY = true;\n}\n\n/* ============================================================\n   AUTH STATE",
+    1,
+)
 
 ADMIN_JS.write_text(text, encoding="utf-8")
-
-# Fail closed: the actual production controller must be syntactically valid.
 subprocess.run(["node", "--check", str(ADMIN_JS)], check=True)
 
-print("[AZAAD admin syntax] PASS: admin.js normalized and node --check succeeded")
+print("[AZAAD admin syntax] PASS: admin.js normalized, node --check succeeded, and login readiness is listener-backed")
