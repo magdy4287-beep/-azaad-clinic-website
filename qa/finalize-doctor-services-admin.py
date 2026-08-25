@@ -1,25 +1,24 @@
 from pathlib import Path
 import re
-from urllib.parse import urlsplit
 
 path = Path('admin.html')
 if not path.exists():
     raise SystemExit('admin.html not found')
 text = path.read_text(encoding='utf-8')
 
-# Single owner: doctor-services-admin.js is loaded once as a static Admin feature.
-# Remove every absolute/relative/query-string variant before inserting one canonical tag.
+# Single owner: doctor-services-admin.js is loaded once as a post-auth Admin feature.
+# Remove every absolute/relative/query-string variant before inserting one inert tag.
 pattern = re.compile(
     r'\s*<script\b[^>]*\bsrc=["\'][^"\']*doctor-services-admin\.js(?:\?[^"\']*)?["\'][^>]*>(?:\s*</script>)?\s*',
     re.I,
 )
 text = pattern.sub('\n', text)
 
-tag = '<script src="/doctor-services-admin.js" defer></script>'
+tag = '<script data-azaad-after-auth-src="/doctor-services-admin.js"></script>'
 text = text.replace('</body>', tag + '\n</body>', 1)
 
 # The doctors tab must not lazy-load the same controller again. It may still load
-# the public doctor editor, while the service editor remains owned by the static tag.
+# the public doctor editor, while the service editor remains owned by this tag.
 start = text.find("const groups = {'")
 if start != -1:
     end = text.find('};', start)
