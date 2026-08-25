@@ -40,6 +40,7 @@ TRANSFORM_STEPS = [
 VERIFY_STEPS = [
     ["python3", "qa/dedupe-admin-scripts.py"],
     ["python3", "qa/admin-panel-ownership-contract.py"],
+    ["python3", "qa/workflow-ownership-gate.py"],
     ["python3", "qa/verify-admin-script-graph.py"],
     ["python3", "qa/repository-architecture-gate.py"],
     ["python3", "qa/verify-production-contracts.py"],
