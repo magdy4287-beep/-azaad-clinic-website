@@ -58,8 +58,14 @@
     if (!location.pathname.endsWith('/admin.html')) return;
     addLanguageSwitcher();
     applyRoleNavigation();
-    const observer = new MutationObserver(() => { if (getAuthenticatedRole() || document.body.dataset.role) applyRoleNavigation(); if (!document.getElementById('azaadLanguageSwitcher')) addLanguageSwitcher(); });
-    observer.observe(document.body, { attributes:true, childList:true, subtree:true });
+
+    // Do not observe the whole Admin DOM. Navigation itself changes tab/panel
+    // attributes, so a body-wide childList/subtree observer can repeatedly
+    // re-enter applyRoleNavigation while the shell is rendering.
+    // Role changes are represented by the single body data-role attribute.
+    const roleObserver = new MutationObserver(() => applyRoleNavigation());
+    roleObserver.observe(document.body, { attributes:true, attributeFilter:['data-role'] });
+
     window.addEventListener('azaadLanguageChanged', applyRoleNavigation);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
