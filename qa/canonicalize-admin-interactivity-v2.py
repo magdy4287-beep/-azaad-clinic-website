@@ -169,8 +169,12 @@ if "await loadBookings()" in body:
     raise SystemExit("initializeApplication still awaits loadBookings()")
 if "await window.AZAAD_STAFF.init" in body:
     raise SystemExit("initializeApplication still awaits staff runtime")
+if "loadAfterAuthRuntimes" in body:
+    raise SystemExit("Post-auth runtime loader is still on the critical initialization path")
+if "setTimeout(()" in body:
+    raise SystemExit("Delayed post-auth work is still on the critical initialization path")
 if "state.initialized = true;" not in body or "state.initializing = false;" not in body:
     raise SystemExit("Interactive state transition missing")
 
 PATH.write_text(js, encoding="utf-8")
-print("[AZAAD] canonical admin interactive boundary enforced and verified")
+print("[AZAAD] canonical admin interactive boundary enforced and post-auth runtime reblocking rejected")
