@@ -29,6 +29,7 @@ html,body{margin:0;padding:0;width:100%;min-height:100%;background:#f5f7fb;color
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL="https://derofsthjivlkcdnojww.supabase.co";
 const SUPABASE_KEY="sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa";
+const AUTH_STORAGE_KEY="sb-derofsthjivlkcdnojww-auth-token";
 const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const form=document.getElementById("loginForm");
 const username=document.getElementById("username");
@@ -37,6 +38,23 @@ const button=document.getElementById("loginButton");
 const errorBox=document.getElementById("loginError");
 function showError(message){errorBox.textContent=message||"تعذر تسجيل الدخول.";errorBox.classList.remove("hidden");button.disabled=false;}
 function clearError(){errorBox.textContent="";errorBox.classList.add("hidden");}
+function installCanonicalSession(session,user){
+  const payload={
+    access_token:session.access_token,
+    refresh_token:session.refresh_token,
+    expires_in:session.expires_in,
+    expires_at:session.expires_at,
+    token_type:session.token_type||"bearer",
+    user:user||null
+  };
+  const serialized=JSON.stringify(payload);
+  try{localStorage.setItem(AUTH_STORAGE_KEY,serialized);}catch(error){throw new Error("تعذر حفظ جلسة الإدارة في المتصفح.");}
+  try{sessionStorage.setItem("azaad_admin_token",session.access_token);}catch(_){ }
+  try{
+    const stored=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||"null");
+    if(!stored?.access_token||!stored?.refresh_token) throw new Error("SESSION_STORAGE_VERIFY_FAILED");
+  }catch(error){throw new Error("تعذر التحقق من جلسة الإدارة.");}
+}
 form.addEventListener("submit",async event=>{
  event.preventDefault(); clearError();
  const user=(username.value||"").trim().toLowerCase(); const pass=password.value||"";
@@ -44,19 +62,15 @@ form.addEventListener("submit",async event=>{
  if(!pass){password.focus();showError("يرجى إدخال كلمة المرور.");return;}
  button.disabled=true;
  try{
-  const response=await fetch(`${SUPABASE_URL}/functions/v1/staff-login`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},body:JSON.stringify({username:user,password:pass})});
+  const response=await fetch(`${SUPABASE_URL}/functions/v1/staff-login`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},body:JSON.stringify({username:user,password:pass}),cache:"no-store"});
   const result=await response.json().catch(()=>({}));
   if(!response.ok) throw new Error(result.error||result.message||"بيانات الدخول غير صحيحة.");
   if(!result?.session?.access_token||!result?.session?.refresh_token) throw new Error("تعذر إنشاء جلسة تسجيل الدخول.");
   if(!result?.staff||result.staff.active===false) throw new Error("حساب الموظف غير فعال.");
-  const {error}=await supabase.auth.setSession({access_token:result.session.access_token,refresh_token:result.session.refresh_token});
-  if(error) throw error;
-  const verified=await supabase.auth.getSession();
-  if(!verified.data?.session?.access_token) throw new Error("تعذر تثبيت جلسة تسجيل الدخول.");
-  try{sessionStorage.setItem("azaad_admin_token",verified.data.session.access_token);}catch(_){ }
+  installCanonicalSession(result.session,result.user);
   password.value="";
   location.replace("/admin.html");
- }catch(error){password.value="";showError(error?.message||"تعذر تسجيل الدخول.");}
+ }catch(error){showError(error?.message||"تعذر تسجيل الدخول. حاول مرة أخرى.");button.disabled=false;}
 });
 </script>
 </body>
