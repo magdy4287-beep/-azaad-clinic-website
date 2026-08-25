@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CSS = '<link rel="stylesheet" href="/azaad-responsive-shell.css?v=1.0.0">'
 ROLE = '<script src="/azaad-role-experience.js?v=1.0.0" defer></script>'
-LOGIN_SURFACES = {"admin-login.html"}
+LOGIN_SURFACES = {"admin-login.html", "admin-auth.html"}
 
 for path in sorted(ROOT.rglob('*.html')):
     if '.git' in path.parts or 'node_modules' in path.parts: continue
