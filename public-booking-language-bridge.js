@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V5__';
+  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V6__';
   if (window[KEY]) return;
   window[KEY] = true;
 
@@ -11,6 +11,7 @@
     } catch (_) {}
     return String(document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
   };
+
   const first = (item, keys) => {
     for (const key of keys) {
       const value = item?.[key];
@@ -18,28 +19,51 @@
     }
     return '';
   };
+
   const known = new Map([
-    ['للصحة النفسية والعلاج النفسي','Mental health and psychotherapy'], ['الصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
-    ['علاج نفسي','Psychotherapy'], ['العلاج النفسي','Psychotherapy'], ['الصحة النفسية','Mental health'], ['الطب النفسي','Psychiatry'],
-    ['جلسة علاج نفسي','Psychotherapy session'], ['جلسة أونلاين','Online session'], ['داخل العيادة','In-clinic'],
-    ['تقييم نفسي','Psychological assessment'], ['استشارة نفسية','Psychological consultation'], ['علاج القلق','Anxiety treatment'],
-    ['علاج الاكتئاب','Depression treatment'], ['العلاج السلوكي المعرفي','Cognitive behavioral therapy'], ['العلاج الأسري','Family therapy'], ['العلاج الزوجي','Couples therapy']
+    ['للصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
+    ['الصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
+    ['عيادة آزاد للصحة النفسية','Azaad Mental Health Clinic'],
+    ['عيادة أزاد للصحة النفسية','Azaad Mental Health Clinic'],
+    ['علاج نفسي','Psychotherapy'],
+    ['العلاج النفسي','Psychotherapy'],
+    ['الصحة النفسية','Mental health'],
+    ['الطب النفسي','Psychiatry'],
+    ['جلسة علاج نفسي','Psychotherapy session'],
+    ['جلسة أونلاين','Online session'],
+    ['داخل العيادة','In-clinic'],
+    ['تقييم نفسي','Psychological assessment'],
+    ['استشارة نفسية','Psychological consultation'],
+    ['علاج القلق','Anxiety treatment'],
+    ['علاج الاكتئاب','Depression treatment'],
+    ['العلاج السلوكي المعرفي','Cognitive behavioral therapy'],
+    ['العلاج الأسري','Family therapy'],
+    ['العلاج الزوجي','Couples therapy']
   ]);
+
   const transliterate = value => {
     const map = {'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ة':'a','ء':'a','ؤ':'w','ئ':'y','لا':'la','ّ':'','َ':'','ً':'','ُ':'','ٌ':'','ِ':'','ٍ':'','ْ':'','ـ':''};
     return String(value).split('').map(ch => map[ch] ?? ch).join('').replace(/\s+/g,' ').trim();
   };
+
   const englishText = value => {
     let text = String(value || '').trim();
     for (const [ar, en] of known) text = text.replaceAll(ar, en);
     return text.replace(/[\u0600-\u06FF]+/g, token => known.get(token.trim()) || transliterate(token));
   };
-  const localized = (item, arKeys, enKeys) => lang() === 'en' ? englishText(first(item, enKeys) || first(item, arKeys)) : first(item, [...arKeys, ...enKeys]);
+
+  const localized = (item, arKeys, enKeys) =>
+    lang() === 'en'
+      ? englishText(first(item, enKeys) || first(item, arKeys))
+      : first(item, [...arKeys, ...enKeys]);
+
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
   function renderSelect(id, rows, type) {
-    const select = document.getElementById(id); if (!select || !Array.isArray(rows)) return;
-    const current = select.value; const en = lang() === 'en';
+    const select = document.getElementById(id);
+    if (!select || !Array.isArray(rows)) return;
+    const current = select.value;
+    const en = lang() === 'en';
     const placeholder = type === 'doctor' ? (en ? 'Select doctor' : 'اختر الطبيب') : (en ? 'Select service' : 'اختر الخدمة');
     const html = [`<option value="">${esc(placeholder)}</option>`];
     rows.forEach(item => {
@@ -80,15 +104,56 @@
   }
 
   function repair() {
+    if (lang() !== 'en') return;
     const data = window.AZAAD_PUBLIC_CLINIC_DATA;
-    if (data) { renderSelect('doctor', data.doctors, 'doctor'); renderSelect('service', data.services, 'service'); repairCards(data); }
+    if (data) {
+      renderSelect('doctor', data.doctors, 'doctor');
+      renderSelect('service', data.services, 'service');
+      repairCards(data);
+    }
+
+    // Central language remains the owner. This final public-layer sweep only
+    // handles dynamic text that arrives after the central i18n pass and has no
+    // explicit data-i18n key. It never runs in Arabic mode.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const parent = node.parentElement;
+      if (!parent || parent.closest('script,style,textarea,[data-no-i18n]')) continue;
+      if (!/[\u0600-\u06FF]/.test(node.nodeValue || '')) continue;
+      const original = String(node.nodeValue || '');
+      const converted = englishText(original);
+      if (converted !== original) node.nodeValue = converted;
+    }
   }
+
   let timer = null;
-  const schedule = () => { clearTimeout(timer); timer = setTimeout(repair, 0); };
+  let observing = true;
+  const observer = new MutationObserver(mutations => {
+    if (!observing || lang() !== 'en') return;
+    if (!mutations.some(m => m.type === 'childList')) return;
+    schedule();
+  });
+
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (lang() !== 'en') return;
+      observing = false;
+      observer.disconnect();
+      try { repair(); } finally {
+        observing = true;
+        observer.observe(document.body, {childList:true, subtree:true});
+      }
+    }, 0);
+  };
+
   window.addEventListener('azaadPublicClinicDataReady', schedule);
   window.addEventListener('azaadPublicClinicDataChanged', schedule);
   window.addEventListener('azaadLanguageChanged', schedule);
   window.addEventListener('azaadPublicContentLanguageChanged', schedule);
   window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') schedule(); });
+
+  observer.observe(document.body, {childList:true, subtree:true});
   [100,500,1200,2500].forEach(ms => setTimeout(repair, ms));
 })();
