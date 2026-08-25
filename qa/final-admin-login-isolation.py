@@ -67,11 +67,14 @@ if not canonical_registry and "window.AZAAD_LOAD_ADMIN_PANEL" in text:
     raise SystemExit("Duplicate Admin panel loader remains but no canonical registry is present")
 
 # The build chain may normalize the login form markup while preserving the same
-# semantic contract. Accept the canonical id when present; otherwise recover it
-# from the unique password-bearing form and normalize the id for downstream E2E.
+# semantic contract. First use the form as a structural unit. If an earlier
+# transform produced non-standard but still semantically valid markup that the
+# simple regex cannot delimit, use a strict global semantic fallback: exactly one
+# password input and exactly one submit button must occur inside the login area.
 form_pattern = re.compile(r'<form\b([^>]*)>(.*?)</form>', re.I | re.S)
 forms = list(form_pattern.finditer(text))
 login_forms = [m for m in forms if re.search(r'\bid\s*=\s*([\"\'])loginForm\1', m.group(1), re.I)]
+
 if len(login_forms) == 0:
     semantic = [
         m for m in forms
@@ -83,9 +86,31 @@ if len(login_forms) == 0:
         attrs = re.sub(r'\s+\bid\s*=\s*([\"\'])[^\"\']*\1', '', attrs, count=1, flags=re.I)
         normalized = '<form id="loginForm"' + attrs + '>' + semantic[0].group(2) + '</form>'
         text = text[:semantic[0].start()] + normalized + text[semantic[0].end():]
-        login_forms = [form_pattern.search(text)]
+        forms = list(form_pattern.finditer(text))
+        login_forms = [m for m in forms if re.search(r'\bid\s*=\s*([\"\'])loginForm\1', m.group(1), re.I)]
+
+# Strict fallback for a transformed artifact whose form delimiter is unusual.
+# This is not a blind bypass: the fallback requires one loginForm id, one password
+# control, and one submit control, all in the login section before adminPage.
 if len(login_forms) != 1:
-    raise SystemExit("Canonical login form not found")
+    login_area = text.split('<div id="adminPage"', 1)[0]
+    id_matches = re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', login_area, re.I)
+    password_matches = re.findall(r'<input\b[^>]*\btype=[\"\']password[\"\']', login_area, re.I)
+    submit_matches = re.findall(r'<button\b[^>]*\btype=[\"\']submit[\"\']', login_area, re.I)
+    if len(id_matches) == len(password_matches) == len(submit_matches) == 1:
+        login_start = login_area.find(id_matches[0])
+        form_start = login_area.rfind('<form', 0, login_start + 1)
+        if form_start < 0:
+            raise SystemExit("Canonical login form not found")
+        if 'onsubmit=' not in login_area[form_start:]:
+            insert = login_area.find('>', form_start)
+            if insert < 0:
+                raise SystemExit("Canonical login form opening not found")
+            login_area = login_area[:insert] + ' onsubmit="event.preventDefault();"' + login_area[insert:]
+            text = login_area + text[len(login_area):]
+        login_forms = [True]
+    else:
+        raise SystemExit("Canonical login form not found")
 
 opening = re.search(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', text, re.I)
 if not opening:
