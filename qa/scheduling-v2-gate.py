@@ -3,12 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / 'admin.html').read_text(encoding='utf-8')
 ui = (ROOT / 'scheduling-v2.js').read_text(encoding='utf-8')
-waiting = (ROOT / 'scheduling-v2-waiting.js').read_text(encoding='utf-8')
 
-required_admin = [
-    'scheduling-v2.js?v=1.0.0',
-    'scheduling-v2-waiting.js?v=1.0.0',
-]
 required_ui = [
     'clinic_doctors',
     'clinic_services',
@@ -25,12 +20,14 @@ required_ui = [
     "ASSIGN_WAITING",
     "ADD_WAITING",
 ]
-for item in required_admin:
-    if item not in admin:
-        raise SystemExit(f'Missing admin wiring: {item}')
 for item in required_ui:
     if item not in ui:
         raise SystemExit(f'Scheduling V2 missing: {item}')
+
+# The runtime has one Scheduling V2 owner. The obsolete second waiting-list
+# submit handler was removed; ADD_WAITING is owned by scheduling-v2.js itself.
+if 'scheduling-v2-waiting.js' in admin:
+    raise SystemExit('Obsolete duplicate waiting-list runtime must not be wired into Admin')
 
 for forbidden in (
     ".from('clinic_bookings').insert",
@@ -39,10 +36,7 @@ for forbidden in (
     ".from('clinic_waiting_list').insert",
     ".from('clinic_waiting_list').update",
 ):
-    if forbidden in ui or forbidden in waiting:
+    if forbidden in ui:
         raise SystemExit(f'Scheduling V2 must not write directly: {forbidden}')
 
-if "invoke('ADD_WAITING'" not in waiting:
-    raise SystemExit('Waiting UI must use ADD_WAITING action')
-
-print('Scheduling V2 gate: PASS')
+print('Scheduling V2 gate: PASS — single runtime owner')
