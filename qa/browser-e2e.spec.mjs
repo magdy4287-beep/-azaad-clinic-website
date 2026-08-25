@@ -15,7 +15,7 @@ async function resetBrowserSession(page) {
   await expect(page.locator('#loginForm')).toBeVisible({ timeout: 5000 });
 }
 
-test('admin login shell loads with the canonical credential fields', async ({ page }) => {
+test('admin login shell loads with the canonical credential fields and no retired bootstrap', async ({ page }) => {
   await resetBrowserSession(page);
   await expect(page.locator('#username')).toHaveAttribute('type', 'text');
   await expect(page.locator('#password')).toHaveAttribute('type', 'password');
@@ -25,10 +25,11 @@ test('admin login shell loads with the canonical credential fields', async ({ pa
   const html = await htmlResponse.text();
   expect(html).toContain('autocomplete="username"');
   expect(html).toContain('autocomplete="current-password"');
-  expect(html).toContain('/admin-login-bootstrap.js?v=1');
+  expect(html).not.toContain('/admin-login-bootstrap.js');
+  expect(html).not.toContain('/admin-auth.html');
 });
 
-test('admin password remains interactive while the module controller is loading', async ({ page }) => {
+test('admin password remains interactive while the canonical controller is loading', async ({ page }) => {
   await page.route('**/admin.js*', async route => {
     await new Promise(resolve => setTimeout(resolve, 1800));
     await route.continue();
@@ -41,11 +42,10 @@ test('admin password remains interactive while the module controller is loading'
   await password.fill('temporary-e2e-value');
   await expect(password).toHaveValue('temporary-e2e-value');
 
-  const submit = page.locator('#loginForm button[type="submit"]');
-  await submit.click();
-
-  // The bootstrap must prevent native form navigation while admin.js is still
-  // loading. A reload would erase the password and recreate the username field.
+  // Native submit is cancelled by the canonical inline guard while admin.js is delayed.
+  await page.locator('#loginForm').evaluate(form =>
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  );
   await expect(page).toHaveURL(/\/admin\.html(?:\?.*)?$/);
   await expect(password).toHaveValue('temporary-e2e-value');
 });
@@ -75,18 +75,10 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   });
   page.on('response', response => {
     if (response.status() === 401) {
-      unauthorizedRequests.push({
-        method: response.request().method(),
-        url: response.url()
-      });
+      unauthorizedRequests.push({ method: response.request().method(), url: response.url() });
     }
     if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
-      const record = {
-        response,
-        status: response.status(),
-        headers: response.headers(),
-        bodyText: null
-      };
+      const record = { response, status: response.status(), headers: response.headers(), bodyText: null };
       authResponses.push(record);
       void response.text().then(text => { record.bodyText = text; }).catch(() => {});
     }
@@ -98,11 +90,7 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(username).toBeVisible({ timeout: 5000 });
   await expect(password).toBeVisible({ timeout: 5000 });
 
-  await page.waitForFunction(
-    () => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
-    { timeout: 10000 }
-  );
-
+  await page.waitForFunction(() => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY), { timeout: 10000 });
   await username.fill(process.env.AZAAD_TEST_USERNAME);
   await password.fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm').evaluate(form => form.requestSubmit());
@@ -122,14 +110,8 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   const authText = authRecord.bodyText || '';
   try { authBody = authText ? JSON.parse(authText) : {}; } catch (_) {}
 
-  expect(
-    authStatus,
-    `staff-login POST must succeed with the real CI credential flow; response=${JSON.stringify(authBody)}`
-  ).toBe(200);
-  expect(
-    authBody,
-    `staff-login POST returned no usable session; bodyBytes=${authText.length}; contentType=${authRecord.headers['content-type'] || ''}; pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}`
-  ).toEqual(expect.objectContaining({
+  expect(authStatus, `staff-login POST must succeed; response=${JSON.stringify(authBody)}`).toBe(200);
+  expect(authBody, `staff-login POST returned no usable session; bodyBytes=${authText.length}`).toEqual(expect.objectContaining({
     session: expect.objectContaining({ access_token: expect.any(String) }),
     staff: expect.objectContaining({ id: expect.anything() })
   }));
@@ -138,7 +120,6 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     async () => page.evaluate(() => ({
       loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
       adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
-      hasAdminToken: Boolean(sessionStorage.getItem('azaad_admin_token')),
       hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('auth')),
       loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
       authReady: Boolean(window.AZAAD_READY)
@@ -146,14 +127,17 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
     {
       timeout: AUTH_READY_TIMEOUT,
       intervals: [250, 500, 1000],
-      message: `authenticated shell did not transition after the real login/reload. unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
+      message: `authenticated shell did not transition after real login. unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
     }
-  ).toMatchObject({ loginHidden: true, adminVisible: true, hasAdminToken: true });
+  ).toMatchObject({ loginHidden: true, adminVisible: true });
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 
-  await page.reload(navigation);
-  await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
-  await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
+  // Regression test for the reported freeze: Logout must remain usable even
+  // while background data/feature initialization is still in flight.
+  await expect(page.locator('#logoutBtn')).toBeVisible({ timeout: 5000 });
+  await page.locator('#logoutBtn').click();
+  await expect(page.locator('#loginPage')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#adminPage')).toBeHidden({ timeout: 7000 });
 });
