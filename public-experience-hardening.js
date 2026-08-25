@@ -40,14 +40,10 @@
   const lang = () => String(document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
   const localText = (item, arKey, enKey) => lang() === 'en' ? (item?.[enKey] || item?.[arKey] || '') : (item?.[arKey] || item?.[enKey] || '');
 
-  /* The supplied Azaad logo artwork, expressed as a lightweight inline SVG so
-     the public page does not depend on an external image host or paid asset CDN. */
   const logoSvg = (className = 'azaad-logo-art', compact = false) => `
     <svg class="${className}" viewBox="0 0 420 420" role="img" aria-label="Azaad Psychotherapy" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="azLogoBg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#fff0e9"/><stop offset="0.52" stop-color="#f7e6f1"/><stop offset="1" stop-color="#dff5f4"/>
-        </linearGradient>
+        <linearGradient id="azLogoBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0e9"/><stop offset="0.52" stop-color="#f7e6f1"/><stop offset="1" stop-color="#dff5f4"/></linearGradient>
         <linearGradient id="azLogoCoral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f06f72"/><stop offset="1" stop-color="#e85f6a"/></linearGradient>
         <filter id="azLogoShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#172b68" flood-opacity=".18"/></filter>
       </defs>
@@ -257,6 +253,4 @@
     const data = window.AZAAD_PUBLIC_CLINIC_DATA;
     if (data) { renderServices(data.services || []); renderDoctors(data.doctors || []); renderRecoveredPosts(data.posts || []); }
   });
-  const observer = new MutationObserver(() => dedupePublicData());
-  observer.observe(document.documentElement, {childList:true, subtree:true});
 })();
