@@ -23,6 +23,9 @@ jobs:
       - name: Run free structural acceptance gates
         run: python3 qa/admin-gates.py
 
+      - name: Run canonical Admin panel ownership gate
+        run: python3 qa/admin-panel-ownership-contract.py
+
       - name: Run scheduling contract gate
         run: python3 qa/scheduling-contract-gate.py
 
