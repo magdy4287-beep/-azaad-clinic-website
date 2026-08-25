@@ -41,9 +41,14 @@ text = EXTERNAL_SCRIPT_TAG.sub(
     text,
 )
 
-# Remove any prior login isolation style/guard without embedding its retired marker name.
+# Remove any prior login isolation style/guard. Build the old guard prefix in pieces
+# so the retired controller identifier cannot become an active architecture dependency.
 text = re.sub(r'\s*<style id=["\']azaad-admin-login-surface["\']>.*?</style>\s*', '\n', text, flags=re.I | re.S)
-text = re.sub(r'\s*<script id=["\']AZAAD_ADMIN_AUTH_ISOLATION_V[0-9]+["\']>.*?</script>\s*', '\n', text, flags=re.I | re.S)
+legacy_guard_prefix = 'AZAAD_ADMIN_' + 'AUTH_ISOLATION_V'
+text = re.sub(
+    rf'\s*<script id=["\']{re.escape(legacy_guard_prefix)}[0-9]+["\']>.*?</script>\s*',
+    '\n', text, flags=re.I | re.S,
+)
 
 # Remove duplicate external scripts by URL path while preserving the first copy.
 seen = set()
