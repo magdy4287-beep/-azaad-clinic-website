@@ -43,6 +43,7 @@ def main():
         return
     text = path.read_text(encoding="utf-8")
 
+    # Remove every eager/static copy. The runtime below is the single owner.
     for name in sorted(ALL_LAZY | {"admin-nextgen-fixes.js", "admin-nextgen-v2.js"}):
         tag = re.compile(
             r'<script\b[^>]*src=["\'](?:/)?' + re.escape(name) +
@@ -57,36 +58,63 @@ def main():
   const loaded = new Map();
   const loading = new Map();
   const loadedForPanel = new Set();
+
+  const yieldToBrowser = () => new Promise(resolve => {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => resolve(), { timeout: 250 });
+      return;
+    }
+    window.setTimeout(resolve, 0);
+  });
+
   const load = src => {
-    if (loaded.has(src)) return loaded.get(src);
+    if (loaded.has(src)) return Promise.resolve(true);
     if (loading.has(src)) return loading.get(src);
+
     const p = new Promise((resolve,reject)=>{
       const s=document.createElement('script');
       s.src='/' + src;
       s.defer=true;
-      s.onload=()=>{loaded.set(src,true);resolve();};
-      s.onerror=()=>reject(new Error('Failed to load '+src));
+      s.onload=()=>{loaded.set(src,true);loading.delete(src);resolve(true);};
+      s.onerror=()=>{loading.delete(src);reject(new Error('Failed to load '+src));};
       document.head.appendChild(s);
     });
     loading.set(src,p);
     return p;
   };
+
   window.AZAAD_LOAD_ADMIN_PANEL = async function(panel){
     const key=String(panel||'');
     if(loadedForPanel.has(key)) return;
+
     const files=groups[key]||[];
+    if (!files.length) return;
+
     loadedForPanel.add(key);
-    await Promise.all(files.map(load));
+
+    // Load only after an explicit panel interaction. Never auto-load the
+    // active bookings panel after login; admin.js owns the critical shell.
+    for (const src of files) {
+      await yieldToBrowser();
+      try {
+        await load(src);
+      } catch (err) {
+        console.error('[AZAAD_ADMIN_MODULE]', err);
+      }
+    }
+
     window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready',{detail:{panel:key}}));
   };
+
   document.addEventListener('click',e=>{
     const tab=e.target?.closest?.('[data-panel]');
-    if(tab) window.AZAAD_LOAD_ADMIN_PANEL(tab.getAttribute('data-panel')).catch(err=>console.error('[AZAAD_ADMIN_MODULE]',err));
+    if(!tab) return;
+    const key=tab.getAttribute('data-panel');
+    // Defer module evaluation until after the click event and paint.
+    yieldToBrowser()
+      .then(() => window.AZAAD_LOAD_ADMIN_PANEL(key))
+      .catch(err => console.error('[AZAAD_ADMIN_MODULE]',err));
   },{passive:true});
-  window.addEventListener('load',()=>{
-    const active=document.querySelector('.tab.active[data-panel]');
-    if(active) setTimeout(()=>window.AZAAD_LOAD_ADMIN_PANEL(active.getAttribute('data-panel')).catch(err=>console.error('[AZAAD_ADMIN_MODULE]',err)),1200);
-  },{once:true});
 })();
 </script>
 """ % repr(LAZY)
