@@ -38,6 +38,7 @@ VERIFY_STEPS = [
     ["python3", "qa/verify-production-contracts.py"],
     ["python3", "qa/verify-admin-post-auth-interactivity.py"],
     ["python3", "qa/verify-admin-auth-critical-path.py"],
+    ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
 
 def run_steps(steps, phase):
