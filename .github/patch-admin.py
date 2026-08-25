@@ -31,7 +31,6 @@ ADMIN_FEATURE_SCRIPTS = (
     "doctor-visit-actions.js",
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
-    "admin-auth-ui-guard.js",
 )
 
 # Only these files are permitted to receive the legacy translation-key compatibility
