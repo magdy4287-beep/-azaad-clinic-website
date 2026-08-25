@@ -51,10 +51,10 @@ for src in known:
         flags=re.I,
     )
 
-# Remove only a retired legacy panel loader. The canonical lazy-admin-modules
-# registry is intentionally preserved and is the single active panel loader.
+# Remove only a retired legacy panel loader. Never match the canonical registry,
+# which is explicitly marked with data-azaad-admin-module-registry="1".
 legacy_panel_loader = re.compile(
-    r'<script\b[^>]*>\s*\(function\(\)\{\s*const groups\s*=\s*\{.*?window\.AZAAD_LOAD_ADMIN_PANEL.*?\}\)\(\);\s*</script>',
+    r'<script\b(?![^>]*data-azaad-admin-module-registry=["\']1["\'])[^>]*>\s*\(function\(\)\{\s*const groups\s*=\s*\{.*?window\.AZAAD_LOAD_ADMIN_PANEL\s*=.*?\}\)\(\);\s*</script>',
     re.I | re.S,
 )
 text, removed_loader_count = legacy_panel_loader.subn("\n", text, count=1)
