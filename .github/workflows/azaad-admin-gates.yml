@@ -26,5 +26,5 @@ jobs:
       - name: Run scheduling contract gate
         run: python3 qa/scheduling-contract-gate.py
 
-      - name: Run marketing workspace gate
-        run: python3 qa/marketing-workspace-v2-gate.py
+      - name: Run canonical Marketing Studio V3 gate
+        run: python3 qa/marketing-studio-v3-gate.py
