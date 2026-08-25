@@ -3,6 +3,7 @@ import subprocess
 
 TRANSFORM_STEPS = [
     ["python3", "qa/inject-central-i18n.py"],
+    ["python3", "qa/fix-public-booking-central-i18n.py"],
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", ".github/patch-admin.py"],
     ["python3", "qa/inject-media-editor.py"],
