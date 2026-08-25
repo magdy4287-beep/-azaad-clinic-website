@@ -1,11 +1,12 @@
-/* AZAAD Admin Shell: dependency-free navigation control plane.
- * Canonical application/auth ownership lives in admin.js.
- * This shell must never duplicate authentication, logout, refresh, or feature behavior.
+/* AZAAD Admin Shell: canonical navigation control plane.
+ * Authentication/data ownership lives in admin.js.
+ * Lazy module ownership lives in lazy-admin-modules.py's generated registry.
+ * This shell owns panel activation only; it never loads feature modules directly.
  */
 (function () {
   'use strict';
-  if (window.__AZAAD_ADMIN_SHELL_V2__) return;
-  window.__AZAAD_ADMIN_SHELL_V2__ = true;
+  if (window.__AZAAD_ADMIN_SHELL_V3__) return;
+  window.__AZAAD_ADMIN_SHELL_V3__ = true;
 
   function loadCentralSchedulingSync() {
     if (document.querySelector('script[data-azaad-central-scheduling-sync]')) return;
@@ -24,6 +25,11 @@
     document.querySelectorAll('.panel').forEach(function (item) {
       item.classList.toggle('active', item.id === panel);
     });
+    try {
+      window.dispatchEvent(new CustomEvent('azaad:admin-panel-activated', {
+        detail: { panel: panel }
+      }));
+    } catch (_) {}
   }
 
   function bindExisting() {
