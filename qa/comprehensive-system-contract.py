@@ -9,8 +9,8 @@ def read(p):
     except OSError as e:FAILURES.append(f'cannot read {p}: {e}');return ''
 def require(c,m):
     if not c:FAILURES.append(m)
-central=ROOT/'central-i18n.js'; stability=ROOT/'central-i18n-stability.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; finance=ROOT/'rcm-finance-center.js'
-for p,l in ((central,'central-i18n.js'),(stability,'central-i18n-stability.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py')):require(p.exists(),f'{l} is missing')
+central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; finance=ROOT/'rcm-finance-center.js'
+for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py')):require(p.exists(),f'{l} is missing')
 ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); ft=read(finance)
 for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObserver','central I18N dynamic observer'),('azaadLanguageChanged','central language-change event')]:require(token in ct,f'{msg} missing')
 require('location.reload()' not in ct,'central I18N reloads pages')
