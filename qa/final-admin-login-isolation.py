@@ -9,8 +9,6 @@ if not ADMIN.exists():
 text = ADMIN.read_text(encoding="utf-8")
 
 script_open = re.compile(r"<script\b([^>]*)>", re.I | re.S)
-# Negative lookbehind prevents matching the `src=` suffix inside
-# `data-azaad-after-auth-src=`, which is intentionally inert.
 src_attr = re.compile(r"(?<![-\w])src\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
 type_module = re.compile(r"\btype\s*=\s*([\"'])module\1", re.I)
 
@@ -53,6 +51,20 @@ for src in known:
         flags=re.I,
     )
 
+# Remove the retired second Admin module loader. It was an independent inline
+# loader that could load the active panel 1.2s after page load, even while the
+# login page was still visible, and it duplicated the canonical post-auth loader
+# owned by admin.js. Keeping two loaders is a direct freeze/duplicate-runtime risk.
+legacy_panel_loader = re.compile(
+    r'<script\b[^>]*>\s*\(function\(\)\{\s*const groups\s*=\s*\{.*?window\.AZAAD_LOAD_ADMIN_PANEL.*?\}\)\(\);\s*</script>',
+    re.I | re.S,
+)
+text, removed_loader_count = legacy_panel_loader.subn("\n", text, count=1)
+if removed_loader_count == 0:
+    # Do not fail if an earlier canonical transform already removed it.
+    if "window.AZAAD_LOAD_ADMIN_PANEL" in text or "const groups = {'bookings'" in text:
+        raise SystemExit("Duplicate Admin panel loader remains but could not be removed")
+
 form_pattern = re.compile(r'(<form\b[^>]*\bid=[\"\']loginForm[\"\'][^>]*)(>)', re.I)
 form = form_pattern.search(text)
 if not form:
@@ -74,6 +86,9 @@ for match in inline.finditer(text):
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', text, re.I)) != 1:
     raise SystemExit("Admin Login form count is not exactly one")
 
+if "window.AZAAD_LOAD_ADMIN_PANEL" in text or "const groups = {'bookings'" in text:
+    raise SystemExit("Duplicate Admin panel loader remains")
+
 executable = []
 for match in script_open.finditer(text):
     attrs = match.group(1)
@@ -91,4 +106,4 @@ if text.count('data-azaad-after-auth-src=') < 1:
     raise SystemExit("No post-auth runtime manifest was produced")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD final admin isolation] PASS: only admin.js + deferred central-i18n remain executable before authentication")
+print("[AZAAD final admin isolation] PASS: one canonical Admin loader; duplicate panel loader removed")
