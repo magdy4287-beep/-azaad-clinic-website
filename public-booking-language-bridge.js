@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V3__';
+  const KEY = '__AZAAD_PUBLIC_BOOKING_LANGUAGE_BRIDGE_V4__';
   if (window[KEY]) return;
   window[KEY] = true;
 
@@ -11,7 +11,6 @@
     } catch (_) {}
     return String(document.documentElement.lang || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
   };
-
   const first = (item, keys) => {
     for (const key of keys) {
       const value = item?.[key];
@@ -19,36 +18,29 @@
     }
     return '';
   };
-
   const known = new Map([
     ['للصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
     ['الصحة النفسية والعلاج النفسي','Mental health and psychotherapy'],
-    ['علاج نفسي','Psychotherapy'],['العلاج النفسي','Psychotherapy'],
-    ['الصحة النفسية','Mental health'],['الطب النفسي','Psychiatry'],
-    ['جلسة علاج نفسي','Psychotherapy session'],['جلسة أونلاين','Online session'],
-    ['داخل العيادة','In-clinic'],['تقييم نفسي','Psychological assessment'],
-    ['استشارة نفسية','Psychological consultation'],['علاج القلق','Anxiety treatment'],
-    ['علاج الاكتئاب','Depression treatment'],['العلاج السلوكي المعرفي','Cognitive behavioral therapy'],
-    ['العلاج الأسري','Family therapy'],['العلاج الزوجي','Couples therapy']
+    ['علاج نفسي','Psychotherapy'], ['العلاج النفسي','Psychotherapy'],
+    ['الصحة النفسية','Mental health'], ['الطب النفسي','Psychiatry'],
+    ['جلسة علاج نفسي','Psychotherapy session'], ['جلسة أونلاين','Online session'],
+    ['داخل العيادة','In-clinic'], ['تقييم نفسي','Psychological assessment'],
+    ['استشارة نفسية','Psychological consultation'], ['علاج القلق','Anxiety treatment'],
+    ['علاج الاكتئاب','Depression treatment'], ['العلاج السلوكي المعرفي','Cognitive behavioral therapy'],
+    ['العلاج الأسري','Family therapy'], ['العلاج الزوجي','Couples therapy']
   ]);
-
   const transliterate = value => {
     const map = {'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ة':'a','ء':'a','ؤ':'w','ئ':'y','لا':'la','ّ':'','َ':'','ً':'','ُ':'','ٌ':'','ِ':'','ٍ':'','ْ':'','ـ':''};
     return String(value).split('').map(ch => map[ch] ?? ch).join('').replace(/\s+/g,' ').trim();
   };
-
   const englishText = value => {
     let text = String(value || '').trim();
-    if (!text) return '';
     for (const [ar, en] of known) text = text.replaceAll(ar, en);
     return text.replace(/[\u0600-\u06FF]+/g, token => known.get(token.trim()) || transliterate(token));
   };
-
-  const localized = (item, arKeys, enKeys) => {
-    if (lang() !== 'en') return first(item, [...arKeys, ...enKeys]);
-    return englishText(first(item, enKeys) || first(item, arKeys));
-  };
-
+  const localized = (item, arKeys, enKeys) => lang() === 'en'
+    ? englishText(first(item, enKeys) || first(item, arKeys))
+    : first(item, [...arKeys, ...enKeys]);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
   function renderSelect(id, rows, type) {
@@ -59,12 +51,13 @@
     const placeholder = type === 'doctor' ? (en ? 'Select doctor' : 'اختر الطبيب') : (en ? 'Select service' : 'اختر الخدمة');
     const html = [`<option value="">${esc(placeholder)}</option>`];
     rows.forEach(item => {
-      const name = localized(item, ['name','title','full_name','display_name'], ['name_en','full_name_en','display_name_en','english_name','english_full_name']);
+      const name = localized(item, ['name','full_name','display_name','title'], ['name_en','full_name_en','display_name_en','english_name','english_full_name']);
       const title = type === 'doctor' ? localized(item, ['title','specialty'], ['title_en','specialty_en','english_title','english_specialty']) : '';
       const duration = type === 'service' && item?.duration_minutes ? ` — ${esc(item.duration_minutes)} ${en ? 'minutes' : 'دقيقة'}` : '';
       if (item?.id && name) html.push(`<option value="${esc(item.id)}">${esc(name)}${title && title !== name ? ` — ${esc(title)}` : ''}${duration}</option>`);
     });
-    select.innerHTML = html.join('');
+    const next = html.join('');
+    if (select.innerHTML !== next) select.innerHTML = next;
     if ([...select.options].some(option => option.value === current)) select.value = current;
   }
 
@@ -94,16 +87,17 @@
       renderSelect('service', data.services, 'service');
       repairCards(data);
     }
-    const tagline = document.querySelector('.azaad-footer-tagline');
-    if (tagline) tagline.textContent = lang() === 'en' ? 'Mental health and psychotherapy' : 'للصحة النفسية والعلاج النفسي';
   }
 
-  let timer;
-  const schedule = () => { clearTimeout(timer); timer = setTimeout(repair, 0); };
+  let timer = null;
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(repair, 0);
+  };
   window.addEventListener('azaadPublicClinicDataReady', schedule);
   window.addEventListener('azaadPublicClinicDataChanged', schedule);
   window.addEventListener('azaadLanguageChanged', schedule);
+  window.addEventListener('azaadPublicContentLanguageChanged', schedule);
   window.addEventListener('storage', event => { if (event.key === 'azaadClinicLanguage') schedule(); });
-  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
-  [0,200,500,1000,2000,4000].forEach(ms => setTimeout(repair, ms));
+  [100,500,1200,2500].forEach(ms => setTimeout(repair, ms));
 })();
