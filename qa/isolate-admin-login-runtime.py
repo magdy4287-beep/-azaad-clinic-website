@@ -11,8 +11,8 @@ if not ADMIN_HTML.exists() or not ADMIN_JS.exists():
 html = ADMIN_HTML.read_text(encoding="utf-8")
 
 # Remove every legacy inline authentication/controller implementation. This is
-# deliberately marker-based rather than type-based because the historical owner
-# was a plain inline script and therefore escaped module-only canonicalizers.
+# marker-based rather than type-based because the historical owner was a plain
+# inline script and escaped module-only canonicalizers.
 inline = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.I | re.S)
 markers = ("const SUPABASE_URL", "STAFF_LOGIN_FUNCTION", "function login", "clinic_staff")
 
@@ -26,31 +26,40 @@ def strip_legacy(match):
 
 html = inline.sub(strip_legacy, html)
 
-# Only admin.js may execute before authentication. Every body script is moved to
-# an inert manifest. admin.js activates the manifest only after successful auth.
 body_match = re.search(r"<body\b[^>]*>(.*)</body>", html, re.I | re.S)
 if not body_match:
     raise SystemExit("Admin body not found")
 
 body = body_match.group(1)
-external = re.compile(r"<script\b([^>]*?)\bsrc=[\"']([^\"']+)[\"']([^>]*)>\s*</script>", re.I | re.S)
 
-def inert_script(match):
-    attrs_before, src, attrs_after = match.group(1), match.group(2), match.group(3)
+# Transform every executable body script opening tag into an inert manifest.
+# This deliberately does not depend on a closing-tag shape or attribute order.
+opening = re.compile(r"<script\b([^>]*)>", re.I | re.S)
+
+def isolate_opening(match):
+    attrs = match.group(1)
+    src_match = re.search(r"\bsrc\s*=\s*([\"'])(.*?)\1", attrs, re.I | re.S)
+    if not src_match:
+        return match.group(0)
+
+    src = src_match.group(2)
     path = (urlsplit(src).path or src).lstrip("/").lower()
     if path == "admin.js":
         return match.group(0)
-    is_module = bool(re.search(r"\btype=[\"']module[\"']", attrs_before + attrs_after, re.I))
-    module_attr = ' data-azaad-after-auth-type="module"' if is_module else ''
-    return f'<script data-azaad-after-auth-src="{src}"{module_attr}></script>'
 
-body = external.sub(inert_script, body)
+    is_module = bool(re.search(r"\btype\s*=\s*([\"'])module\1", attrs, re.I))
+    module_attr = ' data-azaad-after-auth-type="module"' if is_module else ''
+    without_src = attrs[:src_match.start()] + attrs[src_match.end():]
+    without_src = without_src.strip()
+    return f'<script data-azaad-after-auth-src="{src}"{module_attr}{(" " + without_src) if without_src else ""}>'
+
+body = opening.sub(isolate_opening, body)
 html = html[:body_match.start(1)] + body + html[body_match.end(1):]
 
 # Fail closed against a parser/runtime owner returning to the login surface.
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', html, re.I)) != 1:
     raise SystemExit("Admin must contain exactly one login form")
-if re.search(r'<body\b[^>]*>.*?<script\b[^>]*\bsrc=', html, re.I | re.S):
+if re.search(r'<body\b[^>]*>.*?<script\b[^>]*\bsrc\s*=', html, re.I | re.S):
     raise SystemExit("A body script still has an executable src on the Admin login path")
 if sum(1 for m in inline.finditer(html) if sum(marker in m.group(2) for marker in markers) >= 3) > 0:
     raise SystemExit("Legacy inline Admin controller remains")
