@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 path = Path('admin.js')
 if not path.exists():
@@ -12,18 +13,18 @@ new = 'Promise.resolve().then(() => window.AZAAD_STAFF.init()).catch(error =>'
 if old in js:
     js = js.replace(old, new, 1)
 
-# Install a final interaction safety net. It is deliberately small and does not
-# own authentication; it only guarantees that a failed optional runtime cannot
-# leave the document inert or permanently non-interactive, and that Logout is
-# always handled from a capture-phase delegated listener.
+# Install only an interaction-recovery safety net. Authentication and Logout have
+# exactly one owner: admin.js bindLogout(). A second capture-phase Logout handler
+# caused duplicate ownership and could invoke logout twice (pointerup + click),
+# creating auth races and leaving the shell apparently frozen.
 marker = '/* ============================================================\n   LOGIN\n   ============================================================ */'
 block = r'''/* ============================================================
    FINAL ADMIN INTERACTION SAFETY
    ------------------------------------------------------------
-   Optional modules must never be able to freeze the shell. This
-   guard does not perform authentication and does not bypass RLS.
-   It only restores document interactivity and gives Logout a
-   capture-phase emergency path.
+   Optional modules must never be able to freeze the shell.
+   Authentication and Logout remain owned exclusively by the
+   Admin controller; this guard only restores document interactivity.
+   It does not perform authentication and does not bypass RLS.
    ============================================================ */
 (function installAdminInteractionSafety() {
   const restoreInteraction = () => {
@@ -38,29 +39,8 @@ block = r'''/* ============================================================
     }
   };
 
-  const handleLogout = event => {
-    const target = event.target?.closest?.(
-      '[data-action="logout"], [data-action="sign-out"], #logout, #logoutBtn, #logoutButton, .logout, .logout-btn, .logout-button'
-    );
-
-    if (!target || typeof logout !== "function") {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    void logout();
-  };
-
   const install = () => {
     restoreInteraction();
-    document.addEventListener("click", handleLogout, true);
-    document.addEventListener("pointerup", handleLogout, true);
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape") {
-        restoreInteraction();
-      }
-    }, true);
   };
 
   if (document.readyState === "loading") {
@@ -78,4 +58,4 @@ if marker in js and 'FINAL ADMIN INTERACTION SAFETY' not in js:
     js = js.replace(marker, block + marker, 1)
 
 path.write_text(js, encoding='utf-8')
-print('[AZAAD] final admin interaction safety applied')
+print('[AZAAD] final admin interaction safety applied; authentication/logout remain single-owner')
