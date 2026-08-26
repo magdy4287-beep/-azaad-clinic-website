@@ -10,6 +10,29 @@
     return lang === 'en' ? 'en' : 'ar';
   }
 
+  function cairoDateParts(value = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(value));
+
+    const result = Object.create(null);
+    for (const part of parts) {
+      if (part.type !== 'literal') result[part.type] = part.value;
+    }
+    return result;
+  }
+
+  function todayISO(value = new Date()) {
+    const { year, month, day } = cairoDateParts(value);
+    if (!year || !month || !day) {
+      throw new Error('Unable to resolve Africa/Cairo business date.');
+    }
+    return `${year}-${month}-${day}`;
+  }
+
   function formatTime(value = new Date()) {
     return new Intl.DateTimeFormat(LOCALES[language()], {
       timeZone: TIME_ZONE,
@@ -50,9 +73,10 @@
   }
 
   window.AZAAD_CORE_CONTEXT = Object.freeze({
-    version: '1.0.0',
+    version: '1.1.0',
     timeZone: TIME_ZONE,
     language,
+    todayISO,
     formatTime,
     formatDate,
     formatDateTime,
