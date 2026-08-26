@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 path = Path("admin.js")
 if not path.is_file():
@@ -6,6 +7,7 @@ if not path.is_file():
 
 text = path.read_text(encoding="utf-8")
 
+# Canonical clinic timezone: never derive operational "today" from browser locale.
 old_date = '''function todayISO() {
   const now = new Date();
 
@@ -35,26 +37,72 @@ new_date = '''function todayISO() {
 if old_date in text:
     text = text.replace(old_date, new_date, 1)
 
-needle = '''          .select(`
-            id,
-            booking_code,
-            patient_name,
-            patient_phone,
-            appointment_date,
-            appointment_time,
-            status,
-            mode,
-            doctor_id,
-            service_id
-          `)'''
-replacement = needle + '''
-          // Controlled E2E fixtures are created on-demand by the protected E2E
-          // factory and must never contaminate the operational Admin dashboard.
-          .not("booking_code", "like", "E2E-%")'''
-if 'Controlled E2E fixtures are created on-demand' not in text:
-    if needle not in text:
-        raise SystemExit("Canonical booking query shape not found; refusing unsafe patch")
-    text = text.replace(needle, replacement, 1)
+# The browser must not own the operational booking query. The canonical backend
+# boundary is azaad-appointments-center; it applies Auth/RBAC and E2E isolation
+# before data reaches the Admin state store.
+load_pattern = re.compile(
+    r"async function loadBookings\(\)\s*\{.*?\n\}\n\n/\* ============================================================\n\s*STATUS",
+    re.S,
+)
+load_replacement = '''async function loadBookings() {
+  if (!requirePermission("bookings.view")) {
+    return;
+  }
+
+  if (state.loadingBookings) {
+    return;
+  }
+
+  state.loadingBookings = true;
+
+  try {
+    if (!state.session?.access_token) {
+      throw new Error("جلسة الإدارة غير صالحة.");
+    }
+
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/azaad-appointments-center?from=2000-01-01&to=2100-12-31&limit=500`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${state.session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY
+        }
+      }
+    );
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      throw new Error(payload?.error || "تعذر تحميل الحجوزات التشغيلية.");
+    }
+
+    state.bookings = Array.isArray(payload?.appointments)
+      ? payload.appointments
+      : [];
+
+    renderBookings();
+    updateStatistics();
+    refreshCommandCenter();
+  } catch (error) {
+    console.error("Booking loading error:", error);
+    state.bookings = [];
+    renderBookingFallback();
+  } finally {
+    state.loadingBookings = false;
+  }
+}
+
+/* ============================================================
+   STATUS'''
+if not load_pattern.search(text):
+    raise SystemExit("Canonical loadBookings function not found; refusing unsafe rewrite")
+text = load_pattern.sub(load_replacement, text, count=1)
 
 path.write_text(text, encoding="utf-8")
-print("finalize-admin-operational-data.py completed successfully")
+print("finalize-admin-operational-data.py completed canonical backend/timezone rewrite")
