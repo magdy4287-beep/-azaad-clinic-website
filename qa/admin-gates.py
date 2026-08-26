@@ -23,9 +23,6 @@ check(
     or ("patch-admin.py completed successfully" in patcher and "admin-english-hardening.js" in patcher),
 )
 
-# Language ownership is centralized. central-i18n owns language state,
-# translation, persistence, direction, and dynamic DOM handling. Do not couple
-# this gate to an obsolete helper name such as a literal "translate" function.
 check(
     "Arabic/English direction switching exists",
     "document.documentElement.dir" in central_i18n and "document.documentElement.lang" in central_i18n
@@ -36,7 +33,6 @@ check(
     "ADMIN_KEY='azaad_admin_lang'" in central_i18n and "localStorage" in central_i18n,
 )
 
-# MRN hardening is display/search-only. Canonical storage remains AZA-######.
 check("Short patient number is canonicalized", "padStart(6, '0')" in hardening and "AZA-" in hardening)
 check(
     "Legacy Patient 6-digit display is not the approved V2 format",
@@ -51,10 +47,6 @@ check(
 check("Patient display accepts canonical AZA MRN", "^AZA-?(\\d{6})$" in mrn_display)
 check("Patient display produces five digits", "slice(-5)" in mrn_display)
 
-# Dynamic translation is owned by the central i18n runtime. The canonical
-# implementation applies keyed and legacy translations, binds language
-# controls, and observes dynamically inserted DOM. The gate checks those
-# actual contract primitives instead of requiring an incidental helper name.
 check(
     "Dynamic DOM translation is enabled",
     all(token in central_i18n for token in (
@@ -91,9 +83,6 @@ for panel, label in CANONICAL_PANELS.items():
         f"expected exactly one tab and one panel, found {occurrences} tab(s)",
     )
 
-# This workflow runs against SOURCE, not the generated Vercel artifact. The
-# canonical registry is therefore proved by its single source transform and its
-# ownership map; generated-artifact checks remain in qa/vercel-build.py.
 check(
     "Canonical Admin module registry source exists",
     "window.AZAAD_LOAD_ADMIN_PANEL = async function(panel)" in lazy_registry
@@ -102,8 +91,16 @@ check(
 )
 
 if "window.AZAAD_LOAD_ADMIN_PANEL = async function(panel)" in lazy_registry:
-    groups_match = re.search(r"LAZY\s*=\s*\{(.*?)\n\}\n\n#", lazy_registry, re.S)
+    # The canonical source declares LAZY immediately before LEGACY_OR_CONTRACT.
+    # Keep this parser tied to that real source boundary rather than an obsolete
+    # comment delimiter that silently turned valid ownership entries into failures.
+    groups_match = re.search(
+        r"LAZY\s*=\s*\{(.*?)\n\}\n\nLEGACY_OR_CONTRACT\s*=",
+        lazy_registry,
+        re.S,
+    )
     groups_source = groups_match.group(1) if groups_match else ""
+    check("Canonical lazy ownership map is parseable", bool(groups_source))
     for panel in CANONICAL_PANELS:
         owned_by_lazy = re.search(r"[\"']" + re.escape(panel) + r"[\"']\s*:", groups_source) is not None
         owned_by_core = panel in {"holidays", "hours", "settings", "account"}
