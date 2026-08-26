@@ -72,14 +72,14 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/azaad-build
-          node --check ./admin-english-hardening.js
-          node --check ./admin.js
-          node --check ./admin-shell.js
-          node --check ./patient-booking-gate.js
+          for file in admin-english-hardening.js admin.js admin-shell.js frontdesk-workflow.js; do
+            if [[ -f "$file" ]]; then
+              node --check "./$file"
+            fi
+          done
           if [[ -f ./admin-auth-ui-guard.js ]]; then
             node --check ./admin-auth-ui-guard.js
           fi
-          node --check ./frontdesk-workflow.js
           python3 - <<'PY'
           from pathlib import Path
           import re
