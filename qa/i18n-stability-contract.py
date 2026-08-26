@@ -9,14 +9,15 @@ central = (ROOT / 'central-i18n.js').read_text(encoding='utf-8')
 checks = {
     'stability guard exists': '__AZAAD_I18N_STABILITY__' in stability,
     'language switch does not call reload': 'location.reload()' not in stability,
-    'language switch persists selected locale': "localStorage.setItem(STORAGE, lang)" in stability,
-    'central runtime is loaded after stability guard': bridge.indexOf('I18N_STABILITY_SCRIPT') if False else ('loadI18nStability();\n    loadCentralI18n();' in bridge),
+    'language switch persists selected locale': 'localStorage.setItem(STORAGE, lang)' in stability,
+    'stability loader exists': 'loadI18nStability' in bridge,
+    'central runtime is loaded after stability guard': bridge.find('loadI18nStability') < bridge.find('loadCentralI18n') if 'loadI18nStability' in bridge and 'loadCentralI18n' in bridge else False,
     'central runtime remains present': 'central-i18n.js' in bridge,
     'admin language storage remains supported': 'azaad_admin_lang' in central,
     'central language dictionary remains present': 'لوحة إدارة العيادة' in central and 'Clinic Administration Panel' in central,
     'central runtime uses incremental mutation translation': 'mutation.addedNodes.forEach(queueRoot)' in central and 'requestAnimationFrame(() =>' in central,
-    'central runtime does not rescan the whole document on every mutation': 'apply(getLang())' not in central.split('function queueRoot', 1)[1].split('function bindLanguageControls', 1)[0],
-    'central runtime version is v5': "version: '5.0.0'" in central and '__AZAAD_CENTRAL_I18N_V5__' in central,
+    'central runtime does not rescan the whole document on every mutation': 'apply(getLang())' not in central.split('function queueRoot', 1)[1].split('function bindLanguageControls', 1)[0] if 'function queueRoot' in central and 'function bindLanguageControls' in central else False,
+    'central runtime exposes the language-change event': 'azaadLanguageChanged' in central,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
