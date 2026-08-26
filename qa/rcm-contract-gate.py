@@ -4,31 +4,31 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
-candidate_paths = [
-    "admin.html",
-    "admin-enhancements-v1.js",
-    "patients-center.js",
-    "public-ui.js",
-    "app.js",
-]
-texts = []
-for rel in candidate_paths:
-    p = ROOT / rel
-    if p.exists():
-        texts.append(p.read_text(encoding="utf-8"))
-all_text = "\n".join(texts)
+required = {
+    "enterprise RCM owner": ROOT / "admin-enterprise-centers.js",
+    "canonical invoice edge function source": ROOT / "supabase/functions/azaad-invoice-center/index.ts",
+}
+for name, path in required.items():
+    if not path.is_file():
+        raise SystemExit(f"RCM contract gate failed: missing {name}: {path}")
+
+enterprise = (ROOT / "admin-enterprise-centers.js").read_text(encoding="utf-8")
+edge = (ROOT / "supabase/functions/azaad-invoice-center/index.ts").read_text(encoding="utf-8")
 
 checks = {
-    "invoice contract": bool(re.search(r"invoice|invoices|clinic_invoices", all_text, re.I)),
-    "invoice total": bool(re.search(r"total|grand_total|amount|subtotal", all_text, re.I)),
-    "payment contract": bool(re.search(r"payment|payments|clinic_payments", all_text, re.I)),
-    "outstanding balance": bool(re.search(r"outstanding|balance|remaining|due", all_text, re.I)),
-    "patient linkage": bool(re.search(r"patient_id|patientId|patient", all_text, re.I)),
-    "booking linkage": bool(re.search(r"booking_id|bookingId|booking", all_text, re.I)),
-    "doctor/service linkage": bool(re.search(r"doctor_id|doctorId|service_id|serviceId", all_text, re.I)),
-    "invoice status": bool(re.search(r"invoice_status|status|paid|unpaid|pending|cancelled", all_text, re.I)),
-    "MRN/search linkage": bool(re.search(r"MRN|mrn|AZA-000001|padStart\(5", all_text, re.I)),
-    "reporting dates": bool(re.search(r"daily|monthly|annual|year|month|date|created_at", all_text, re.I)),
+    "enterprise RCM owner": "if(key==='rcm')" in enterprise and "azaad-invoice-center?api=invoices" in enterprise,
+    "invoice total contract": bool(re.search(r"total_amount|total", edge, re.I)),
+    "payment contract": "clinic_payments" in edge,
+    "outstanding balance": "remaining_amount" in edge,
+    "patient linkage": "clinic_patients" in edge,
+    "booking linkage": "clinic_bookings" in edge,
+    "invoice status": "status" in edge,
+    "MRN/search linkage": "normalizeMrn" in edge,
+    "reporting dates": "created_at" in edge,
+    "E2E operational boundary": "isE2E" in edge and "!isE2E(row)" in edge,
+    "E2E direct invoice boundary": "if(isE2E(r.data))" in edge,
+    "legacy global RCM loader removed": not (ROOT / "rcm-finance-loader.js").exists(),
+    "legacy duplicate RCM renderer removed": not (ROOT / "rcm-finance-center.js").exists(),
 }
 
 failed = [name for name, ok in checks.items() if not ok]
