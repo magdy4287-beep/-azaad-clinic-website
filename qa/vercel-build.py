@@ -34,6 +34,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-admin-operational-data.py"],
     ["python3", "qa/finalize-admin-logout-ui.py"],
     ["python3", "qa/bump-public-language-bridge.py"],
+    ["python3", "qa/finalize-admin-runtime-manifest.py"],
     ["python3", "qa/restore-canonical-admin-controller.py"],
 ]
 
