@@ -7,13 +7,15 @@ admin = (ROOT / 'admin.html').read_text(encoding='utf-8')
 loader = (ROOT / 'qa' / 'lazy-admin-modules.py').read_text(encoding='utf-8')
 enterprise = (ROOT / 'admin-enterprise-centers.js').read_text(encoding='utf-8')
 purchasing = (ROOT / 'admin-purchasing-center.js').read_text(encoding='utf-8')
-patient360_loader = (ROOT / 'clinical-patient360-loader.js').read_text(encoding='utf-8')
 
 registry_match = re.search(r'data-azaad-admin-module-registry=["\']1["\'][^>]*>(.*?)</script>', admin, re.I | re.S)
 registry_body = registry_match.group(1) if registry_match else ''
 
 DOMAINS = {
-    'patient360': ('clinical-patient360-loader.js', 'azaad-patient-360', 'enterprise'),
+    # Patient 360 is owned entirely by the enterprise center. The old
+    # clinical-patient360 loader/runtime was superseded and must not be
+    # treated as a second Admin owner.
+    'patient360': (None, 'azaad-patient-360', 'enterprise'),
     'rcm': (None, 'azaad-invoice-center', 'enterprise'),
     'finance': (None, 'azaad-finance', 'enterprise'),
     'purchasing': ('admin-purchasing-center.js', 'azaad-content-center', 'dedicated'),
@@ -33,16 +35,15 @@ for domain, (runtime, backend, owner_kind) in DOMAINS.items():
     source = purchasing if owner_kind == 'dedicated' else enterprise
     check(f'{domain}: backend boundary declared', backend in source)
     if runtime:
-        if domain == 'patient360':
-            check(f'{domain}: canonical runtime file exists', (ROOT / runtime).is_file())
-            check(f'{domain}: loader has single guarded load owner', '__AZAAD_PATIENT360_LOADED__' in patient360_loader and 'clinical-patient360.js' in patient360_loader)
-        elif domain == 'purchasing':
+        if domain == 'purchasing':
             mapping = "'purchasingEnterprisePanel': ['admin-purchasing-center.js']"
             check(f'{domain}: dedicated runtime is mapped once in generated registry', registry_body.count(mapping) == 1)
             check(f'{domain}: dedicated runtime is not also owned by enterprise center', 'purchasing' not in re.findall(r"D=\{.*?\};", enterprise, re.S)[0] if 'D={' in enterprise else True)
         else:
             check(f'{domain}: canonical runtime registered once', loader.count(runtime) == 1)
 
+check('patient360: no superseded loader remains in QA ownership graph', 'clinical-patient360-loader.js' not in loader)
+check('patient360: enterprise center owns patient360 rendering', "if(key==='patient360')" in enterprise and 'azaad-patient-360' in enterprise)
 check('enterprise: consumes panel activation lifecycle', "azaad:admin-panel-activated" in enterprise)
 check('enterprise: no tab click owner', "tab.addEventListener('click'" not in enterprise)
 check('purchasing: dedicated runtime consumes panel activation lifecycle', "azaad:admin-panel-activated" in purchasing)
