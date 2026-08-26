@@ -5,39 +5,50 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / 'admin.html').read_text(encoding='utf-8')
 loader = (ROOT / 'qa' / 'lazy-admin-modules.py').read_text(encoding='utf-8')
+finalize = (ROOT / 'qa' / 'finalize-enterprise-admin.py').read_text(encoding='utf-8')
 enterprise = (ROOT / 'admin-enterprise-centers.js').read_text(encoding='utf-8')
+purchasing = (ROOT / 'admin-purchasing-center.js').read_text(encoding='utf-8')
 
-# This is an ownership contract, not a claim that every domain is fully implemented.
-# A missing/ambiguous owner must fail closed rather than being hidden by a generic center.
+# Ownership contract. This is intentionally evidence-based: a domain may use
+# the enterprise overview owner or a dedicated canonical runtime, but never both.
 DOMAINS = {
-    'patient360': ('clinical-patient360-loader.js', 'azaad-patient-360'),
-    'rcm': (None, 'azaad-invoice-center'),
-    'finance': (None, 'azaad-finance'),
-    'purchasing': (None, 'azaad-management-dashboard'),
-    'marketing': ('marketing-studio-v3.js', 'azaad-management-dashboard'),
-    'analytics': (None, 'azaad-management-dashboard'),
-    'insights': (None, 'azaad-ai-insights'),
-    'security': (None, 'azaad-security-center'),
+    'patient360': ('clinical-patient360-loader.js', 'azaad-patient-360', 'enterprise'),
+    'rcm': (None, 'azaad-invoice-center', 'enterprise'),
+    'finance': (None, 'azaad-finance', 'enterprise'),
+    'purchasing': ('admin-purchasing-center.js', 'azaad-content-center', 'dedicated'),
+    'marketing': ('marketing-studio-v3.js', 'azaad-management-dashboard', 'enterprise'),
+    'analytics': (None, 'azaad-management-dashboard', 'enterprise'),
+    'insights': (None, 'azaad-ai-insights', 'enterprise'),
+    'security': (None, 'azaad-security-center', 'enterprise'),
 }
 
 checks = []
 def check(name, ok, detail=''):
     checks.append((name, ok, detail))
 
-for domain, (runtime, backend) in DOMAINS.items():
+for domain, (runtime, backend, owner_kind) in DOMAINS.items():
     panel = f'{domain}EnterprisePanel'
-    check(f'{domain}: enterprise panel exists', f'id="{panel}"' in enterprise)
-    check(f'{domain}: backend boundary declared', backend in enterprise)
+    check(f'{domain}: enterprise panel exists', f'id="{panel}"' in admin)
+    source = purchasing if domain == 'purchasing' else enterprise
+    check(f'{domain}: backend boundary declared', backend in source)
     if runtime:
-        check(f'{domain}: canonical runtime registered once', loader.count(runtime) == 1)
+        if domain == 'purchasing':
+            check(f'{domain}: dedicated runtime is mapped once', finalize.count("'purchasingEnterprisePanel': ['admin-purchasing-center.js']") == 1)
+            check(f'{domain}: dedicated runtime is not also owned by enterprise center', "purchasing" not in re.findall(r"D=\{.*?\};", enterprise, re.S)[0] if 'D={' in enterprise else True)
+        else:
+            check(f'{domain}: canonical runtime registered once', loader.count(runtime) == 1)
 
-# Enterprise center must consume shell lifecycle events, never own tab navigation.
 check('enterprise: consumes panel activation lifecycle', "azaad:admin-panel-activated" in enterprise)
 check('enterprise: no tab click owner', "tab.addEventListener('click'" not in enterprise)
+check('purchasing: dedicated runtime consumes panel activation lifecycle', "azaad:admin-panel-activated" in purchasing)
+check('purchasing: no browser-local clinic_purchases query', ".from('clinic_purchases')" not in purchasing and '.from("clinic_purchases")' not in purchasing)
+check('purchasing: uses authenticated Edge Function request', 'Authorization' in purchasing and 'azaad-content-center?api=purchases' in purchasing)
+check('purchasing: supports read/create/update/delete', all(x in purchasing for x in ["call('GET')", "call('POST'", "call('PATCH'", "call('DELETE'" ]))
 
-# Prevent the contract from silently treating the enterprise center as the backend itself.
-for backend in {v[1] for v in DOMAINS.values()}:
-    check(f'backend boundary is function reference: {backend}', backend in enterprise)
+# Every declared backend must be represented by its actual owner source.
+for domain, (_, backend, owner_kind) in DOMAINS.items():
+    source = purchasing if owner_kind == 'dedicated' else enterprise
+    check(f'backend boundary is function reference: {domain} -> {backend}', backend in source)
 
 failed = False
 for name, ok, detail in checks:
