@@ -1,4 +1,4 @@
-/* AZAAD Admin Enterprise Centers — one owner for enterprise domain panels. */
+/* AZAAD Admin Enterprise Centers — one owner for enterprise overview panels. */
 (() => {
   'use strict';
   if (window.AZAAD_ENTERPRISE_CENTERS) return;
@@ -8,7 +8,7 @@
   const D={
     patient360:['🧑‍⚕️ Patient 360','ملف المريض الكامل'],rcm:['🧾 Invoices & RCM','الفواتير والتحصيل'],
     analytics:['📊 Analytics','مؤشرات التشغيل'],finance:['💰 Finance','الإيرادات والمصروفات'],
-    purchasing:['🛒 Purchasing','المشتريات الفعلية'],marketing:['📣 Marketing','العملاء المحتملون'],
+    marketing:['📣 Marketing','العملاء المحتملون'],
     insights:['🧠 Smart Insights','توصيات مبنية على البيانات'],security:['🛡️ IT Security','حدود الأمان والحسابات']
   };
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -28,8 +28,7 @@
     if(key==='insights'){const d=await call(`azaad-ai-insights?from=${today}&to=${today}`,t),rows=d.insights||[];body.innerHTML=cards([['Insights',rows.length],['Open follow-ups',d.kpis?.open_followups||0],['Open alerts',d.kpis?.open_alerts||0],['No-show rate',`${d.kpis?.no_show_rate||0}%`],['Outstanding',money(d.kpis?.outstanding||0)]])+rows.map(r=>`<div class="item"><div><strong>${esc(r.title_ar||r.summary_ar||r.insight_type)}</strong><div class="muted">${esc(r.recommendation_ar||r.summary_ar||'')}</div><div class="muted">${esc(r.generated_at||'')}</div></div><span class="badge">${esc(r.severity)} · ${esc(r.status||'OPEN')}</span></div>`).join('');return;}
     const d=await call(`azaad-management-dashboard?from=${today}&to=${today}`,t),k=d.kpis||{};
     if(key==='analytics')return void(body.innerHTML=cards([['الحجوزات',k.bookings],['مؤكد',k.confirmed],['مكتمل',k.completed],['No-Show',k.no_show],['معدل الإكمال',`${k.completion_rate}%`],['معدل No-Show',`${k.no_show_rate}%`],['الأطباء النشطون',k.active_doctors],['الموظفون النشطون',k.active_staff]]));
-    if(key==='purchasing')return void(body.innerHTML=cards([['المشتريات اليوم',money(k.purchases)],['التحصيل اليوم',money(k.collected)],['الصافي بعد المصروفات والمشتريات',money(k.net_cash_flow)]]));
-    if(key==='marketing'){const m=d.marketing||{};return void(body.innerHTML=cards([['Leads',k.marketing_leads],['Converted',k.converted_leads],['Conversion rate',`${k.lead_conversion_rate}%`]])+`<div class="item"><strong>المصادر</strong><pre>${esc(JSON.stringify(m.by_source||{},null,2))}</pre></div>`);}
+    if(key==='marketing'){const m=d.marketing||{};return void(body.innerHTML=cards([['Leads',k.marketing_leads],['Converted',k.converted_leads],['Conversion rate',`${k.lead_conversion_rate}%`])+`<div class="item"><strong>المصادر</strong><pre>${esc(JSON.stringify(m.by_source||{},null,2))}</pre></div>`);}
   }catch(e){body.innerHTML=`<div class="error">تعذر تحميل ${esc(D[key][0])}: ${esc(e.message)}</div>`;}}
   window.addEventListener('azaad:admin-panel-activated',event=>{const panel=event.detail?.panel||'';const key=panel.endsWith('EnterprisePanel')?panel.replace('EnterprisePanel',''):'';if(D[key])render(key);});
   bind();
