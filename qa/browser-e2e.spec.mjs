@@ -134,6 +134,14 @@ test('admin authenticated flow is exercised only with dedicated CI credentials',
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 
+  // The canonical controller intentionally confirms destructive session exit.
+  // Playwright auto-dismisses native dialogs unless explicitly handled, which
+  // would make the E2E click a no-op and falsely report a logout regression.
+  page.once('dialog', async dialog => {
+    expect(dialog.type()).toBe('confirm');
+    await dialog.accept();
+  });
+
   // Regression test for the reported freeze: Logout must remain usable even
   // while background data/feature initialization is still in flight.
   await expect(page.locator('#logoutBtn')).toBeVisible({ timeout: 5000 });
