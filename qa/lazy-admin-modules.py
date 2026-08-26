@@ -22,7 +22,7 @@ LAZY = {
         "doctor-staff-convert.js",
     ],
     "services": ["services-center-v2.js"],
-    "schedules": ["scheduling-v2.js"],
+    "schedules": ["scheduling-v2.js", "scheduling-v2-waiting.js"],
     "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
     "staff": ["staff-management.js", "patient-merge-tool.js", "hr-performance-analytics.js"],
     "settings": [],
@@ -33,7 +33,6 @@ LEGACY_OR_CONTRACT = {
     "clinic-posts.js",
     "marketing-workspace-v2.js",
     "marketing-platform-expansion.js",
-    "scheduling-v2-waiting.js",
     "scheduling-actions-contract.js",
     "admin-nextgen-fixes.js",
     "admin-nextgen-v2.js",
@@ -61,7 +60,7 @@ def main():
     names_to_remove = ALL_RUNTIME | LEGACY_OR_CONTRACT
     for name in sorted(names_to_remove):
         tag = re.compile(
-            r'<script\b[^>]*src=["\'](?:/)?' + re.escape(name) +
+            r'<script\b[^>]*(?:src|data-azaad-after-auth-src)=["\'](?:/|\./)?' + re.escape(name) +
             r'(?:\?[^"\']*)?["\'][^>]*>\s*</script>', re.I
         )
         text = tag.sub("", text)
