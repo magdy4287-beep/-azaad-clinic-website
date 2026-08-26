@@ -1,7 +1,7 @@
 name: Azaad Admin Acceptance Gates
 
 # Free-first acceptance gate: every main push and every PR to main is verified.
-# CI revalidation marker: 2026-08-25 canonical-admin-loader gate verification.
+# CI revalidation marker: canonical Admin backend ownership verification.
 on:
   push:
     branches:
@@ -25,6 +25,9 @@ jobs:
 
       - name: Run canonical Admin panel ownership gate
         run: python3 qa/admin-panel-ownership-contract.py
+
+      - name: Run canonical Admin backend boundary gate
+        run: python3 qa/admin-backend-boundary-gate.py
 
       - name: Run scheduling contract gate
         run: python3 qa/scheduling-contract-gate.py
