@@ -4,24 +4,20 @@ import re
 path = Path('admin.html')
 text = path.read_text(encoding='utf-8')
 
-module = "admin-enterprise-centers.js"
-if module not in text:
-    # Enterprise module is loaded lazily by the canonical registry, never as an executable page script.
-    pass
-
 registry = re.search(r'(<script[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>)(.*?)(</script>)', text, re.I | re.S)
 if not registry:
     raise SystemExit('Canonical admin module registry not found')
 body = registry.group(2)
 needle = "'calendar': ['admin-calendar-center.js']"
-enterprise = ", 'patient360EnterprisePanel': ['admin-enterprise-centers.js'], 'rcmEnterprisePanel': ['admin-enterprise-centers.js'], 'analyticsEnterprisePanel': ['admin-enterprise-centers.js'], 'financeEnterprisePanel': ['admin-enterprise-centers.js'], 'purchasingEnterprisePanel': ['admin-enterprise-centers.js'], 'marketingEnterprisePanel': ['admin-enterprise-centers.js'], 'insightsEnterprisePanel': ['admin-enterprise-centers.js'], 'securityEnterprisePanel': ['admin-enterprise-centers.js']"
+enterprise = ", 'patient360EnterprisePanel': ['admin-enterprise-centers.js'], 'rcmEnterprisePanel': ['admin-enterprise-centers.js'], 'analyticsEnterprisePanel': ['admin-enterprise-centers.js'], 'financeEnterprisePanel': ['admin-enterprise-centers.js'], 'purchasingEnterprisePanel': ['admin-purchasing-center.js'], 'marketingEnterprisePanel': ['admin-enterprise-centers.js'], 'insightsEnterprisePanel': ['admin-enterprise-centers.js'], 'securityEnterprisePanel': ['admin-enterprise-centers.js']"
 if "patient360EnterprisePanel" not in body:
     if needle not in body:
         raise SystemExit('Canonical calendar registry entry not found')
     body = body.replace(needle, needle + enterprise, 1)
+else:
+    body = re.sub(r"'purchasingEnterprisePanel':\s*\[[^\]]+\]", "'purchasingEnterprisePanel': ['admin-purchasing-center.js']", body, count=1)
 text = text[:registry.start(2)] + body + text[registry.end(2):]
 
-# The enterprise module owns these panels. Create only the shells here; data rendering remains in the module.
 keys = [
     ('patient360EnterprisePanel','🧑‍⚕️ Patient 360'), ('rcmEnterprisePanel','🧾 Invoices & RCM'),
     ('analyticsEnterprisePanel','📊 Analytics'), ('financeEnterprisePanel','💰 Finance'),
