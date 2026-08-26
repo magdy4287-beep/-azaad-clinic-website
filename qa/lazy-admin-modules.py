@@ -37,6 +37,12 @@ LEGACY_OR_CONTRACT = {
     "scheduling-actions-contract.js",
     "admin-nextgen-fixes.js",
     "admin-nextgen-v2.js",
+    # Superseded Finance UI/data owners. Finance is now owned by the
+    # enterprise center -> azaad-finance boundary.
+    "finance-executive-dashboard.js",
+    "finance-executive-loader.js",
+    "finance-executive-annual-monthly.js",
+    "finance-executive-period-loader.js",
 }
 
 ALL_RUNTIME = {name for values in LAZY.values() for name in values} | set(CORE)
