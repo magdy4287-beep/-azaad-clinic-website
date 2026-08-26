@@ -134,19 +134,19 @@ jobs:
           test -n "$AZAAD_TEST_PASSWORD"
           echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
 
-      - name: Run browser shell/control-plane E2E against production on main
+      - name: Run browser shell/control-plane/domain E2E against production on main
         if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs
 
-      - name: Run browser shell/control-plane/responsive E2E against exact checked-out canonical production build on pull requests and branch dispatches
+      - name: Run browser shell/control-plane/domain/responsive E2E against exact checked-out canonical production build on pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs
+        run: npx playwright test qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs
 
       - name: Enforce Production Certification policy
         shell: bash
