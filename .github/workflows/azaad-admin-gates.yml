@@ -23,8 +23,14 @@ jobs:
       - name: Run free structural acceptance gates
         run: python3 qa/admin-gates.py
 
+      - name: Apply canonical Admin interactivity transformation before ownership verification
+        run: python3 qa/canonicalize-admin-interactivity-v2.py
+
       - name: Run canonical Admin panel ownership gate
         run: python3 qa/admin-panel-ownership-contract.py
+
+      - name: Apply canonical Admin operational-data transformation before backend boundary verification
+        run: python3 qa/finalize-admin-operational-data.py
 
       - name: Run canonical Admin backend boundary gate
         run: python3 qa/admin-backend-boundary-gate.py
