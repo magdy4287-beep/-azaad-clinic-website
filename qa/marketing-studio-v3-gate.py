@@ -7,7 +7,11 @@ marketing = (ROOT / 'marketing-studio-v3.js').read_text(encoding='utf-8')
 checks = {
     'canonical studio exists': 'marketingV3' in marketing,
     'rich post composer': 'Rich Social Post' in marketing and 'm3New' in marketing,
-    'image and video support': "type==='video'" in marketing and 'image' in marketing,
+    'image and video support': (
+        "value=\"image\"" in marketing
+        and "value=\"video\"" in marketing
+        and "startsWith('video/')" in marketing
+    ),
     'real media upload': "storage.from('clinic-media').upload" in marketing,
     'multi-channel distribution': 'Multi-channel Distribution' in marketing,
     'campaign workspace': 'Clinic Campaigns' in marketing and 'New Campaign' in marketing,
