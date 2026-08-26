@@ -6,7 +6,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / "admin.html"
 ADMIN_JS = ROOT / "admin.js"
-CORE_SRC = '<script src="/azaad-core-context.js?v=1.0.0"></script>'
+CORE_SRC = '<script src="/azaad-core-context.js?v=1.1.0"></script>'
 CORE_RE = re.compile(
     r'<script\b[^>]*\bsrc\s*=\s*["\'][^"\']*/azaad-core-context\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>',
     re.I,
