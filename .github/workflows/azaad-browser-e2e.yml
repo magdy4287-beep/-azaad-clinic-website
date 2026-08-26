@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: azaad-production-certification-${{ github.ref }}
+  group: azaad-production-browser-e2e-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
