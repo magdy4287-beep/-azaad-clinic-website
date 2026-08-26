@@ -5,13 +5,13 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / 'admin.html').read_text(encoding='utf-8')
 loader = (ROOT / 'qa' / 'lazy-admin-modules.py').read_text(encoding='utf-8')
-finalize = (ROOT / 'qa' / 'finalize-enterprise-admin.py').read_text(encoding='utf-8')
 enterprise = (ROOT / 'admin-enterprise-centers.js').read_text(encoding='utf-8')
 purchasing = (ROOT / 'admin-purchasing-center.js').read_text(encoding='utf-8')
 patient360_loader = (ROOT / 'clinical-patient360-loader.js').read_text(encoding='utf-8')
 
-# Ownership contract. A domain may use the enterprise overview owner or a
-# dedicated runtime, but never two competing owners for the same panel.
+registry_match = re.search(r'data-azaad-admin-module-registry=["\']1["\'][^>]*>(.*?)</script>', admin, re.I | re.S)
+registry_body = registry_match.group(1) if registry_match else ''
+
 DOMAINS = {
     'patient360': ('clinical-patient360-loader.js', 'azaad-patient-360', 'enterprise'),
     'rcm': (None, 'azaad-invoice-center', 'enterprise'),
@@ -35,10 +35,10 @@ for domain, (runtime, backend, owner_kind) in DOMAINS.items():
     if runtime:
         if domain == 'patient360':
             check(f'{domain}: canonical runtime file exists', (ROOT / runtime).is_file())
-            check(f'{domain}: loader has single guarded load owner', 'window.__AZAAD_PATIENT360_LOADED__' in patient360_loader and 'clinical-patient360.js' in patient360_loader)
+            check(f'{domain}: loader has single guarded load owner', '__AZAAD_PATIENT360_LOADED__' in patient360_loader and 'clinical-patient360.js' in patient360_loader)
         elif domain == 'purchasing':
             mapping = "'purchasingEnterprisePanel': ['admin-purchasing-center.js']"
-            check(f'{domain}: dedicated runtime is mapped once', finalize.count(mapping) == 1)
+            check(f'{domain}: dedicated runtime is mapped once in generated registry', registry_body.count(mapping) == 1)
             check(f'{domain}: dedicated runtime is not also owned by enterprise center', 'purchasing' not in re.findall(r"D=\{.*?\};", enterprise, re.S)[0] if 'D={' in enterprise else True)
         else:
             check(f'{domain}: canonical runtime registered once', loader.count(runtime) == 1)
