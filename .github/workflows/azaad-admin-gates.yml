@@ -29,6 +29,9 @@ jobs:
       - name: Run canonical Admin panel ownership gate
         run: python3 qa/admin-panel-ownership-contract.py
 
+      - name: Build the immutable canonical production Admin artifact before backend boundary verification
+        run: python3 qa/vercel-build.py
+
       - name: Run canonical Admin backend boundary gate
         run: python3 qa/admin-backend-boundary-gate.py
 
