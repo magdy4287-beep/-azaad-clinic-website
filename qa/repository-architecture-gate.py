@@ -3,6 +3,7 @@
 from pathlib import Path
 import re
 import sys
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / "admin.html"
@@ -81,12 +82,20 @@ if ADMIN.is_file():
             errors.append("legacy inline Admin application/login controller is present")
             break
 
-    if text.count("admin-shell.js") != 1:
-        errors.append("Admin navigation Shell must have exactly one source reference")
+    if len(re.findall(r'<script\b[^>]*\bsrc=["\'][^"\']*admin-shell\.js[^"\']*["\'][^>]*>', text, flags=re.I)) > 1:
+        errors.append("Admin navigation Shell has duplicate executable source references")
 
-    for retired in RETIRED_ADMIN_LAYERS:
-        if retired in text:
-            errors.append(f"retired Admin layer referenced by admin.html: {retired}")
+    manifest_shell = [
+        src for src in re.findall(
+            r'data-azaad-after-auth-src\s*=\s*["\']([^"\']+)["\']', text, flags=re.I
+        )
+        if (urlsplit(src).path or src).lstrip("/").lower() == "admin-shell.js"
+    ]
+    if len(manifest_shell) != 1:
+        errors.append(f"Admin navigation Shell manifest must have exactly one canonical entry; found {len(manifest_shell)}")
+
+    if text.count("admin-shell.js") < 1:
+        errors.append("Admin navigation Shell reference is missing")
 
     scripts = re.findall(r'<script[^>]+src=["\']([^"\']+)["\'][^>]*>', text, flags=re.I)
     counts = {}
@@ -96,6 +105,10 @@ if ADMIN.is_file():
     for src, count in sorted(counts.items()):
         if src and count > 1:
             errors.append(f"duplicate Admin script source ({count}x): {src}")
+
+    for retired in RETIRED_ADMIN_LAYERS:
+        if retired in text:
+            errors.append(f"retired Admin layer referenced by admin.html: {retired}")
 
 if PATCH.is_file():
     text = PATCH.read_text(encoding="utf-8", errors="replace")
