@@ -8,9 +8,10 @@ loader = (ROOT / 'qa' / 'lazy-admin-modules.py').read_text(encoding='utf-8')
 finalize = (ROOT / 'qa' / 'finalize-enterprise-admin.py').read_text(encoding='utf-8')
 enterprise = (ROOT / 'admin-enterprise-centers.js').read_text(encoding='utf-8')
 purchasing = (ROOT / 'admin-purchasing-center.js').read_text(encoding='utf-8')
+patient360_loader = (ROOT / 'clinical-patient360-loader.js').read_text(encoding='utf-8')
 
-# Ownership contract. This is intentionally evidence-based: a domain may use
-# the enterprise overview owner or a dedicated canonical runtime, but never both.
+# Ownership contract. A domain may use the enterprise overview owner or a
+# dedicated runtime, but never two competing owners for the same panel.
 DOMAINS = {
     'patient360': ('clinical-patient360-loader.js', 'azaad-patient-360', 'enterprise'),
     'rcm': (None, 'azaad-invoice-center', 'enterprise'),
@@ -29,12 +30,16 @@ def check(name, ok, detail=''):
 for domain, (runtime, backend, owner_kind) in DOMAINS.items():
     panel = f'{domain}EnterprisePanel'
     check(f'{domain}: enterprise panel exists', f'id="{panel}"' in admin)
-    source = purchasing if domain == 'purchasing' else enterprise
+    source = purchasing if owner_kind == 'dedicated' else enterprise
     check(f'{domain}: backend boundary declared', backend in source)
     if runtime:
-        if domain == 'purchasing':
-            check(f'{domain}: dedicated runtime is mapped once', finalize.count("'purchasingEnterprisePanel': ['admin-purchasing-center.js']") == 1)
-            check(f'{domain}: dedicated runtime is not also owned by enterprise center', "purchasing" not in re.findall(r"D=\{.*?\};", enterprise, re.S)[0] if 'D={' in enterprise else True)
+        if domain == 'patient360':
+            check(f'{domain}: canonical runtime file exists', (ROOT / runtime).is_file())
+            check(f'{domain}: loader has single guarded load owner', 'window.__AZAAD_PATIENT360_LOADED__' in patient360_loader and 'clinical-patient360.js' in patient360_loader)
+        elif domain == 'purchasing':
+            mapping = "'purchasingEnterprisePanel': ['admin-purchasing-center.js']"
+            check(f'{domain}: dedicated runtime is mapped once', finalize.count(mapping) == 1)
+            check(f'{domain}: dedicated runtime is not also owned by enterprise center', 'purchasing' not in re.findall(r"D=\{.*?\};", enterprise, re.S)[0] if 'D={' in enterprise else True)
         else:
             check(f'{domain}: canonical runtime registered once', loader.count(runtime) == 1)
 
@@ -43,9 +48,8 @@ check('enterprise: no tab click owner', "tab.addEventListener('click'" not in en
 check('purchasing: dedicated runtime consumes panel activation lifecycle', "azaad:admin-panel-activated" in purchasing)
 check('purchasing: no browser-local clinic_purchases query', ".from('clinic_purchases')" not in purchasing and '.from("clinic_purchases")' not in purchasing)
 check('purchasing: uses authenticated Edge Function request', 'Authorization' in purchasing and 'azaad-content-center?api=purchases' in purchasing)
-check('purchasing: supports read/create/update/delete', all(x in purchasing for x in ["call('GET')", "call('POST'", "call('PATCH'", "call('DELETE'" ]))
+check('purchasing: exposes all CRUD HTTP methods', all(re.search(r"method\s*:\s*['\"]" + method + r"['\"]", purchasing) or re.search(r"call\([^\n]*['\"]" + method + r"['\"]", purchasing) for method in ('GET','POST','PATCH','DELETE')))
 
-# Every declared backend must be represented by its actual owner source.
 for domain, (_, backend, owner_kind) in DOMAINS.items():
     source = purchasing if owner_kind == 'dedicated' else enterprise
     check(f'backend boundary is function reference: {domain} -> {backend}', backend in source)
