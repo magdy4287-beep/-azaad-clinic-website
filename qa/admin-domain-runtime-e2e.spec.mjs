@@ -48,7 +48,8 @@ test('authenticated admin domain runtime certification covers every accessible p
 
   await login(page);
 
-  await page.waitForFunction(() => Boolean(window.AZAAD_ADMIN_SHELL_READY), { timeout: 10000 });
+  await expect(page.locator('.tab[data-panel]:visible').first(),
+    'authenticated admin must expose a visible navigation panel').toBeVisible({ timeout: AUTH_READY_TIMEOUT });
   await page.waitForTimeout(1000);
 
   const panels = await page.locator('.tab[data-panel]:visible').evaluateAll(buttons =>
@@ -72,7 +73,7 @@ test('authenticated admin domain runtime certification covers every accessible p
     await page.waitForTimeout(1200);
 
     const state = await section.evaluate(node => ({
-      text: (node.textContent || '').replace(/\\s+/g, ' ').trim(),
+      text: (node.textContent || '').replace(/\s+/g, ' ').trim(),
       htmlBytes: node.innerHTML.length,
       hasLoadingOnly: node.querySelectorAll('.empty').length > 0 &&
         !node.querySelector('table, input, select, textarea, button[data-enterprise-refresh], .item, .stat, .error')
