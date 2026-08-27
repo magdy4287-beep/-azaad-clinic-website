@@ -1,6 +1,13 @@
 name: AZAAD Production Certification Gate
 
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -9,5 +16,5 @@ jobs:
   certification:
     runs-on: ubuntu-latest
     steps:
-      - name: Certification workflow is maintained by the canonical Auth Bridge E2E
-        run: echo 'Production certification is executed by azaad-auth-bridge-e2e.yml on the exact main SHA.'
+      - name: Canonical Production Certification Gate
+        run: echo 'Production browser certification is owned by azaad-auth-bridge-e2e.yml on the exact commit SHA.'
