@@ -45,5 +45,7 @@
   }catch(e){body.innerHTML=`<div class="error">تعذر تحميل ${esc(D[key][0])}: ${esc(e.message)}</div>`;}}
   window.addEventListener('azaad:admin-panel-activated',event=>{const panel=event.detail?.panel||'';const key=panel.endsWith('EnterprisePanel')?panel.replace('EnterprisePanel',''):'';if(D[key]&&canAccess(key))render(key);});
   bind();
+  const roleObserver=new MutationObserver(()=>bind());
+  roleObserver.observe(document.body,{attributes:true,attributeFilter:['data-role']});
   window.AZAAD_ENTERPRISE_CENTERS={render,bind};
 })();

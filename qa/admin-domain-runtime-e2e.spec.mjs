@@ -68,7 +68,7 @@ test('authenticated admin domain runtime certification covers every accessible p
 
     const section = page.locator(`#${panel.id}`).first();
     await expect(section, `${panel.id} panel must exist`).toHaveCount(1);
-    await expect(section, `${panel.id} panel must activate`).toHaveClass(/active/, { timeout: 5000 });
+    await expect(section, `${panel.id} panel must be visible after activation`).toBeVisible({ timeout: 5000 });
 
     await page.waitForTimeout(1200);
 
