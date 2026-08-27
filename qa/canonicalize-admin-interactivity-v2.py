@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 PATH = Path("admin.js")
 if not PATH.exists():
@@ -171,8 +172,13 @@ if "setTimeout(()" in body:
     raise SystemExit("Delayed post-auth work is still on the critical initialization path")
 if "state.initialized = true;" not in body or "state.initializing = false;" not in body:
     raise SystemExit("Interactive state transition missing")
-if "function switchPanel(" in js or "function bindTabs(" in js:
-    raise SystemExit("Duplicate Admin navigation owner remains in admin.js")
+
+# Fail closed on any remaining legacy navigation symbol anywhere in the final
+# generated controller. The shell is the only navigation owner.
+if re.search(r"\bfunction\s+bindTabs\s*\(", js) or re.search(r"\bbindTabs\s*\(", js):
+    raise SystemExit("Legacy bindTabs symbol remains in canonical admin.js")
+if re.search(r"\bfunction\s+switchPanel\s*\(", js) or re.search(r"\bswitchPanel\s*\(", js):
+    raise SystemExit("Legacy switchPanel symbol remains in canonical admin.js")
 
 PATH.write_text(js, encoding="utf-8")
 print("[AZAAD] admin core no longer owns navigation; shell is the sole panel activation owner")
