@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
 
       - name: Verify exact commit under test
         shell: bash
