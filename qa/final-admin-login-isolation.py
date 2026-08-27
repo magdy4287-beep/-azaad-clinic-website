@@ -34,6 +34,10 @@ script_open = re.compile(r"<script\b([^>]*)>", re.I | re.S)
 src_attr = re.compile(r"(?<![-\w])src\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
 type_module = re.compile(r"\btype\s*=\s*([\"'])module\1", re.I)
 
+# The Admin shell is the canonical control plane and must remain executable
+# before authentication so navigation can own panel activation immediately.
+PRE_AUTH_RUNTIME_PATHS = {"admin.js", "central-i18n.js", "admin-shell.js"}
+
 def isolate(match):
     attrs = match.group(1)
     found = src_attr.search(attrs)
@@ -46,6 +50,8 @@ def isolate(match):
     if path == "central-i18n.js":
         without_defer = re.sub(r"\bdefer(?:\s*=\s*(?:[\"'])?[^\s>\"']*(?:[\"'])?)?", "", attrs, flags=re.I)
         return "<script" + without_defer.rstrip() + " defer>"
+    if path == "admin-shell.js":
+        return match.group(0)
     module_attr = ' data-azaad-after-auth-type="module"' if type_module.search(attrs) else ''
     remainder = (attrs[:found.start()] + attrs[found.end():]).strip()
     return f'<script data-azaad-after-auth-src="{src}"{module_attr}{(" " + remainder) if remainder else ""}>'
@@ -53,7 +59,7 @@ def isolate(match):
 text = script_open.sub(isolate, text)
 
 known = [
-    "/admin-shell.js?v=1", "/azaad-core-context.js?v=1.0.0",
+    "/azaad-core-context.js?v=1.0.0",
     "./scheduling-v2.js?v=1.0.0", "./scheduling-v2-waiting.js?v=1.0.0",
     "./patients-center.js?v=7.5.0", "./doctor-route-guard.js?v=2.0.0",
     "/azaad-role-experience.js?v=1.0.0", "azaad-platform-kernel.js",
@@ -150,7 +156,7 @@ for match in script_open.finditer(text):
         continue
     src = found.group(2) if found.group(2) is not None else found.group(3)
     path = (urlsplit(src).path or src).lstrip("/").lower()
-    if path not in {"admin.js", "central-i18n.js"}:
+    if path not in PRE_AUTH_RUNTIME_PATHS:
         executable.append(src)
 if executable:
     raise SystemExit("Non-canonical Admin runtimes remain executable: " + ", ".join(executable))
@@ -158,4 +164,4 @@ if text.count('data-azaad-after-auth-src=') < 1:
     raise SystemExit("No post-auth runtime manifest was produced")
 
 ADMIN.write_text(text, encoding="utf-8")
-print("[AZAAD final admin isolation] PASS: canonical login shell preserved; exactly one lazy panel-loader definition inside the canonical registry")
+print("[AZAAD final admin isolation] PASS: canonical login shell preserved; admin-shell remains pre-auth; exactly one lazy panel-loader definition inside the canonical registry")
