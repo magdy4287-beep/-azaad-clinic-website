@@ -3,13 +3,14 @@ name: Azaad Auth Bridge E2E
 on:
   push:
     branches:
-      - fix/admin-login-binding-final
+      - main
   pull_request:
     branches: [main]
     paths:
       - 'admin.html'
       - 'admin.js'
       - 'admin-shell.js'
+      - 'azaad-role-experience.js'
       - 'azaad-operations-control-center.js'
       - '.github/patch-admin.py'
       - 'qa/vercel-build.py'
