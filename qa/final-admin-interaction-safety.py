@@ -13,19 +13,14 @@ new = 'Promise.resolve().then(() => window.AZAAD_STAFF.init()).catch(error =>'
 if old in js:
     js = js.replace(old, new, 1)
 
-# A late critical-path transform historically reintroduced bindTabs() after the
-# canonical interactivity transform had retired it. Remove the invocation here as
-# a final fail-closed normalization; navigation belongs exclusively to admin-shell.
+# This transform runs before canonicalize-admin-interactivity-v2.py. It may remove
+# a legacy invocation, but it must not pretend to be the navigation owner or fail
+# on source-level symbols that the next canonical transform is responsible for
+# retiring. The final generated artifact is fail-closed by the canonical ownership
+# and interactivity gates after that transform has run.
 js = re.sub(r'^[ \t]*bindTabs\(\);[ \t]*\n?', '', js, flags=re.M)
-if re.search(r'\bfunction\s+bindTabs\s*\(', js):
-    raise SystemExit('Legacy bindTabs function remains in Admin controller')
-if re.search(r'\bbindTabs\s*\(', js):
-    raise SystemExit('Legacy bindTabs invocation remains in Admin controller')
+js = re.sub(r'^[ \t]*switchPanel\([^;]+;[ \t]*\n?', '', js, flags=re.M)
 
-# Install only an interaction-recovery safety net. Authentication and Logout have
-# exactly one owner: admin.js bindLogout(). A second capture-phase Logout handler
-# caused duplicate ownership and could invoke logout twice (pointerup + click),
-# creating auth races and leaving the shell apparently frozen.
 marker = '/* ============================================================\n   LOGIN\n   ============================================================ */'
 block = r'''/* ============================================================
    FINAL ADMIN INTERACTION SAFETY
@@ -67,4 +62,4 @@ if marker in js and 'FINAL ADMIN INTERACTION SAFETY' not in js:
     js = js.replace(marker, block + marker, 1)
 
 path.write_text(js, encoding='utf-8')
-print('[AZAAD] final admin interaction safety applied; navigation remains shell-owned and legacy bindTabs is forbidden')
+print('[AZAAD] final admin interaction safety applied; navigation retirement is delegated to canonical interactivity stage')
