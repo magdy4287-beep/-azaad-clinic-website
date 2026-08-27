@@ -54,11 +54,17 @@ if "initializing: false" not in js:
     else:
         raise SystemExit("Admin state initialization contract not found")
 
+# Canonical post-auth shell activation: staff-login is the authoritative identity
+# boundary. The optional Supabase user object must never block a valid staff login.
 canonical_init = '''async function initializeApplication() {
   if (state.initialized || state.initializing) return;
-  if (!state.session || !state.user || !state.staff || !state.currentRole) return;
+  if (!state.session || !state.staff || !state.currentRole) return;
 
   state.initializing = true;
+  if (!state.user?.id && state.staff?.auth_user_id) {
+    state.user = { id: state.staff.auth_user_id };
+  }
+
   const loginPage = $("loginPage");
   const adminPage = $("adminPage");
   if (loginPage) loginPage.classList.add("hidden");
@@ -127,7 +133,6 @@ for obsolete in ("function bindTabs()", "function switchPanel("):
 
 js = re.sub(r'(?m)^\s*bindTabs\(\);\s*\n?', '', js)
 js = re.sub(r'(?m)^\s*switchPanel\([^;]+;\s*\n?', '', js)
-
 js = js.replace("switchPanel(", "requestPanel(")
 bridge = '''
 function requestPanel(panelId) {
@@ -144,9 +149,8 @@ if "function requestPanel(panelId)" not in js:
     else:
         js = bridge + "\n" + js
 
-# Canonical startup owner: bind the shell-safe handlers, then restore an existing
-# Supabase session through the already-owned restoreStaffProfile() boundary. The
-# retired restoreSession() symbol is never emitted into the production artifact.
+# Canonical startup owner: bind shell-safe handlers, then restore an existing
+# Supabase session through the staff profile boundary.
 startup_pattern = re.compile(
     r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
     re.S,
@@ -219,4 +223,4 @@ if re.search(r"\brestoreSession\s*\(", check_js):
     raise SystemExit("Retired restoreSession symbol remains in canonical admin.js")
 
 PATH.write_text(js, encoding="utf-8")
-print("[AZAAD] admin core owns auth startup and lifecycle; navigation remains shell-owned; retired restoreSession is forbidden")
+print("[AZAAD] admin auth shell contract PASS: staff-login identity is sufficient; user payload cannot block shell activation")
