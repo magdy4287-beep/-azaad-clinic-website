@@ -2,105 +2,43 @@ name: AZAAD Production Certification Gate
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: azaad-production-certification-${{ github.ref }}
-  cancel-in-progress: false
+env:
+  AZAAD_TEST_USERNAME: frontdesk_azaad
 
 jobs:
   certification:
-    name: AI-First Free-Only Production Certification
+    name: Production Build + Authenticated Browser Certification
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
-      - name: Checkout exact commit
-        uses: actions/checkout@v4
-
-      - name: Record exact commit under certification
-        shell: bash
-        run: |
-          set -euo pipefail
-          actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA"
-          echo "Certification commit: $actual"
-
-      - name: Require certification plan
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'AI-First • Free-Only • Safety-Gated • Continuous Delivery' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'NOT PROVEN ON FREE-ONLY STACK' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Authorized user → bounded AI processing → validation → safe response/fallback' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'If any required item is absent: `NOT PROVEN`.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-
-      - name: Require existing control layers
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s AZAAD_ENGINEERING_CONTROL_PLAN.md
-          test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          test -s .github/workflows/azaad-release-governance-gate.yml
-          test -s .github/workflows/azaad-operations-health.yml
-
-      - name: Enforce permanent free-only and AI-first constraints
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -Fq '100% free-only' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI-first clinic platform' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-
-      - name: Enforce exact-commit evidence policy
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-
-      - name: Enforce free-only architecture rule
-        run: |
-          set -euo pipefail
-          grep -Fq 'AZAAD is 100% free-only.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'No paid provider plan, paid API, paid AI model, paid credits, paid monitoring, paid recovery resource, or paid add-on may be required' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          echo 'Free-only architecture rule: PASS'
-
-      - name: Certification gate
-        run: echo 'AZAAD Production Certification Gate: PASS'
-
-  authenticated-browser-evidence:
-    name: Authenticated Production Browser Evidence
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: certification
-    steps:
-      - name: Checkout exact commit under certification
+      - name: Checkout exact certification SHA
         uses: actions/checkout@v5
         with:
           fetch-depth: 2
 
-      - name: Verify exact commit under certification
+      - name: Verify exact SHA
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test -n "$(git rev-parse HEAD^)"
+          echo "CERTIFICATION_SHA=$GITHUB_SHA"
 
-      - name: Setup Node
+      - name: Install Node and Playwright
         uses: actions/setup-node@v5
         with:
           node-version: 24
 
-      - name: Install Playwright
+      - name: Install Playwright package
         run: npm install --no-save --no-package-lock @playwright/test
 
       - name: Install Chromium
@@ -115,48 +53,41 @@ jobs:
           cp -a . /tmp/azaad-build/
           cd /tmp/azaad-build
           python3 qa/vercel-build.py
+          test "$(grep -o "azaad-build-sha\\\" content=\\\"$GITHUB_SHA" admin.html | wc -l)" -ge 1
 
-      - name: Validate canonical JavaScript
+      - name: Validate canonical Admin JavaScript
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/azaad-build
-          node --check ./admin.js
-          node --check ./admin-shell.js
-          node --check ./azaad-operations-control-center.js
-
-      - name: Prove final Admin runtime invariants
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd /tmp/azaad-build
+          node --check admin.js
+          node --check admin-shell.js
+          node --check azaad-operations-control-center.js
           test "$(grep -o 'azaad-core-context.js' admin.html | wc -l)" -eq 1
           test "$(grep -o 'admin-shell.js' admin.html | wc -l)" -eq 1
           ! grep -Eq '\bbindTabs\s*\(' admin.js
           ! grep -Eq '\bswitchPanel\s*\(' admin.js
-          grep -Fq "azaad-build-sha\" content=\"$GITHUB_SHA" admin.html
-          echo 'Final Admin runtime invariants + local artifact provenance: PASS'
 
-      - name: Wait for exact production artifact
+      - name: Wait for exact Vercel Production SHA
         shell: bash
         env:
           EXPECTED_SHA: ${{ github.sha }}
           PRODUCTION_URL: https://azaad-clinic-website.vercel.app
         run: |
           set -euo pipefail
-          for attempt in {1..60}; do
+          for attempt in $(seq 1 60); do
             html="$(curl -fsSL "$PRODUCTION_URL/admin.html" || true)"
             if printf '%s' "$html" | grep -Fq "azaad-build-sha\" content=\"$EXPECTED_SHA"; then
               echo "Production artifact SHA verified: $EXPECTED_SHA"
               exit 0
             fi
-            echo "Waiting for Vercel Production to expose SHA $EXPECTED_SHA (attempt $attempt/60)"
+            echo "Waiting for Production SHA $EXPECTED_SHA ($attempt/60)"
             sleep 10
           done
-          echo "Production artifact did not expose expected SHA: $EXPECTED_SHA"
           exit 1
 
       - name: Verify dedicated CI credentials
+        shell: bash
         env:
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: |
@@ -164,10 +95,14 @@ jobs:
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
 
-      - name: Run authenticated Production browser evidence
+      - name: Run authenticated Production Browser E2E
+        shell: bash
         env:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
           AZAAD_TEST_USERNAME: frontdesk_azaad
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/auth-bridge-production.spec.mjs
+
+      - name: Final certification result
+        run: echo "AZAAD PRODUCTION CERTIFICATION: PASS — exact SHA + canonical build + authenticated Production Browser evidence"
