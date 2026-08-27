@@ -12,9 +12,6 @@ registry_match = re.search(r'data-azaad-admin-module-registry=["\']1["\'][^>]*>(
 registry_body = registry_match.group(1) if registry_match else ''
 
 DOMAINS = {
-    # Patient 360 is owned entirely by the enterprise center. The old
-    # clinical-patient360 loader/runtime was superseded and must not be
-    # treated as a second Admin owner.
     'patient360': (None, 'azaad-patient-360', 'enterprise'),
     'rcm': (None, 'azaad-invoice-center', 'enterprise'),
     'finance': (None, 'azaad-finance', 'enterprise'),
@@ -32,8 +29,10 @@ def check(name, ok, detail=''):
 for domain, (runtime, backend, owner_kind) in DOMAINS.items():
     panel = f'{domain}EnterprisePanel'
     check(f'{domain}: enterprise panel exists', f'id="{panel}"' in admin)
-    source = purchasing if owner_kind == 'dedicated' else enterprise
-    check(f'{domain}: backend boundary declared', backend in source)
+    check(f'{domain}: backend boundary declared', backend in (purchasing if owner_kind == 'dedicated' else enterprise))
+    if owner_kind == 'enterprise':
+        mapping = f"'{panel}': ['admin-enterprise-centers.js']"
+        check(f'{domain}: canonical enterprise runtime is mapped exactly once', registry_body.count(mapping) == 1)
     if runtime:
         if domain == 'purchasing':
             mapping = "'purchasingEnterprisePanel': ['admin-purchasing-center.js']"
@@ -46,6 +45,8 @@ check('patient360: no superseded loader remains in QA ownership graph', 'clinica
 check('patient360: enterprise center owns patient360 rendering', "if(key==='patient360')" in enterprise and 'azaad-patient-360' in enterprise)
 check('enterprise: consumes panel activation lifecycle', "azaad:admin-panel-activated" in enterprise)
 check('enterprise: no tab click owner', "tab.addEventListener('click'" not in enterprise)
+check('role navigation: canonical role owner is in Admin runtime CORE', '"azaad-role-experience.js"' in loader)
+check('role navigation: reactivates active panel after role resolves', 'AZAAD_ADMIN_ACTIVATE_PANEL(active.dataset.panel, active)' in (ROOT / 'azaad-role-experience.js').read_text(encoding='utf-8'))
 check('purchasing: dedicated runtime consumes panel activation lifecycle', "azaad:admin-panel-activated" in purchasing)
 check('purchasing: no browser-local clinic_purchases query', ".from('clinic_purchases')" not in purchasing and '.from("clinic_purchases")' not in purchasing)
 check('purchasing: uses authenticated Edge Function request', 'Authorization' in purchasing and 'azaad-content-center?api=purchases' in purchasing)
