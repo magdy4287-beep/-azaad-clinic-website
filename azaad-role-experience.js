@@ -3,14 +3,12 @@
 (() => {
   'use strict';
   const ROLE_PANELS = {
-    OWNER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
-    ADMIN:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
-    MANAGER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
-    SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts']
+    OWNER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account','patient360EnterprisePanel','rcmEnterprisePanel','analyticsEnterprisePanel','financeEnterprisePanel','purchasingEnterprisePanel','marketingEnterprisePanel','insightsEnterprisePanel','securityEnterprisePanel'],
+    ADMIN:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account','patient360EnterprisePanel','rcmEnterprisePanel','analyticsEnterprisePanel','financeEnterprisePanel','purchasingEnterprisePanel','marketingEnterprisePanel','insightsEnterprisePanel','securityEnterprisePanel'],
+    MANAGER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account','patient360EnterprisePanel','rcmEnterprisePanel','analyticsEnterprisePanel','financeEnterprisePanel','purchasingEnterprisePanel','marketingEnterprisePanel','insightsEnterprisePanel','securityEnterprisePanel'],
+    SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts','marketingEnterprisePanel']
   };
   const getAuthenticatedRole = () => {
-    // Keep the authenticated-role provenance explicit: this is session state, not
-    // a client-supplied role or a hard-coded UI role.
     const authenticatedState = window.AZAAD && window.AZAAD.state;
     const authenticatedRole = authenticatedState && authenticatedState.role;
     return authenticatedRole ? String(authenticatedRole).toUpperCase().trim() : '';
@@ -58,14 +56,8 @@
     if (!location.pathname.endsWith('/admin.html')) return;
     addLanguageSwitcher();
     applyRoleNavigation();
-
-    // Do not observe the whole Admin DOM. Navigation itself changes tab/panel
-    // attributes, so a body-wide childList/subtree observer can repeatedly
-    // re-enter applyRoleNavigation while the shell is rendering.
-    // Role changes are represented by the single body data-role attribute.
     const roleObserver = new MutationObserver(() => applyRoleNavigation());
     roleObserver.observe(document.body, { attributes:true, attributeFilter:['data-role'] });
-
     window.addEventListener('azaadLanguageChanged', applyRoleNavigation);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
