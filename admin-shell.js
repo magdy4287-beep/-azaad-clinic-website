@@ -19,17 +19,37 @@
 
   function activate(panel, button) {
     if (!panel) return;
+
+    var panelId = String(panel);
+    var targetButton = button || document.querySelector('.tab[data-panel="' + CSS.escape(panelId) + '"]');
+
     document.querySelectorAll('.tab[data-panel]').forEach(function (item) {
-      item.classList.toggle('active', item === button || item.getAttribute('data-panel') === panel && !button);
+      item.classList.toggle('active', item === targetButton || item.getAttribute('data-panel') === panelId && !targetButton);
     });
     document.querySelectorAll('.panel').forEach(function (item) {
-      item.classList.toggle('active', item.id === panel);
+      item.classList.toggle('active', item.id === panelId);
     });
+
     try {
       window.dispatchEvent(new CustomEvent('azaad:admin-panel-activated', {
-        detail: { panel: panel }
+        detail: { panel: panelId }
       }));
     } catch (_) {}
+
+    // Enterprise panels are canonical lazy mounts. A module may synchronously
+    // materialize/replace its panel while handling the activation event. Reassert
+    // the single requested state on the next frame; this is one bounded activation
+    // transaction, not an observer or navigation loop.
+    window.requestAnimationFrame(function () {
+      var currentPanel = document.getElementById(panelId);
+      if (!currentPanel) return;
+      document.querySelectorAll('.panel').forEach(function (item) {
+        item.classList.toggle('active', item === currentPanel);
+      });
+      document.querySelectorAll('.tab[data-panel]').forEach(function (item) {
+        item.classList.toggle('active', item === targetButton || item.getAttribute('data-panel') === panelId && !targetButton);
+      });
+    });
   }
 
   // One delegated navigation owner handles both static and post-auth dynamically
@@ -55,6 +75,8 @@
     var button = document.querySelector('.tab[data-panel="' + CSS.escape(String(panel)) + '"]');
     activate(String(panel), button || null);
   });
+
+  window.AZAAD_ADMIN_ACTIVATE_PANEL = activate;
 
   function ready() {
     bindNavigation();
