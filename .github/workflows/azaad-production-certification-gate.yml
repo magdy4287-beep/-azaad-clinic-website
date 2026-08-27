@@ -125,6 +125,17 @@ jobs:
           node --check ./admin-shell.js
           node --check ./azaad-operations-control-center.js
 
+      - name: Prove final Admin runtime invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          test "$(grep -o 'azaad-core-context.js' admin.html | wc -l)" -eq 1
+          test "$(grep -o 'admin-shell.js' admin.html | wc -l)" -eq 1
+          ! grep -Eq '\bbindTabs\s*\(' admin.js
+          ! grep -Eq '\bswitchPanel\s*\(' admin.js
+          echo 'Final Admin runtime invariants: PASS'
+
       - name: Start production-parity server
         shell: bash
         run: |
@@ -146,7 +157,7 @@ jobs:
           set -euo pipefail
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
-        
+
       - name: Run authenticated API and browser evidence
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
