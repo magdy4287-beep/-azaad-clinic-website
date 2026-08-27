@@ -72,6 +72,7 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
 
   await resetBrowserSession(page);
   await page.waitForFunction(() => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY), { timeout: 10000 });
+  await expect(page.locator('#loginForm')).toHaveAttribute('data-azaad-bound', 'true');
   await page.locator('#username').fill(process.env.AZAAD_TEST_USERNAME);
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm').evaluate(form => form.requestSubmit());
@@ -89,7 +90,13 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
     timeout: AUTH_READY_TIMEOUT,
     intervals: [250, 500, 1000],
     message: async () => `authenticated shell did not transition after real login: ${JSON.stringify(await authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors))}`
-  }).toMatchObject({ loginHidden: true, adminHidden: false });
+  }).toMatchObject({
+    loginHidden: true,
+    adminHidden: false,
+    formBound: 'true',
+    role: expect.any(String),
+    state: expect.objectContaining({ hasSession: true, hasStaff: true })
+  });
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
