@@ -13,6 +13,15 @@ new = 'Promise.resolve().then(() => window.AZAAD_STAFF.init()).catch(error =>'
 if old in js:
     js = js.replace(old, new, 1)
 
+# A late critical-path transform historically reintroduced bindTabs() after the
+# canonical interactivity transform had retired it. Remove the invocation here as
+# a final fail-closed normalization; navigation belongs exclusively to admin-shell.
+js = re.sub(r'^[ \t]*bindTabs\(\);[ \t]*\n?', '', js, flags=re.M)
+if re.search(r'\bfunction\s+bindTabs\s*\(', js):
+    raise SystemExit('Legacy bindTabs function remains in Admin controller')
+if re.search(r'\bbindTabs\s*\(', js):
+    raise SystemExit('Legacy bindTabs invocation remains in Admin controller')
+
 # Install only an interaction-recovery safety net. Authentication and Logout have
 # exactly one owner: admin.js bindLogout(). A second capture-phase Logout handler
 # caused duplicate ownership and could invoke logout twice (pointerup + click),
@@ -58,4 +67,4 @@ if marker in js and 'FINAL ADMIN INTERACTION SAFETY' not in js:
     js = js.replace(marker, block + marker, 1)
 
 path.write_text(js, encoding='utf-8')
-print('[AZAAD] final admin interaction safety applied; authentication/logout remain single-owner')
+print('[AZAAD] final admin interaction safety applied; navigation remains shell-owned and legacy bindTabs is forbidden')
