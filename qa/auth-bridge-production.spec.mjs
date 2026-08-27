@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
+const baseURL = 'https://azaad-clinic-website.vercel.app';
 const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
 const AUTH_READY_TIMEOUT = 15000;
@@ -43,7 +43,7 @@ async function authDiagnostic(page, authResponses, unauthorizedRequests, pageErr
 }
 
 test('production artifact is the exact certified SHA', async ({ page }) => {
-  const expected = process.env.AZAAD_EXPECTED_PRODUCTION_SHA;
+  const expected = process.env.AZAAD_EXPECTED_PRODUCTION_SHA || process.env.GITHUB_SHA;
   test.skip(!expected, 'Production SHA binding is required for certification.');
   await page.goto(`${baseURL}/admin.html`, { waitUntil: 'commit' });
   await expect.poll(() => page.locator('meta[name="azaad-build-sha"]').getAttribute('content'), {
