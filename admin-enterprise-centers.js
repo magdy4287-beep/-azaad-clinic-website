@@ -5,18 +5,8 @@
   const URL='https://derofsthjivlkcdnojww.supabase.co';
   const KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const $=id=>document.getElementById(id);
-  const D={
-    patient360:['🧑‍⚕️ Patient 360','ملف المريض الكامل'],rcm:['🧾 Invoices & RCM','الفواتير والتحصيل'],
-    analytics:['📊 Analytics','مؤشرات التشغيل'],finance:['💰 Finance','الإيرادات والمصروفات'],
-    marketing:['📣 Marketing','العملاء المحتملون'],
-    insights:['🧠 Smart Insights','توصيات مبنية على البيانات'],security:['🛡️ IT Security','حدود الأمان والحسابات']
-  };
-  const ROLE_SCOPES={
-    patient360:['OWNER','ADMIN','MANAGER'],rcm:['OWNER','ADMIN','MANAGER','CASHIER'],
-    analytics:['OWNER','ADMIN','MANAGER'],finance:['OWNER','ADMIN','MANAGER','CASHIER'],
-    marketing:['OWNER','ADMIN','MANAGER','MARKETING'],insights:['OWNER','ADMIN','MANAGER'],
-    security:['OWNER','ADMIN','MANAGER']
-  };
+  const D={patient360:['🧑‍⚕️ Patient 360','ملف المريض الكامل'],rcm:['🧾 Invoices & RCM','الفواتير والتحصيل'],analytics:['📊 Analytics','مؤشرات التشغيل'],finance:['💰 Finance','الإيرادات والمصروفات'],marketing:['📣 Marketing','العملاء المحتملون'],insights:['🧠 Smart Insights','توصيات مبنية على البيانات'],security:['🛡️ IT Security','حدود الأمان والحسابات']};
+  const ROLE_SCOPES={patient360:['OWNER','ADMIN','MANAGER'],rcm:['OWNER','ADMIN','MANAGER','CASHIER'],analytics:['OWNER','ADMIN','MANAGER'],finance:['OWNER','ADMIN','MANAGER','CASHIER'],marketing:['OWNER','ADMIN','MANAGER','MARKETING'],insights:['OWNER','ADMIN','MANAGER'],security:['OWNER','ADMIN','MANAGER']};
   const role=()=>String(window.AZAAD?.state?.role||window.AZAAD?.state?.currentRole||document.body?.dataset?.role||'').toUpperCase().trim();
   const canAccess=key=>ROLE_SCOPES[key]?.includes(role())===true;
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -38,19 +28,13 @@
     if(key==='insights'){const d=await call(`azaad-ai-insights?from=${today}&to=${today}`,t),rows=d.insights||[];body.innerHTML=cards([['Insights',rows.length],['Open follow-ups',d.kpis?.open_followups||0],['Open alerts',d.kpis?.open_alerts||0],['No-show rate',`${d.kpis?.no_show_rate||0}%`],['Outstanding',money(d.kpis?.outstanding||0)])+rows.map(r=>`<div class="item"><div><strong>${esc(r.title_ar||r.summary_ar||r.insight_type)}</strong><div class="muted">${esc(r.recommendation_ar||r.summary_ar||'')}</div><div class="muted">${esc(r.generated_at||'')}</div></div><span class="badge">${esc(r.severity)} · ${esc(r.status||'OPEN')}</span></div>`).join('');return;}
     const d=await call(`azaad-management-dashboard?from=${today}&to=${today}`,t),k=d.kpis||{};
     if(key==='analytics')return void(body.innerHTML=cards([['الحجوزات',k.bookings],['مؤكد',k.confirmed],['مكتمل',k.completed],['No-Show',k.no_show],['معدل الإكمال',`${k.completion_rate}%`],['معدل No-Show',`${k.no_show_rate}%`],['الأطباء النشطون',k.active_doctors],['الموظفون النشطون',k.active_staff]]));
-    if(key==='marketing'){const m=d.marketing||{};return void(body.innerHTML=cards([['Leads',k.marketing_leads],['Converted',k.converted_leads],['Conversion rate',`${k.lead_conversion_rate}%`])+`<div class="item"><strong>المصادر</strong><pre>${esc(JSON.stringify(m.by_source||{},null,2))}</pre></div>`);}
+    if(key==='marketing')return void(body.innerHTML=cards([['Leads',k.marketing_leads],['Converted',k.converted_leads],['Conversion rate',`${k.lead_conversion_rate}%`])+`<div class="item"><strong>المصادر</strong><pre>${esc(JSON.stringify((d.marketing||{}).by_source||{},null,2))}</pre></div>`);
   }catch(e){body.innerHTML=`<div class="error">تعذر تحميل ${esc(D[key][0])}: ${esc(e.message)}</div>`;}}
-  const activateKeyFromDom=()=>{
-    const active=document.querySelector('.panel.active[id$="EnterprisePanel"]');
-    if(!active)return;
-    const key=active.id.replace(/EnterprisePanel$/,'');
-    if(D[key]&&canAccess(key)) render(key);
-  };
-  window.addEventListener('azaad:admin-panel-activated',event=>{const panel=event.detail?.panel||'';const key=panel.endsWith('EnterprisePanel')?panel.replace('EnterprisePanel',''):'';if(D[key]&&canAccess(key))render(key);});
+  const activateKeyFromDom=()=>{const active=document.querySelector('.panel.active[id$="EnterprisePanel"]');if(!active)return;const key=active.id.replace(/EnterprisePanel$/,'');if(D[key]&&canAccess(key))render(key);};
+  const handlePanelSignal=event=>{const panel=event.detail?.panel||'';const key=panel.endsWith('EnterprisePanel')?panel.replace('EnterprisePanel',''):'';if(D[key]&&canAccess(key))render(key);};
+  window.addEventListener('azaad:admin-panel-activated',handlePanelSignal);
+  window.addEventListener('azaad:admin-panel-ready',handlePanelSignal);
   bind();
-  // The canonical registry loads this owner in response to panel activation. The
-  // activation event can occur before this dynamically loaded module subscribes;
-  // recover that already-active state without changing navigation ownership.
   queueMicrotask(activateKeyFromDom);
   window.AZAAD_ENTERPRISE_CENTERS={render,bind};
 })();
