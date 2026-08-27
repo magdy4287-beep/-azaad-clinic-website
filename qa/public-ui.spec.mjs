@@ -8,8 +8,8 @@ const navigation = { waitUntil: 'commit' };
 test('public website primary actions are wired and interactive', async ({ page }) => {
   await page.goto(`${baseURL}/`, navigation);
   await expect(page.locator('#booking')).toBeAttached();
-  await expect(page.locator('#waHero').first()).toHaveAttribute('href', /wa\.me\//);
-  await expect(page.locator('#waLink')).toHaveAttribute('href', /wa\.me\//);
+  await expect(page.locator('#waHero')).toHaveAttribute('href', /wa\.me\//);
+  await expect(page.locator('.azaad-footer .azaad-social-whatsapp')).toHaveAttribute('href', /wa\.me\//);
   await expect(page.locator('#mapsLink')).toHaveAttribute('href', /maps\.app\.goo\.gl/);
   await expect(page.locator('#shareLocation')).toHaveAttribute('href', /wa\.me\//);
 
