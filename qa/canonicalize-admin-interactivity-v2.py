@@ -118,13 +118,17 @@ if not logout_bounds:
     raise SystemExit("logout() not found")
 js = js[:logout_bounds[0]] + canonical_logout + js[logout_bounds[1]:]
 
-# Navigation is not owned by admin.js. It exposes only a command bridge to the
-# canonical admin-shell navigation owner. This keeps quick actions functional
-# without introducing a second panel activation implementation.
+# Navigation is not owned by admin.js. Remove any remaining legacy implementation
+# and invocation before installing the command bridge owned by admin-shell.js.
 for obsolete in ("function bindTabs()", "function switchPanel("):
     match = bounds(js, obsolete)
     if match:
         js = js[:match[0]] + js[match[1]:]
+
+# A previous transform could leave a standalone legacy invocation outside the old
+# function body. It is not an owner and must not survive into the canonical artifact.
+js = re.sub(r'(?m)^\s*bindTabs\(\);\s*\n?', '', js)
+js = re.sub(r'(?m)^\s*switchPanel\([^;]+;\s*\n?', '', js)
 
 js = js.replace("switchPanel(", "requestPanel(")
 bridge = '''
@@ -142,7 +146,6 @@ if "function requestPanel(panelId)" not in js:
     else:
         js = bridge + "\n" + js
 
-# Fail closed: prove the critical initialization boundary contains no navigation owner.
 final = bounds(js, "async function initializeApplication()")
 if not final:
     raise SystemExit("Final initializeApplication() boundary missing")
@@ -173,11 +176,13 @@ if "setTimeout(()" in body:
 if "state.initialized = true;" not in body or "state.initializing = false;" not in body:
     raise SystemExit("Interactive state transition missing")
 
-# Fail closed on any remaining legacy navigation symbol anywhere in the final
-# generated controller. The shell is the only navigation owner.
-if re.search(r"\bfunction\s+bindTabs\s*\(", js) or re.search(r"\bbindTabs\s*\(", js):
+# Strip comments before checking executable legacy navigation symbols so historical
+# explanatory text cannot produce a false positive.
+check_js = re.sub(r'/\*.*?\*/', '', js, flags=re.S)
+check_js = re.sub(r'(^|\s)//[^\n]*', r'\1', check_js)
+if re.search(r"\bfunction\s+bindTabs\s*\(", check_js) or re.search(r"\bbindTabs\s*\(", check_js):
     raise SystemExit("Legacy bindTabs symbol remains in canonical admin.js")
-if re.search(r"\bfunction\s+switchPanel\s*\(", js) or re.search(r"\bswitchPanel\s*\(", js):
+if re.search(r"\bfunction\s+switchPanel\s*\(", check_js) or re.search(r"\bswitchPanel\s*\(", check_js):
     raise SystemExit("Legacy switchPanel symbol remains in canonical admin.js")
 
 PATH.write_text(js, encoding="utf-8")
