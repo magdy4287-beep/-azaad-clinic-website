@@ -15,6 +15,7 @@ on:
       - '.github/patch-admin.py'
       - 'qa/vercel-build.py'
       - 'qa/browser-e2e.spec.mjs'
+      - 'qa/auth-bridge-production.spec.mjs'
   workflow_dispatch:
 
 permissions:
@@ -83,8 +84,8 @@ jobs:
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
 
-      - name: Run focused authenticated browser E2E
+      - name: Run authenticated API and browser E2E
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs -g "admin authenticated flow is exercised only with dedicated CI credentials"
+        run: npx playwright test qa/auth-bridge-production.spec.mjs
