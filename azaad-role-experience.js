@@ -47,7 +47,6 @@
       tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
       const target = document.getElementById(tab.dataset.panel);
       if (target && !visible) { target.classList.remove('active'); target.style.display = 'none'; }
-      if (target && visible && target.classList.contains('panel')) target.style.display = target.classList.contains('active') ? '' : 'none';
     });
     const active = document.querySelector('.tabs .tab.active:not([hidden])');
     if (!active) document.querySelector('.tabs .tab:not([hidden])')?.click();
