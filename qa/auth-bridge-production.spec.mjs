@@ -19,6 +19,7 @@ async function authDiagnostic(page, authResponses, unauthorizedRequests, pageErr
     unauthorized,
     pageErrors: errors,
     consoleErrors: consoles,
+    productionBuildSha: document.querySelector('meta[name="azaad-build-sha"]')?.getAttribute('content') || null,
     loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
     adminHidden: document.getElementById('adminPage')?.classList.contains('hidden') === true,
     loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
@@ -38,6 +39,16 @@ async function authDiagnostic(page, authResponses, unauthorizedRequests, pageErr
     } : null
   })), { authCount: authResponses.length, unauthorized: unauthorizedRequests, pageErrors, consoleErrors });
 }
+
+test('production artifact is the exact certified SHA', async ({ page }) => {
+  const expected = process.env.AZAAD_EXPECTED_PRODUCTION_SHA;
+  test.skip(!expected, 'Production SHA binding is required for certification.');
+  await page.goto(`${baseURL}/admin.html`, { waitUntil: 'commit' });
+  await expect.poll(() => page.locator('meta[name="azaad-build-sha"]').getAttribute('content'), {
+    timeout: 10000,
+    message: `Production artifact SHA did not match expected certification SHA ${expected}`
+  }).toBe(expected);
+});
 
 test('staff-login API returns a usable session', async ({ page }) => {
   test.skip(!process.env.AZAAD_TEST_USERNAME || !process.env.AZAAD_TEST_PASSWORD, 'Authenticated E2E requires dedicated CI test credentials.');
