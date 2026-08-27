@@ -27,6 +27,12 @@ opening = re.compile(r"<script\b([^>]*)>", re.I | re.S)
 src_attr = re.compile(r"\bsrc\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))", re.I | re.S)
 type_module = re.compile(r"\btype\s*=\s*([\"'])module\1", re.I)
 
+# Authentication is the only login-critical controller. The canonical Admin
+# shell is deliberately also bootstrapped before authentication because it owns
+# the single panel activation/control-plane contract. It has no credential/data
+# dependency and must be ready before the first post-auth navigation click.
+CRITICAL_PRE_AUTH = {"admin.js", "central-i18n.js", "admin-shell.js"}
+
 def isolate_opening(match):
     attrs = match.group(1)
     src_match = src_attr.search(attrs)
@@ -34,17 +40,33 @@ def isolate_opening(match):
         return match.group(0)
     src = src_match.group(2) if src_match.group(2) is not None else src_match.group(3)
     path = (urlsplit(src).path or src).lstrip("/").lower()
-    if path == "admin.js":
+    if path in CRITICAL_PRE_AUTH:
+        if path == "central-i18n.js":
+            without_defer = re.sub(r"\bdefer(?:\s*=\s*(?:[\"'])?[^\s>\"']*(?:[\"'])?)?", "", attrs, flags=re.I)
+            return "<script" + without_defer.rstrip() + " defer>"
         return match.group(0)
-    if path == "central-i18n.js":
-        without_defer = re.sub(r"\bdefer(?:\s*=\s*(?:[\"'])?[^\s>\"']*(?:[\"'])?)?", "", attrs, flags=re.I)
-        return "<script" + without_defer.rstrip() + " defer>"
     is_module = bool(type_module.search(attrs))
     module_attr = ' data-azaad-after-auth-type="module"' if is_module else ''
     without_src = (attrs[:src_match.start()] + attrs[src_match.end():]).strip()
     return f'<script data-azaad-after-auth-src="{src}"{module_attr}{(" " + without_src) if without_src else ""}>'
 
 html = opening.sub(isolate_opening, html)
+
+# If an earlier transform already converted the shell into an inert post-auth
+# placeholder, promote that canonical placeholder back to a normal deferred
+# script. This makes the transform idempotent and prevents the shell from being
+# accidentally delayed by the post-auth loader on subsequent build passes.
+shell_placeholder = re.compile(
+    r'<script\b[^>]*data-azaad-after-auth-src=["\']/admin-shell\.js\?v=1["\'][^>]*>\s*</script>',
+    re.I,
+)
+html, promoted = shell_placeholder.subn(
+    '<script src="/admin-shell.js?v=1" defer data-azaad-admin-control-plane="1"></script>',
+    html,
+    count=1,
+)
+if promoted == 0 and not re.search(r'<script\b[^>]*\bsrc=["\']/admin-shell\.js\?v=1["\'][^>]*>', html, re.I):
+    raise SystemExit("canonical Admin shell was not established on the pre-auth path")
 
 if len(re.findall(r'<form\b[^>]*\bid=[\"\']loginForm[\"\']', html, re.I)) != 1:
     raise SystemExit("Admin must contain exactly one login form")
@@ -111,4 +133,4 @@ needle = '''  try {
 js = js.replace(needle, "", 1)
 
 ADMIN_JS.write_text(js, encoding="utf-8")
-print("[AZAAD] Admin login runtime isolation stage completed; optional modules are no longer awaited during initialization")
+print("[AZAAD] Admin login isolation stage completed; auth + canonical shell are pre-auth, optional feature runtimes remain post-auth")
