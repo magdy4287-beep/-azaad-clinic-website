@@ -16,26 +16,48 @@ def function_bounds(source, marker):
     if brace < 0:
         return None
     depth = 0
-    for i in range(brace, len(source)):
-        if source[i] == "{":
-            depth += 1
-        elif source[i] == "}":
+    quote = None
+    escape = False
+    line_comment = False
+    block_comment = False
+    i = brace
+    while i < len(source):
+        ch = source[i]
+        nxt = source[i + 1] if i + 1 < len(source) else ""
+        if line_comment:
+            if ch == "\n": line_comment = False
+            i += 1; continue
+        if block_comment:
+            if ch == "*" and nxt == "/":
+                block_comment = False; i += 2; continue
+            i += 1; continue
+        if quote:
+            if escape: escape = False
+            elif ch == "\\": escape = True
+            elif ch == quote: quote = None
+            i += 1; continue
+        if ch == "/" and nxt == "/": line_comment = True; i += 2; continue
+        if ch == "/" and nxt == "*": block_comment = True; i += 2; continue
+        if ch in "'\"`": quote = ch; i += 1; continue
+        if ch == "{": depth += 1
+        elif ch == "}":
             depth -= 1
-            if depth == 0:
-                return start, i + 1
+            if depth == 0: return start, i + 1
+        i += 1
     return None
 
 # Authentication must never await application initialization.
 js = re.sub(
     r"\bawait\s+initializeApplication\s*\(\s*\)\s*;",
-    '''void initializeApplication().catch(error =>\n    console.error("Admin initialization error:", error\n  ));''',
+    '''void initializeApplication().catch(error =>
+    console.error("Admin initialization error:", error
+  ));''',
     js,
 )
 
-# The staff-login Edge Function is the authentication boundary. Once it returns
-# a valid session + staff record, the Admin shell must not wait on client-side
-# Supabase persistence before becoming interactive. Persistence is a background
-# concern; state.session remains the canonical runtime token for this page.
+# The staff-login Edge Function is the authentication boundary. Establish the
+# authenticated shell state directly from its result; Supabase client persistence
+# remains a background concern.
 login_bounds = function_bounds(js, "async function login(")
 if login_bounds is None:
     raise SystemExit("login() not found or malformed")
@@ -59,9 +81,8 @@ login_canonical = '''async function login(
   });
 
   let result = null;
-  let responseText = "";
   try {
-    responseText = await response.text();
+    const responseText = await response.text();
     result = responseText ? JSON.parse(responseText) : null;
   } catch (_) {
     result = null;
@@ -83,8 +104,6 @@ login_canonical = '''async function login(
     throw new Error("دور الموظف غير صالح.");
   }
 
-  // Critical-path state is established directly from the authenticated Edge
-  // Function result. Do not block the shell on local Auth storage persistence.
   state.session = result.session;
   state.user = result.user || null;
   state.staff = result.staff;
@@ -98,8 +117,6 @@ login_canonical = '''async function login(
     console.error("Admin initialization error:", error)
   );
 
-  // Persist/refresh the Supabase client session in the background. A failure
-  // here must not roll back the already-authenticated shell.
   void supabase.auth.setSession({
     access_token: result.session.access_token,
     refresh_token: result.session.refresh_token
@@ -116,21 +133,11 @@ marker = "async function initializeApplication()"
 bounds = function_bounds(js, marker)
 if bounds is None:
     raise SystemExit("initializeApplication() not found or malformed")
-
 start, end = bounds
 canonical = '''async function initializeApplication() {
-  if (state.initialized || state.initializing) {
-    return;
-  }
+  if (state.initialized || state.initializing) return;
 
-  if (
-    !state.session ||
-    !state.user ||
-    !state.staff ||
-    !state.currentRole
-  ) {
-    return;
-  }
+  if (!state.session || !state.user || !state.staff || !state.currentRole) return;
 
   state.initializing = true;
 
@@ -141,7 +148,6 @@ canonical = '''async function initializeApplication() {
   if (adminPage) adminPage.classList.remove("hidden");
 
   updateUserIdentity();
-  bindTabs();
   bindBookingFilters();
   bindLogout();
   bindPatientPage();
@@ -154,24 +160,15 @@ canonical = '''async function initializeApplication() {
     console.error("Background booking load error:", error)
   );
 
-  if (
-    window.AZAAD_STAFF &&
-    typeof window.AZAAD_STAFF.init === "function"
-  ) {
+  if (window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {
     Promise.resolve()
       .then(() => window.AZAAD_STAFF.init())
-      .catch(error =>
-        console.error("Staff management init error:", error)
-      );
+      .catch(error => console.error("Staff management init error:", error));
   }
 
-  showToast(
-    `🟢 تم تسجيل الدخول بنجاح — ${state.currentRole}`,
-    "success"
-  );
+  showToast(`🟢 تم تسجيل الدخول بنجاح — ${state.currentRole}`, "success");
 }
 '''
-
 js = js[:start] + canonical + js[end:]
 
 if "initializing: false" not in js:
@@ -185,19 +182,61 @@ runtime_marker = "async function loadAfterAuthRuntimes()"
 runtime_bounds = function_bounds(js, runtime_marker)
 if runtime_bounds is not None:
     rstart, rend = runtime_bounds
-    rbody = '''async function loadAfterAuthRuntimes() {
+    js = js[:rstart] + '''async function loadAfterAuthRuntimes() {
   // DISABLED: optional runtimes must be explicitly loaded by their owning panel.
   return;
 }
-'''
-    js = js[:rstart] + rbody + js[rend:]
+''' + js[rend:]
+
+# Canonical startup owner. The retired restoreSession symbol is not part of the
+# production startup contract; existing sessions are restored through the same
+# restoreStaffProfile() boundary used by the authenticated state owner.
+startup_pattern = re.compile(
+    r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
+    re.S,
+)
+canonical_startup = '''document.addEventListener("DOMContentLoaded", async () => {
+  bindLogin();
+  bindLogout();
+  bindBookingFilters();
+  bindPatientPage();
+
+  try {
+    const result = await supabase.auth.getSession();
+    const session = result?.data?.session || null;
+    if (!session) return;
+
+    state.session = session;
+    state.user = session.user || null;
+
+    const validStaff = await restoreStaffProfile();
+    if (validStaff) await initializeApplication();
+  } catch (error) {
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
+  }
+});'''
+if startup_pattern.search(js):
+    js = startup_pattern.sub(canonical_startup, js, count=1)
+else:
+    raise SystemExit("Canonical Admin DOMContentLoaded startup block not found")
+
+# Final fail-closed contract for this late transform: it may not reintroduce a
+# second navigation owner or the retired restoreSession entry point.
+check_js = re.sub(r'/\*.*?\*/', '', js, flags=re.S)
+check_js = re.sub(r'(^|\s)//[^\n]*', r'\1', check_js)
+if re.search(r"\bfunction\s+bindTabs\s*\(", check_js) or re.search(r"\bbindTabs\s*\(", check_js):
+    raise SystemExit("Legacy bindTabs symbol reintroduced by final Admin critical path")
+if re.search(r"\bfunction\s+switchPanel\s*\(", check_js) or re.search(r"\bswitchPanel\s*\(", check_js):
+    raise SystemExit("Legacy switchPanel symbol reintroduced by final Admin critical path")
+if re.search(r"\brestoreSession\s*\(", check_js):
+    raise SystemExit("Retired restoreSession symbol reintroduced by final Admin critical path")
 
 bounds = function_bounds(js, marker)
 if bounds is None:
     raise SystemExit("Final initializeApplication() boundary could not be determined")
 final_body = js[bounds[0]:bounds[1]]
 required = (
-    "bindTabs();",
     "bindBookingFilters();",
     "bindLogout();",
     "bindPatientPage();",
@@ -218,4 +257,4 @@ if "state.initialized = true;" not in final_body or "state.initializing = false;
     raise SystemExit("Admin interactive state transition is missing")
 
 path.write_text(js, encoding="utf-8")
-print("[AZAAD] Admin authentication critical path + non-blocking initialization canonicalized and verified")
+print("[AZAAD] Admin critical path canonicalized: authentication is non-blocking, navigation is shell-owned, and restoreSession is retired")
