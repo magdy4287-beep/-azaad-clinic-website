@@ -53,8 +53,8 @@
   }
 
   // One delegated navigation owner handles both static and post-auth dynamically
-  // mounted enterprise tabs. This avoids per-button listener races when panels
-  // are created after authentication.
+  // mounted enterprise tabs. Capture phase guarantees the canonical owner receives
+  // navigation even if a feature listener stops propagation during bubbling.
   function bindNavigation() {
     if (window.__AZAAD_ADMIN_SHELL_NAV_DELEGATED__) return;
     window.__AZAAD_ADMIN_SHELL_NAV_DELEGATED__ = true;
@@ -66,7 +66,7 @@
       if (!button) return;
       if (!document.documentElement.contains(button)) return;
       activate(button.getAttribute('data-panel'), button);
-    }, false);
+    }, true);
   }
 
   window.addEventListener('azaad:admin-panel-requested', function (event) {
