@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 
 TRANSFORM_STEPS = [
@@ -64,4 +65,27 @@ def run_steps(steps, phase):
 
 run_steps(TRANSFORM_STEPS, "transform")
 run_steps(VERIFY_STEPS, "verify")
+
+# Production provenance: bind the generated Admin artifact to the exact Git
+# commit that Vercel/GitHub is building. Browser certification can then fail
+# closed if it ever tests a different deployment than the certified SHA.
+commit_sha = (
+    os.environ.get("VERCEL_GIT_COMMIT_SHA")
+    or os.environ.get("GITHUB_SHA")
+    or ""
+).strip()
+if not commit_sha:
+    raise SystemExit("Missing canonical build commit SHA")
+
+admin = Path("admin.html")
+text = admin.read_text(encoding="utf-8")
+marker = '<meta name="azaad-build-sha" content="'
+import re
+text = re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?', '', text, flags=re.I)
+head = text.find("</head>")
+if head < 0:
+    raise SystemExit("admin.html has no </head> for build provenance marker")
+text = text[:head] + f'<meta name="azaad-build-sha" content="{commit_sha}">\n' + text[head:]
+admin.write_text(text, encoding="utf-8")
+print(f"[AZAAD build] production artifact provenance SHA = {commit_sha}", flush=True)
 print("[AZAAD build] canonical production transformation + fail-closed verification completed", flush=True)
