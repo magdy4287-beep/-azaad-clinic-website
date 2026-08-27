@@ -2,11 +2,16 @@
    UI visibility is convenience only; protected operations remain server-authorized. */
 (() => {
   'use strict';
+  const ENTERPRISE_ADMIN_PANELS = [
+    'patient360EnterprisePanel','rcmEnterprisePanel','analyticsEnterprisePanel',
+    'financeEnterprisePanel','purchasingEnterprisePanel','marketingEnterprisePanel',
+    'insightsEnterprisePanel','securityEnterprisePanel'
+  ];
   const ROLE_PANELS = {
-    OWNER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
-    ADMIN:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
-    MANAGER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account'],
-    SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts']
+    OWNER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account', ...ENTERPRISE_ADMIN_PANELS],
+    ADMIN:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account', ...ENTERPRISE_ADMIN_PANELS],
+    MANAGER:['bookings','doctors','services','schedules','posts','holidays','hours','staff','settings','account', ...ENTERPRISE_ADMIN_PANELS],
+    SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts','marketingEnterprisePanel']
   };
   const getAuthenticatedRole = () => {
     // Keep the authenticated-role provenance explicit: this is session state, not
