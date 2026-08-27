@@ -28,6 +28,8 @@ async function authDiagnostic(page, authResponses, unauthorizedRequests, pageErr
     formBound: document.getElementById('loginForm')?.dataset?.azaadBound || null,
     loginError: document.getElementById('loginError')?.textContent || '',
     role: document.body.dataset.role || '',
+    sessionStorageKeys: Object.keys(sessionStorage),
+    localStorageAuthKeys: Object.keys(localStorage).filter(key => key.includes('auth')),
     state: window.AZAAD?.state ? {
       initialized: Boolean(window.AZAAD.state.initialized),
       initializing: Boolean(window.AZAAD.state.initializing),
@@ -72,12 +74,16 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
   const consoleErrors = [];
   const unauthorizedRequests = [];
   const authResponses = [];
+  const authBodies = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-  page.on('response', response => {
+  page.on('response', async response => {
     if (response.status() === 401) unauthorizedRequests.push({ method: response.request().method(), url: response.url() });
     if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+      let body = null;
+      try { body = await response.json(); } catch (_) {}
       authResponses.push({ status: response.status(), headers: response.headers() });
+      authBodies.push(body);
     }
   });
 
@@ -96,6 +102,8 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
 
   const authResponse = authResponses[authResponses.length - 1];
   expect(authResponse.status, `staff-login browser response headers=${JSON.stringify(authResponse.headers)}`).toBe(200);
+  console.log(`AUTH_BROWSER_RESPONSE=${JSON.stringify(authBodies[authBodies.length - 1], (_, value) => typeof value === 'string' && value.length > 40 ? `${value.slice(0, 12)}…` : value)}`);
+  console.log(`AUTH_SHELL_IMMEDIATE=${JSON.stringify(await authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors))}`);
 
   await expect.poll(async () => authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors), {
     timeout: AUTH_READY_TIMEOUT,
