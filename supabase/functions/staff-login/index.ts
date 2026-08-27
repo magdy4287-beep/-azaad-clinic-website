@@ -10,5 +10,27 @@ const ORIGINS=new Set(['https://magdy4287-beep.github.io','https://azaad-clinic-
 function cors(req:Request){const origin=req.headers.get('Origin')||'';return {'Access-Control-Allow-Origin':ORIGINS.has(origin)?origin:'https://azaad-clinic-website.vercel.app','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type, accept','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Credentials':'true','Cache-Control':'no-store',Vary:'Origin'};}
 function json(body:unknown,status=200,req?:Request){return new Response(JSON.stringify(body),{status,headers:{...(req?cors(req):{}),'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});}
 const authClient=SUPABASE_URL&&AUTH_KEY?createClient(SUPABASE_URL,AUTH_KEY,{auth:{persistSession:false,autoRefreshToken:false}}):null;
-async function restStaff(params:string){if(!SUPABASE_URL||!SECRET_KEY)throw new Error('STAFF_DB_CONFIGURATION_MISSING');const r=await fetch(`${SUPABASE_URL}/rest/v1/clinic_staff?select=id,auth_user_id,full_name,username,email,phone,role,active&${params}&limit=1`,{headers:{apikey:SECRET_KEY,Accept:'application/json'},cache:'no-store'});const text=await r.text();let data:any={};try{data=text?JSON.parse(text):{}}catch{}if(!r.ok){console.error('staff-login stage=rest_lookup_error',{status:r.status,body:data});throw new Error(`STAFF_LOOKUP_FAILED:HTTP_${r.status}`);}return Array.isArray(data)?data[0]||null:null;}
+
+async function restStaff(params:string){
+  if(!SUPABASE_URL||!SECRET_KEY)throw new Error('STAFF_DB_CONFIGURATION_MISSING');
+  let lastError='STAFF_LOOKUP_FAILED';
+  for(let attempt=1;attempt<=3;attempt+=1){
+    try{
+      const r=await fetch(`${SUPABASE_URL}/rest/v1/clinic_staff?select=id,auth_user_id,full_name,username,email,phone,role,active&${params}&limit=1`,{headers:{apikey:SECRET_KEY,Accept:'application/json'},cache:'no-store'});
+      const text=await r.text();
+      let data:any={};try{data=text?JSON.parse(text):{}}catch{}
+      if(r.ok)return Array.isArray(data)?data[0]||null:null;
+      lastError=`STAFF_LOOKUP_FAILED:HTTP_${r.status}`;
+      console.error('staff-login stage=rest_lookup_error',{attempt,status:r.status,body:data});
+      // Retry only transient upstream failures. Auth/data contract errors must remain fail-closed.
+      if(r.status<500 && r.status!==429)break;
+    }catch(error){
+      lastError=error instanceof Error?error.message:'STAFF_LOOKUP_FAILED';
+      console.error('staff-login stage=rest_lookup_exception',{attempt,error:lastError});
+    }
+    if(attempt<3)await new Promise(resolve=>setTimeout(resolve,attempt===1?100:250));
+  }
+  throw new Error(lastError);
+}
+
 Deno.serve(async(req:Request)=>{if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});if(req.method!=='POST')return json({error:'Method not allowed'},405,req);try{if(!authClient||!SUPABASE_URL||!SECRET_KEY)return json({error:'تسجيل الدخول غير متاح حاليًا.',code:'STAFF_LOGIN_CONFIGURATION'},503,req);let body:Record<string,unknown>;try{body=await req.json();}catch(_){return json({error:'طلب تسجيل الدخول غير صالح.',code:'INVALID_JSON'},400,req);}const username=String(body.username||'').trim().toLowerCase();const password=String(body.password||'');if(!username||!password)return json({error:'اسم المستخدم وكلمة المرور مطلوبان.'},400,req);let staff:Record<string,unknown>|null;try{staff=await restStaff(`username=eq.${encodeURIComponent(username)}`);}catch(error){console.error('staff-login stage=lookup_exception',error instanceof Error?error.message:String(error));return json({error:'خدمة بيانات الموظفين غير متاحة حاليًا.',code:'STAFF_LOOKUP_UNAVAILABLE'},503,req);}if(!staff){try{staff=await restStaff(`email=ilike.${encodeURIComponent(username)}`);}catch(error){console.error('staff-login stage=email_lookup_exception',error instanceof Error?error.message:String(error));return json({error:'خدمة بيانات الموظفين غير متاحة حاليًا.',code:'STAFF_LOOKUP_UNAVAILABLE'},503,req);}}if(!staff)return json({error:'بيانات الدخول غير صحيحة أو الحساب غير موجود.'},401,req);if(staff.active!==true)return json({error:'الحساب غير فعال.'},403,req);const email=typeof staff.email==='string'?staff.email.trim():'';const authUserId=typeof staff.auth_user_id==='string'?staff.auth_user_id.trim():'';if(!email||!authUserId)return json({error:'حساب الموظف غير مكتمل.'},403,req);const auth=await authClient.auth.signInWithPassword({email,password});if(auth.error||!auth.data.session||!auth.data.user){console.error('staff-login stage=auth',{status:auth.error?.status,code:auth.error?.code,message:auth.error?.message});return json({error:'بيانات الدخول غير صحيحة.',code:'AUTH_SIGNIN_FAILED'},401,req);}return json({success:true,user:auth.data.user,session:{access_token:auth.data.session.access_token,refresh_token:auth.data.session.refresh_token,expires_in:auth.data.session.expires_in,expires_at:auth.data.session.expires_at,token_type:auth.data.session.token_type},staff},200,req);}catch(error){console.error('staff-login stage=exception',error instanceof Error?error.message:String(error));return json({error:'تعذر تجهيز تسجيل الدخول. حاول مرة أخرى.',code:'STAFF_LOGIN_FAILED'},500,req);}});
