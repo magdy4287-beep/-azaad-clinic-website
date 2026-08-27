@@ -52,12 +52,23 @@
       const visible = allowed.has(tab.dataset.panel);
       tab.hidden = !visible;
       tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
-      const target = document.getElementById(tab.dataset.panel);
-      if (target && !visible) { target.classList.remove('active'); target.style.display = 'none'; }
-      if (target && visible && target.classList.contains('panel')) target.style.display = target.classList.contains('active') ? '' : 'none';
     });
+
+    // Role navigation owns tab visibility only. Panel activation/display belongs
+    // exclusively to the canonical admin shell; changing inline panel styles here
+    // created a second visibility owner and could leave enterprise panels hidden
+    // after a legitimate activation click.
     const active = document.querySelector('.tabs .tab.active:not([hidden])');
-    if (!active) document.querySelector('.tabs .tab:not([hidden])')?.click();
+    if (!active) {
+      const firstAllowed = document.querySelector('.tabs .tab[data-panel]:not([hidden])');
+      if (firstAllowed) {
+        if (typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') {
+          window.AZAAD_ADMIN_ACTIVATE_PANEL(firstAllowed.dataset.panel, firstAllowed);
+        } else {
+          firstAllowed.click();
+        }
+      }
+    }
   }
   function init() {
     if (!location.pathname.endsWith('/admin.html')) return;
