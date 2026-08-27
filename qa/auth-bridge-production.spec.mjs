@@ -37,7 +37,7 @@ async function authDiagnostic(page, authResponses, unauthorizedRequests, pageErr
       currentRole: window.AZAAD.state.currentRole || null,
       permissions: Array.from(window.AZAAD.state.permissions || [])
     } : null
-  })), { authCount: authResponses.length, unauthorized: unauthorizedRequests, pageErrors, consoleErrors });
+  }), { authCount: authResponses.length, unauthorized: unauthorizedRequests, pageErrors, consoleErrors });
 }
 
 test('production artifact is the exact certified SHA', async ({ page }) => {
@@ -86,7 +86,7 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
   await expect(page.locator('#loginForm')).toHaveAttribute('data-azaad-bound', 'true');
   await page.locator('#username').fill(process.env.AZAAD_TEST_USERNAME);
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
-  await page.locator('#loginForm').evaluate(form => form.requestSubmit());
+  await page.locator('#loginForm button[type="submit"]').click();
 
   await expect.poll(() => authResponses.length, {
     timeout: AUTH_READY_TIMEOUT,
