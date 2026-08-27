@@ -17,18 +17,28 @@
     document.head.appendChild(script);
   }
 
+  function syncActiveState(panelId, targetButton) {
+    if (!panelId) return;
+    var target = String(panelId);
+    var button = targetButton && document.documentElement.contains(targetButton)
+      ? targetButton
+      : document.querySelector('.tab[data-panel="' + CSS.escape(target) + '"]');
+
+    document.querySelectorAll('.tab[data-panel]').forEach(function (item) {
+      item.classList.toggle('active', item === button || item.getAttribute('data-panel') === target && !button);
+    });
+    document.querySelectorAll('.panel').forEach(function (item) {
+      item.classList.toggle('active', item.id === target);
+    });
+  }
+
   function activate(panel, button) {
     if (!panel) return;
 
     var panelId = String(panel);
     var targetButton = button || document.querySelector('.tab[data-panel="' + CSS.escape(panelId) + '"]');
 
-    document.querySelectorAll('.tab[data-panel]').forEach(function (item) {
-      item.classList.toggle('active', item === targetButton || item.getAttribute('data-panel') === panelId && !targetButton);
-    });
-    document.querySelectorAll('.panel').forEach(function (item) {
-      item.classList.toggle('active', item.id === panelId);
-    });
+    syncActiveState(panelId, targetButton);
 
     try {
       window.dispatchEvent(new CustomEvent('azaad:admin-panel-activated', {
@@ -41,14 +51,7 @@
     // the single requested state on the next frame; this is one bounded activation
     // transaction, not an observer or navigation loop.
     window.requestAnimationFrame(function () {
-      var currentPanel = document.getElementById(panelId);
-      if (!currentPanel) return;
-      document.querySelectorAll('.panel').forEach(function (item) {
-        item.classList.toggle('active', item === currentPanel);
-      });
-      document.querySelectorAll('.tab[data-panel]').forEach(function (item) {
-        item.classList.toggle('active', item === targetButton || item.getAttribute('data-panel') === panelId && !targetButton);
-      });
+      syncActiveState(panelId, targetButton);
     });
   }
 
@@ -74,6 +77,15 @@
     if (!panel) return;
     var button = document.querySelector('.tab[data-panel="' + CSS.escape(String(panel)) + '"]');
     activate(String(panel), button || null);
+  });
+
+  // A lazy module can materialize or replace a panel after the activation event.
+  // The registry remains the sole module-loader owner; the shell only restores
+  // the already-requested visual state after that bounded transaction completes.
+  window.addEventListener('azaad:admin-panel-ready', function (event) {
+    var panel = event && event.detail ? event.detail.panel : null;
+    if (!panel) return;
+    syncActiveState(String(panel), null);
   });
 
   window.AZAAD_ADMIN_ACTIVATE_PANEL = activate;
