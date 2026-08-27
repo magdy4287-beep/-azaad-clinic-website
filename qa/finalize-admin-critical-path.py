@@ -1,47 +1,57 @@
 from pathlib import Path
 import re
 
-path = Path("admin.js")
-if not path.exists(): raise SystemExit("admin.js not found")
-js = path.read_text(encoding="utf-8")
+PATH = Path("admin.js")
+if not PATH.exists():
+    raise SystemExit("admin.js not found")
 
-def function_bounds(source, marker):
+js = PATH.read_text(encoding="utf-8")
+
+
+def bounds(source: str, marker: str):
     start = source.find(marker)
-    if start < 0: return None
+    if start < 0:
+        return None
     brace = source.find("{", start)
-    if brace < 0: return None
-    depth=0; quote=None; escape=False; line_comment=False; block_comment=False; i=brace
+    if brace < 0:
+        return None
+    depth = 0
+    quote = None
+    escape = False
+    line_comment = False
+    block_comment = False
+    i = brace
     while i < len(source):
-        ch=source[i]; nxt=source[i+1] if i+1 < len(source) else ""
+        ch = source[i]
+        nxt = source[i + 1] if i + 1 < len(source) else ""
         if line_comment:
-            if ch=="\n": line_comment=False
-            i+=1; continue
+            if ch == "\n": line_comment = False
+            i += 1; continue
         if block_comment:
-            if ch=="*" and nxt=="/": block_comment=False; i+=2; continue
-            i+=1; continue
+            if ch == "*" and nxt == "/": block_comment = False; i += 2; continue
+            i += 1; continue
         if quote:
-            if escape: escape=False
-            elif ch=="\\": escape=True
-            elif ch==quote: quote=None
-            i+=1; continue
-        if ch=="/" and nxt=="/": line_comment=True; i+=2; continue
-        if ch=="/" and nxt=="*": block_comment=True; i+=2; continue
-        if ch in "'\"`": quote=ch; i+=1; continue
-        if ch=="{": depth+=1
-        elif ch=="}":
-            depth-=1
-            if depth==0: return start,i+1
-        i+=1
+            if escape: escape = False
+            elif ch == "\\": escape = True
+            elif ch == quote: quote = None
+            i += 1; continue
+        if ch == "/" and nxt == "/": line_comment = True; i += 2; continue
+        if ch == "/" and nxt == "*": block_comment = True; i += 2; continue
+        if ch in "'\"`": quote = ch; i += 1; continue
+        if ch == "{": depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0: return start, i + 1
+        i += 1
     return None
 
-js = re.sub(r"\bawait\s+initializeApplication\s*\(\s*\)\s*;", '''void initializeApplication().catch(error =>
-    console.error("Admin initialization error:", error
-  ));''', js)
+# Canonical login owner: authenticate through staff-login, establish the
+# authenticated identity from clinic_staff.auth_user_id, then initialize the shell.
+login = bounds(js, "async function login(")
+if not login:
+    raise SystemExit("login() not found")
 
-login_bounds=function_bounds(js,"async function login(")
-if login_bounds is None: raise SystemExit("login() not found or malformed")
-login_start,login_end=login_bounds
-login_canonical='''async function login(username, password) {
+login_fn = '''async function login(username, password) {
   const cleanUsername = String(username || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
   if (!cleanUsername) throw new Error("اسم المستخدم مطلوب.");
@@ -77,18 +87,21 @@ login_canonical='''async function login(username, password) {
 
   void initializeApplication().catch(error => console.error("Admin initialization error:", error));
 
-  void supabase.auth.setSession({ access_token: result.session.access_token, refresh_token: result.session.refresh_token })
-    .then(({ error }) => { if (error) console.error("Supabase client session persistence error:", error); })
-    .catch(error => console.error("Supabase client session persistence exception:", error));
+  void supabase.auth.setSession({
+    access_token: result.session.access_token,
+    refresh_token: result.session.refresh_token
+  }).catch(error => console.error("Supabase client session persistence error:", error));
 }
 '''
-js=js[:login_start]+login_canonical+js[login_end:]
+js = js[:login[0]] + login_fn + js[login[1]:]
 
-marker="async function initializeApplication()"
-bounds=function_bounds(js,marker)
-if bounds is None: raise SystemExit("initializeApplication() not found or malformed")
-start,end=bounds
-canonical='''async function initializeApplication() {
+# Canonical interactive initialization. Navigation is shell-owned; bookings and
+# optional feature modules are never awaited by the authentication critical path.
+init = bounds(js, "async function initializeApplication(")
+if not init:
+    raise SystemExit("initializeApplication() not found")
+
+init_fn = '''async function initializeApplication() {
   if (state.initialized || state.initializing) return;
   if (!state.session || !state.user || !state.staff || !state.currentRole) return;
 
@@ -106,58 +119,88 @@ canonical='''async function initializeApplication() {
 
   state.initialized = true;
   state.initializing = false;
+
   void loadBookings().catch(error => console.error("Background booking load error:", error));
 
   if (window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {
-    Promise.resolve().then(() => window.AZAAD_STAFF.init()).catch(error => console.error("Staff management init error:", error));
+    Promise.resolve().then(() => window.AZAAD_STAFF.init())
+      .catch(error => console.error("Staff management init error:", error));
   }
+
   showToast(`🟢 تم تسجيل الدخول بنجاح — ${state.currentRole}`, "success");
 }
 '''
-js=js[:start]+canonical+js[end:]
+js = js[:init[0]] + init_fn + js[init[1]:]
 
-if "initializing: false" not in js:
-    js=js.replace("  initialized: false,\n  loadingBookings: false","  initialized: false,\n  loadingBookings: false,\n  initializing: false",1)
+# Retire legacy navigation and restoreSession implementations from the final artifact.
+for marker in ("function bindTabs()", "function switchPanel(", "async function restoreSession()"):
+    found = bounds(js, marker)
+    if found:
+        js = js[:found[0]] + js[found[1]:]
 
-runtime_marker="async function loadAfterAuthRuntimes()"
-runtime_bounds=function_bounds(js,runtime_marker)
-if runtime_bounds is not None:
-    rs,re_=runtime_bounds; js=js[:rs]+"async function loadAfterAuthRuntimes() {\n  return;\n}\n"+js[re_:]
+js = re.sub(r"(?m)^\s*bindTabs\(\);\s*\n?", "", js)
+js = re.sub(r"(?m)^\s*switchPanel\([^;]+;\s*\n?", "", js)
+js = js.replace("switchPanel(", "requestPanel(")
 
-for obsolete in ("function bindTabs()","function switchPanel("):
-    ob=function_bounds(js,obsolete)
-    if ob is not None: js=js[:ob[0]]+js[ob[1]:]
-js=re.sub(r'(?m)^\s*bindTabs\(\);\s*\n?','',js)
-js=re.sub(r'(?m)^\s*switchPanel\([^;]+;\s*\n?','',js)
-js=js.replace("switchPanel(","requestPanel(")
-bridge='''\nfunction requestPanel(panelId) {\n  if (!panelId) return;\n  window.dispatchEvent(new CustomEvent("azaad:admin-panel-requested", { detail: { panel: String(panelId) } }));\n}\n'''
+bridge = '''\nfunction requestPanel(panelId) {\n  if (!panelId) return;\n  window.dispatchEvent(new CustomEvent("azaad:admin-panel-requested", { detail: { panel: String(panelId) } }));\n}\n'''
 if "function requestPanel(panelId)" not in js:
-    panel_marker="/* ============================================================\n   PANELS\n   ============================================================ */"
-    if panel_marker in js: js=js.replace(panel_marker,panel_marker+"\n"+bridge,1)
+    marker = "/* ============================================================\n   PANELS\n   ============================================================ */"
+    if marker in js:
+        js = js.replace(marker, marker + "\n" + bridge, 1)
 
-restore_bounds=function_bounds(js,"async function restoreSession()")
-if restore_bounds is not None: js=js[:restore_bounds[0]]+js[restore_bounds[1]:]
+# The final startup owner restores an existing Supabase session through the
+# existing restoreStaffProfile() boundary. No retired restoreSession call survives.
+startup_pattern = re.compile(
+    r"document\.addEventListener\(\s*['\"]DOMContentLoaded['\"]\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$",
+    re.S,
+)
+startup = '''document.addEventListener("DOMContentLoaded", async () => {
+  bindLogin();
+  bindLogout();
+  bindBookingFilters();
+  bindPatientPage();
 
-startup_pattern=re.compile(r'document\\.addEventListener\\(\\s*["\\']DOMContentLoaded["\\']\\s*,\\s*async\\s*\\(\\)\\s*=>\\s*\\{.*?\\}\\s*\\)\\s*;\\s*$',re.S)
-canonical_startup='''document.addEventListener("DOMContentLoaded", async () => {\n  bindLogin();\n  bindLogout();\n  bindBookingFilters();\n  bindPatientPage();\n  try {\n    const result = await supabase.auth.getSession();\n    const session = result?.data?.session || null;\n    if (!session) return;\n    state.session = session;\n    state.user = session.user || null;\n    const validStaff = await restoreStaffProfile();\n    if (validStaff) await initializeApplication();\n  } catch (error) {\n    console.error("Application startup error:", error);\n    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");\n  }\n});'''
-if startup_pattern.search(js): js=startup_pattern.sub(canonical_startup,js,count=1)
-else: raise SystemExit("Canonical Admin DOMContentLoaded startup block not found")
+  try {
+    const result = await supabase.auth.getSession();
+    const session = result?.data?.session || null;
+    if (!session) return;
 
-check_js=re.sub(r'/\\*.*?\\*/','',js,flags=re.S); check_js=re.sub(r'(^|\\s)//[^\\n]*',r'\\1',check_js)
-for symbol in (r"\\bbindTabs\\s*\\(",r"\\bswitchPanel\\s*\\(",r"\\brestoreSession\\s*\\("):
-    if re.search(symbol,check_js): raise SystemExit(f"Retired Admin symbol remains: {symbol}")
+    state.session = session;
+    state.user = session.user || null;
+    const validStaff = await restoreStaffProfile();
+    if (validStaff) await initializeApplication();
+  } catch (error) {
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
+  }
+});'''
+if startup_pattern.search(js):
+    js = startup_pattern.sub(startup, js, count=1)
+else:
+    raise SystemExit("Canonical Admin DOMContentLoaded startup block not found")
 
-bounds=function_bounds(js,marker)
-if bounds is None: raise SystemExit("Final initializeApplication() boundary could not be determined")
-final_body=js[bounds[0]:bounds[1]]
-required=("bindBookingFilters();","bindLogout();","bindPatientPage();","buildCommandCenter();")
-load_match=re.search(r"\\b(?:void\\s+)?loadBookings\\s*\\(",final_body)
-if not load_match: raise SystemExit("Background booking initialization call is missing")
-for statement in required:
-    positions=[m.start() for m in re.finditer(re.escape(statement),final_body)]
-    if len(positions)!=1 or positions[0]>=load_match.start(): raise SystemExit(f"Critical Admin binding ordering invalid: {statement}")
-if "await loadBookings();" in final_body or "await loadAfterAuthRuntimes();" in final_body: raise SystemExit("Admin initialization still awaits non-critical runtime work")
-if "state.initialized = true;" not in final_body or "state.initializing = false;" not in final_body: raise SystemExit("Admin interactive state transition is missing")
+# Fail closed on the final runtime contract.
+check = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+check = re.sub(r"(^|\s)//[^\n]*", r"\1", check)
+for symbol in (r"\bbindTabs\s*\(", r"\bswitchPanel\s*\(", r"\brestoreSession\s*\("):
+    if re.search(symbol, check):
+        raise SystemExit(f"Retired Admin symbol remains: {symbol}")
 
-path.write_text(js,encoding="utf-8")
-print("[AZAAD] final Admin critical path: clinic_staff.auth_user_id is canonical authenticated identity")
+init = bounds(js, "async function initializeApplication(")
+if not init:
+    raise SystemExit("Final initializeApplication boundary missing")
+body = js[init[0]:init[1]]
+load_pos = body.find("loadBookings()")
+if load_pos < 0:
+    raise SystemExit("Background loadBookings call missing")
+for statement in ("bindBookingFilters();", "bindLogout();", "bindPatientPage();", "buildCommandCenter();"):
+    positions = [m.start() for m in re.finditer(re.escape(statement), body)]
+    if len(positions) != 1 or positions[0] > load_pos:
+        raise SystemExit(f"Critical binding ordering invalid: {statement}")
+if "await loadBookings()" in body or "await window.AZAAD_STAFF.init" in body:
+    raise SystemExit("Admin initialization still awaits non-critical work")
+if "state.initialized = true;" not in body or "state.initializing = false;" not in body:
+    raise SystemExit("Admin interactive state transition missing")
+
+PATH.write_text(js, encoding="utf-8")
+print("[AZAAD] final Admin critical path PASS: auth_user_id identity + shell-owned navigation + nonblocking initialization")
