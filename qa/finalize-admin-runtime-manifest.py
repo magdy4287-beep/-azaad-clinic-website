@@ -73,6 +73,13 @@ login_fn='''async function login(username, password) {
   document.body.dataset.role = role;
   updateUserIdentity();
 
+  // The authenticated shell is the critical path and must not wait on any
+  // Supabase persistence or feature/data initialization work.
+  const loginPage = document.getElementById("loginPage");
+  const adminPage = document.getElementById("adminPage");
+  if (loginPage) loginPage.classList.add("hidden");
+  if (adminPage) adminPage.classList.remove("hidden");
+
   if (redirectDoctorIfNeeded()) return;
 
   // Shell activation is the critical path. Supabase persistence is background work.
@@ -95,6 +102,7 @@ for symbol in (r"\bbindTabs\s*\(",r"\bswitchPanel\s*\(",r"\brestoreSession\s*\("
     if re.search(symbol,js): raise SystemExit(f"Retired Admin invocation remains in final runtime: {symbol}")
 if re.search(r"!state\.session\s*\|\|\s*!state\.user\s*\|\|",js): raise SystemExit("Optional Supabase user payload is still an Admin activation gate")
 if re.search(r"await\s+supabase\.auth\.setSession",js): raise SystemExit("Blocking Supabase setSession remains in final Admin controller")
+if "loginPage.classList.add(\"hidden\")" not in js: raise SystemExit("Synchronous Admin shell activation missing")
 ADMIN_JS.write_text(js,encoding="utf-8")
 
 text=ADMIN.read_text(encoding="utf-8")
@@ -129,4 +137,4 @@ for match in script_re.finditer(text):
 if shell_executable!=1 or shell_after_auth!=0: raise SystemExit(f"canonical Admin shell must be exactly one executable pre-auth entry (executable={shell_executable}, after_auth={shell_after_auth})")
 if core_executable!=1 or core_after_auth!=0: raise SystemExit(f"canonical Cairo core context must be exactly one executable pre-auth entry (executable={core_executable}, after_auth={core_after_auth})")
 ADMIN.write_text(text,encoding="utf-8")
-print(f"[AZAAD runtime manifest] PASS: final nonblocking staff-login owner + canonical shell/core; removed {removed} duplicate post-auth references")
+print(f"[AZAAD runtime manifest] PASS: final synchronous staff-login shell activation + canonical shell/core; removed {removed} duplicate post-auth references")
