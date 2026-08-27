@@ -14,8 +14,6 @@
     SECRETARY:['bookings'], RECEPTION:['bookings'], CASHIER:['bookings'], MARKETING:['posts','marketingEnterprisePanel']
   };
   const getAuthenticatedRole = () => {
-    // Keep the authenticated-role provenance explicit: this is session state, not
-    // a client-supplied role or a hard-coded UI role.
     const authenticatedState = window.AZAAD && window.AZAAD.state;
     const authenticatedRole = authenticatedState && authenticatedState.role;
     return authenticatedRole ? String(authenticatedRole).toUpperCase().trim() : '';
@@ -25,6 +23,7 @@
     if (shellRole) return shellRole;
     return String(document.body.dataset.role || '').toUpperCase().trim();
   };
+  let lastAppliedRole = '';
   function exposeAuthenticatedRole() {
     const current = role();
     if (!current) return false;
@@ -54,10 +53,6 @@
       tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
     });
 
-    // Role navigation owns tab visibility only. Panel activation/display belongs
-    // exclusively to the canonical admin shell; changing inline panel styles here
-    // created a second visibility owner and could leave enterprise panels hidden
-    // after a legitimate activation click.
     const active = document.querySelector('.tabs .tab.active:not([hidden])');
     if (!active) {
       const firstAllowed = document.querySelector('.tabs .tab[data-panel]:not([hidden])');
@@ -68,20 +63,20 @@
           firstAllowed.click();
         }
       }
+    } else if (current !== lastAppliedRole && typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') {
+      // Authentication can establish the role after the first panel has already
+      // been activated. Re-enter the canonical activation path exactly once for
+      // the new role so a lazy owner that loaded pre-role cannot remain a shell.
+      window.AZAAD_ADMIN_ACTIVATE_PANEL(active.dataset.panel, active);
     }
+    lastAppliedRole = current;
   }
   function init() {
     if (!location.pathname.endsWith('/admin.html')) return;
     addLanguageSwitcher();
     applyRoleNavigation();
-
-    // Do not observe the whole Admin DOM. Navigation itself changes tab/panel
-    // attributes, so a body-wide childList/subtree observer can repeatedly
-    // re-enter applyRoleNavigation while the shell is rendering.
-    // Role changes are represented by the single body data-role attribute.
     const roleObserver = new MutationObserver(() => applyRoleNavigation());
     roleObserver.observe(document.body, { attributes:true, attributeFilter:['data-role'] });
-
     window.addEventListener('azaadLanguageChanged', applyRoleNavigation);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
