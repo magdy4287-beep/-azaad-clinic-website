@@ -31,6 +31,15 @@ jobs:
     steps:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Verify exact commit under test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -n "$(git rev-parse HEAD^)"
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -69,6 +78,7 @@ jobs:
           set -euo pipefail
           cd /tmp/azaad-build
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
+          echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
