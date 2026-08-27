@@ -1,4 +1,4 @@
-"""Harden the canonical Admin login shell while keeping role navigation available pre-auth."""
+"""Harden the canonical Admin login shell while keeping the canonical auth/data core available pre-auth."""
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
@@ -31,10 +31,9 @@ body=body_match.group(1)
 external_script=re.compile(r'<script\b([^>]*\bsrc=["\']([^"\']+)["\'][^>]*)></script>',re.I)
 def isolate_body_script(match):
     attrs=match.group(1); src=match.group(2); path=(urlsplit(src).path or src).lstrip('/').lower()
-    # Role navigation is a control-plane runtime, not a feature/data runtime.
-    # It must execute before auth so that the authenticated role can gate tabs
-    # immediately after state restoration. All feature modules remain inert.
-    if path == 'azaad-role-experience.js':
+    # The canonical admin.js owns authentication and admin data. It must execute
+    # pre-auth so it can bind #loginForm; feature/data runtimes remain post-auth.
+    if path in ('azaad-role-experience.js', 'admin.js'):
         return '<script'+attrs+'></script>'
     return '<script data-azaad-after-auth-src="'+src.replace('"','&quot;')+'"></script>'
 body=external_script.sub(isolate_body_script,body)
@@ -62,11 +61,11 @@ text=text[:body_match.start(1)]+body+loader+text[body_match.end(1):]
 if len(re.findall(r'<form\b[^>]*\bid=["\']loginForm["\']',text,re.I))!=1: raise SystemExit("canonical login form count is not exactly one")
 if 'admin-auth-ui-guard.js' in text: raise SystemExit("retired admin-auth-ui-guard.js remains in admin.html")
 if not re.search(r'<form\b[^>]*\bid=["\']loginForm["\'][^>]*\bonsubmit=["\']event\.preventDefault\(\);["\']',text,re.I): raise SystemExit("login form native-navigation guard was not established")
-# No feature script may execute before authentication. The sole allowed body
-# executable is the role-navigation control plane.
+# Pre-auth executable external scripts are limited to the canonical control-plane
+# role navigation and the canonical auth/data core. Feature runtimes remain lazy.
 for m in re.finditer(r'<body\b[^>]*>(.*?)</body>',text,re.I|re.S):
-    executable=[x for x in re.findall(r'<script\b([^>]*)\bsrc=["\']([^"\']+)["\'][^>]*>',m.group(1),re.I) if (urlsplit(x[1]).path or x[1]).lstrip('/').lower()!='azaad-role-experience.js']
-    if executable: raise SystemExit("post-auth feature external script still executes on initial Admin login path")
+    executable=[x for x in re.findall(r'<script\b([^>]*)\bsrc=["\']([^"\']+)["\'][^>]*>',m.group(1),re.I) if (urlsplit(x[1]).path or x[1]).lstrip('/').lower() not in ('azaad-role-experience.js','admin.js')]
+    if executable: raise SystemExit("non-canonical pre-auth external runtime still executes on initial Admin login path")
 if 'data-azaad-after-auth-src=' not in text: raise SystemExit("post-auth runtime isolation was not established")
 ADMIN.write_text(text,encoding="utf-8")
-print("[AZAAD] Admin login isolated; canonical role navigation remains executable pre-auth; feature runtimes remain post-auth")
+print("[AZAAD] Admin login isolated with one canonical auth/data owner; feature runtimes remain post-auth")
