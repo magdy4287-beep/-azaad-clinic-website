@@ -54,8 +54,6 @@ if "initializing: false" not in js:
     else:
         raise SystemExit("Admin state initialization contract not found")
 
-# Canonical post-auth shell activation: staff-login is the authoritative identity
-# boundary. The optional Supabase user object must never block a valid staff login.
 canonical_init = '''async function initializeApplication() {
   if (state.initialized || state.initializing) return;
   if (!state.session || !state.staff || !state.currentRole) return;
@@ -124,8 +122,12 @@ if not logout_bounds:
     raise SystemExit("logout() not found")
 js = js[:logout_bounds[0]] + canonical_logout + js[logout_bounds[1]:]
 
-# Navigation is not owned by admin.js. Remove any remaining legacy implementation
-# and invocation before installing the command bridge owned by admin-shell.js.
+# Retired restoreSession is never a runtime owner. Remove its whole function
+# before the final symbol gate so source and generated artifact agree.
+restore_bounds = bounds(js, "async function restoreSession()")
+if restore_bounds:
+    js = js[:restore_bounds[0]] + js[restore_bounds[1]:]
+
 for obsolete in ("function bindTabs()", "function switchPanel("):
     match = bounds(js, obsolete)
     if match:
@@ -149,8 +151,6 @@ if "function requestPanel(panelId)" not in js:
     else:
         js = bridge + "\n" + js
 
-# Canonical startup owner: bind shell-safe handlers, then restore an existing
-# Supabase session through the staff profile boundary.
 startup_pattern = re.compile(
     r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
     re.S,
