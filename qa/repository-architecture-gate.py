@@ -85,14 +85,25 @@ if ADMIN.is_file():
     if len(re.findall(r'<script\b[^>]*\bsrc=["\'][^"\']*admin-shell\.js[^"\']*["\'][^>]*>', text, flags=re.I)) > 1:
         errors.append("Admin navigation Shell has duplicate executable source references")
 
-    manifest_shell = [
+    # The canonical shell is executable before authentication. It must appear
+    # exactly once as a real src and never as an after-auth-only manifest entry.
+    executable_shell = [
+        src for src in re.findall(
+            r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\'][^>]*>', text, flags=re.I
+        )
+        if (urlsplit(src).path or src).lstrip("/").lower() == "admin-shell.js"
+    ]
+    after_auth_shell = [
         src for src in re.findall(
             r'data-azaad-after-auth-src\s*=\s*["\']([^"\']+)["\']', text, flags=re.I
         )
         if (urlsplit(src).path or src).lstrip("/").lower() == "admin-shell.js"
     ]
-    if len(manifest_shell) != 1:
-        errors.append(f"Admin navigation Shell manifest must have exactly one canonical entry; found {len(manifest_shell)}")
+    if len(executable_shell) != 1 or after_auth_shell:
+        errors.append(
+            "Admin navigation Shell must have exactly one executable pre-auth entry "
+            f"and no after-auth entry; executable={len(executable_shell)}, after_auth={len(after_auth_shell)}"
+        )
 
     if text.count("admin-shell.js") < 1:
         errors.append("Admin navigation Shell reference is missing")
