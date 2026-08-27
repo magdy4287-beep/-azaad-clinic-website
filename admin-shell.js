@@ -32,14 +32,21 @@
     } catch (_) {}
   }
 
-  function bindExisting() {
-    document.querySelectorAll('.tab[data-panel]').forEach(function (button) {
-      if (button.dataset.adminShellBound === '1') return;
-      button.dataset.adminShellBound = '1';
-      button.addEventListener('click', function () {
-        activate(button.getAttribute('data-panel'), button);
-      }, false);
-    });
+  // One delegated navigation owner handles both static and post-auth dynamically
+  // mounted enterprise tabs. This avoids per-button listener races when panels
+  // are created after authentication.
+  function bindNavigation() {
+    if (window.__AZAAD_ADMIN_SHELL_NAV_DELEGATED__) return;
+    window.__AZAAD_ADMIN_SHELL_NAV_DELEGATED__ = true;
+    document.addEventListener('click', function (event) {
+      var target = event && event.target;
+      var button = target && typeof target.closest === 'function'
+        ? target.closest('.tab[data-panel]')
+        : null;
+      if (!button) return;
+      if (!document.documentElement.contains(button)) return;
+      activate(button.getAttribute('data-panel'), button);
+    }, false);
   }
 
   window.addEventListener('azaad:admin-panel-requested', function (event) {
@@ -50,7 +57,7 @@
   });
 
   function ready() {
-    bindExisting();
+    bindNavigation();
     loadCentralSchedulingSync();
     window.AZAAD_ADMIN_SHELL_READY = true;
     try {
@@ -63,7 +70,4 @@
   } else {
     ready();
   }
-
-  window.setTimeout(bindExisting, 250);
-  window.setTimeout(bindExisting, 1000);
 })();
