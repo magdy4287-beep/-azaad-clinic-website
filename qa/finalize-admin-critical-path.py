@@ -64,25 +64,20 @@ def bounds(source: str, marker: str):
         i += 1
     return None
 
-if not bounds(js, "async function login()"):
+# admin.js is the source owner. Its canonical signature is login(username,
+# password); the form binding is installed by the later canonical interactivity
+# transform. This transform must validate the owner, not manufacture another.
+if not bounds(js, "async function login("):
     raise SystemExit("canonical login() owner missing")
 
-# Remove retired bootstrap invocations only. The canonical login() implementation
-# remains the sole authentication owner.
-js = re.sub(r"\n?restoreSession\s*\(\s*\)\s*;?", "\n", js)
-PATH.write_text(js, encoding="utf-8")
+# Do not delete restoreSession here. Its dedicated retirement transform owns that
+# operation; keeping responsibilities separate prevents transform-order coupling.
 
-final_js = PATH.read_text(encoding="utf-8")
-if re.search(r"\brestoreSession\s*\(", final_js):
-    raise SystemExit("retired restoreSession runtime survived canonicalization")
-
-# The source may contain an HTML form, but this transform must not manufacture a
-# second submit owner. The canonical owner is allowed to be absent here because
-# a later canonical interactivity transform owns the binding.
+# Never allow this transform to create duplicate submit listeners.
 submit_pattern = re.compile(
     r"document\.getElementById\(\s*['\"]loginForm['\"]\s*\)\.addEventListener\(\s*['\"]submit['\"]",
     re.S,
 )
-count = len(list(submit_pattern.finditer(final_js)))
+count = len(list(submit_pattern.finditer(js)))
 if count > 1:
     raise SystemExit(f"duplicate login submit owners: {count}")
