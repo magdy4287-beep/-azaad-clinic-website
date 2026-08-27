@@ -125,8 +125,6 @@ for obsolete in ("function bindTabs()", "function switchPanel("):
     if match:
         js = js[:match[0]] + js[match[1]:]
 
-# A previous transform could leave a standalone legacy invocation outside the old
-# function body. It is not an owner and must not survive into the canonical artifact.
 js = re.sub(r'(?m)^\s*bindTabs\(\);\s*\n?', '', js)
 js = re.sub(r'(?m)^\s*switchPanel\([^;]+;\s*\n?', '', js)
 
@@ -145,6 +143,41 @@ if "function requestPanel(panelId)" not in js:
         js = js.replace(marker, marker + "\n" + bridge, 1)
     else:
         js = bridge + "\n" + js
+
+# Canonical startup owner: bind the shell-safe handlers, then restore an existing
+# Supabase session through the already-owned restoreStaffProfile() boundary. The
+# retired restoreSession() symbol is never emitted into the production artifact.
+startup_pattern = re.compile(
+    r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
+    re.S,
+)
+canonical_startup = '''document.addEventListener("DOMContentLoaded", async () => {
+  bindLogin();
+  bindLogout();
+  bindBookingFilters();
+  bindPatientPage();
+
+  try {
+    const result = await supabase.auth.getSession();
+    const session = result?.data?.session || null;
+    if (!session) return;
+
+    state.session = session;
+    state.user = session.user || null;
+
+    const validStaff = await restoreStaffProfile();
+    if (validStaff) {
+      await initializeApplication();
+    }
+  } catch (error) {
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
+  }
+});'''
+if startup_pattern.search(js):
+    js = startup_pattern.sub(canonical_startup, js, count=1)
+else:
+    raise SystemExit("Canonical Admin DOMContentLoaded startup block not found")
 
 final = bounds(js, "async function initializeApplication()")
 if not final:
@@ -176,14 +209,14 @@ if "setTimeout(()" in body:
 if "state.initialized = true;" not in body or "state.initializing = false;" not in body:
     raise SystemExit("Interactive state transition missing")
 
-# Strip comments before checking executable legacy navigation symbols so historical
-# explanatory text cannot produce a false positive.
 check_js = re.sub(r'/\*.*?\*/', '', js, flags=re.S)
 check_js = re.sub(r'(^|\s)//[^\n]*', r'\1', check_js)
 if re.search(r"\bfunction\s+bindTabs\s*\(", check_js) or re.search(r"\bbindTabs\s*\(", check_js):
     raise SystemExit("Legacy bindTabs symbol remains in canonical admin.js")
 if re.search(r"\bfunction\s+switchPanel\s*\(", check_js) or re.search(r"\bswitchPanel\s*\(", check_js):
     raise SystemExit("Legacy switchPanel symbol remains in canonical admin.js")
+if re.search(r"\brestoreSession\s*\(", check_js):
+    raise SystemExit("Retired restoreSession symbol remains in canonical admin.js")
 
 PATH.write_text(js, encoding="utf-8")
-print("[AZAAD] admin core no longer owns navigation; shell is the sole panel activation owner")
+print("[AZAAD] admin core owns auth startup and lifecycle; navigation remains shell-owned; retired restoreSession is forbidden")
