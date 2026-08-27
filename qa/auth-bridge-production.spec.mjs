@@ -13,6 +13,32 @@ async function resetBrowserSession(page) {
   await expect(page.locator('#loginForm')).toBeVisible({ timeout: 5000 });
 }
 
+async function authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors) {
+  return page.evaluate(({ authCount, unauthorized, pageErrors: errors, consoleErrors: consoles }) => ({
+    authCount,
+    unauthorized,
+    pageErrors: errors,
+    consoleErrors: consoles,
+    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
+    adminHidden: document.getElementById('adminPage')?.classList.contains('hidden') === true,
+    loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
+    supabaseReady: Boolean(window.AZAAD_SUPABASE_READY),
+    azaadReady: Boolean(window.AZAAD_READY),
+    formBound: document.getElementById('loginForm')?.dataset?.azaadBound || null,
+    loginError: document.getElementById('loginError')?.textContent || '',
+    role: document.body.dataset.role || '',
+    state: window.AZAAD?.state ? {
+      initialized: Boolean(window.AZAAD.state.initialized),
+      initializing: Boolean(window.AZAAD.state.initializing),
+      hasSession: Boolean(window.AZAAD.state.session),
+      hasUser: Boolean(window.AZAAD.state.user),
+      hasStaff: Boolean(window.AZAAD.state.staff),
+      currentRole: window.AZAAD.state.currentRole || null,
+      permissions: Array.from(window.AZAAD.state.permissions || [])
+    } : null
+  })), { authCount: authResponses.length, unauthorized: unauthorizedRequests, pageErrors, consoleErrors });
+}
+
 test('staff-login API returns a usable session', async ({ page }) => {
   test.skip(!process.env.AZAAD_TEST_USERNAME || !process.env.AZAAD_TEST_PASSWORD, 'Authenticated E2E requires dedicated CI test credentials.');
   const response = await page.request.post(`${SUPABASE_URL}/functions/v1/staff-login`, {
@@ -59,17 +85,11 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
   const authResponse = authResponses[authResponses.length - 1];
   expect(authResponse.status, `staff-login browser response headers=${JSON.stringify(authResponse.headers)}`).toBe(200);
 
-  await expect.poll(async () => page.evaluate(() => ({
-    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
-    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
-    hasSupabaseAuthStorage: Object.keys(localStorage).some(key => key.includes('auth')),
-    loginControllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
-    authReady: Boolean(window.AZAAD_READY)
-  })), {
+  await expect.poll(async () => authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors), {
     timeout: AUTH_READY_TIMEOUT,
     intervals: [250, 500, 1000],
-    message: `authenticated shell did not transition after real login. unauthorizedRequests=${JSON.stringify(unauthorizedRequests)} pageErrors=${JSON.stringify(pageErrors)} consoleErrors=${JSON.stringify(consoleErrors)}`
-  }).toMatchObject({ loginHidden: true, adminVisible: true });
+    message: async () => `authenticated shell did not transition after real login: ${JSON.stringify(await authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors))}`
+  }).toMatchObject({ loginHidden: true, adminHidden: false });
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
