@@ -7,6 +7,7 @@ CORE = [
     "admin-enhancements-v1.js",
     "admin-english-hardening.js",
     "admin-patient-icon-guard.js",
+    "azaad-role-experience.js",
 ]
 
 LAZY = {
@@ -36,8 +37,6 @@ LEGACY_OR_CONTRACT = {
     "scheduling-actions-contract.js",
     "admin-nextgen-fixes.js",
     "admin-nextgen-v2.js",
-    # Superseded Finance UI/data owners. Finance is now owned by the
-    # enterprise center -> azaad-finance boundary.
     "finance-executive-dashboard.js",
     "finance-executive-loader.js",
     "finance-executive-annual-monthly.js",
@@ -72,25 +71,14 @@ def main():
 
     if 'id="marketing-center"' not in text:
         marketing_mount = '''\n      <div id="marketing-center" data-azaad-marketing-mount="1"></div>\n'''
-        posts_marker = re.compile(
-            r'(\n  <section\n    id="posts"\n    class="panel"\n  >\n)',
-            re.I,
-        )
+        posts_marker = re.compile(r'(\n  <section\n    id="posts"\n    class="panel"\n  >\n)', re.I)
         text = posts_marker.sub(r'\1' + marketing_mount, text, count=1)
 
     if 'id="calendarPanel"' not in text:
         calendar_tab = '''\n<button class="tab" data-panel="calendar" type="button">🗓️ التقويم</button>\n'''
-        text = text.replace(
-            '</div>\n\n  <section\n    id="bookings"',
-            calendar_tab + '</div>\n\n  <section\n    id="bookings"',
-            1,
-        )
-        calendar_panel = '''\n<section id="calendarPanel" class="panel">\n  <div class="card">\n    <div class="panel-head">\n      <div>\n        <h2>🗓️ التقويم المركزي</h2>\n        <div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div>\n      </div>\n    </div>\n    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>\n  </div>\n</section>\n'''
-        text = text.replace(
-            '\n  <section\n    id="bookings"',
-            calendar_panel + '\n  <section\n    id="bookings"',
-            1,
-        )
+        text = text.replace('</div>\n\n  <section\n    id="bookings"', calendar_tab + '</div>\n\n  <section\n    id="bookings"', 1)
+        calendar_panel = '''\n<section id="calendarPanel" class="panel">\n  <div class="card">\n    <div class="panel-head">\n      <div><h2>🗓️ التقويم المركزي</h2><div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div></div>\n    </div>\n    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>\n  </div>\n</section>\n'''
+        text = text.replace('\n  <section\n    id="bookings"', calendar_panel + '\n  <section\n    id="bookings"', 1)
 
     groups = repr(LAZY)
     payload = f"""
@@ -101,71 +89,45 @@ def main():
   const loaded = new Map();
   const loading = new Map();
   const loadedForPanel = new Set();
-
   const yieldToBrowser = () => new Promise(resolve => {{
-    if (typeof window.requestIdleCallback === 'function') {{
-      window.requestIdleCallback(resolve, {{ timeout: 250 }});
-      return;
-    }}
+    if (typeof window.requestIdleCallback === 'function') {{ window.requestIdleCallback(resolve, {{ timeout: 250 }}); return; }}
     window.setTimeout(resolve, 0);
   }});
-
   const load = src => {{
     if (loaded.has(src)) return Promise.resolve(true);
     if (loading.has(src)) return loading.get(src);
     const p = new Promise((resolve, reject) => {{
       const s = document.createElement('script');
-      s.src = '/' + src;
-      s.defer = true;
-      s.dataset.azaadAdminModule = src;
+      s.src = '/' + src; s.defer = true; s.dataset.azaadAdminModule = src;
       s.onload = () => {{ loaded.set(src, true); loading.delete(src); resolve(true); }};
       s.onerror = () => {{ loading.delete(src); reject(new Error('Failed to load ' + src)); }};
       document.head.appendChild(s);
     }});
-    loading.set(src, p);
-    return p;
+    loading.set(src, p); return p;
   }};
-
   window.AZAAD_LOAD_ADMIN_PANEL = async function(panel) {{
     const key = String(panel || '');
-    if (loadedForPanel.has(key)) {{
-      window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }}));
-      return;
-    }}
+    if (loadedForPanel.has(key)) {{ window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }})); return; }}
     loadedForPanel.add(key);
     for (const src of (groups[key] || [])) {{
       await yieldToBrowser();
-      try {{ await load(src); }}
-      catch (err) {{
+      try {{ await load(src); }} catch (err) {{
         console.error('[AZAAD_ADMIN_MODULE]', key, src, err);
         window.dispatchEvent(new CustomEvent('azaad:admin-module-error', {{ detail: {{ panel: key, src, error: err }} }}));
       }}
     }}
     window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }}));
   }};
-
-  // Navigation is owned by admin-shell.js. The registry owns only panel-module loading.
   window.addEventListener('azaad:admin-panel-activated', event => {{
-    const key = event.detail?.panel;
-    if (!key) return;
+    const key = event.detail?.panel; if (!key) return;
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
-
-  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{
-    core: {CORE!r},
-    groups,
-    load: window.AZAAD_LOAD_ADMIN_PANEL
-  }});
+  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
 }})();
 </script>
 """
-
-    text = re.sub(
-        r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>',
-        '', text, flags=re.I | re.S
-    )
+    text = re.sub(r'<script\b[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>.*?</script>', '', text, flags=re.I | re.S)
     text = text.replace("</body>", payload + "\n</body>", 1)
-
     path.write_text(text, encoding="utf-8")
     print("lazy-admin-modules.py completed successfully")
 
