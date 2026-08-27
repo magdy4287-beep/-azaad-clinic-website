@@ -70,19 +70,20 @@ login_fn='''async function login(username, password) {
   state.staff = result.staff;
   state.currentRole = role;
   state.permissions = new Set(ROLE_PERMISSIONS[role]);
-  document.body.dataset.role = role;
-  updateUserIdentity();
 
-  // The authenticated shell is the critical path and must not wait on any
-  // Supabase persistence or feature/data initialization work.
+  // Critical shell transition comes first. No identity rendering, Supabase
+  // persistence, or feature initialization may be allowed to block it.
   const loginPage = document.getElementById("loginPage");
   const adminPage = document.getElementById("adminPage");
   if (loginPage) loginPage.classList.add("hidden");
   if (adminPage) adminPage.classList.remove("hidden");
+  document.body.dataset.role = role;
 
   if (redirectDoctorIfNeeded()) return;
 
-  // Shell activation is the critical path. Supabase persistence is background work.
+  updateUserIdentity();
+
+  // Shell activation is complete. Everything below is non-blocking/background work.
   void initializeApplication().catch(error => console.error("Admin initialization error:", error));
   void supabase.auth.setSession({
     access_token: result.session.access_token,
@@ -137,4 +138,4 @@ for match in script_re.finditer(text):
 if shell_executable!=1 or shell_after_auth!=0: raise SystemExit(f"canonical Admin shell must be exactly one executable pre-auth entry (executable={shell_executable}, after_auth={shell_after_auth})")
 if core_executable!=1 or core_after_auth!=0: raise SystemExit(f"canonical Cairo core context must be exactly one executable pre-auth entry (executable={core_executable}, after_auth={core_after_auth})")
 ADMIN.write_text(text,encoding="utf-8")
-print(f"[AZAAD runtime manifest] PASS: final synchronous staff-login shell activation + canonical shell/core; removed {removed} duplicate post-auth references")
+print(f"[AZAAD runtime manifest] PASS: deterministic synchronous staff-login shell activation + canonical shell/core; removed {removed} duplicate post-auth references")
