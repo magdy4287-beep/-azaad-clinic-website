@@ -12,12 +12,9 @@
     insights:['🧠 Smart Insights','توصيات مبنية على البيانات'],security:['🛡️ IT Security','حدود الأمان والحسابات']
   };
   const ROLE_SCOPES={
-    patient360:['OWNER','ADMIN','MANAGER'],
-    rcm:['OWNER','ADMIN','MANAGER','CASHIER'],
-    analytics:['OWNER','ADMIN','MANAGER'],
-    finance:['OWNER','ADMIN','MANAGER','CASHIER'],
-    marketing:['OWNER','ADMIN','MANAGER','MARKETING'],
-    insights:['OWNER','ADMIN','MANAGER'],
+    patient360:['OWNER','ADMIN','MANAGER'],rcm:['OWNER','ADMIN','MANAGER','CASHIER'],
+    analytics:['OWNER','ADMIN','MANAGER'],finance:['OWNER','ADMIN','MANAGER','CASHIER'],
+    marketing:['OWNER','ADMIN','MANAGER','MARKETING'],insights:['OWNER','ADMIN','MANAGER'],
     security:['OWNER','ADMIN','MANAGER']
   };
   const role=()=>String(window.AZAAD?.state?.role||window.AZAAD?.state?.currentRole||document.body?.dataset?.role||'').toUpperCase().trim();
@@ -43,7 +40,17 @@
     if(key==='analytics')return void(body.innerHTML=cards([['الحجوزات',k.bookings],['مؤكد',k.confirmed],['مكتمل',k.completed],['No-Show',k.no_show],['معدل الإكمال',`${k.completion_rate}%`],['معدل No-Show',`${k.no_show_rate}%`],['الأطباء النشطون',k.active_doctors],['الموظفون النشطون',k.active_staff]]));
     if(key==='marketing'){const m=d.marketing||{};return void(body.innerHTML=cards([['Leads',k.marketing_leads],['Converted',k.converted_leads],['Conversion rate',`${k.lead_conversion_rate}%`])+`<div class="item"><strong>المصادر</strong><pre>${esc(JSON.stringify(m.by_source||{},null,2))}</pre></div>`);}
   }catch(e){body.innerHTML=`<div class="error">تعذر تحميل ${esc(D[key][0])}: ${esc(e.message)}</div>`;}}
+  const activateKeyFromDom=()=>{
+    const active=document.querySelector('.panel.active[id$="EnterprisePanel"]');
+    if(!active)return;
+    const key=active.id.replace(/EnterprisePanel$/,'');
+    if(D[key]&&canAccess(key)) render(key);
+  };
   window.addEventListener('azaad:admin-panel-activated',event=>{const panel=event.detail?.panel||'';const key=panel.endsWith('EnterprisePanel')?panel.replace('EnterprisePanel',''):'';if(D[key]&&canAccess(key))render(key);});
   bind();
+  // The canonical registry loads this owner in response to panel activation. The
+  // activation event can occur before this dynamically loaded module subscribes;
+  // recover that already-active state without changing navigation ownership.
+  queueMicrotask(activateKeyFromDom);
   window.AZAAD_ENTERPRISE_CENTERS={render,bind};
 })();
