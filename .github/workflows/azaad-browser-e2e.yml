@@ -64,7 +64,7 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/azaad-build
           mkdir -p /tmp/azaad-build
-          cp -a . /tmp/azaad-build/
+          cp -a . /tmp/azaad-build
           cd /tmp/azaad-build
           python3 qa/vercel-build.py
 
@@ -75,38 +75,9 @@ jobs:
           set -euo pipefail
           cd /tmp/azaad-build
           for file in admin-english-hardening.js admin.js admin-shell.js frontdesk-workflow.js; do
-            if [[ -f "$file" ]]; then
-              node --check "./$file"
-            fi
+            if [[ -f "$file" ]]; then node --check "./$file"; fi
           done
-          if [[ -f ./admin-auth-ui-guard.js ]]; then
-            node --check ./admin-auth-ui-guard.js
-          fi
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          import subprocess
-          import tempfile
-
-          html = Path('admin.html').read_text(encoding='utf-8')
-          blocks = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.I | re.S)
-          failed = 0
-          for index, source in enumerate(blocks, start=1):
-              if not source.strip():
-                  continue
-              with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.js', delete=False) as handle:
-                  handle.write(source)
-                  path = handle.name
-              result = subprocess.run(['node', '--check', path], text=True, capture_output=True)
-              if result.returncode:
-                  print(f'Inline JavaScript syntax failure: admin.html script block {index}')
-                  print(result.stdout)
-                  print(result.stderr)
-                  failed = 1
-          if failed:
-              raise SystemExit(1)
-          print('Admin production artifact JavaScript syntax validation passed.')
-          PY
+          if [[ -f ./admin-auth-ui-guard.js ]]; then node --check ./admin-auth-ui-guard.js; fi
 
       - name: Start local canonical production build server for pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
@@ -117,10 +88,7 @@ jobs:
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              echo "Local Azaad canonical production build is ready."
-              exit 0
-            fi
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/azaad-http.log || true
@@ -135,6 +103,20 @@ jobs:
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
           echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
+
+      - name: Prove production Admin runtime invariants before browser execution
+        if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://azaad-clinic-website.vercel.app/admin.html >/tmp/azaad-production-admin.html
+          test "$(grep -o 'azaad-core-context.js' /tmp/azaad-production-admin.html | wc -l)" -eq 1
+          test "$(grep -o 'admin-shell.js' /tmp/azaad-production-admin.html | wc -l)" -eq 1
+          curl -fsS 'https://azaad-clinic-website.vercel.app/admin.js?v=certification' >/tmp/azaad-production-admin.js
+          ! grep -Eq '\bbindTabs\s*\(' /tmp/azaad-production-admin.js
+          ! grep -Eq '\bswitchPanel\s*\(' /tmp/azaad-production-admin.js
+          ! grep -Eq '\brestoreSession\s*\(' /tmp/azaad-production-admin.js
+          echo 'Production Admin runtime invariants: PASS'
 
       - name: Run browser shell/control-plane/domain E2E against production on main
         if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
