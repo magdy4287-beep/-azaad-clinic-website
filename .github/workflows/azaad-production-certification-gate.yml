@@ -1,10 +1,30 @@
 name: AZAAD Production Certification Gate
 
+# Certification is intentionally downstream of the canonical Production Browser E2E
+# for runtime-affecting changes. This removes the push-time race where both workflows
+# start from the same commit and the gate queries GitHub before E2E has completed.
+# Governance/documentation-only changes retain the existing ancestor-inheritance path.
+
 on:
   push:
     branches:
       - main
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/workflows/azaad-production-certification-gate.yml'
   pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/workflows/azaad-production-certification-gate.yml'
+  workflow_run:
+    workflows:
+      - Azaad Production Browser E2E
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
@@ -15,18 +35,28 @@ permissions:
 
 jobs:
   certification:
+    # Push/PR runs are reserved for governance-only changes. Runtime changes are
+    # certified by the workflow_run event after Browser E2E completes successfully.
+    if: >-
+      github.event_name == 'workflow_run' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact commit under evaluation
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - name: Verify certification evidence for the exact commit
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          E2E_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -34,15 +64,31 @@ jobs:
           workflow_file='.github/workflows/azaad-browser-e2e.yml'
           test -f "$workflow_file"
           grep -Fq 'name: Azaad Production Browser E2E' "$workflow_file"
-          # Do not grep for the expanded GitHub expression: Actions interpolates
-          # expressions inside `run:` before bash executes, which would turn the
-          # source-contract check into a false negative. Validate the contract by
-          # checking for the variable declaration and the github.sha expression
-          # token independently.
           grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA:' "$workflow_file"
           grep -Fq 'github.sha' "$workflow_file"
 
-          # Use GitHub's commit/compare APIs for authoritative changed-file detection.
+          # When invoked by workflow_run, GitHub has already completed the canonical
+          # Browser E2E workflow. Require that exact run to be successful and that its
+          # head SHA is the commit being certified. This is the authoritative evidence
+          # path and eliminates the old push/E2E race.
+          if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
+            [[ "$E2E_CONCLUSION" == 'success' ]] || {
+              echo "Production Browser E2E did not succeed for exact commit $SHA"
+              exit 1
+            }
+
+            runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
+            if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
+              echo "Production Browser E2E evidence is missing for exact commit $SHA"
+              exit 1
+            fi
+
+            echo "Exact-SHA Production Browser E2E certification: PASS ($SHA)"
+            exit 0
+          fi
+
+          # Manual invocation is allowed only as an explicit evidence check; it never
+          # bypasses exact-SHA certification for a runtime-affecting commit.
           parent_sha="$(gh api "/repos/$REPO/commits/$SHA" --jq '.parents[0].sha // empty')"
           if [[ -z "$parent_sha" ]]; then
             echo "Cannot determine parent commit for certification evidence: $SHA"
@@ -66,52 +112,39 @@ jobs:
             esac
           done
 
-          # Governance/documentation commits can inherit the last certified runtime,
-          # but only through a consecutive chain of governance-only commits. This is
-          # deliberately not a generic bypass: a runtime commit without exact-SHA E2E
-          # stops inheritance immediately.
-          if [[ "$evidence_only_change" -eq 1 ]]; then
-            candidate_sha="$parent_sha"
-            while [[ -n "$candidate_sha" ]]; do
-              echo "Checking certification ancestor: $candidate_sha"
-              runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$candidate_sha&per_page=100")"
-              if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$candidate_sha"'" and .conclusion == "success")' >/dev/null; then
-                echo "Inherited Production Browser E2E certification: PASS ($candidate_sha)"
-                exit 0
-              fi
+          if [[ "$evidence_only_change" -ne 1 ]]; then
+            echo "Runtime-affecting change detected. Certification must arrive through the completed Browser E2E workflow_run."
+            echo "This push/PR gate intentionally refuses to race or bypass the canonical E2E evidence."
+            exit 1
+          fi
 
-              next_parent="$(gh api "/repos/$REPO/commits/$candidate_sha" --jq '.parents[0].sha // empty')"
-              [[ -n "$next_parent" ]] || break
+          candidate_sha="$parent_sha"
+          while [[ -n "$candidate_sha" ]]; do
+            echo "Checking certification ancestor: $candidate_sha"
+            runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$candidate_sha&per_page=100")"
+            if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$candidate_sha"'" and .conclusion == "success")' >/dev/null; then
+              echo "Inherited Production Browser E2E certification: PASS ($candidate_sha)"
+              exit 0
+            fi
 
-              mapfile -t ancestor_files < <(gh api "/repos/$REPO/compare/$next_parent...$candidate_sha" --jq '.files[]?.filename')
-              ancestor_evidence_only=1
-              for file in "${ancestor_files[@]}"; do
-                case "$file" in
-                  docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
-                  *) ancestor_evidence_only=0; break ;;
-                esac
-              done
+            next_parent="$(gh api "/repos/$REPO/commits/$candidate_sha" --jq '.parents[0].sha // empty')"
+            [[ -n "$next_parent" ]] || break
 
-              if [[ "$ancestor_evidence_only" -ne 1 ]]; then
-                echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"
-                echo "No successful exact-SHA Production Browser E2E evidence exists for that runtime commit."
-                exit 1
-              fi
-
-              candidate_sha="$next_parent"
+            mapfile -t ancestor_files < <(gh api "/repos/$REPO/compare/$next_parent...$candidate_sha" --jq '.files[]?.filename')
+            ancestor_evidence_only=1
+            for file in "${ancestor_files[@]}"; do
+              case "$file" in
+                docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
+                *) ancestor_evidence_only=0; break ;;
+              esac
             done
 
-            echo "No certified runtime ancestor found for evidence-only commit $SHA"
-            exit 1
-          fi
+            if [[ "$ancestor_evidence_only" -ne 1 ]]; then
+              echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"
+              exit 1
+            fi
+            candidate_sha="$next_parent"
+          done
 
-          # Any application/runtime or Browser E2E workflow change must have its own
-          # successful exact-SHA Production Browser E2E run. Never accept another SHA.
-          echo "Runtime-affecting change detected; requiring exact-SHA Browser E2E: $SHA"
-          runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
-          if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
-            echo "Production Browser E2E evidence is missing for exact commit $SHA"
-            exit 1
-          fi
-
-          echo "Exact-SHA Production Browser E2E certification: PASS"
+          echo "No certified runtime ancestor found for evidence-only commit $SHA"
+          exit 1
