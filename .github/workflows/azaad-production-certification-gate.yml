@@ -34,7 +34,13 @@ jobs:
           workflow_file='.github/workflows/azaad-browser-e2e.yml'
           test -f "$workflow_file"
           grep -Fq 'name: Azaad Production Browser E2E' "$workflow_file"
-          grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}' "$workflow_file"
+          # Do not grep for the expanded GitHub expression: Actions interpolates
+          # expressions inside `run:` before bash executes, which would turn the
+          # source-contract check into a false negative. Validate the contract by
+          # checking for the variable declaration and the github.sha expression
+          # token independently.
+          grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA:' "$workflow_file"
+          grep -Fq 'github.sha' "$workflow_file"
 
           # Use GitHub's commit/compare APIs for authoritative changed-file detection.
           parent_sha="$(gh api "/repos/$REPO/commits/$SHA" --jq '.parents[0].sha // empty')"
