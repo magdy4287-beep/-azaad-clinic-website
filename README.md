@@ -4,32 +4,39 @@ Production frontend for Azaad Clinic.
 
 ## Deployment
 
-- Primary production deployment: GitHub Pages
+- Current certified production deployment: Vercel
+- Production project: `azaad-clinic-website`
+- Production URL: `https://azaad-clinic-website.vercel.app/`
 - Repository branch: `main`
 - Static frontend: this repository
 - Backend: Supabase Edge Functions
-- Vercel: optional development/preview environment; production does not depend on Vercel deployments
-- Deployment workflow: `.github/workflows/jekyll-docker.yml`
+- GitHub Pages remains a portable/static-hosting target; it is not the current production certification target.
+- Production build authority: `qa/vercel-build.py`
+- Browser certification authority: `.github/workflows/azaad-browser-e2e.yml`
 
-The GitHub Pages workflow runs on pushes to `main`, builds the static site artifact, and deploys it with the GitHub Pages deployment actions. The workflow uses concurrency protection so a newer deployment can cancel an older in-progress deployment.
+Production certification is SHA-bound: the deployed Admin artifact exposes `meta[name="azaad-build-sha"]`, and the canonical browser E2E verifies that value against the commit under certification.
 
 ## Routes
 
 - Patient site: `/`
-- Admin control center: `/admin/`
+- Admin control center: `/admin.html`
 - Booking status: `/booking-status.html`
 - Clinical assessment tools: `/clinical-assessment.html`
 - Clinical assessment history: `/clinical-assessment-history.html`
 - Clinical question bank: `/clinical-question-bank.html`
 
+There is intentionally no separate `/patient.html` route in the canonical frontend. The patient-facing experience is the root public site (`/`); patient 360 is an authenticated Admin clinical domain.
+
 ## Architecture
 
-- Frontend: static HTML/CSS/JavaScript hosted by GitHub Pages
+- Frontend: static HTML/CSS/JavaScript hosted by the certified production host
 - Authentication: Supabase Auth
 - Database: Supabase Postgres with RLS
 - Backend APIs: secured Supabase Edge Functions
 - Clinical tools: permission-gated and scoped to authenticated clinical staff
 - AI features: assistive decision-support only; final clinical decisions remain with qualified clinicians
+- Admin runtime: one core + one lazy registry + one panel loader
+- Browser certification: one canonical production browser E2E workflow
 
 ## Security
 
@@ -39,6 +46,10 @@ The GitHub Pages workflow runs on pushes to `main`, builds the static site artif
 - Clinical assessment access requires authenticated staff permissions and appropriate patient/visit scope.
 - Legacy browser session-token fallbacks should not be used for clinical authorization.
 
+## Data integrity
+
+E2E fixtures may coexist with operational records in the database, but operational reporting excludes records explicitly marked with the `E2E-` booking-code contract. Fixtures are never deleted merely to make production metrics look clean.
+
 ## Free-first deployment policy
 
-Azaad Clinic is designed to minimize dependence on paid infrastructure. GitHub Pages is the primary static production host and Supabase is the backend platform. No claim is made that any third-party free tier is guaranteed forever; the application should remain portable so hosting can be changed without rebuilding the clinical/business logic.
+Azaad Clinic is designed to minimize dependence on paid infrastructure. The current production target uses the available Vercel free-tier deployment and Supabase free-tier-compatible architecture. Hosting remains portable so the application can be moved without rebuilding the clinical/business logic.
