@@ -7,7 +7,7 @@
   const $=id=>document.getElementById(id);
   const D={patient360:['🧑‍⚕️ Patient 360','ملف المريض الكامل'],rcm:['🧾 Invoices & RCM','الفواتير والتحصيل'],analytics:['📊 Analytics','مؤشرات التشغيل'],finance:['💰 Finance','الإيرادات والمصروفات'],marketing:['📣 Marketing','العملاء المحتملون'],insights:['🧠 Smart Insights','توصيات مبنية على البيانات'],security:['🛡️ IT Security','حدود الأمان والحسابات']};
   const ROLE_SCOPES={patient360:['OWNER','ADMIN','MANAGER'],rcm:['OWNER','ADMIN','MANAGER','CASHIER'],analytics:['OWNER','ADMIN','MANAGER'],finance:['OWNER','ADMIN','MANAGER','CASHIER'],marketing:['OWNER','ADMIN','MANAGER','MARKETING'],insights:['OWNER','ADMIN','MANAGER'],security:['OWNER','ADMIN','MANAGER']};
-  const role=()=>String(window.AZAAD?.state?.role||window.AZAAD?.state?.currentRole||document.body?.dataset?.role||'').toUpperCase().trim();
+  const role=()=>String(window.AZAAD?.state?.role||window.AZAAD?.state?.currentRole||window.AZAAD?.state?.staff?.role||document.body?.dataset?.role||'').toUpperCase().trim();
   const canAccess=key=>ROLE_SCOPES[key]?.includes(role())===true;
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const money=v=>`${Number(v||0).toLocaleString('en-US',{maximumFractionDigits:2})} EGP`;
@@ -32,8 +32,10 @@
   }catch(e){body.innerHTML=`<div class="error">تعذر تحميل ${esc(D[key][0])}: ${esc(e.message)}</div>`;}}
   const activateKeyFromDom=()=>{const active=document.querySelector('.panel.active[id$="EnterprisePanel"]');if(!active)return;const key=active.id.replace(/EnterprisePanel$/,'');if(D[key]&&canAccess(key))render(key);};
   const handlePanelSignal=event=>{const panel=event.detail?.panel||'';const key=panel.endsWith('EnterprisePanel')?panel.replace('EnterprisePanel',''):'';if(D[key]&&canAccess(key))render(key);};
+  const handleRoleReady=()=>{bind();activateKeyFromDom();};
   window.addEventListener('azaad:admin-panel-activated',handlePanelSignal);
   window.addEventListener('azaad:admin-panel-ready',handlePanelSignal);
+  window.addEventListener('azaad:admin-role-ready',handleRoleReady);
   bind();
   queueMicrotask(activateKeyFromDom);
   window.AZAAD_ENTERPRISE_CENTERS={render,bind};
