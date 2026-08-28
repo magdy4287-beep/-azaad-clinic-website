@@ -22,10 +22,11 @@ text = text[:registry.start(2)] + body + text[registry.end(2):]
 
 # Replace the two historical navigation surfaces (core Arabic tabs + enterprise
 # English tabs) with ONE tree. Every leaf retains its canonical data-panel key.
+# Bookings intentionally has one navigation leaf; day/all filtering belongs inside
+# the bookings panel and must not create duplicate navigation ownership.
 nav_groups = [
     ('01 Operations', [
-        ('bookings', '📅 حجوزات اليوم', 'today'),
-        ('bookings', '📋 كل الحجوزات', 'bookings'),
+        ('bookings', '📅 الحجوزات', 'bookings'),
         ('calendar', '🗓️ التقويم', 'calendar'),
         ('doctors', '🧑‍⚕️ الأطباء', 'doctors'),
         ('services', '🩺 الخدمات', 'services'),
