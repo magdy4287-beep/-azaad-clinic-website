@@ -15,7 +15,7 @@
   };
   const getAuthenticatedRole = () => {
     const authenticatedState = window.AZAAD && window.AZAAD.state;
-    const authenticatedRole = authenticatedState && authenticatedState.role;
+    const authenticatedRole = authenticatedState && (authenticatedState.role || authenticatedState.currentRole || authenticatedState.staff?.role);
     return authenticatedRole ? String(authenticatedRole).toUpperCase().trim() : '';
   };
   const role = () => {
@@ -28,14 +28,8 @@
   function exposeAuthenticatedRole() {
     const current = role();
     if (!current) return false;
-    // This function runs from a MutationObserver watching body[data-role].
-    // Never write the observed attribute unless its value actually changes.
-    if (document.body.dataset.role !== current) {
-      document.body.dataset.role = current;
-    }
-    if (document.documentElement.dataset.role !== current) {
-      document.documentElement.dataset.role = current;
-    }
+    if (document.body.dataset.role !== current) document.body.dataset.role = current;
+    if (document.documentElement.dataset.role !== current) document.documentElement.dataset.role = current;
     return true;
   }
   function addLanguageSwitcher() {
@@ -59,16 +53,12 @@
       tab.hidden = !visible;
       tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
     });
-
     const active = document.querySelector('.tabs .tab.active:not([hidden])');
     if (!active) {
       const firstAllowed = document.querySelector('.tabs .tab[data-panel]:not([hidden])');
       if (firstAllowed) {
-        if (typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') {
-          window.AZAAD_ADMIN_ACTIVATE_PANEL(firstAllowed.dataset.panel, firstAllowed);
-        } else {
-          firstAllowed.click();
-        }
+        if (typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') window.AZAAD_ADMIN_ACTIVATE_PANEL(firstAllowed.dataset.panel, firstAllowed);
+        else firstAllowed.click();
       }
     } else if (current !== lastAppliedRole && typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') {
       window.AZAAD_ADMIN_ACTIVATE_PANEL(active.dataset.panel, active);
