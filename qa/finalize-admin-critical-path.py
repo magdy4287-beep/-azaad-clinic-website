@@ -77,30 +77,27 @@ if not login_bounds:
     raise SystemExit("canonical login() boundary missing")
 login_body = js[login_bounds[0]:login_bounds[1]]
 
-needle = '''  applyStaffRole(
-    result.staff
-  );
-
-  const {
-    error
-  } =
-    await supabase.auth.setSession({'''
-replacement = '''  applyStaffRole(
-    result.staff
-  );
-
-  state.session = result.session;
-  state.user = result.user || null;
-  activateAuthenticatedAdminShell();
-
-  const {
-    error
-  } =
-    await supabase.auth.setSession({'''
-if needle not in login_body:
+# The staff-login response is the trusted identity boundary. Establish the
+# client state before the shell transition, then persist the real Supabase
+# session. The matcher deliberately tolerates formatting changes introduced by
+# earlier canonical transforms.
+state_and_session_pattern = re.compile(
+    r"(?P<role>applyStaffRole\s*\(\s*result\.staff\s*\)\s*;)"
+    r"\s*"
+    r"(?P<session>const\s*\{\s*error\s*\}\s*=\s*await\s+supabase\.auth\.setSession\s*\(\s*\{)",
+    re.S,
+)
+replacement = (
+    r"\g<role>\n\n"
+    "  state.session = result.session;\n"
+    "  state.user = result.user || null;\n"
+    "  activateAuthenticatedAdminShell();\n\n"
+    r"\g<session>"
+)
+login_body, replaced = state_and_session_pattern.subn(replacement, login_body, count=1)
+if replaced != 1:
     raise SystemExit("login shell activation insertion point not found")
-login_body = login_body.replace(needle, replacement, 1)
-js = js[:login_bounds[0]] + login_body + js[login_bounds[1]:]
 
+js = js[:login_bounds[0]] + login_body + js[login_bounds[1]:]
 PATH.write_text(js, encoding="utf-8")
 print("[AZAAD] canonical login critical-path transform validated")
