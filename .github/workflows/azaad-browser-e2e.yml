@@ -18,9 +18,6 @@ on:
     - cron: '17 3 * * 1'
   workflow_dispatch:
 
-# Certification evidence is SHA-scoped. A newer main commit must never cancel
-# an in-flight Browser E2E for an older commit, because that older run may be
-# the authoritative evidence consumed by the exact-SHA certification gate.
 concurrency:
   group: azaad-production-browser-e2e-${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: false
@@ -115,6 +112,20 @@ jobs:
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
           echo "Browser E2E uses the controlled Frontdesk identity: $AZAAD_TEST_USERNAME"
+
+      - name: Verify browser certification contract includes real refresh persistence coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec=qa/browser-e2e.spec.mjs
+          test -s "$spec"
+          grep -Fq "admin session survives a real browser refresh without returning to login" "$spec"
+          grep -Fq "await page.reload({waitUntil:'domcontentloaded'})" "$spec"
+          grep -Fq "await expect(page.locator('#adminPage')).toBeVisible" "$spec"
+          grep -Fq "await expect(page.locator('#loginPage')).toBeHidden" "$spec"
+          grep -Fq "Supabase auth persistence disappeared after refresh" "$spec"
+          grep -Fq "canonical staff role was not restored after refresh" "$spec"
+          echo 'Browser refresh persistence certification contract: PASS'
 
       - name: Prove production Admin runtime invariants before browser execution
         if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
