@@ -27,8 +27,16 @@
   function exposeAuthenticatedRole() {
     const current = role();
     if (!current) return false;
-    document.body.dataset.role = current;
-    document.documentElement.dataset.role = current;
+    // This function runs from a MutationObserver watching body[data-role].
+    // Never write the observed attribute unless its value actually changes.
+    // Reassigning the same value can emit another mutation record and create
+    // a self-sustaining observer -> mutation -> observer loop.
+    if (document.body.dataset.role !== current) {
+      document.body.dataset.role = current;
+    }
+    if (document.documentElement.dataset.role !== current) {
+      document.documentElement.dataset.role = current;
+    }
     return true;
   }
   function addLanguageSwitcher() {
@@ -64,9 +72,6 @@
         }
       }
     } else if (current !== lastAppliedRole && typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') {
-      // Authentication can establish the role after the first panel has already
-      // been activated. Re-enter the canonical activation path exactly once for
-      // the new role so a lazy owner that loaded pre-role cannot remain a shell.
       window.AZAAD_ADMIN_ACTIVATE_PANEL(active.dataset.panel, active);
     }
     lastAppliedRole = current;
