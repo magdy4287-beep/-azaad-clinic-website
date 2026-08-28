@@ -32,6 +32,7 @@ jobs:
       - name: Checkout exact commit under test
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 2
 
       - name: Verify exact commit under test
@@ -39,6 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           test -n "$(git rev-parse HEAD^)"
 
       - name: Setup Node
