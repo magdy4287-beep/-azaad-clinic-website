@@ -4,6 +4,21 @@ const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.verc
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
 
+async function readAuthState(page) {
+  return page.evaluate(() => ({
+    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
+    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
+    controllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
+    ready: Boolean(window.AZAAD_READY),
+    role: document.body?.dataset?.role || null,
+    initialized: Boolean(window.AZAAD?.state?.initialized),
+    initializing: Boolean(window.AZAAD?.state?.initializing),
+    staffRole: window.AZAAD?.state?.staff?.role || null,
+    session: Boolean(window.AZAAD?.state?.session?.access_token),
+    loginError: document.getElementById('loginError')?.textContent?.trim() || null
+  }));
+}
+
 async function login(page) {
   test.skip(!process.env.AZAAD_TEST_USERNAME || !process.env.AZAAD_TEST_PASSWORD,
     'Authenticated domain E2E requires dedicated CI credentials.');
@@ -27,36 +42,16 @@ async function login(page) {
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm button[type="submit"]').click();
 
-  await expect.poll(async () => page.evaluate(() => ({
-    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
-    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
-    controllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
-    ready: Boolean(window.AZAAD_READY),
-    role: document.body?.dataset?.role || null,
-    initialized: Boolean(window.AZAAD?.state?.initialized),
-    initializing: Boolean(window.AZAAD?.state?.initializing),
-    staffRole: window.AZAAD?.state?.staff?.role || null,
-    session: Boolean(window.AZAAD?.state?.session?.access_token),
-    loginError: document.getElementById('loginError')?.textContent?.trim() || null
-  })), {
-    timeout: AUTH_READY_TIMEOUT,
-    intervals: [250, 500, 1000],
-    message: async () => {
-      const state = await page.evaluate(() => ({
-        loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
-        adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
-        controllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
-        ready: Boolean(window.AZAAD_READY),
-        role: document.body?.dataset?.role || null,
-        initialized: Boolean(window.AZAAD?.state?.initialized),
-        initializing: Boolean(window.AZAAD?.state?.initializing),
-        staffRole: window.AZAAD?.state?.staff?.role || null,
-        session: Boolean(window.AZAAD?.state?.session?.access_token),
-        loginError: document.getElementById('loginError')?.textContent?.trim() || null
-      }));
-      return `Admin shell did not activate. staffLoginResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`;
-    }
-  }).toMatchObject({ loginHidden: true, adminVisible: true });
+  const deadline = Date.now() + AUTH_READY_TIMEOUT;
+  let state = await readAuthState(page);
+  while (Date.now() < deadline && !(state.loginHidden && state.adminVisible)) {
+    await page.waitForTimeout(250);
+    state = await readAuthState(page);
+  }
+
+  if (!(state.loginHidden && state.adminVisible)) {
+    throw new Error(`Admin shell did not activate. staffLoginResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
+  }
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
