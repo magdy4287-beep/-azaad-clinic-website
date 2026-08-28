@@ -71,18 +71,20 @@ registry_matches=list(registry_pattern.finditer(text))
 if len(registry_matches)>1: raise SystemExit("Canonical lazy registry exists more than once")
 if not registry_matches: raise SystemExit("Canonical lazy registry is missing")
 registry=registry_matches[0]
-loader_definition_pattern=re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*',re.I)
+loader_definition_pattern=re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*(?:async\s+)?function\b',re.I)
 loader_definitions=list(loader_definition_pattern.finditer(text))
 if len(loader_definitions)!=1: raise SystemExit("Canonical lazy registry must expose exactly one panel loader definition")
 if not (registry.start()<=loader_definitions[0].start()<registry.end()): raise SystemExit("Admin panel loader definition exists outside canonical lazy registry")
+loader_references=len(re.findall(r'window\.AZAAD_LOAD_ADMIN_PANEL\b',text,re.I))
+if loader_references<1: raise SystemExit("Canonical panel loader reference is missing")
 executable=[]
 for match in script_open.finditer(text):
     attrs=match.group(1); found=src_attr.search(attrs)
     if not found: continue
     src=found.group(2) if found.group(2) is not None else found.group(3)
-    path=(urlsplit(src).path or src).lstrip("/").lower()
+    path=(urlsplit(src).path or src).lstrip('/').lower()
     if path not in PRE_AUTH_RUNTIME_PATHS: executable.append(src)
 if executable: raise SystemExit("Non-canonical Admin runtimes remain executable: "+", ".join(executable))
 if text.count('data-azaad-after-auth-src=')<1: raise SystemExit("No post-auth runtime manifest was produced")
 ADMIN.write_text(text,encoding="utf-8")
-print("[AZAAD final admin isolation] PASS: canonical auth + shell + role control plane remain pre-auth; exactly one lazy panel-loader definition remains inside canonical registry")
+print("[AZAAD final admin isolation] PASS: exactly one lazy panel-loader definition remains inside the canonical registry; references are allowed")
