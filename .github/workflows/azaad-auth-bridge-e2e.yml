@@ -106,6 +106,7 @@ jobs:
           test -n "$AZAAD_TEST_USERNAME"
           test -n "$AZAAD_TEST_PASSWORD"
 
+      # Canonical browser-certification owner; keep this job bound to the exact push SHA.
       - name: Run authenticated API and browser E2E
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
