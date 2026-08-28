@@ -20,7 +20,7 @@ jobs:
       - name: Checkout exact commit under evaluation
         uses: actions/checkout@v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Verify certification evidence for the exact commit
         env:
@@ -36,7 +36,18 @@ jobs:
           grep -Fq 'name: Azaad Production Browser E2E' "$workflow_file"
           grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}' "$workflow_file"
 
-          mapfile -t changed_files < <(git diff-tree --no-commit-id --name-only -r "$SHA")
+          parent_sha="$(git rev-list --parents -n 1 "$SHA" | awk '{print $2}')"
+          if [[ -z "$parent_sha" ]]; then
+            echo "Cannot determine parent commit for certification evidence: $SHA"
+            exit 1
+          fi
+
+          mapfile -t changed_files < <(git diff --name-only "$parent_sha" "$SHA")
+          if [[ "${#changed_files[@]}" -eq 0 ]]; then
+            echo "No changed files detected between $parent_sha and $SHA"
+            exit 1
+          fi
+
           evidence_only_change=1
           for file in "${changed_files[@]}"; do
             case "$file" in
@@ -45,13 +56,14 @@ jobs:
             esac
           done
 
-          # Changes to the certification gate itself are governance/evidence
-          # changes, not application runtime changes. They may inherit the
-          # immediately preceding certified runtime baseline. The Browser E2E
-          # workflow itself is deliberately excluded from this exemption.
-          if [[ "$evidence_only_change" -eq 1 && "${#changed_files[@]}" -gt 0 ]]; then
-            parent_sha="$(git rev-parse "$SHA^1")"
-            echo "Evidence-only commit detected; verifying parent certification: $parent_sha"
+          # The certification gate itself and documentation are evidence/governance
+          # changes. They may inherit the immediately preceding certified runtime
+          # baseline, but only after proving that the parent has exact-SHA Browser E2E.
+          # The Browser E2E workflow is deliberately excluded from this exemption.
+          if [[ "$evidence_only_change" -eq 1 ]]; then
+            echo "Evidence-only change detected:"
+            printf '  %s\n' "${changed_files[@]}"
+            echo "Verifying parent Production Browser E2E certification: $parent_sha"
             runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$parent_sha&per_page=100")"
             if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$parent_sha"'" and .conclusion == "success")' >/dev/null; then
               echo "No successful exact-SHA Production Browser E2E run exists for parent $parent_sha"
@@ -62,7 +74,9 @@ jobs:
           fi
 
           # Any application/runtime or Browser E2E workflow change must have
-          # its own successful exact-SHA Production Browser E2E run.
+          # its own successful exact-SHA Production Browser E2E run. Never accept
+          # evidence from a different SHA.
+          echo "Runtime-affecting change detected; requiring exact-SHA Browser E2E: $SHA"
           runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
           if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
             echo "Production Browser E2E evidence is missing for exact commit $SHA"
