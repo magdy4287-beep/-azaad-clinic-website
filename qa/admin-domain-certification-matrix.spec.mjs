@@ -77,13 +77,16 @@ test('production exposes every required enterprise domain through the canonical 
   await authenticate(page);
   await page.waitForTimeout(1000);
 
+  // The canonical lazy registry is window.AZAAD_ADMIN_MODULE_REGISTRY.
+  // Keep the fallback only for backward compatibility with older certified artifacts;
+  // never treat the legacy adminPanelRegistry as the canonical owner.
+  const registeredPanels = await page.evaluate(() => {
+    const registry = window.AZAAD_ADMIN_MODULE_REGISTRY;
+    return registry && typeof registry === 'object' ? Object.keys(registry) : [];
+  });
   const visiblePanels = await page.locator('.tab[data-panel]:visible').evaluateAll(nodes =>
     nodes.map(node => node.getAttribute('data-panel')).filter(Boolean)
   );
-  const registeredPanels = await page.evaluate(() => {
-    const registry = window.AZAAD?.adminPanelRegistry || window.AZAAD?.state?.adminPanelRegistry;
-    return registry ? Object.keys(registry) : [];
-  });
 
   for (const domain of REQUIRED_DOMAINS) {
     const hasNavigation = visiblePanels.includes(domain.panel) || registeredPanels.includes(domain.panel);
