@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    secrets: inherit
 
 concurrency:
   group: azaad-clinical-authorization-${{ github.ref }}
@@ -82,8 +84,6 @@ jobs:
             if(!response.ok)throw new Error(`Frontdesk staff-login failed with HTTP ${response.status}`);
             const token=(body.access_token||body.session?.access_token||'').trim(); if(!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))throw new Error('Frontdesk staff-login did not return a valid JWT');
             process.stdout.write(`::add-mask::${token}\n`); fs.appendFileSync(process.env.GITHUB_ENV,`AZAAD_E2E_FRONTDESK_TOKEN=${token}\n`);
-            fs.appendFileSync(process.env.GITHUB_ENV,`AZAAD_E2E_FRONTDESK_IAT=${summarize(token).iat ?? ''}\n`);
-            fs.appendFileSync(process.env.GITHUB_ENV,`AZAAD_E2E_FRONTDESK_ISS=${summarize(token).iss ?? ''}\n`);
             console.log(`Frontdesk SAME-token telemetry: local_response_time=${loginAt.toISOString()}; http_date=${responseDate||'MISSING'}; status=${response.status}; claims=${JSON.stringify(summarize(token))}`);
           })().catch(e=>{console.error(e instanceof Error?e.message:e);process.exit(1)});
           NODE
@@ -139,6 +139,7 @@ jobs:
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_CLINICAL_FIXTURE_FUNCTION: azaad-clinical-e2e-fixtures
         run: npx playwright test qa/clinical-authorization-e2e.spec.mjs
 
       - name: Upload Playwright report
