@@ -55,6 +55,13 @@ VERIFY_STEPS = [
     ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
 
+# The operational-data boundary is now a release invariant, not an optional
+# transform. This prevents a future build edit from silently reintroducing
+# E2E fixtures into production Admin reporting.
+if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-operational-data.py") != 1:
+    raise SystemExit("Canonical operational-data boundary transform must exist exactly once")
+
+
 def run_steps(steps, phase):
     for command in steps:
         path = Path(command[1])
