@@ -24,7 +24,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-clinical-ai-gate.yml` | Clinician AI safety/UX | Clinical AI cockpit, longitudinal evidence and safety boundary | Canonical clinical-AI gate |
 | `azaad-ai-gate.yml` | AI operating system | AI operating-system contract | Canonical AI platform gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
-| `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated clinical authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
+| `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
 
 ## Proven non-duplication decisions
 
