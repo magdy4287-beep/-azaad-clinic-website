@@ -127,6 +127,25 @@ jobs:
           ! grep -Eq '\brestoreSession\s*\(' /tmp/azaad-production-admin.js
           echo 'Production Admin runtime invariants: PASS'
 
+      - name: Wait for Vercel production to expose the exact commit under test
+        if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$GITHUB_SHA"
+          for attempt in {1..30}; do
+            html="$(curl -fsS 'https://azaad-clinic-website.vercel.app/admin.html?e2e_sha_check='"$expected"'" || true)"
+            marker="$(printf '%s' "$html" | grep -oE 'azaad-build-sha[^<]{0,120}' | head -n 1 || true)"
+            if printf '%s' "$marker" | grep -Fq "$expected"; then
+              echo "Production artifact matches exact GitHub SHA: $expected"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Production artifact did not expose exact GitHub SHA: $expected"
+          printf '%s\n' "$marker"
+          exit 1
+
       - name: Run browser shell/control-plane/domain E2E against production on main
         if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         env:
