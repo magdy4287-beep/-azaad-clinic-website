@@ -20,7 +20,7 @@ async function readAuthState(page) {
     loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
     adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
     session: Boolean(window.AZAAD?.state?.session?.access_token),
-    staffRole: window.AZAAD?.state?.staff?.role || null,
+    staffRole: window.AZAAD?.state?.staff?.role || window.AZAAD?.state?.role || window.AZAAD?.state?.currentRole || null,
     loginError: document.getElementById('loginError')?.textContent?.trim() || null
   }));
 }
@@ -61,6 +61,7 @@ async function authenticate(page) {
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: 5000 });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: 5000 });
+  return state;
 }
 
 test('production exposes every required enterprise domain through the canonical navigation contract', async ({ page }) => {
@@ -74,17 +75,18 @@ test('production exposes every required enterprise domain through the canonical 
     }
   });
 
-  await authenticate(page);
+  const authState = await authenticate(page);
+  const role = String(authState.staffRole || '').toUpperCase().trim();
+  const privilegedRoles = new Set(['OWNER', 'ADMIN', 'MANAGER']);
+  test.skip(!privilegedRoles.has(role), `Enterprise-domain matrix requires OWNER/ADMIN/MANAGER; current authenticated role is ${role || 'unknown'}. Role-scoped Admin E2E remains covered by admin-domain-runtime-e2e.`);
+
   await page.waitForTimeout(1000);
 
-  // The canonical lazy registry is window.AZAAD_ADMIN_MODULE_REGISTRY.
-  // Keep the fallback only for backward compatibility with older certified artifacts;
-  // never treat the legacy adminPanelRegistry as the canonical owner.
   const registeredPanels = await page.evaluate(() => {
     const registry = window.AZAAD_ADMIN_MODULE_REGISTRY;
-    return registry && typeof registry === 'object' ? Object.keys(registry) : [];
+    return registry && typeof registry === 'object' ? Object.keys(registry.groups || registry) : [];
   });
-  const visiblePanels = await page.locator('.tab[data-panel]:visible').evaluateAll(nodes =>
+  const visiblePanels = await page.locator('.tabs .tab[data-panel]:visible').evaluateAll(nodes =>
     nodes.map(node => node.getAttribute('data-panel')).filter(Boolean)
   );
 
