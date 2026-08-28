@@ -10,11 +10,62 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
   certification:
     runs-on: ubuntu-latest
     steps:
-      - name: Canonical Production Certification Gate
-        run: echo 'Production browser certification is owned by azaad-auth-bridge-e2e.yml on the exact commit SHA.'
+      - name: Checkout exact commit under evaluation
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Verify certification evidence for the exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          workflow_file='.github/workflows/azaad-browser-e2e.yml'
+          test -f "$workflow_file"
+          grep -Fq 'name: Azaad Production Browser E2E' "$workflow_file"
+          grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}' "$workflow_file"
+
+          # A documentation-only commit is allowed to inherit the immediately
+          # preceding certified runtime baseline, but only after proving that
+          # the parent had a successful exact-SHA Production Browser E2E run.
+          mapfile -t changed_files < <(git diff-tree --no-commit-id --name-only -r "$SHA")
+          runtime_change=0
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              docs/*|*.md) ;;
+              *) runtime_change=1; break ;;
+            esac
+          done
+
+          if [[ "$runtime_change" -eq 0 && "${#changed_files[@]}" -gt 0 ]]; then
+            parent_sha="$(git rev-parse "$SHA^1")"
+            echo "Documentation-only commit detected; verifying parent certification: $parent_sha"
+            runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$parent_sha&per_page=100")"
+            if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$parent_sha"'" and .conclusion == "success")' >/dev/null; then
+              echo "No successful exact-SHA Production Browser E2E run exists for parent $parent_sha"
+              exit 1
+            fi
+            echo "Inherited Production Browser E2E certification: PASS"
+            exit 0
+          fi
+
+          # Any runtime-changing commit must have its own successful exact-SHA
+          # Production Browser E2E run. Never accept a run from another SHA.
+          runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
+          if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
+            echo "Production Browser E2E evidence is missing for exact commit $SHA"
+            exit 1
+          fi
+
+          echo "Exact-SHA Production Browser E2E certification: PASS"
