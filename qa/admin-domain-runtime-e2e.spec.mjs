@@ -8,6 +8,13 @@ async function login(page) {
   test.skip(!process.env.AZAAD_TEST_USERNAME || !process.env.AZAAD_TEST_PASSWORD,
     'Authenticated domain E2E requires dedicated CI credentials.');
 
+  const authResponses = [];
+  page.on('response', response => {
+    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+      authResponses.push({ status: response.status(), url: response.url() });
+    }
+  });
+
   await page.goto(`${baseURL}/admin.html`, navigation);
   await page.evaluate(() => {
     localStorage.clear();
@@ -19,6 +26,24 @@ async function login(page) {
   await page.locator('#username').fill(process.env.AZAAD_TEST_USERNAME);
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm button[type="submit"]').click();
+
+  await expect.poll(async () => page.evaluate(() => ({
+    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
+    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
+    controllerReady: Boolean(window.AZAAD_LOGIN_CONTROLLER_READY),
+    ready: Boolean(window.AZAAD_READY),
+    role: document.body?.dataset?.role || null,
+    initialized: Boolean(window.AZAAD?.state?.initialized),
+    initializing: Boolean(window.AZAAD?.state?.initializing),
+    staffRole: window.AZAAD?.state?.staff?.role || null,
+    session: Boolean(window.AZAAD?.state?.session?.access_token),
+    loginError: document.getElementById('loginError')?.textContent?.trim() || null
+  })), {
+    timeout: AUTH_READY_TIMEOUT,
+    intervals: [250, 500, 1000],
+    message: `Admin shell did not activate. staffLoginResponses=${JSON.stringify(authResponses)}`
+  }).toMatchObject({ loginHidden: true, adminVisible: true });
+
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
 }
