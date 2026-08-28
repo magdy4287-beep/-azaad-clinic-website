@@ -8,9 +8,12 @@ on:
   workflow_dispatch:
   workflow_call:
 
+# Clinical certification is exact-SHA evidence. Never cancel a run for a
+# different commit merely because both runs target main. Same-SHA reruns are
+# serialized instead of cancelling an in-flight certification attempt.
 concurrency:
-  group: azaad-clinical-authorization-${{ github.ref }}
-  cancel-in-progress: true
+  group: azaad-clinical-authorization-${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
