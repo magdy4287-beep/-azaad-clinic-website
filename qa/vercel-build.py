@@ -39,6 +39,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/bump-public-language-bridge.py"],
     ["python3", "qa/finalize-admin-runtime-manifest.py"],
     ["python3", "qa/restore-canonical-admin-controller.py"],
+    ["python3", "qa/finalize-admin-navigation-ownership.py"],
 ]
 
 VERIFY_STEPS = [
@@ -56,11 +57,10 @@ VERIFY_STEPS = [
     ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
 
-# The operational-data boundary is now a release invariant, not an optional
-# transform. This prevents a future build edit from silently reintroducing
-# E2E fixtures into production Admin reporting.
 if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-operational-data.py") != 1:
     raise SystemExit("Canonical operational-data boundary transform must exist exactly once")
+if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-ownership.py") != 1:
+    raise SystemExit("Canonical navigation ownership transform must exist exactly once")
 
 
 def run_steps(steps, phase):
@@ -87,7 +87,6 @@ if not commit_sha:
 
 admin = Path("admin.html")
 text = admin.read_text(encoding="utf-8")
-marker = '<meta name="azaad-build-sha" content="'
 import re
 text = re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?', '', text, flags=re.I)
 head = text.find("</head>")
