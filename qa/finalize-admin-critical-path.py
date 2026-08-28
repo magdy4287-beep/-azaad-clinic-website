@@ -6,6 +6,7 @@ if not PATH.exists():
     raise SystemExit("admin.js not found")
 js = PATH.read_text(encoding="utf-8")
 
+
 def bounds(source: str, marker: str):
     start = source.find(marker)
     if start < 0:
@@ -23,26 +24,47 @@ def bounds(source: str, marker: str):
         ch = source[i]
         nxt = source[i + 1] if i + 1 < len(source) else ""
         if line_comment:
-            if ch == "\n": line_comment = False
-            i += 1; continue
+            if ch == "\n":
+                line_comment = False
+            i += 1
+            continue
         if block_comment:
             if ch == "*" and nxt == "/":
-                block_comment = False; i += 2; continue
-            i += 1; continue
+                block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
         if quote:
-            if escape: escape = False
-            elif ch == "\\": escape = True
-            elif ch == quote: quote = None
-            i += 1; continue
-        if ch in "'\"`": quote = ch; i += 1; continue
-        if ch == "/" and nxt == "/": line_comment = True; i += 2; continue
-        if ch == "/" and nxt == "*": block_comment = True; i += 2; continue
-        if ch == "{": depth += 1
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in "'\"`":
+            quote = ch
+            i += 1
+            continue
+        if ch == "/" and nxt == "/":
+            line_comment = True
+            i += 2
+            continue
+        if ch == "/" and nxt == "*":
+            block_comment = True
+            i += 2
+            continue
+        if ch == "{":
+            depth += 1
         elif ch == "}":
             depth -= 1
-            if depth == 0: return (start, i + 1)
+            if depth == 0:
+                return (start, i + 1)
         i += 1
     return None
+
 
 login_bounds = bounds(js, "async function login(")
 if not login_bounds:
@@ -50,7 +72,8 @@ if not login_bounds:
 login_body = js[login_bounds[0]:login_bounds[1]]
 
 submit_pattern = re.compile(
-    r"document\.getElementById\(\s*['\"]loginForm['\"]\s*\)\.addEventListener\(\s*['\"]submit['\"]",
+    r"document\.getElementById\(\s*['\"]loginForm['\"]\s*\)"
+    r"\.addEventListener\(\s*['\"]submit['\"]\s*\)",
     re.S,
 )
 count = len(list(submit_pattern.finditer(js)))
@@ -77,10 +100,6 @@ if "function activateAuthenticatedAdminShell()" not in js:
 login_bounds = bounds(js, "async function login(")
 login_body = js[login_bounds[0]:login_bounds[1]]
 
-# The verified staff-login response is the trusted identity boundary. Establish
-# the in-memory authenticated state and activate the shell immediately after the
-# canonical role application. This intentionally does not depend on the exact
-# formatting or ordering of the later Supabase setSession call.
 role_pattern = re.compile(
     r"applyStaffRole\s*\(\s*result\.staff\s*\)\s*;",
     re.S,
