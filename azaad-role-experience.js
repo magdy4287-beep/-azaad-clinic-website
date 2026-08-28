@@ -15,8 +15,9 @@
   };
   const getAuthenticatedRole = () => {
     const authenticatedState = window.AZAAD && window.AZAAD.state;
-    const authenticatedRole = authenticatedState && (authenticatedState.role || authenticatedState.currentRole || authenticatedState.staff?.role);
-    return authenticatedRole ? String(authenticatedRole).toUpperCase().trim() : '';
+    const authenticatedRole = authenticatedState && authenticatedState.role;
+    const fallbackRole = authenticatedState && (authenticatedState.currentRole || authenticatedState.staff?.role);
+    return authenticatedRole || fallbackRole ? String(authenticatedRole || fallbackRole).toUpperCase().trim() : '';
   };
   const role = () => {
     const shellRole = getAuthenticatedRole();
