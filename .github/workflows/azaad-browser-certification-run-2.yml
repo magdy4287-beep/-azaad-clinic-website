@@ -1,0 +1,27 @@
+name: Azaad Browser Certification Run 2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  browser-certification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Browser certification
+        env:
+          AZAAD_BASE_URL: http://127.0.0.1:4173
+          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          python3 qa/vercel-build.py
+          python3 -m http.server 4173 --directory . >/tmp/azaad-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          sleep 3
+          curl --fail --silent --show-error http://127.0.0.1:4173/admin.html >/dev/null
+          npx playwright test qa/auth-bridge-production.spec.mjs
