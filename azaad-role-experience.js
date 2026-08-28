@@ -24,13 +24,12 @@
     return String(document.body.dataset.role || '').toUpperCase().trim();
   };
   let lastAppliedRole = '';
+  let lastObservedBodyRole = '';
   function exposeAuthenticatedRole() {
     const current = role();
     if (!current) return false;
     // This function runs from a MutationObserver watching body[data-role].
     // Never write the observed attribute unless its value actually changes.
-    // Reassigning the same value can emit another mutation record and create
-    // a self-sustaining observer -> mutation -> observer loop.
     if (document.body.dataset.role !== current) {
       document.body.dataset.role = current;
     }
@@ -79,8 +78,14 @@
   function init() {
     if (!location.pathname.endsWith('/admin.html')) return;
     addLanguageSwitcher();
+    lastObservedBodyRole = document.body.dataset.role || '';
     applyRoleNavigation();
-    const roleObserver = new MutationObserver(() => applyRoleNavigation());
+    const roleObserver = new MutationObserver(() => {
+      const nextRole = document.body.dataset.role || '';
+      if (nextRole === lastObservedBodyRole) return;
+      lastObservedBodyRole = nextRole;
+      applyRoleNavigation();
+    });
     roleObserver.observe(document.body, { attributes:true, attributeFilter:['data-role'] });
     window.addEventListener('azaadLanguageChanged', applyRoleNavigation);
   }
