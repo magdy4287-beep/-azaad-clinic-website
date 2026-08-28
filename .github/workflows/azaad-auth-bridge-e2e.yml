@@ -80,12 +80,22 @@ jobs:
           set -euo pipefail
           cd /tmp/azaad-build
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
-          echo $! > /tmp/azaad-http.pid
+          SERVER_PID=$!
+          echo "$SERVER_PID" > /tmp/azaad-http.pid
           for attempt in {1..20}; do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            if curl -fsS --max-time 2 http://127.0.0.1:4173/admin.html >/dev/null; then
+              echo "AZAAD_LOCAL_SERVER_READY=1"
+              exit 0
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "AZAAD_LOCAL_SERVER_EXITED=1"
+              cat /tmp/azaad-http.log || true
+              exit 1
+            fi
             sleep 1
           done
-          cat /tmp/azaad-http.log
+          echo "AZAAD_LOCAL_SERVER_READY=0"
+          cat /tmp/azaad-http.log || true
           exit 1
 
       - name: Verify dedicated CI credentials
@@ -99,5 +109,6 @@ jobs:
       - name: Run authenticated API and browser E2E
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
+          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test qa/auth-bridge-production.spec.mjs
