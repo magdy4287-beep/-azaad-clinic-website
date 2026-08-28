@@ -4,8 +4,6 @@ import re
 path = Path('admin.html')
 text = path.read_text(encoding='utf-8')
 
-# The enterprise registry is the single lazy-loader owner. Keep all enterprise
-# domains in that registry; this transform only establishes their mounts and UI.
 registry = re.search(r'(<script[^>]*data-azaad-admin-module-registry=["\']1["\'][^>]*>)(.*?)(</script>)', text, re.I | re.S)
 if not registry:
     raise SystemExit('Canonical admin module registry not found')
@@ -20,10 +18,8 @@ else:
     body = re.sub(r"'purchasingEnterprisePanel':\s*\[[^\]]+\]", "'purchasingEnterprisePanel': ['admin-purchasing-center.js']", body, count=1)
 text = text[:registry.start(2)] + body + text[registry.end(2):]
 
-# Replace the two historical navigation surfaces (core Arabic tabs + enterprise
-# English tabs) with ONE tree. Every leaf retains its canonical data-panel key.
-# Bookings intentionally has one navigation leaf; day/all filtering belongs inside
-# the bookings panel and must not create duplicate navigation ownership.
+# One navigation owner per canonical panel. Today/All are views of bookings,
+# not separate panels, so only the canonical bookings leaf is emitted.
 nav_groups = [
     ('01 Operations', [
         ('bookings', '📅 الحجوزات', 'bookings'),
@@ -34,38 +30,17 @@ nav_groups = [
         ('holidays', '🚫 العطلات والإغلاقات', 'holidays'),
         ('hours', '🕘 ساعات العمل', 'hours'),
     ]),
-    ('02 Patient & Clinical', [
-        ('patient360EnterprisePanel', '🧑‍⚕️ Patient 360', 'patient360'),
-    ]),
+    ('02 Patient & Clinical', [('patient360EnterprisePanel', '🧑‍⚕️ Patient 360', 'patient360')]),
     ('03 Workforce', [
-        ('staff', '👥 الموظفون', 'staff'),
-        ('settings', '⚙️ إعدادات العيادة', 'settings'),
-        ('account', '👤 حساب الإدارة', 'account'),
-    ]),
-    ('04 Revenue Cycle', [
-        ('rcmEnterprisePanel', '🧾 Invoices & RCM', 'rcm'),
-    ]),
-    ('05 Finance', [
-        ('financeEnterprisePanel', '💰 Finance', 'finance'),
-    ]),
-    ('06 Purchasing', [
-        ('purchasingEnterprisePanel', '🛒 Purchasing', 'purchasing'),
-    ]),
-    ('07 Growth', [
-        ('posts', '📣 المنشورات والعروض', 'posts'),
-        ('marketingEnterprisePanel', '📣 Marketing', 'marketing'),
-    ]),
-    ('08 Analytics', [
-        ('analyticsEnterprisePanel', '📊 Analytics', 'analytics'),
-    ]),
-    ('09 Intelligence', [
-        ('insightsEnterprisePanel', '🧠 Smart Insights', 'insights'),
-    ]),
-    ('10 Security', [
-        ('securityEnterprisePanel', '🛡️ IT Security', 'security'),
-    ]),
+        ('staff', '👥 الموظفون', 'staff'), ('settings', '⚙️ إعدادات العيادة', 'settings'), ('account', '👤 حساب الإدارة', 'account')]),
+    ('04 Revenue Cycle', [('rcmEnterprisePanel', '🧾 Invoices & RCM', 'rcm')]),
+    ('05 Finance', [('financeEnterprisePanel', '💰 Finance', 'finance')]),
+    ('06 Purchasing', [('purchasingEnterprisePanel', '🛒 Purchasing', 'purchasing')]),
+    ('07 Growth', [('posts', '📣 المنشورات والعروض', 'posts'), ('marketingEnterprisePanel', '📣 Marketing', 'marketing')]),
+    ('08 Analytics', [('analyticsEnterprisePanel', '📊 Analytics', 'analytics')]),
+    ('09 Intelligence', [('insightsEnterprisePanel', '🧠 Smart Insights', 'insights')]),
+    ('10 Security', [('securityEnterprisePanel', '🛡️ IT Security', 'security')]),
 ]
-
 nav_parts = ['<nav class="admin-tree" aria-label="AZAAD Admin">']
 for title, leaves in nav_groups:
     nav_parts.append(f'<section class="admin-tree-group"><h3>{title}</h3><div class="admin-tree-leaves">')
@@ -74,15 +49,10 @@ for title, leaves in nav_groups:
     nav_parts.append('</div></section>')
 nav_parts.append('</nav>')
 nav_html = '\n'.join(nav_parts)
-
-# Replace only the navigation container, regardless of the previous generated form.
 text, count = re.subn(r'<div class="tabs">.*?</div>\s*(?=<section\s+id="(?:calendar|bookings|calendarPanel)"|<!-- data-azaad-enterprise-panels)', nav_html + '\n', text, count=1, flags=re.I | re.S)
 if count != 1:
     raise SystemExit('Admin navigation container not found exactly once')
 
-# Enterprise panels are real mounts, not loading-only placeholders. The runtime
-# fills them after the activation event; keeping a small deterministic shell is
-# useful for no-JS inspection but must never be the terminal state.
 keys = [
     ('patient360EnterprisePanel','🧑‍⚕️ Patient 360','ملف المريض الكامل'),
     ('rcmEnterprisePanel','🧾 Invoices & RCM','الفواتير والتحصيل'),
@@ -118,11 +88,7 @@ style = '''<style id="azaad-admin-tree-v1">
 if 'id="azaad-admin-tree-v1"' not in text:
     text = text.replace('</head>', style + '\n</head>', 1)
 
-# One continuous document: no fixed-height admin viewport and no independent
-# scrolling surface around the navigation or panels. Tables remain horizontally
-# scrollable only when their intrinsic width requires it.
 text = text.replace('body{margin:0;background:#f5f7fb;', 'html,body{min-height:100%;height:auto;overflow-x:hidden}body{margin:0;background:#f5f7fb;', 1)
 text = text.replace('.admin{max-width:1450px;margin:auto;padding:15px}', '.admin{max-width:1450px;margin:auto;padding:15px;min-height:100vh;height:auto;overflow:visible}', 1)
-
 path.write_text(text, encoding='utf-8')
 print('finalize-enterprise-admin.py completed: single unified admin tree')
