@@ -134,16 +134,15 @@ jobs:
           set -euo pipefail
           expected="$GITHUB_SHA"
           for attempt in {1..30}; do
-            html="$(curl -fsS 'https://azaad-clinic-website.vercel.app/admin.html?e2e_sha_check='"$expected"'" || true)"
-            marker="$(printf '%s' "$html" | grep -oE 'azaad-build-sha[^<]{0,120}' | head -n 1 || true)"
-            if printf '%s' "$marker" | grep -Fq "$expected"; then
+            html="$(curl -fsS "https://azaad-clinic-website.vercel.app/admin.html?e2e_sha_check=$expected" || true)"
+            if printf '%s' "$html" | grep -Fq "<meta name=\"azaad-build-sha\" content=\"$expected\">"; then
               echo "Production artifact matches exact GitHub SHA: $expected"
               exit 0
             fi
             sleep 10
           done
           echo "Production artifact did not expose exact GitHub SHA: $expected"
-          printf '%s\n' "$marker"
+          grep -oE 'azaad-build-sha[^>]*' /tmp/azaad-production-admin.html 2>/dev/null || true
           exit 1
 
       - name: Run browser shell/control-plane/domain E2E against production on main
