@@ -108,7 +108,7 @@ test('admin authenticated browser flow uses the real staff-login response', asyn
   await expect.poll(async () => authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors), {
     timeout: AUTH_READY_TIMEOUT,
     intervals: [250, 500, 1000],
-    message: async () => `authenticated shell did not transition after real login: ${JSON.stringify(await authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors)}`
+    message: async () => `authenticated shell did not transition after real login: ${JSON.stringify(await authDiagnostic(page, authResponses, unauthorizedRequests, pageErrors, consoleErrors))}`
   }).toMatchObject({
     loginHidden: true,
     adminHidden: false,
