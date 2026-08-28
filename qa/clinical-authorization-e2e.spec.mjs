@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const supabaseUrl = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
 const anonKey = process.env.AZAAD_SUPABASE_ANON_KEY;
+const fixtureFunctionName = (process.env.AZAAD_CLINICAL_FIXTURE_FUNCTION || 'azaad-clinical-e2e-fixtures').trim();
 
 function requireJwtSecret(name, value) {
   if (!value) throw new Error(`Missing required controlled-E2E secret/env: ${name}`);
@@ -42,7 +43,11 @@ function requireUuid(name, value) {
 async function prepareFixtures(request) {
   requireEnv('AZAAD_SUPABASE_URL', supabaseUrl);
   requireEnv('AZAAD_SUPABASE_ANON_KEY', anonKey);
-  const response = await request.post(`${supabaseUrl}/functions/v1/azaad-clinical-e2e-fixtures`, {
+  requireEnv('AZAAD_CLINICAL_FIXTURE_FUNCTION', fixtureFunctionName);
+  if (!/^[a-z0-9-]+$/.test(fixtureFunctionName)) {
+    throw new Error(`Invalid controlled-E2E fixture function name: ${fixtureFunctionName}`);
+  }
+  const response = await request.post(`${supabaseUrl}/functions/v1/${fixtureFunctionName}`, {
     headers: { apikey: anonKey, Authorization: `Bearer ${tokens.frontdesk}`, 'Content-Type': 'application/json' },
     data: {},
   });
