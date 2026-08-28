@@ -1,8 +1,6 @@
 from pathlib import Path
 import re
 
-# Canonical runtime ownership. A module may appear in exactly one group.
-# QA/contract files are never loaded into the browser.
 CORE = [
     "admin-enhancements-v1.js",
     "admin-english-hardening.js",
@@ -40,10 +38,6 @@ ALL_RUNTIME = {name for values in LAZY.values() for name in values} | set(CORE)
 
 
 def script_tag(name):
-    # Role navigation is the pre-auth control-plane owner. It must exist before
-    # authentication so the authenticated role can immediately gate the tabs.
-    if name == "azaad-role-experience.js":
-        return f'<script src="/{name}" defer data-azaad-admin-core="1"></script>'
     return f'<script src="/{name}" defer data-azaad-admin-core="1"></script>'
 
 
@@ -63,11 +57,13 @@ def main():
         marketing_mount = '''\n      <div id="marketing-center" data-azaad-marketing-mount="1"></div>\n'''
         posts_marker = re.compile(r'(\n  <section\n    id="posts"\n    class="panel"\n  >\n)', re.I)
         text = posts_marker.sub(r'\1' + marketing_mount, text, count=1)
-    if 'id="calendarPanel"' not in text:
+    if 'id="calendar"' not in text and 'id="calendarPanel"' not in text:
         calendar_tab = '''\n<button class="tab" data-panel="calendar" type="button">🗓️ التقويم</button>\n'''
         text = text.replace('</div>\n\n  <section\n    id="bookings"', calendar_tab + '</div>\n\n  <section\n    id="bookings"', 1)
-        calendar_panel = '''\n<section id="calendarPanel" class="panel">\n  <div class="card">\n    <div class="panel-head"><div><h2>🗓️ التقويم المركزي</h2><div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div></div></div>\n    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>\n  </div>\n</section>\n'''
+        calendar_panel = '''\n<section id="calendar" class="panel">\n  <div class="card">\n    <div class="panel-head"><div><h2>🗓️ التقويم المركزي</h2><div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div></div></div>\n    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>\n  </div>\n</section>\n'''
         text = text.replace('\n  <section\n    id="bookings"', calendar_panel + '\n  <section\n    id="bookings"', 1)
+    elif 'id="calendarPanel"' in text:
+        text = text.replace('id="calendarPanel"', 'id="calendar"', 1)
     groups = repr(LAZY)
     payload = f"""
 <script data-azaad-admin-module-registry="1">
