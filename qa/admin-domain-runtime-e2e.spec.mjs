@@ -25,7 +25,26 @@ async function login(page) {
   await page.waitForFunction(() => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY), { timeout: 10000 });
   await page.locator('#username').fill(process.env.AZAAD_TEST_USERNAME);
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
+  const buttonInfo = await page.locator('#loginForm button[type="submit"]').evaluate(button => ({
+    type: button.getAttribute('type'),
+    disabled: button.disabled,
+    form: button.form?.id || null,
+    onsubmit: button.form?.getAttribute('onsubmit') || null
+  }));
   await page.locator('#loginForm button[type="submit"]').click();
+
+  await page.waitForTimeout(1000);
+  if (authResponses.length === 0) {
+    const synthetic = await page.evaluate(() => {
+      const form = document.getElementById('loginForm');
+      if (!form) return { exists: false };
+      const event = new Event('submit', { bubbles: true, cancelable: true });
+      const dispatched = form.dispatchEvent(event);
+      return { exists: true, dispatched, defaultPrevented: event.defaultPrevented };
+    });
+    await page.waitForTimeout(1500);
+    throw new Error(`Native login submit produced no staff-login request. button=${JSON.stringify(buttonInfo)} synthetic=${JSON.stringify(synthetic)} controllerReady=${await page.evaluate(() => Boolean(window.AZAAD_LOGIN_CONTROLLER_READY))} supabaseReady=${await page.evaluate(() => Boolean(window.AZAAD_SUPABASE_READY))}`);
+  }
 
   await expect.poll(async () => page.evaluate(() => ({
     loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
