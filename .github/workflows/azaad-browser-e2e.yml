@@ -1,5 +1,8 @@
 name: Azaad Production Browser E2E
 
+# Canonical production certification workflow. A push to main runs against the
+# exact commit that Vercel deploys; no manual SHA substitution is permitted.
+
 on:
   push:
     branches: [main]
