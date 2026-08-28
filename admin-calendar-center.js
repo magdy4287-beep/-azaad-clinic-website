@@ -11,6 +11,7 @@
   window.__AZAAD_ADMIN_CALENDAR_CENTER__ = true;
 
   const $ = (id) => document.getElementById(id);
+  const TIME_ZONE = 'Africa/Cairo';
 
   const escapeHTML = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -19,19 +20,47 @@
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 
-  const iso = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+  const cairoDateParts = (date) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(date);
+    return Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
   };
 
-  const displayDate = (value) => new Date(`${value}T00:00:00`).toLocaleDateString('ar-EG', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const iso = (date) => {
+    const parts = cairoDateParts(date);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+
+  const shiftDate = (value, days) => {
+    const [year, month, day] = String(value).split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
+    return date.toISOString().slice(0, 10);
+  };
+
+  const displayDate = (value) => {
+    const [year, month, day] = String(value).split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return new Intl.DateTimeFormat('ar-EG', {
+      timeZone: TIME_ZONE,
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  };
+
+  const displayDay = (value) => {
+    const [year, month, day] = String(value).split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return {
+      weekday: new Intl.DateTimeFormat('ar-EG', { timeZone: TIME_ZONE, weekday: 'short' }).format(date),
+      date: new Intl.DateTimeFormat('ar-EG', { timeZone: TIME_ZONE, day: 'numeric', month: 'short' }).format(date)
+    };
+  };
 
   const displayTime = (value) => {
     const raw = String(value || '').slice(0, 5);
@@ -79,13 +108,12 @@
       </div>
       <div class="azaad-calendar-week">
         ${Array.from({ length: 7 }, (_, index) => {
-          const date = new Date(`${value}T00:00:00`);
-          date.setDate(date.getDate() + index - 3);
-          const day = iso(date);
+          const day = shiftDate(value, index - 3);
+          const labels = displayDay(day);
           const count = bookings().filter((booking) => bookingDate(booking) === day).length;
           return `<button type="button" class="azaad-calendar-day ${day === value ? 'is-selected' : ''}" data-calendar-date="${day}">
-            <span>${escapeHTML(date.toLocaleDateString('ar-EG', { weekday: 'short' }))}</span>
-            <b>${escapeHTML(date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' }))}</b>
+            <span>${escapeHTML(labels.weekday)}</span>
+            <b>${escapeHTML(labels.date)}</b>
             <em>${count} موعد</em>
           </button>`;
         }).join('')}
@@ -103,17 +131,8 @@
       </div>
     `;
 
-    $('calendarPrev')?.addEventListener('click', () => {
-      const date = new Date(`${value}T00:00:00`);
-      date.setDate(date.getDate() - 1);
-      renderDay(iso(date));
-    });
-
-    $('calendarNext')?.addEventListener('click', () => {
-      const date = new Date(`${value}T00:00:00`);
-      date.setDate(date.getDate() + 1);
-      renderDay(iso(date));
-    });
+    $('calendarPrev')?.addEventListener('click', () => renderDay(shiftDate(value, -1)));
+    $('calendarNext')?.addEventListener('click', () => renderDay(shiftDate(value, 1)));
 
     body.querySelectorAll('[data-calendar-date]').forEach((button) => {
       button.addEventListener('click', () => renderDay(button.dataset.calendarDate));
