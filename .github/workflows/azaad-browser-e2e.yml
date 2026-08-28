@@ -3,8 +3,14 @@ name: Azaad Production Browser E2E
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
