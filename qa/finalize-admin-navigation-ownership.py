@@ -12,21 +12,22 @@ text = path.read_text(encoding="utf-8")
 # navigation-generating transforms have completed: one navigation leaf per
 # canonical panel. This is deliberately narrow and only removes duplicate
 # navigation buttons; panel content and its internal filters are untouched.
-for panel in ("bookings", "doctors", "services", "schedules", "posts", "staff", "calendar", "holidays", "hours", "settings", "account"):
+PANELS = ("bookings", "doctors", "services", "schedules", "posts", "staff", "calendar", "holidays", "hours", "settings", "account")
+
+for panel in PANELS:
     pattern = re.compile(
-        r'<button\\b(?=[^>]*\\bdata-panel=["\\\']' + re.escape(panel) + r'["\\\'])[^>]*>.*?</button>',
+        r'<button\b(?=[^>]*\bdata-panel=["\']' + re.escape(panel) + r'["\'])[^>]*>.*?</button>',
         re.I | re.S,
     )
     matches = list(pattern.finditer(text))
     if len(matches) <= 1:
         continue
-    keep = matches[0]
     for match in reversed(matches[1:]):
         text = text[:match.start()] + text[match.end():]
 
 # Fail closed: do not silently ship a duplicate canonical owner.
-for panel in ("bookings", "doctors", "services", "schedules", "posts", "staff", "calendar", "holidays", "hours", "settings", "account"):
-    count = len(re.findall(r'<button\\b(?=[^>]*\\bdata-panel=["\\\']' + re.escape(panel) + r'["\\\'])', text, re.I))
+for panel in PANELS:
+    count = len(re.findall(r'<button\b(?=[^>]*\bdata-panel=["\']' + re.escape(panel) + r'["\'])', text, re.I))
     if count != 1:
         raise SystemExit(f"{panel}: canonical navigation ownership unresolved; found {count} button(s)")
 
