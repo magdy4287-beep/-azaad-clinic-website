@@ -21,7 +21,7 @@ LAZY = {
         "doctor-staff-convert.js",
     ],
     "services": ["services-center-v2.js"],
-    "schedules": ["scheduling-v2.js", "scheduling-v2-waiting.js"],
+    "schedules": ["scheduling-v2.js"],
     "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
     "staff": ["staff-management.js", "patient-merge-tool.js", "hr-performance-analytics.js"],
     "settings": [],
@@ -30,7 +30,7 @@ LAZY = {
 
 LEGACY_OR_CONTRACT = {
     "clinic-posts.js", "marketing-workspace-v2.js", "marketing-platform-expansion.js",
-    "scheduling-actions-contract.js", "admin-nextgen-fixes.js", "admin-nextgen-v2.js",
+    "scheduling-actions-contract.js", "scheduling-v2-waiting.js", "admin-nextgen-fixes.js", "admin-nextgen-v2.js",
     "finance-executive-dashboard.js", "finance-executive-loader.js",
     "finance-executive-annual-monthly.js", "finance-executive-period-loader.js",
 }
