@@ -81,7 +81,7 @@
     : [];
 
   const isCalendarVisible = () => {
-    const panel = $('calendarPanel');
+    const panel = $('calendar');
     if (!panel) return false;
 
     const style = window.getComputedStyle(panel);
@@ -91,7 +91,7 @@
   };
 
   const renderDay = (value) => {
-    const panel = $('calendarPanel');
+    const panel = $('calendar');
     const body = $('calendarBody');
     if (!panel || !body) return;
 
@@ -140,7 +140,7 @@
   };
 
   function render() {
-    const panel = $('calendarPanel');
+    const panel = $('calendar');
     if (!panel) return;
     const selected = panel.dataset.selectedDate || iso(new Date());
     renderDay(selected);
@@ -160,7 +160,7 @@
   };
 
   const observeBookingPanel = () => {
-    const panel = $('bookingsPanel');
+    const panel = $('bookings');
     if (!panel || bookingPanelObserver) return;
 
     bookingPanelObserver = new MutationObserver(() => {
