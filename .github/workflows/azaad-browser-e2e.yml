@@ -165,7 +165,7 @@ jobs:
           AZAAD_BASE_URL: https://azaad-clinic-website.vercel.app
           AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
+        run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
 
       - name: Run browser shell/control-plane/domain/responsive E2E against exact checked-out canonical production build on pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
@@ -173,7 +173,7 @@ jobs:
           AZAAD_BASE_URL: http://127.0.0.1:4173
           AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
-        run: npx playwright test qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
+        run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
 
       - name: Enforce Production Certification policy
         shell: bash
