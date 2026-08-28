@@ -15,9 +15,29 @@ const REQUIRED_DOMAINS = [
   'security'
 ];
 
+async function readAuthState(page) {
+  return page.evaluate(() => ({
+    loginHidden: document.getElementById('loginPage')?.classList.contains('hidden') === true,
+    adminVisible: document.getElementById('adminPage')?.classList.contains('hidden') !== true,
+    session: Boolean(window.AZAAD?.state?.session?.access_token),
+    staffRole: window.AZAAD?.state?.staff?.role || null,
+    loginError: document.getElementById('loginError')?.textContent?.trim() || null
+  }));
+}
+
 async function authenticate(page) {
   test.skip(!process.env.AZAAD_TEST_USERNAME || !process.env.AZAAD_TEST_PASSWORD,
     'Authenticated domain certification requires dedicated CI credentials.');
+
+  const authResponses = [];
+  const runtimeErrors = [];
+  page.on('response', response => {
+    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+      authResponses.push({ status: response.status(), url: response.url() });
+    }
+  });
+  page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
+  page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(`console:${message.text()}`); });
 
   await page.goto(`${baseURL}/admin.html`, { waitUntil: 'commit' });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
@@ -27,8 +47,20 @@ async function authenticate(page) {
   await page.locator('#username').fill(process.env.AZAAD_TEST_USERNAME);
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm button[type="submit"]').click();
-  await expect(page.locator('#loginPage')).toBeHidden({ timeout: 15000 });
-  await expect(page.locator('#adminPage')).toBeVisible({ timeout: 15000 });
+
+  const deadline = Date.now() + 15000;
+  let state = await readAuthState(page);
+  while (Date.now() < deadline && !(state.loginHidden && state.adminVisible)) {
+    await page.waitForTimeout(250);
+    state = await readAuthState(page);
+  }
+
+  if (!(state.loginHidden && state.adminVisible)) {
+    throw new Error(`Admin shell did not activate. staffLoginResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
+  }
+
+  await expect(page.locator('#loginPage')).toBeHidden({ timeout: 5000 });
+  await expect(page.locator('#adminPage')).toBeVisible({ timeout: 5000 });
 }
 
 test('production exposes every required enterprise domain through the canonical navigation contract', async ({ page }) => {
