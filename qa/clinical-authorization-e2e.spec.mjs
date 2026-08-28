@@ -66,6 +66,14 @@ function expectDenied(response) {
   expect([400, 401, 403, 409, 422]).toContain(response.status());
 }
 
+async function expectSuccess(response, operation) {
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`${operation} failed with HTTP ${response.status()}: ${body}`);
+  }
+  return response;
+}
+
 test.describe('Clinical authorization boundary', () => {
   let bookings;
 
@@ -114,11 +122,11 @@ test.describe('Clinical authorization boundary', () => {
       p_booking_id: bookings.happy_path_booking_id,
       p_notes: 'security-negative-e2e-happy-path',
     }, tokens.frontdesk);
-    expect(checkin.ok()).toBeTruthy();
+    await expectSuccess(checkin, 'clinic_frontdesk_checkin');
 
     const visit = await rpc(request, 'clinic_start_clinical_visit', {
       p_booking_id: bookings.happy_path_booking_id,
     }, tokens.doctorB);
-    expect(visit.ok()).toBeTruthy();
+    await expectSuccess(visit, 'clinic_start_clinical_visit');
   });
 });
