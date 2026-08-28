@@ -18,9 +18,12 @@ on:
     - cron: '17 3 * * 1'
   workflow_dispatch:
 
+# Certification evidence is SHA-scoped. A newer main commit must never cancel
+# an in-flight Browser E2E for an older commit, because that older run may be
+# the authoritative evidence consumed by the exact-SHA certification gate.
 concurrency:
-  group: azaad-production-browser-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  group: azaad-production-browser-e2e-${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
