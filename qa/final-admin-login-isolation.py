@@ -48,8 +48,7 @@ def strip_legacy_panel_loader(match):
 text=legacy_panel_loader.sub(strip_legacy_panel_loader,text)
 forms_after=list(FORM_RE.finditer(text)); login_forms=[m for m in forms_after if LOGIN_RE.search(m.group(1))]
 if len(login_forms)==0:
-    marker=ADMIN_PAGE_RE.search(text); body_end=re.search(r'</body\s*>',text,re.I)
-    insert_at=marker.start() if marker else (body_end.start() if body_end else None)
+    marker=ADMIN_PAGE_RE.search(text); body_end=re.search(r'</body\s*>',text,re.I); insert_at=marker.start() if marker else (body_end.start() if body_end else None)
     if insert_at is None: raise SystemExit("Admin shell marker and body boundary are both missing while restoring login form")
     text=text[:insert_at]+canonical_login_form+"\n\n"+text[insert_at:]
     login_forms=[m for m in FORM_RE.finditer(text) if LOGIN_RE.search(m.group(1))]
@@ -70,14 +69,40 @@ registry_matches=list(registry_pattern.finditer(text))
 if len(registry_matches)>1: raise SystemExit("Canonical lazy registry exists more than once")
 if not registry_matches: raise SystemExit("Canonical lazy registry is missing")
 registry=registry_matches[0]
-loader_definition_pattern=re.compile(r'window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*(?:async\s+)?function\b',re.I)
 registry_body=registry.group(0)
-loader_definitions=list(loader_definition_pattern.finditer(registry_body))
+# Count executable assignments, not textual mentions. Strip JS comments and quoted
+# strings first so diagnostics/templates cannot masquerade as a second loader.
+def strip_js_noncode(source):
+    out=[]; i=0; n=len(source); quote=None; escape=False; line=False; block=False
+    while i<n:
+        ch=source[i]; nxt=source[i+1] if i+1<n else ''
+        if line:
+            if ch=='\n': line=False; out.append('\n')
+            else: out.append(' ')
+            i+=1; continue
+        if block:
+            if ch=='*' and nxt=='/': block=False; out.extend('  '); i+=2
+            else: out.append('\n' if ch=='\n' else ' '); i+=1
+            continue
+        if quote:
+            if escape: escape=False
+            elif ch=='\\': escape=True
+            elif ch==quote: quote=None
+            out.append(' ' if ch!='\n' else '\n'); i+=1; continue
+        if ch=='/' and nxt=='/': line=True; out.extend('  '); i+=2; continue
+        if ch=='/' and nxt=='*': block=True; out.extend('  '); i+=2; continue
+        if ch in "'\"`": quote=ch; out.append(' '); i+=1; continue
+        out.append(ch); i+=1
+    return ''.join(out)
+code=strip_js_noncode(registry_body)
+loader_definition_pattern=re.compile(r'(?:(?<=^)|(?<=[;{}]))\s*window\.AZAAD_LOAD_ADMIN_PANEL\s*=\s*(?:async\s+)?function\b',re.I|re.M)
+loader_definitions=list(loader_definition_pattern.finditer(code))
 if len(loader_definitions)!=1: raise SystemExit("Canonical lazy registry must expose exactly one panel loader definition; executable registry definitions="+str(len(loader_definitions)))
 outside_registry=text[:registry.start()]+text[registry.end():]
-outside_loader_definitions=list(loader_definition_pattern.finditer(outside_registry))
+outside_code=strip_js_noncode(outside_registry)
+outside_loader_definitions=list(loader_definition_pattern.finditer(outside_code))
 if outside_loader_definitions: raise SystemExit("Duplicate legacy panel loader definition exists outside canonical registry")
-loader_references=len(re.findall(r'window\.AZAAD_LOAD_ADMIN_PANEL\b',registry_body,re.I))
+loader_references=len(re.findall(r'window\.AZAAD_LOAD_ADMIN_PANEL\b',code,re.I))
 if loader_references<1: raise SystemExit("Canonical panel loader reference is missing")
 executable=[]
 for match in script_open.finditer(text):
