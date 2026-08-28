@@ -1,0 +1,112 @@
+name: Azaad Clinical Fixture Boundary
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: azaad-clinical-fixture-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify exact commit under test
+        uses: actions/checkout@v5
+
+      - name: Verify exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Authenticate controlled Frontdesk identity
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          (async () => {
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+            const anon = process.env.AZAAD_SUPABASE_ANON_KEY;
+            const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD;
+            const response = await fetch(`${base}/functions/v1/staff-login`, {
+              method: 'POST',
+              headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: 'frontdesk_azaad', password })
+            });
+            const body = await response.json();
+            if (!response.ok) throw new Error(`staff-login failed with HTTP ${response.status}`);
+            const token = String(body.access_token || body.session?.access_token || '').trim();
+            if (!token) throw new Error('staff-login did not return an access token');
+            process.stdout.write(`::add-mask::${token}\n`);
+            fs.appendFileSync(process.env.GITHUB_ENV, `AZAAD_E2E_FRONTDESK_TOKEN=${token}\n`);
+          })().catch(error => { console.error(error.message || error); process.exit(1); });
+          NODE
+
+      - name: Verify fixture Edge boundary and private RPC contract
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ env.AZAAD_E2E_FRONTDESK_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async () => {
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+            const response = await fetch(`${base}/functions/v1/azaad-clinical-e2e-fixtures`, {
+              method: 'POST',
+              headers: {
+                apikey: process.env.AZAAD_SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${process.env.AZAAD_E2E_FRONTDESK_TOKEN}`,
+                'Content-Type': 'application/json'
+              },
+              body: '{}'
+            });
+            const raw = await response.text();
+            if (!response.ok) throw new Error(`fixture Edge boundary failed with HTTP ${response.status}: ${raw}`);
+            const body = JSON.parse(raw);
+            for (const key of ['happy_path_booking_id','wrong_doctor_booking_id','invalid_state_booking_id','doctor_a_id','doctor_b_id','patient_id']) {
+              if (!body[key]) throw new Error(`fixture Edge boundary response missing ${key}`);
+            }
+            console.log('Fixture Edge boundary returned a complete controlled fixture contract.');
+          })().catch(error => { console.error(error.message || error); process.exit(1); });
+          NODE
+
+      - name: Verify direct RPC remains closed to the authenticated role
+        env:
+          AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
+          AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
+          AZAAD_E2E_FRONTDESK_TOKEN: ${{ env.AZAAD_E2E_FRONTDESK_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          (async () => {
+            const base = (process.env.AZAAD_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+            const response = await fetch(`${base}/rest/v1/rpc/clinic_prepare_controlled_clinical_e2e_suite`, {
+              method: 'POST',
+              headers: {
+                apikey: process.env.AZAAD_SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${process.env.AZAAD_E2E_FRONTDESK_TOKEN}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ p_actor_user_id: '00000000-0000-0000-0000-000000000000' })
+            });
+            if (![401, 403, 404].includes(response.status)) {
+              throw new Error(`Authenticated direct RPC unexpectedly returned HTTP ${response.status}`);
+            }
+            console.log(`Authenticated direct RPC correctly blocked with HTTP ${response.status}.`);
+          })().catch(error => { console.error(error.message || error); process.exit(1); });
+          NODE
