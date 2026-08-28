@@ -16,7 +16,7 @@ DOMAINS = {
     'rcm': (None, 'azaad-invoice-center', 'enterprise'),
     'finance': (None, 'azaad-finance', 'enterprise'),
     'purchasing': ('admin-purchasing-center.js', 'azaad-content-center', 'dedicated'),
-    'marketing': ('marketing-studio-v3.js', 'azaad-management-dashboard', 'enterprise'),
+    'marketing': (None, 'azaad-management-dashboard', 'enterprise'),
     'analytics': (None, 'azaad-management-dashboard', 'enterprise'),
     'insights': (None, 'azaad-ai-insights', 'enterprise'),
     'security': (None, 'azaad-security-center', 'enterprise'),
@@ -28,9 +28,8 @@ def check(name, ok, detail=''):
 
 # Enterprise panels are runtime-created by the single enterprise owner.
 for domain, (runtime, backend, owner_kind) in DOMAINS.items():
-    panel = f'{domain}EnterprisePanel'
     if owner_kind == 'enterprise':
-        check(f'{domain}: enterprise runtime declares canonical panel', panel in enterprise)
+        check(f'{domain}: enterprise runtime declares canonical panel', f'{domain}:' in enterprise and 'const id=`${key}EnterprisePanel`' in enterprise)
         check(f'{domain}: backend boundary declared', backend in enterprise)
         check(f'{domain}: enterprise runtime is singleton guarded', 'if (window.AZAAD_ENTERPRISE_CENTERS) return;' in enterprise)
     else:
