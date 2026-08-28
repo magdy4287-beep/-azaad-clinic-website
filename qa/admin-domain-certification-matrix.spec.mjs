@@ -2,17 +2,17 @@ import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
 const REQUIRED_DOMAINS = [
-  'doctors',
-  'services',
-  'calendar',
-  'patient-360',
-  'rcm',
-  'finance',
-  'purchasing',
-  'marketing',
-  'analytics',
-  'smart-insights',
-  'security'
+  { name: 'doctors', panel: 'doctors' },
+  { name: 'services', panel: 'services' },
+  { name: 'calendar', panel: 'calendar' },
+  { name: 'patient-360', panel: 'patient360EnterprisePanel' },
+  { name: 'rcm', panel: 'rcmEnterprisePanel' },
+  { name: 'finance', panel: 'financeEnterprisePanel' },
+  { name: 'purchasing', panel: 'purchasingEnterprisePanel' },
+  { name: 'marketing', panel: 'marketingEnterprisePanel' },
+  { name: 'analytics', panel: 'analyticsEnterprisePanel' },
+  { name: 'smart-insights', panel: 'insightsEnterprisePanel' },
+  { name: 'security', panel: 'securityEnterprisePanel' }
 ];
 
 async function readAuthState(page) {
@@ -86,18 +86,18 @@ test('production exposes every required enterprise domain through the canonical 
   });
 
   for (const domain of REQUIRED_DOMAINS) {
-    const hasNavigation = visiblePanels.includes(domain) || registeredPanels.includes(domain);
-    expect(hasNavigation, `Required domain ${domain} must be exposed by navigation or canonical registry`).toBeTruthy();
+    const hasNavigation = visiblePanels.includes(domain.panel) || registeredPanels.includes(domain.panel);
+    expect(hasNavigation, `Required domain ${domain.name} must be exposed through canonical panel ${domain.panel}`).toBeTruthy();
 
-    const button = page.locator(`.tab[data-panel="${domain}"]`).first();
+    const button = page.locator(`.tab[data-panel="${domain.panel}"]`).first();
     if (await button.count()) {
       await button.click();
-      const section = page.locator(`#${domain}`).first();
-      await expect(section, `${domain} panel must exist when navigated`).toHaveCount(1);
-      await expect(section, `${domain} panel must activate`).toHaveClass(/active/, { timeout: 5000 });
+      const section = page.locator(`#${domain.panel}`).first();
+      await expect(section, `${domain.name} panel ${domain.panel} must exist when navigated`).toHaveCount(1);
+      await expect(section, `${domain.name} panel ${domain.panel} must activate`).toHaveClass(/active/, { timeout: 5000 });
       await page.waitForTimeout(500);
       const content = await section.evaluate(node => ({ bytes: node.innerHTML.length, text: (node.textContent || '').trim() }));
-      expect(content.bytes, `${domain} panel must render substantive content`).toBeGreaterThan(80);
+      expect(content.bytes, `${domain.name} panel must render substantive content`).toBeGreaterThan(80);
     }
   }
 
