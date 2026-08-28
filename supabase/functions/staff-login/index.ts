@@ -14,7 +14,7 @@ const authClient=SUPABASE_URL&&AUTH_KEY?createClient(SUPABASE_URL,AUTH_KEY,{auth
 async function restStaff(params:string){
   if(!SUPABASE_URL||!SECRET_KEY)throw new Error('STAFF_DB_CONFIGURATION_MISSING');
   let lastError='STAFF_LOOKUP_FAILED';
-  for(let attempt=1;attempt<=5;attempt+=1){
+  for(let attempt=1;attempt<=7;attempt+=1){
     try{
       const r=await fetch(`${SUPABASE_URL}/rest/v1/clinic_staff?select=id,auth_user_id,full_name,username,email,phone,role,active&${params}&limit=1`,{headers:{apikey:SECRET_KEY,Accept:'application/json'},cache:'no-store'});
       const text=await r.text();
@@ -22,13 +22,16 @@ async function restStaff(params:string){
       if(r.ok)return Array.isArray(data)?data[0]||null:null;
       lastError=`STAFF_LOOKUP_FAILED:HTTP_${r.status}`;
       console.error('staff-login stage=rest_lookup_error',{attempt,status:r.status,body:data});
-      // Retry only transient upstream failures. Auth/data contract errors remain fail-closed.
       if(r.status<500&&r.status!==429)break;
+      const retryAfter=Number(r.headers.get('retry-after')||'');
+      const retryDelay=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,5000):[200,400,800,1200,1800,2400][attempt-1]||3000;
+      if(attempt<7)await new Promise(resolve=>setTimeout(resolve,retryDelay));
+      continue;
     }catch(error){
       lastError=error instanceof Error?error.message:'STAFF_LOOKUP_FAILED';
       console.error('staff-login stage=rest_lookup_exception',{attempt,error:lastError});
+      if(attempt<7)await new Promise(resolve=>setTimeout(resolve,[200,400,800,1200,1800,2400][attempt-1]||3000));
     }
-    if(attempt<5)await new Promise(resolve=>setTimeout(resolve,attempt===1?150:attempt===2?300:attempt===3?600:1000));
   }
   throw new Error(lastError);
 }
