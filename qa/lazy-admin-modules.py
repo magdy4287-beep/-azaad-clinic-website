@@ -94,7 +94,10 @@ def main():
     if (loadedForPanel.has(key)) {{ window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }})); return; }}
     loadedForPanel.add(key);
     for (const src of (groups[key] || [])) {{
-      await yieldToBrowser();
+      // Calendar is a user-facing navigation surface whose first paint must be
+      // functional. Load its single owner immediately on activation instead of
+      // yielding to idle time; other enterprise modules remain opportunistically lazy.
+      if (key !== 'calendar') await yieldToBrowser();
       try {{ await load(src); }} catch (err) {{
         console.error('[AZAAD_ADMIN_MODULE]', key, src, err);
         window.dispatchEvent(new CustomEvent('azaad:admin-module-error', {{ detail: {{ panel: key, src, error: err }} }}));
