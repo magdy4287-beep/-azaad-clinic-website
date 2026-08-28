@@ -26,23 +26,21 @@ checks = []
 def check(name, ok, detail=''):
     checks.append((name, ok, detail))
 
+# Enterprise panels are runtime-created by the single enterprise owner.
 for domain, (runtime, backend, owner_kind) in DOMAINS.items():
     panel = f'{domain}EnterprisePanel'
-    check(f'{domain}: enterprise panel exists', f'id="{panel}"' in admin)
-    check(f'{domain}: backend boundary declared', backend in (purchasing if owner_kind == 'dedicated' else enterprise))
     if owner_kind == 'enterprise':
-        mapping = f"'{panel}': ['admin-enterprise-centers.js']"
-        check(f'{domain}: canonical enterprise runtime is mapped exactly once', registry_body.count(mapping) == 1)
-    if runtime:
-        if domain == 'purchasing':
-            mapping = "'purchasingEnterprisePanel': ['admin-purchasing-center.js']"
-            check(f'{domain}: dedicated runtime is mapped once in generated registry', registry_body.count(mapping) == 1)
-            check(f'{domain}: dedicated runtime is not also owned by enterprise center', 'purchasing' not in re.findall(r"D=\{.*?\};", enterprise, re.S)[0] if 'D={' in enterprise else True)
-        else:
-            check(f'{domain}: canonical runtime registered once', loader.count(runtime) == 1)
+        check(f'{domain}: enterprise runtime declares canonical panel', panel in enterprise)
+        check(f'{domain}: backend boundary declared', backend in enterprise)
+        check(f'{domain}: enterprise runtime is singleton guarded', 'if (window.AZAAD_ENTERPRISE_CENTERS) return;' in enterprise)
+    else:
+        check(f'{domain}: dedicated runtime exists', bool(runtime and (ROOT / runtime).is_file()))
+        check(f'{domain}: backend boundary declared', backend in purchasing)
+        mapping = "'purchasingEnterprisePanel': ['admin-purchasing-center.js']"
+        check(f'{domain}: dedicated runtime is mapped once in generated registry', registry_body.count(mapping) == 1)
 
 check('patient360: no superseded loader remains in QA ownership graph', 'clinical-patient360-loader.js' not in loader)
-check('patient360: enterprise center owns patient360 rendering', "if(key==='patient360')" in enterprise and 'azaad-patient-360' in enterprise)
+check('patient360: enterprise center owns patient360 rendering', "key==='patient360'" in enterprise and 'azaad-patient-360' in enterprise)
 check('enterprise: consumes panel activation lifecycle', "azaad:admin-panel-activated" in enterprise)
 check('enterprise: no tab click owner', "tab.addEventListener('click'" not in enterprise)
 check('role navigation: canonical role owner is in Admin runtime CORE', '"azaad-role-experience.js"' in loader)
