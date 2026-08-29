@@ -49,6 +49,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client-17
           fi
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
           hash -r
           command -v pg_dump
@@ -79,7 +80,6 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
-          PATH: /usr/lib/postgresql/17/bin:${{ env.PATH }}
         shell: bash
         run: bash scripts/azaad-dr-real-restore.sh
 
