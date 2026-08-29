@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Install PostgreSQL 17 client
+      - name: Install and select PostgreSQL 17 client
         shell: bash
         run: |
           set -euo pipefail
@@ -49,6 +49,14 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y postgresql-client-17
           fi
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          hash -r
+          command -v pg_dump
+          command -v pg_restore
+          command -v psql
+          echo "pg_dump version: $(pg_dump --version)"
+          echo "pg_restore version: $(pg_restore --version)"
+          echo "psql version: $(psql --version)"
           test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
           test "$(pg_restore --version | awk '{print $3}' | cut -d. -f1)" = "17"
           test "$(psql --version | awk '{print $3}' | cut -d. -f1)" = "17"
@@ -71,6 +79,7 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+          PATH: /usr/lib/postgresql/17/bin:${{ env.PATH }}
         shell: bash
         run: bash scripts/azaad-dr-real-restore.sh
 
