@@ -51,8 +51,8 @@ cmp "$work/public.dump" "$work/public.restore.dump"
 
 # Supabase public objects can contain FK/RLS references to provider-owned auth roles and
 # auth.users. Neon does not provide those Supabase-owned objects. Create a minimal explicit
-# compatibility boundary so schema objects and RLS policies can be evaluated without
-# importing identities. Identity equivalence is NOT claimed by this step.
+# compatibility boundary so portable schema objects can be restored without importing
+# identities. Identity equivalence is NOT claimed by this step.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
@@ -72,13 +72,19 @@ BEGIN
 END $$;
 SQL
 
+# This is a destructive DR-target operation by design. The public schema is replaced as a
+# whole so existing FK relationships cannot block DROP TABLE during restore. Supabase auth
+# compatibility objects live outside public and are retained.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT USAGE ON SCHEMA public TO public;
+SQL
+
 # Restore in phases. Foreign keys are post-data objects. Because Supabase Auth rows are
 # intentionally not exported, FK constraints targeting auth.users cannot be truthfully
-# recreated in Neon. We therefore apply pre-data and data normally, then apply post-data
-# after filtering ONLY FK statements whose target is auth.users. RLS policies and other
-# portable post-data objects remain subject to strict pg_restore errors.
+# recreated in Neon. Pre-data and data are strict; no blanket ignore-errors behavior is used.
 pg_restore \
-  --clean --if-exists \
   --exit-on-error \
   --no-owner --no-privileges \
   --section=pre-data \
@@ -92,6 +98,8 @@ pg_restore \
   --dbname="$NEON_DATABASE_URL" \
   "$work/public.restore.dump"
 
+# Extract post-data SQL, then remove ONLY statements that define FK constraints against the
+# deliberately absent Supabase auth identity plane. Everything else remains fail-closed.
 pg_restore \
   --no-owner --no-privileges \
   --section=post-data \
@@ -116,7 +124,7 @@ CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
 DO $$
 DECLARE r record;
 BEGIN
-  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename LOOP
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'azaad_dr_reconciliation' ORDER BY tablename LOOP
     EXECUTE format(
       'INSERT INTO public.azaad_dr_reconciliation (table_name, row_count) SELECT %L, count(*) FROM public.%I',
       r.tablename,
@@ -129,6 +137,7 @@ SQL
 echo "PASS: encrypted portable public-schema export"
 echo "PASS: SHA-256 integrity verification"
 echo "PASS: Neon compatibility boundary initialized"
+echo "PASS: clean public-schema replacement completed"
 echo "PASS: portable pre-data and data restore completed"
 echo "PASS: portable post-data restore completed"
 echo "PASS: reconciliation metadata recorded"
