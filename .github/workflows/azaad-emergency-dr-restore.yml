@@ -3,6 +3,7 @@ name: AZAAD Emergency DR Restore
 on:
   push:
     branches:
+      - main
       - codex/azaad-emergency-dr-execution
   workflow_dispatch:
 
