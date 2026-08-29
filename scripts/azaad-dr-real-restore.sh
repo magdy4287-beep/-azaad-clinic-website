@@ -53,6 +53,41 @@ CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
 CREATE TABLE IF NOT EXISTS auth.users (id uuid NOT NULL PRIMARY KEY);
 
+-- Supabase-compatible helper signatures required while restoring RLS policies.
+-- These are compatibility stubs only; production identity/authorization behavior
+-- remains separately uncertified and is explicitly not delegated to these stubs.
+CREATE OR REPLACE FUNCTION auth.uid()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+$$;
+
+CREATE OR REPLACE FUNCTION auth.role()
+RETURNS text
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT COALESCE(NULLIF(current_setting('request.jwt.claim.role', true), ''), current_user)::text;
+$$;
+
+CREATE OR REPLACE FUNCTION auth.email()
+RETURNS text
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT NULLIF(current_setting('request.jwt.claim.email', true), '')::text;
+$$;
+
+CREATE OR REPLACE FUNCTION auth.jwt()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', true), ''), '{}')::jsonb;
+$$;
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon; END IF;
@@ -72,11 +107,8 @@ REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# IMPORTANT: do not CREATE public here. The custom archive owns the public schema
-# definition. We remove the old schema, then let pg_restore recreate it from the
-# archive. PostgreSQL documents --clean/--if-exists as a restore-time object cleanup
-# mechanism; we do not use --clean because the public schema has already been made
-# empty and the external auth/security dependencies must survive the restore.
+# Do not CREATE public here. The custom archive owns the public schema definition.
+# Remove the old schema, then let pg_restore recreate it from the archive.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
 
 # Restore pre-data first. This recreates public and all objects required by the data
@@ -84,8 +116,7 @@ psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CA
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 # Restore table data separately. --disable-triggers is valid for data-only restore;
-# the target is otherwise empty, and identity references are reconciled before the
-# post-data FK/constraint section is applied.
+# identity references are reconciled before the post-data FK/constraint section.
 pg_restore --exit-on-error --no-owner --no-privileges --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 # Materialize every likely auth identity referenced by restored public data before
@@ -168,6 +199,11 @@ Referenced identity UUIDs are materialized as minimal auth.users placeholders
 only to satisfy referential integrity during disaster recovery. This is not a
 restoration of Supabase Auth credentials or sessions.
 
+auth.uid/auth.role/auth.email/auth.jwt are compatibility helpers required to
+restore Supabase RLS definitions. They are not a production authorization
+implementation; identity and authorization portability must be certified
+separately before production cutover.
+
 security.can_access_patient_clinical is a fail-closed compatibility dependency
 used only while restoring RLS definitions. It returns false and is NOT an
 authorization implementation. RLS/RPC/Edge Function behavioral portability must
@@ -180,6 +216,7 @@ echo 'PASS: custom dump validated with pg_restore --list'
 echo 'PASS: encrypted snapshot integrity verified'
 echo 'PASS: decrypted archive revalidated'
 echo 'PASS: auth and security external dependencies initialized'
+echo 'PASS: Supabase auth helper signatures initialized'
 echo 'PASS: public schema cleared without pre-creating it'
 echo 'PASS: pg_restore owns public schema recreation'
 echo 'PASS: strict pre-data restore completed'
