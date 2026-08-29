@@ -61,6 +61,10 @@ psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CA
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
+# The FK definitions live in pg_restore's post-data section. Before that section is
+# restored, discover likely identity-reference UUID columns from the restored schema
+# and materialize minimal auth.users placeholder identities. This is deliberately
+# driven by schema metadata rather than hard-coded table names.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
 DECLARE
@@ -70,9 +74,14 @@ BEGIN
     SELECT table_schema, table_name, column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
-      AND column_name = 'auth_user_id'
       AND data_type = 'uuid'
-    ORDER BY table_name
+      AND (
+        column_name = 'auth_user_id'
+        OR column_name = 'user_id'
+        OR column_name LIKE '%_user_id'
+        OR column_name IN ('created_by', 'updated_by', 'approved_by', 'verified_by', 'cancelled_by', 'completed_by', 'checked_in_by', 'checked_out_by')
+      )
+    ORDER BY table_schema, table_name, column_name
   LOOP
     EXECUTE format(
       'INSERT INTO auth.users (id)
@@ -113,9 +122,9 @@ AZAAD Emergency DR encrypted recovery artifact.
 The archive is encrypted with the controlled DR passphrase stored in GitHub
 Actions secrets. The plaintext dump is intentionally not preserved.
 
-Referenced auth_user_id values are materialized as minimal identity placeholders
-only to satisfy database referential integrity during disaster recovery. This
-must not be interpreted as restoration of Supabase Auth credentials or sessions.
+Referenced identity UUIDs are materialized as minimal auth.users placeholders
+only to satisfy referential integrity during disaster recovery. This must not
+be interpreted as restoration of Supabase Auth credentials or sessions.
 
 Identity/Auth portability, RLS/RPC/Edge Function equivalence, and production
 cutover are separate certification gates and are not implied by this artifact.
@@ -129,7 +138,7 @@ echo 'PASS: decrypted archive revalidated'
 echo 'PASS: Neon compatibility boundary initialized'
 echo 'PASS: clean public-schema replacement completed'
 echo 'PASS: strict pre-data and data restore completed'
-echo 'PASS: auth_user_id portability placeholders materialized before FK creation'
+echo 'PASS: dynamic identity-reference placeholders materialized before FK creation'
 echo 'PASS: strict post-data restore completed directly from custom archive'
 echo 'PASS: reconciliation metadata recorded'
 echo 'PASS: encrypted recovery artifact staged for retention'
