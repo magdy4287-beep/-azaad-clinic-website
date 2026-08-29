@@ -30,20 +30,27 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Checkout DR execution implementation
+      - name: Checkout pinned DR execution implementation
         uses: actions/checkout@v4
         with:
-          ref: codex/azaad-emergency-dr-execution
+          ref: 15f9d272ffac33382040661d167f83cf278e1ac9
           path: .dr-execution
           fetch-depth: 1
 
-      - name: Verify PostgreSQL 17 client before migration
+      - name: Verify pinned DR implementation SHA
+        shell: bash
+        working-directory: .dr-execution
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "15f9d272ffac33382040661d167f83cf278e1ac9"
+
+      - name: Install PostgreSQL 17 client from official PGDG repository
         shell: bash
         run: |
           set -euo pipefail
-          sudo install -d /usr/share/postgresql-common/pgdg
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo \"$VERSION_CODENAME\")-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
