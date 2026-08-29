@@ -45,11 +45,9 @@ cmp "$work/public.dump" "$work/public.restore.dump"
 pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
 
-# The restore target is intentionally prepared with only the minimal external
-# Supabase identity boundary. The security helper below is a FAIL-CLOSED
-# dependency stub: it exists only so post-data RLS policies can be created.
-# It is never treated as proof of authorization portability and is explicitly
-# replaced/validated in the later security-certification gate.
+# External dependencies required by the public-schema archive are prepared first.
+# The security helper is deliberately fail-closed: it exists only so restored RLS
+# definitions can be created and is not an authorization implementation.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
@@ -62,8 +60,6 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF;
 END $$;
 
--- Fail-closed compatibility dependency for restored RLS policy creation.
--- This MUST NOT grant clinical access during DR restore.
 CREATE OR REPLACE FUNCTION security.can_access_patient_clinical(patient_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -76,15 +72,24 @@ REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+# IMPORTANT: do not CREATE public here. The custom archive owns the public schema
+# definition. We remove the old schema, then let pg_restore recreate it from the
+# archive. PostgreSQL documents --clean/--if-exists as a restore-time object cleanup
+# mechanism; we do not use --clean because the public schema has already been made
+# empty and the external auth/security dependencies must survive the restore.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
 
+# Restore pre-data first. This recreates public and all objects required by the data
+# section without any manually-created public schema collision.
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
-# The FK definitions live in pg_restore's post-data section. Before that section is
-# restored, discover likely identity-reference UUID columns from the restored schema
-# and materialize minimal auth.users placeholder identities. This is deliberately
-# driven by schema metadata rather than hard-coded table names.
+# Restore table data separately. --disable-triggers is valid for data-only restore;
+# the target is otherwise empty, and identity references are reconciled before the
+# post-data FK/constraint section is applied.
+pg_restore --exit-on-error --no-owner --no-privileges --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+
+# Materialize every likely auth identity referenced by restored public data before
+# post-data creates foreign keys. This is metadata-driven, not table-name-driven.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
 DECLARE
@@ -109,17 +114,19 @@ BEGIN
        FROM %I.%I
        WHERE %I IS NOT NULL
        ON CONFLICT (id) DO NOTHING',
-      r.column_name, r.table_schema, r.table_name,
-      r.column_name
+      r.column_name, r.table_schema, r.table_name, r.column_name
     );
   END LOOP;
 END $$;
 SQL
 
+# Apply indexes, triggers, rules and constraints only after the data and identity
+# boundary are ready. No textual post-data helper is generated or piped to psql.
 pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
-# The restored archive is now structurally complete. Reassert the DR security
-# boundary explicitly: the compatibility function is not an authorization proof.
+# Record reconciliation evidence. Keep the compatibility security function
+# explicitly fail-closed until the dedicated security certification gate replaces
+# it with the real authorization implementation.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   checked_at timestamptz NOT NULL DEFAULT now(),
@@ -127,11 +134,21 @@ CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   row_count bigint NOT NULL,
   PRIMARY KEY (checked_at, table_name)
 );
+
 DO $$
 DECLARE r record;
 BEGIN
-  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'azaad_dr_reconciliation' ORDER BY tablename LOOP
-    EXECUTE format('INSERT INTO public.azaad_dr_reconciliation (table_name, row_count) SELECT %L, count(*) FROM public.%I', r.tablename, r.tablename);
+  FOR r IN
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname='public' AND tablename <> 'azaad_dr_reconciliation'
+    ORDER BY tablename
+  LOOP
+    EXECUTE format(
+      'INSERT INTO public.azaad_dr_reconciliation (table_name, row_count)
+       SELECT %L, count(*) FROM public.%I',
+      r.tablename, r.tablename
+    );
   END LOOP;
 END $$;
 
@@ -148,28 +165,29 @@ The archive is encrypted with the controlled DR passphrase stored in GitHub
 Actions secrets. The plaintext dump is intentionally not preserved.
 
 Referenced identity UUIDs are materialized as minimal auth.users placeholders
-only to satisfy referential integrity during disaster recovery. This must not
-be interpreted as restoration of Supabase Auth credentials or sessions.
+only to satisfy referential integrity during disaster recovery. This is not a
+restoration of Supabase Auth credentials or sessions.
 
-The security.can_access_patient_clinical function is a fail-closed compatibility
-stub used only to permit restoration of RLS policy definitions. It returns false
-and is NOT an authorization implementation. RLS/RPC/Edge Function behavioral
-portability must be certified separately before any production cutover.
+security.can_access_patient_clinical is a fail-closed compatibility dependency
+used only while restoring RLS definitions. It returns false and is NOT an
+authorization implementation. RLS/RPC/Edge Function behavioral portability must
+be certified separately before production cutover.
 EOF
 chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256" "$evidence/README.txt"
 
-echo 'PASS: PostgreSQL 17 archive toolchain'
+echo 'PASS: PostgreSQL archive toolchain available'
 echo 'PASS: custom dump validated with pg_restore --list'
 echo 'PASS: encrypted snapshot integrity verified'
 echo 'PASS: decrypted archive revalidated'
-echo 'PASS: Neon compatibility boundary initialized'
-echo 'PASS: auth and security dependency boundaries initialized'
-echo 'PASS: clean public-schema replacement completed'
-echo 'PASS: strict pre-data and data restore completed'
-echo 'PASS: dynamic identity-reference placeholders materialized before FK creation'
-echo 'PASS: strict post-data restore completed directly from custom archive'
+echo 'PASS: auth and security external dependencies initialized'
+echo 'PASS: public schema cleared without pre-creating it'
+echo 'PASS: pg_restore owns public schema recreation'
+echo 'PASS: strict pre-data restore completed'
+echo 'PASS: strict data restore completed'
+echo 'PASS: dynamic identity-reference placeholders materialized'
+echo 'PASS: strict post-data restore completed'
 echo 'PASS: reconciliation metadata recorded'
-echo 'PASS: encrypted recovery artifact staged for retention'
+echo 'PASS: encrypted recovery artifact staged'
 echo 'NOT PROVEN: identity/auth portability'
 echo 'NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence'
 echo 'NOT PROVEN: production cutover'
