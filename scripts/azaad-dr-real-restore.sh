@@ -58,16 +58,9 @@ SQL
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
 
-# The source is a PostgreSQL custom archive. Restore it with pg_restore only.
-# Never route pg_restore --list/TOC output through psql.
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
-# The public data intentionally loads before post-data constraints. Before
-# creating auth.users foreign keys, materialize the referenced identity UUIDs
-# from every public column conventionally named auth_user_id. These are
-# portability placeholders only; they are never represented as real Supabase
-# Auth accounts and are explicitly excluded from the certification claim.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
 DECLARE
@@ -87,17 +80,13 @@ BEGIN
        FROM %I.%I
        WHERE %I IS NOT NULL
        ON CONFLICT (id) DO NOTHING',
-      r.column_name, r.table_name, r.table_name,
+      r.column_name, r.table_schema, r.table_name,
       r.column_name
     );
   END LOOP;
 END $$;
 SQL
 
-# Restore post-data directly from the custom archive. This avoids generating an
-# intermediate SQL file and therefore makes it impossible for TOC metadata such
-# as "Type: CONSTRAINT" to reach psql. auth.users is populated above before FK
-# creation, so referenced identities satisfy referential integrity.
 pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
