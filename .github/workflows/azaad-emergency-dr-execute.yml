@@ -37,12 +37,17 @@ jobs:
           path: .dr-execution
           fetch-depth: 1
 
-      - name: Verify PostgreSQL tools before migration
+      - name: Verify PostgreSQL 17 client before migration
         shell: bash
         run: |
           set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo \"$VERSION_CODENAME\")-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
           command -v psql
           command -v pg_dump
           command -v pg_restore
@@ -87,6 +92,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
           bash .dr-execution/scripts/azaad-dr-real-restore.sh
 
       - name: Record fail-closed certification state
