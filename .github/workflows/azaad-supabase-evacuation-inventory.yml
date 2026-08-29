@@ -1,0 +1,39 @@
+name: AZAAD Supabase Evacuation Inventory
+
+on:
+  push:
+    branches: [emergency/supabase-evacuation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Verify candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "candidate_sha=$GITHUB_SHA"
+          test -n "$GITHUB_SHA"
+
+      - name: Build read-only Supabase evacuation inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/azaad-supabase-evacuation-inventory.sh
+          scripts/azaad-supabase-evacuation-inventory.sh
+
+      - name: Upload non-sensitive inventory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-supabase-evacuation-inventory-${{ github.sha }}
+          path: ${{ runner.temp }}/azaad-supabase-evacuation/README.txt
+          if-no-files-found: error
+          retention-days: 7
