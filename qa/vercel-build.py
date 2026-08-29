@@ -34,6 +34,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
     ["python3", "qa/harden-admin-refresh-session.py"],
+    ["python3", "qa/harden-admin-inline-refresh-session.py"],
     ["python3", "qa/finalize-admin-operational-data.py"],
     ["python3", "qa/finalize-admin-logout-ui.py"],
     ["python3", "qa/bump-public-language-bridge.py"],
