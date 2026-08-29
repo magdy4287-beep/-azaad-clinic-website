@@ -94,9 +94,6 @@ def main():
     if (loadedForPanel.has(key)) {{ window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', {{ detail: {{ panel: key }} }})); return; }}
     loadedForPanel.add(key);
     for (const src of (groups[key] || [])) {{
-      // Calendar is a user-facing navigation surface whose first paint must be
-      // functional. Load its single owner immediately on activation instead of
-      // yielding to idle time; other enterprise modules remain opportunistically lazy.
       if (key !== 'calendar') await yieldToBrowser();
       try {{ await load(src); }} catch (err) {{
         console.error('[AZAAD_ADMIN_MODULE]', key, src, err);
@@ -107,6 +104,10 @@ def main():
   }};
   window.addEventListener('azaad:admin-panel-activated', event => {{
     const key = event.detail?.panel; if (!key) return;
+    // Calendar is a primary navigation surface. Its owner must be requested
+    // in the same task as activation so first paint cannot be stranded behind
+    // requestIdleCallback under a busy browser/main thread.
+    if (key === 'calendar') {{ window.AZAAD_LOAD_ADMIN_PANEL(key); return; }}
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
   window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
