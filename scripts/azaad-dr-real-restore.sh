@@ -63,10 +63,41 @@ psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CA
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
+# The public data intentionally loads before post-data constraints. Before
+# creating auth.users foreign keys, materialize the referenced identity UUIDs
+# from every public column conventionally named auth_user_id. These are
+# portability placeholders only; they are never represented as real Supabase
+# Auth accounts and are explicitly excluded from the certification claim.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT table_schema, table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND column_name = 'auth_user_id'
+      AND data_type = 'uuid'
+    ORDER BY table_name
+  LOOP
+    EXECUTE format(
+      'INSERT INTO auth.users (id)
+       SELECT DISTINCT %I
+       FROM %I.%I
+       WHERE %I IS NOT NULL
+       ON CONFLICT (id) DO NOTHING',
+      r.column_name, r.table_name, r.table_name,
+      r.column_name
+    );
+  END LOOP;
+END $$;
+SQL
+
 # Restore post-data directly from the custom archive. This avoids generating an
 # intermediate SQL file and therefore makes it impossible for TOC metadata such
-# as "Type: CONSTRAINT" to reach psql. auth.users exists above, so its FK
-# constraints can be created normally and are not silently discarded.
+# as "Type: CONSTRAINT" to reach psql. auth.users is populated above before FK
+# creation, so referenced identities satisfy referential integrity.
 pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -93,6 +124,10 @@ AZAAD Emergency DR encrypted recovery artifact.
 The archive is encrypted with the controlled DR passphrase stored in GitHub
 Actions secrets. The plaintext dump is intentionally not preserved.
 
+Referenced auth_user_id values are materialized as minimal identity placeholders
+only to satisfy database referential integrity during disaster recovery. This
+must not be interpreted as restoration of Supabase Auth credentials or sessions.
+
 Identity/Auth portability, RLS/RPC/Edge Function equivalence, and production
 cutover are separate certification gates and are not implied by this artifact.
 EOF
@@ -105,6 +140,7 @@ echo 'PASS: decrypted archive revalidated'
 echo 'PASS: Neon compatibility boundary initialized'
 echo 'PASS: clean public-schema replacement completed'
 echo 'PASS: strict pre-data and data restore completed'
+echo 'PASS: auth_user_id portability placeholders materialized before FK creation'
 echo 'PASS: strict post-data restore completed directly from custom archive'
 echo 'PASS: reconciliation metadata recorded'
 echo 'PASS: encrypted recovery artifact staged for retention'
