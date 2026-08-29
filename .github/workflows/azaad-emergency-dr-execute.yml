@@ -115,3 +115,4 @@ jobs:
           echo 'browser_clinical_financial_e2e=NOT_PROVEN'
           echo 'production_cutover=BLOCKED'
           echo 'supabase_retirement=BLOCKED'
+          echo 'workflow_registration=DEFAULT_BRANCH_REGISTERED'
