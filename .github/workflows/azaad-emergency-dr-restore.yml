@@ -55,9 +55,6 @@ jobs:
           command -v pg_dump
           command -v pg_restore
           command -v psql
-          echo "pg_dump version: $(pg_dump --version)"
-          echo "pg_restore version: $(pg_restore --version)"
-          echo "psql version: $(psql --version)"
           test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
           test "$(pg_restore --version | awk '{print $3}' | cut -d. -f1)" = "17"
           test "$(psql --version | awk '{print $3}' | cut -d. -f1)" = "17"
@@ -73,7 +70,6 @@ jobs:
           test -n "$SUPABASE_DB_URL"
           test -n "$NEON_DATABASE_URL"
           test -n "$DR_BACKUP_PASSPHRASE"
-          echo 'PASS: required emergency DR secrets are configured'
 
       - name: Execute fail-closed restore
         env:
@@ -82,6 +78,16 @@ jobs:
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
         shell: bash
         run: bash scripts/azaad-dr-real-restore.sh
+
+      - name: Verify recovery files exist before publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/azaad-dr-evidence"
+          test -s "$evidence_dir/public.dump.enc"
+          test -s "$evidence_dir/public.dump.enc.sha256"
+          test -s "$evidence_dir/README.txt"
+          test "$(wc -l < "$evidence_dir/public.dump.enc.sha256")" -eq 1
 
       - name: Upload encrypted recovery artifact
         id: recovery_artifact
@@ -106,7 +112,7 @@ jobs:
           test -n "$ARTIFACT_DIGEST"
           echo "recovery_artifact_id=$ARTIFACT_ID"
           echo "recovery_artifact_digest=$ARTIFACT_DIGEST"
-          echo 'PASS: encrypted recovery artifact was published and GitHub returned its immutable identifiers'
+          echo 'PASS: encrypted recovery artifact was published and immutable identifiers were returned'
 
       - name: Preserve only non-sensitive certification evidence
         shell: bash
