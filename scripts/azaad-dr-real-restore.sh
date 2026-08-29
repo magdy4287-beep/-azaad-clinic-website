@@ -8,7 +8,7 @@ set -euo pipefail
 export PATH="/usr/lib/postgresql/17/bin:$PATH"
 export PGSSLMODE=require
 
-for cmd in pg_dump pg_restore psql sha256sum openssl awk grep cmp; do
+for cmd in pg_dump pg_restore psql sha256sum openssl cmp; do
   command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
 done
 
@@ -58,44 +58,16 @@ SQL
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
 
-# Restore archive sections separately. Never pass pg_restore TOC/list output to psql.
+# The source is a PostgreSQL custom archive. Restore it with pg_restore only.
+# Never route pg_restore --list/TOC output through psql.
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
-# Generate actual SQL for post-data. pg_restore --file emits SQL; pg_restore --list emits TOC metadata.
-pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --file="$work/post-data.sql" "$work/public.restore.dump"
-
-test -f "$work/post-data.sql"
-# Defensive invariant: TOC metadata must never reach psql.
-if grep -nE '^[[:space:]]*(Type|Schema|Name|Owner):' "$work/post-data.sql" >/dev/null; then
-  echo 'ERROR: pg_restore produced TOC metadata where SQL was expected; refusing to execute it.' >&2
-  exit 1
-fi
-
-# Remove only ALTER TABLE ... ADD CONSTRAINT statements whose REFERENCES target is auth.users.
-# All unrelated constraints/indexes/triggers remain fail-closed under ON_ERROR_STOP=1.
-awk '
-  BEGIN { RS=";"; ORS=";\n" }
-  {
-    upper=toupper($0)
-    if (upper ~ /ALTER[[:space:]]+TABLE/ && upper ~ /ADD[[:space:]]+CONSTRAINT/ && $0 ~ /REFERENCES[[:space:]]+auth\.users[[:space:]]*\(/) {
-      skipped++
-      next
-    }
-    print
-  }
-  END {
-    if (skipped > 0) print "-- AZAAD_DR: skipped " skipped " auth.users FK statement(s); identity portability is certified separately." > "/dev/stderr"
-  }
-' "$work/post-data.sql" > "$work/post-data.portable.sql"
-
-# Explicitly verify the sanitized file contains no TOC metadata before execution.
-if grep -nE '^[[:space:]]*(Type|Schema|Name|Owner):' "$work/post-data.portable.sql" >/dev/null; then
-  echo 'ERROR: TOC metadata remains in sanitized post-data SQL; refusing to execute.' >&2
-  exit 1
-fi
-
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/post-data.portable.sql"
+# Restore post-data directly from the custom archive. This avoids generating an
+# intermediate SQL file and therefore makes it impossible for TOC metadata such
+# as "Type: CONSTRAINT" to reach psql. auth.users exists above, so its FK
+# constraints can be created normally and are not silently discarded.
+pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
@@ -133,10 +105,9 @@ echo 'PASS: decrypted archive revalidated'
 echo 'PASS: Neon compatibility boundary initialized'
 echo 'PASS: clean public-schema replacement completed'
 echo 'PASS: strict pre-data and data restore completed'
-echo 'PASS: portable post-data restore completed'
+echo 'PASS: strict post-data restore completed directly from custom archive'
 echo 'PASS: reconciliation metadata recorded'
 echo 'PASS: encrypted recovery artifact staged for retention'
 echo 'NOT PROVEN: identity/auth portability'
-echo 'NOT PROVEN: FK equivalence for Supabase auth.users references'
 echo 'NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence'
 echo 'NOT PROVEN: production cutover'
