@@ -1,6 +1,7 @@
 name: AZAAD Emergency DR Execute
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - emergency/supabase-evacuation
