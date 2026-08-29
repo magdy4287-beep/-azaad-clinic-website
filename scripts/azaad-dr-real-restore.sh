@@ -13,9 +13,10 @@ for cmd in pg_dump pg_restore psql sha256sum openssl awk cmp grep; do
 done
 
 work="${RUNNER_TEMP}/azaad-dr"
-rm -rf "$work"
-mkdir -p "$work"
-chmod 700 "$work"
+evidence="${RUNNER_TEMP}/azaad-dr-evidence"
+rm -rf "$work" "$evidence"
+mkdir -p "$work" "$evidence"
+chmod 700 "$work" "$evidence"
 trap 'rm -rf "$work"' EXIT
 
 pg_dump "$SUPABASE_DB_URL" \
@@ -143,6 +144,22 @@ BEGIN
 END $$;
 SQL
 
+# Preserve only the encrypted recovery artifact and non-sensitive checksums
+# outside the temporary restore directory. The plaintext dump is never
+# persisted as an Actions artifact and is removed by the EXIT trap.
+cp "$work/public.dump.enc" "$evidence/public.dump.enc"
+cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
+cat > "$evidence/README.txt" <<'EOF'
+AZAAD Emergency DR encrypted recovery artifact.
+
+The archive is encrypted with the controlled DR passphrase stored in GitHub
+Actions secrets. The plaintext dump is intentionally not preserved.
+
+Identity/Auth portability, RLS/RPC/Edge Function equivalence, and production
+cutover are separate certification gates and are not implied by this artifact.
+EOF
+chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256" "$evidence/README.txt"
+
 echo "PASS: PostgreSQL 17 archive toolchain"
 echo "PASS: custom dump validated with pg_restore --list"
 echo "PASS: encrypted snapshot integrity verified"
@@ -152,6 +169,7 @@ echo "PASS: clean public-schema replacement completed"
 echo "PASS: strict pre-data and data restore completed"
 echo "PASS: portable post-data restore completed"
 echo "PASS: reconciliation metadata recorded"
+echo "PASS: encrypted recovery artifact staged for retention"
 echo "NOT PROVEN: identity/auth portability"
 echo "NOT PROVEN: FK equivalence for Supabase auth.users references"
 echo "NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence"
