@@ -83,6 +83,17 @@ jobs:
         shell: bash
         run: bash scripts/azaad-dr-real-restore.sh
 
+      - name: Upload encrypted recovery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-emergency-dr-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/azaad-dr-evidence/public.dump.enc
+            ${{ runner.temp }}/azaad-dr-evidence/public.dump.enc.sha256
+            ${{ runner.temp }}/azaad-dr-evidence/README.txt
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Preserve only non-sensitive certification evidence
         shell: bash
         run: |
@@ -91,6 +102,7 @@ jobs:
           echo 'restore_runner=azaad-dr-real-restore.sh'
           echo 'source=Supabase public schema'
           echo 'destination=Neon PostgreSQL'
+          echo 'encrypted_recovery_artifact=UPLOADED'
           echo 'identity_status=NOT_PROVEN'
           echo 'authorization_status=NOT_PROVEN'
           echo 'production_cutover=BLOCKED'
