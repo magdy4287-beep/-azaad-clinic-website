@@ -75,10 +75,10 @@ SQL
 # This is a destructive DR-target operation by design. The public schema is replaced as a
 # whole so existing FK relationships cannot block DROP TABLE during restore. Supabase auth
 # compatibility objects live outside public and are retained.
+# IMPORTANT: do not recreate public here. The dump's pre-data section owns CREATE SCHEMA public;
+# recreating it manually would make pg_restore fail on a duplicate schema definition.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA public;
-GRANT USAGE ON SCHEMA public TO public;
 SQL
 
 # Restore in phases. Foreign keys are post-data objects. Because Supabase Auth rows are
