@@ -44,13 +44,18 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "15f9d272ffac33382040661d167f83cf278e1ac9"
 
-      - name: Install PostgreSQL 17 client from official PGDG repository
+      - name: Install PostgreSQL 17 client non-interactively
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y postgresql-common ca-certificates
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+          sudo apt-get install -y postgresql-common ca-certificates curl gnupg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | gpg --batch --dearmor \
+            | sudo tee /usr/share/keyrings/postgresql-archive-keyring.gpg >/dev/null
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
