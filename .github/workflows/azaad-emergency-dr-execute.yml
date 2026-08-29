@@ -37,6 +37,19 @@ jobs:
           path: .dr-execution
           fetch-depth: 1
 
+      - name: Verify PostgreSQL tools before migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          command -v psql
+          command -v pg_dump
+          command -v pg_restore
+          psql --version
+          pg_dump --version
+          pg_restore --version
+
       - name: Inventory source and runtime references
         shell: bash
         run: bash scripts/azaad-supabase-evacuation-inventory.sh
@@ -66,14 +79,6 @@ jobs:
             exit 78
           fi
 
-      - name: Install PostgreSQL 17 client
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
-
       - name: Execute Neon database restore
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -82,7 +87,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export PATH="/usr/lib/postgresql/17/bin:$PATH"
           bash .dr-execution/scripts/azaad-dr-real-restore.sh
 
       - name: Record fail-closed certification state
