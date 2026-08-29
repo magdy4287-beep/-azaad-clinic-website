@@ -84,6 +84,7 @@ jobs:
         run: bash scripts/azaad-dr-real-restore.sh
 
       - name: Upload encrypted recovery artifact
+        id: recovery_artifact
         uses: actions/upload-artifact@v4
         with:
           name: azaad-emergency-dr-${{ github.sha }}
@@ -94,6 +95,19 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Verify recovery artifact publication
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.recovery_artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.recovery_artifact.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          test -n "$ARTIFACT_ID"
+          test -n "$ARTIFACT_DIGEST"
+          echo "recovery_artifact_id=$ARTIFACT_ID"
+          echo "recovery_artifact_digest=$ARTIFACT_DIGEST"
+          echo 'PASS: encrypted recovery artifact was published and GitHub returned its immutable identifiers'
+
       - name: Preserve only non-sensitive certification evidence
         shell: bash
         run: |
@@ -102,7 +116,7 @@ jobs:
           echo 'restore_runner=azaad-dr-real-restore.sh'
           echo 'source=Supabase public schema'
           echo 'destination=Neon PostgreSQL'
-          echo 'encrypted_recovery_artifact=UPLOADED'
+          echo 'encrypted_recovery_artifact=UPLOADED_AND_VERIFIED'
           echo 'identity_status=NOT_PROVEN'
           echo 'authorization_status=NOT_PROVEN'
           echo 'production_cutover=BLOCKED'
