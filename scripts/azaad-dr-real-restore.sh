@@ -10,6 +10,7 @@ command -v pg_restore >/dev/null
 command -v psql >/dev/null
 command -v sha256sum >/dev/null
 command -v openssl >/dev/null
+command -v awk >/dev/null
 
 work="${RUNNER_TEMP}/azaad-dr"
 rm -rf "$work"
@@ -49,10 +50,9 @@ sha256sum -c "$work/public.dump.sha256" --ignore-missing
 cmp "$work/public.dump" "$work/public.restore.dump"
 
 # Supabase public objects can contain FK/RLS references to provider-owned auth roles and
-# auth.users. Neon does not provide those Supabase-owned objects. Create a minimal, explicit
-# compatibility boundary so schema restore can be evaluated without importing identities.
-# This does NOT claim Auth portability: the table is empty and identity equivalence remains
-# a separate, fail-closed qualification gate.
+# auth.users. Neon does not provide those Supabase-owned objects. Create a minimal explicit
+# compatibility boundary so schema objects and RLS policies can be evaluated without
+# importing identities. Identity equivalence is NOT claimed by this step.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
@@ -72,14 +72,37 @@ BEGIN
 END $$;
 SQL
 
-# Restore only the portable public data model. Exit on the first restore error so a partial
-# DR is never reported as successful. Provider-owned identity/auth behavior remains separate.
+# Restore in phases. Foreign keys are post-data objects. Because Supabase Auth rows are
+# intentionally not exported, FK constraints targeting auth.users cannot be truthfully
+# recreated in Neon. We therefore apply pre-data and data normally, then apply post-data
+# after filtering ONLY FK statements whose target is auth.users. RLS policies and other
+# portable post-data objects remain subject to strict pg_restore errors.
 pg_restore \
   --clean --if-exists \
   --exit-on-error \
   --no-owner --no-privileges \
+  --section=pre-data \
   --dbname="$NEON_DATABASE_URL" \
   "$work/public.restore.dump"
+
+pg_restore \
+  --exit-on-error \
+  --no-owner --no-privileges \
+  --section=data \
+  --dbname="$NEON_DATABASE_URL" \
+  "$work/public.restore.dump"
+
+pg_restore \
+  --no-owner --no-privileges \
+  --section=post-data \
+  --file="$work/post-data.sql" \
+  "$work/public.restore.dump"
+
+awk 'BEGIN { RS=";"; ORS=";\n" } !/REFERENCES[[:space:]]+auth\.users[[:space:]]*\(/' \
+  "$work/post-data.sql" > "$work/post-data.portable.sql"
+
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f "$work/post-data.portable.sql"
 
 # Reconcile counts without emitting row contents to logs.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -106,8 +129,10 @@ SQL
 echo "PASS: encrypted portable public-schema export"
 echo "PASS: SHA-256 integrity verification"
 echo "PASS: Neon compatibility boundary initialized"
-echo "PASS: DR restore completed"
+echo "PASS: portable pre-data and data restore completed"
+echo "PASS: portable post-data restore completed"
 echo "PASS: reconciliation metadata recorded"
 echo "NOT PROVEN: identity/auth portability"
+echo "NOT PROVEN: FK equivalence for Supabase auth.users references"
 echo "NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence"
 echo "NOT PROVEN: production cutover"
