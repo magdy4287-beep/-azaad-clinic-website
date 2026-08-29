@@ -24,8 +24,7 @@ def bounds(source: str, marker: str):
         ch = source[i]
         nxt = source[i + 1] if i + 1 < len(source) else ""
         if line_comment:
-            if ch == "\n":
-                line_comment = False
+            if ch == "\n": line_comment = False
             i += 1
             continue
         if block_comment:
@@ -65,11 +64,25 @@ def bounds(source: str, marker: str):
         i += 1
     return None
 
+marker = "async function restoreStaff()"
+match = bounds(text, marker)
+
+# The canonical production pipeline intentionally removes the legacy inline
+# controller and restores exactly one external admin.js controller at the
+# release boundary. In that final shape there is nothing to patch here; fail
+# closed only if the canonical controller reference is also missing.
+if not match:
+    canonical_count = text.count('/admin.js?v=2026-08-24-login-fix')
+    if canonical_count != 1:
+        raise SystemExit(
+            "Inline controller was removed but canonical admin.js reference is missing"
+        )
+    print("[AZAAD] inline controller already removed; canonical admin.js boundary PASS")
+    raise SystemExit(0)
+
 replacement = '''async function restoreStaff() {
 
-  if (!state.user?.id) {
-    return false;
-  }
+  if (!state.user?.id) return false;
 
   async function currentSession() {
     const result = await supabase.auth.getSession();
@@ -78,13 +91,11 @@ replacement = '''async function restoreStaff() {
 
   async function ensureSession() {
     let session = state.session || await currentSession();
-
     if (session?.access_token) {
       state.session = session;
       state.user = session.user || state.user;
       return session;
     }
-
     try {
       const refreshed = await supabase.auth.refreshSession();
       session = refreshed?.data?.session || null;
@@ -96,14 +107,11 @@ replacement = '''async function restoreStaff() {
     } catch (error) {
       console.warn("Admin session refresh during startup failed:", error);
     }
-
     return null;
   }
 
   let session = await ensureSession();
-  if (!session?.access_token) {
-    return false;
-  }
+  if (!session?.access_token) return false;
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -129,39 +137,28 @@ replacement = '''async function restoreStaff() {
       }
 
       if (result.error) {
-        console.warn(
-          `Admin staff restoration attempt ${attempt} failed:`,
-          result.error
-        );
-
+        console.warn(`Admin staff restoration attempt ${attempt} failed:`, result.error);
         if (attempt < 3) {
           await new Promise(resolve => setTimeout(resolve, attempt * 300));
           session = await ensureSession();
           if (!session?.access_token) return false;
           continue;
         }
-
-        // A transient database/RLS/network failure must never destroy a
-        // persisted authenticated session by calling signOut().
+        // Never sign out on a transient startup boundary failure.
         return false;
       }
 
-      // A confirmed missing/inactive staff profile is an authorization
-      // failure, but still do not mutate the persisted Auth session here.
+      // Missing/inactive staff is an authorization failure, not a reason to
+      // destroy the persisted authentication session during startup.
       return false;
     } catch (error) {
-      console.warn(
-        `Admin staff restoration attempt ${attempt} threw:`,
-        error
-      );
-
+      console.warn(`Admin staff restoration attempt ${attempt} threw:`, error);
       if (attempt < 3) {
         await new Promise(resolve => setTimeout(resolve, attempt * 300));
         session = await ensureSession();
         if (!session?.access_token) return false;
         continue;
       }
-
       return false;
     }
   }
@@ -170,23 +167,18 @@ replacement = '''async function restoreStaff() {
 }
 '''.strip()
 
-match = bounds(text, "async function restoreStaff()")
-if not match:
-    raise SystemExit("inline restoreStaff() not found")
-
 text = text[:match[0]] + replacement + text[match[1]:]
 
-match = bounds(text, "async function restoreStaff()")
+match = bounds(text, marker)
 body = text[match[0]:match[1]] if match else ""
 if "supabase.auth.signOut" in body:
     raise SystemExit("inline restoreStaff() must never sign out during startup restoration")
-
 for token in (
     "supabase.auth.refreshSession()",
     "for (let attempt = 1; attempt <= 3; attempt += 1)",
-    "must never sign out during startup restoration",
+    "Never sign out on a transient startup boundary failure",
 ):
-    if token not in body and token not in text:
+    if token not in body:
         raise SystemExit(f"Inline refresh contract missing: {token}")
 
 PATH.write_text(text, encoding="utf-8")
