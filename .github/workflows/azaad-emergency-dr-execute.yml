@@ -30,6 +30,13 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
+      - name: Checkout DR execution implementation
+        uses: actions/checkout@v4
+        with:
+          ref: codex/azaad-emergency-dr-execution
+          path: .dr-execution
+          fetch-depth: 1
+
       - name: Inventory source and runtime references
         shell: bash
         run: bash scripts/azaad-supabase-evacuation-inventory.sh
@@ -76,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
-          bash <(git show origin/codex/azaad-emergency-dr-execution:scripts/azaad-dr-real-restore.sh)
+          bash .dr-execution/scripts/azaad-dr-real-restore.sh
 
       - name: Record fail-closed certification state
         shell: bash
