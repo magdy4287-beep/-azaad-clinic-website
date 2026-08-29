@@ -8,7 +8,7 @@ set -euo pipefail
 export PATH="/usr/lib/postgresql/17/bin:$PATH"
 export PGSSLMODE=require
 
-for cmd in pg_dump pg_restore psql sha256sum openssl awk cmp grep sed; do
+for cmd in pg_dump pg_restore psql sha256sum openssl awk grep cmp; do
   command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
 done
 
@@ -28,21 +28,18 @@ pg_dump "$SUPABASE_DB_URL" \
 
 pg_restore --list "$work/public.dump" > "$work/archive.list"
 test -s "$work/archive.list"
-
 sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 
 openssl enc -aes-256-cbc -pbkdf2 -salt \
   -pass env:DR_BACKUP_PASSPHRASE \
   -in "$work/public.dump" \
   -out "$work/public.dump.enc"
-
 sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"
 
 openssl enc -d -aes-256-cbc -pbkdf2 \
   -pass env:DR_BACKUP_PASSPHRASE \
   -in "$work/public.dump.enc" \
   -out "$work/public.restore.dump"
-
 sha256sum -c "$work/public.dump.sha256" --ignore-missing
 cmp "$work/public.dump" "$work/public.restore.dump"
 pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
@@ -50,72 +47,38 @@ test -s "$work/restored-archive.list"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
-CREATE TABLE IF NOT EXISTS auth.users (
-  id uuid NOT NULL PRIMARY KEY
-);
+CREATE TABLE IF NOT EXISTS auth.users (id uuid NOT NULL PRIMARY KEY);
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    CREATE ROLE anon;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    CREATE ROLE authenticated;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    CREATE ROLE service_role;
-  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF;
 END $$;
 SQL
 
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA public;
-SQL
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
 
-pg_restore \
-  --exit-on-error \
-  --no-owner --no-privileges \
-  --section=pre-data \
-  --dbname="$NEON_DATABASE_URL" \
-  "$work/public.restore.dump"
+# Restore archive sections separately. Never pass pg_restore TOC/list output to psql.
+pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
-pg_restore \
-  --exit-on-error \
-  --no-owner --no-privileges \
-  --section=data \
-  --dbname="$NEON_DATABASE_URL" \
-  "$work/public.restore.dump"
+# Generate actual SQL for post-data. pg_restore --file emits SQL; pg_restore --list emits TOC metadata.
+pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --file="$work/post-data.sql" "$work/public.restore.dump"
 
-pg_restore \
-  --no-owner --no-privileges \
-  --section=post-data \
-  --file="$work/post-data.raw.sql" \
-  "$work/public.restore.dump"
-
-# pg_restore output must be executable SQL. Some pg_restore/archive wrappers
-# can emit standalone TOC metadata records such as `Type: CONSTRAINT;` into
-# the generated text. These are metadata, not SQL, and are removed explicitly.
-# Any remaining Type: record is treated as a hard failure rather than hidden.
-sed -E '/^[[:space:]]*Type:[[:space:]]+[A-Z_]+;[[:space:]]*$/d' \
-  "$work/post-data.raw.sql" > "$work/post-data.sql"
-if grep -qE '^[[:space:]]*Type:' "$work/post-data.sql"; then
-  echo "ERROR: unexpected pg_restore metadata remains in post-data SQL" >&2
-  grep -nE '^[[:space:]]*Type:' "$work/post-data.sql" >&2 || true
+test -f "$work/post-data.sql"
+# Defensive invariant: TOC metadata must never reach psql.
+if grep -nE '^[[:space:]]*(Type|Schema|Name|Owner):' "$work/post-data.sql" >/dev/null; then
+  echo 'ERROR: pg_restore produced TOC metadata where SQL was expected; refusing to execute it.' >&2
   exit 1
 fi
 
-# Supabase's public tables may contain FKs into the identity plane
-# (auth.users). Neon DR owns the application/public plane here, while identity
-# portability is certified separately. Remove ONLY ALTER TABLE ADD CONSTRAINT
-# statements that actually reference auth.users; preserve all unrelated
-# constraints, indexes, triggers, and other post-data SQL.
+# Remove only ALTER TABLE ... ADD CONSTRAINT statements whose REFERENCES target is auth.users.
+# All unrelated constraints/indexes/triggers remain fail-closed under ON_ERROR_STOP=1.
 awk '
   BEGIN { RS=";"; ORS=";\n" }
   {
     upper=toupper($0)
-    if (upper ~ /ALTER[[:space:]]+TABLE/ &&
-        upper ~ /ADD[[:space:]]+CONSTRAINT/ &&
-        $0 ~ /REFERENCES[[:space:]]+auth\.users[[:space:]]*\(/) {
+    if (upper ~ /ALTER[[:space:]]+TABLE/ && upper ~ /ADD[[:space:]]+CONSTRAINT/ && $0 ~ /REFERENCES[[:space:]]+auth\.users[[:space:]]*\(/) {
       skipped++
       next
     }
@@ -126,8 +89,13 @@ awk '
   }
 ' "$work/post-data.sql" > "$work/post-data.portable.sql"
 
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -f "$work/post-data.portable.sql"
+# Explicitly verify the sanitized file contains no TOC metadata before execution.
+if grep -nE '^[[:space:]]*(Type|Schema|Name|Owner):' "$work/post-data.portable.sql" >/dev/null; then
+  echo 'ERROR: TOC metadata remains in sanitized post-data SQL; refusing to execute.' >&2
+  exit 1
+fi
+
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/post-data.portable.sql"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
@@ -140,18 +108,11 @@ DO $$
 DECLARE r record;
 BEGIN
   FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'azaad_dr_reconciliation' ORDER BY tablename LOOP
-    EXECUTE format(
-      'INSERT INTO public.azaad_dr_reconciliation (table_name, row_count) SELECT %L, count(*) FROM public.%I',
-      r.tablename,
-      r.tablename
-    );
+    EXECUTE format('INSERT INTO public.azaad_dr_reconciliation (table_name, row_count) SELECT %L, count(*) FROM public.%I', r.tablename, r.tablename);
   END LOOP;
 END $$;
 SQL
 
-# Preserve only the encrypted recovery artifact and non-sensitive checksums.
-# The plaintext dump remains inside the temporary runner directory and is
-# removed by the EXIT trap.
 cp "$work/public.dump.enc" "$evidence/public.dump.enc"
 cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
 cat > "$evidence/README.txt" <<'EOF'
@@ -165,17 +126,17 @@ cutover are separate certification gates and are not implied by this artifact.
 EOF
 chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256" "$evidence/README.txt"
 
-echo "PASS: PostgreSQL 17 archive toolchain"
-echo "PASS: custom dump validated with pg_restore --list"
-echo "PASS: encrypted snapshot integrity verified"
-echo "PASS: decrypted archive revalidated"
-echo "PASS: Neon compatibility boundary initialized"
-echo "PASS: clean public-schema replacement completed"
-echo "PASS: strict pre-data and data restore completed"
-echo "PASS: portable post-data restore completed"
-echo "PASS: reconciliation metadata recorded"
-echo "PASS: encrypted recovery artifact staged for retention"
-echo "NOT PROVEN: identity/auth portability"
-echo "NOT PROVEN: FK equivalence for Supabase auth.users references"
-echo "NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence"
-echo "NOT PROVEN: production cutover"
+echo 'PASS: PostgreSQL 17 archive toolchain'
+echo 'PASS: custom dump validated with pg_restore --list'
+echo 'PASS: encrypted snapshot integrity verified'
+echo 'PASS: decrypted archive revalidated'
+echo 'PASS: Neon compatibility boundary initialized'
+echo 'PASS: clean public-schema replacement completed'
+echo 'PASS: strict pre-data and data restore completed'
+echo 'PASS: portable post-data restore completed'
+echo 'PASS: reconciliation metadata recorded'
+echo 'PASS: encrypted recovery artifact staged for retention'
+echo 'NOT PROVEN: identity/auth portability'
+echo 'NOT PROVEN: FK equivalence for Supabase auth.users references'
+echo 'NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence'
+echo 'NOT PROVEN: production cutover'
