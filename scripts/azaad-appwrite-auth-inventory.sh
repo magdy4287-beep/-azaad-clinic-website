@@ -8,20 +8,42 @@ set -euo pipefail
 endpoint="${APPWRITE_ENDPOINT%/}"
 evidence_dir="${RUNNER_TEMP:-/tmp}/azaad-appwrite-evidence"
 mkdir -p "$evidence_dir"
+response="$evidence_dir/users.json"
 
 # Read-only inventory. Never print user records or the API key.
-response="$evidence_dir/users.json"
-status="$(curl -sS -o "$response" -w '%{http_code}' \
-  -H "X-Appwrite-Project: ${APPWRITE_PROJECT_ID}" \
-  -H "X-Appwrite-Key: ${APPWRITE_API_KEY}" \
-  -H 'Content-Type: application/json' \
-  "${endpoint}/users?limit=1")"
-
-if [ "$status" != "200" ]; then
-  echo "FAIL: Appwrite users read returned HTTP ${status}" >&2
-  rm -f "$response"
-  exit 1
-fi
+node <<'NODE'
+const fs = require('fs');
+const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+const project = process.env.APPWRITE_PROJECT_ID;
+const key = process.env.APPWRITE_API_KEY;
+const output = process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/azaad-appwrite-evidence/users.json` : '/tmp/azaad-appwrite-evidence/users.json';
+const controller = new AbortController();
+const timer = setTimeout(() => controller.abort(), 30000);
+(async () => {
+  try {
+    const res = await fetch(`${endpoint}/users?limit=1`, {
+      method: 'GET',
+      headers: {
+        'X-Appwrite-Project': project,
+        'X-Appwrite-Key': key,
+        'Accept': 'application/json'
+      },
+      signal: controller.signal
+    });
+    const text = await res.text();
+    fs.writeFileSync(output, text, { mode: 0o600 });
+    if (res.status !== 200) {
+      console.error(`FAIL: Appwrite users read returned HTTP ${res.status}`);
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(`FAIL: Appwrite users request failed: ${err.name || 'Error'}`);
+    process.exit(1);
+  } finally {
+    clearTimeout(timer);
+  }
+})();
+NODE
 
 if ! command -v jq >/dev/null 2>&1; then
   sudo apt-get update >/dev/null
@@ -45,7 +67,6 @@ mode=READ_ONLY
 no_user_records_published=true
 EOF
 
-# Raw API response is intentionally removed; only non-sensitive counts remain.
 rm -f "$response"
 cat "$evidence_dir/README.txt"
 echo "PASS: Appwrite Auth read-only inventory completed; users_total=${count}"
