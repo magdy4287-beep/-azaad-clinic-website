@@ -46,8 +46,8 @@ pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
 
 # External dependencies required by the public-schema archive are prepared first.
-# The security helper is deliberately fail-closed: it exists only so restored RLS
-# definitions can be created and is not an authorization implementation.
+# Security compatibility helpers are deliberately fail-closed. They exist only
+# so restored RLS definitions can be created; they are not authorization logic.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
@@ -95,6 +95,16 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF;
 END $$;
 
+-- Both signatures have been observed as external dependencies of the restored
+-- Supabase RLS layer. Keep both helpers fail-closed during emergency recovery.
+CREATE OR REPLACE FUNCTION security.can_access_patient(patient_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT false;
+$$;
+
 CREATE OR REPLACE FUNCTION security.can_access_patient_clinical(patient_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -103,7 +113,9 @@ AS $$
   SELECT false;
 $$;
 
+REVOKE ALL ON FUNCTION security.can_access_patient(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
@@ -155,9 +167,9 @@ SQL
 # boundary are ready. No textual post-data helper is generated or piped to psql.
 pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
-# Record reconciliation evidence. Keep the compatibility security function
+# Record reconciliation evidence. Keep the compatibility security functions
 # explicitly fail-closed until the dedicated security certification gate replaces
-# it with the real authorization implementation.
+# them with the real authorization implementation.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   checked_at timestamptz NOT NULL DEFAULT now(),
@@ -183,7 +195,9 @@ BEGIN
   END LOOP;
 END $$;
 
+REVOKE ALL ON FUNCTION security.can_access_patient(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
@@ -204,10 +218,10 @@ restore Supabase RLS definitions. They are not a production authorization
 implementation; identity and authorization portability must be certified
 separately before production cutover.
 
-security.can_access_patient_clinical is a fail-closed compatibility dependency
-used only while restoring RLS definitions. It returns false and is NOT an
-authorization implementation. RLS/RPC/Edge Function behavioral portability must
-be certified separately before production cutover.
+security.can_access_patient and security.can_access_patient_clinical are
+fail-closed compatibility dependencies used only while restoring RLS definitions.
+They return false and are NOT authorization implementations. RLS/RPC/Edge Function
+behavioral portability must be certified separately before production cutover.
 EOF
 chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256" "$evidence/README.txt"
 
@@ -217,6 +231,8 @@ echo 'PASS: encrypted snapshot integrity verified'
 echo 'PASS: decrypted archive revalidated'
 echo 'PASS: auth and security external dependencies initialized'
 echo 'PASS: Supabase auth helper signatures initialized'
+echo 'PASS: security.can_access_patient helper initialized fail-closed'
+echo 'PASS: security.can_access_patient_clinical helper initialized fail-closed'
 echo 'PASS: public schema cleared without pre-creating it'
 echo 'PASS: pg_restore owns public schema recreation'
 echo 'PASS: strict pre-data restore completed'
