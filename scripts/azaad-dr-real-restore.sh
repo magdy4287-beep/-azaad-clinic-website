@@ -45,18 +45,38 @@ cmp "$work/public.dump" "$work/public.restore.dump"
 pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
 
+# The restore target is intentionally prepared with only the minimal external
+# Supabase identity boundary. The security helper below is a FAIL-CLOSED
+# dependency stub: it exists only so post-data RLS policies can be created.
+# It is never treated as proof of authorization portability and is explicitly
+# replaced/validated in the later security-certification gate.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS security;
 CREATE TABLE IF NOT EXISTS auth.users (id uuid NOT NULL PRIMARY KEY);
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF;
 END $$;
+
+-- Fail-closed compatibility dependency for restored RLS policy creation.
+-- This MUST NOT grant clinical access during DR restore.
+CREATE OR REPLACE FUNCTION security.can_access_patient_clinical(patient_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT false;
+$$;
+
+REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
 
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
@@ -98,6 +118,8 @@ SQL
 
 pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
+# The restored archive is now structurally complete. Reassert the DR security
+# boundary explicitly: the compatibility function is not an authorization proof.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   checked_at timestamptz NOT NULL DEFAULT now(),
@@ -112,6 +134,9 @@ BEGIN
     EXECUTE format('INSERT INTO public.azaad_dr_reconciliation (table_name, row_count) SELECT %L, count(*) FROM public.%I', r.tablename, r.tablename);
   END LOOP;
 END $$;
+
+REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
 cp "$work/public.dump.enc" "$evidence/public.dump.enc"
@@ -126,8 +151,10 @@ Referenced identity UUIDs are materialized as minimal auth.users placeholders
 only to satisfy referential integrity during disaster recovery. This must not
 be interpreted as restoration of Supabase Auth credentials or sessions.
 
-Identity/Auth portability, RLS/RPC/Edge Function equivalence, and production
-cutover are separate certification gates and are not implied by this artifact.
+The security.can_access_patient_clinical function is a fail-closed compatibility
+stub used only to permit restoration of RLS policy definitions. It returns false
+and is NOT an authorization implementation. RLS/RPC/Edge Function behavioral
+portability must be certified separately before any production cutover.
 EOF
 chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256" "$evidence/README.txt"
 
@@ -136,6 +163,7 @@ echo 'PASS: custom dump validated with pg_restore --list'
 echo 'PASS: encrypted snapshot integrity verified'
 echo 'PASS: decrypted archive revalidated'
 echo 'PASS: Neon compatibility boundary initialized'
+echo 'PASS: auth and security dependency boundaries initialized'
 echo 'PASS: clean public-schema replacement completed'
 echo 'PASS: strict pre-data and data restore completed'
 echo 'PASS: dynamic identity-reference placeholders materialized before FK creation'
