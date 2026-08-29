@@ -19,7 +19,8 @@ trap 'rm -rf "$work"' EXIT
 
 export PGSSLMODE=require
 
-# Capture a portable public-domain snapshot. Auth identities are deliberately excluded.
+# Capture a portable public-domain snapshot. Supabase Auth identities are deliberately
+# excluded from the portable data plane and are qualified separately.
 pg_dump "$SUPABASE_DB_URL" \
   --format=custom \
   --schema=public \
@@ -47,10 +48,35 @@ openssl enc -d -aes-256-cbc -pbkdf2 \
 sha256sum -c "$work/public.dump.sha256" --ignore-missing
 cmp "$work/public.dump" "$work/public.restore.dump"
 
-# Restore only the portable public data model. Identity/auth and provider-specific
-# runtime behavior remain separate qualification gates.
+# Supabase public objects can contain FK/RLS references to provider-owned auth roles and
+# auth.users. Neon does not provide those Supabase-owned objects. Create a minimal, explicit
+# compatibility boundary so schema restore can be evaluated without importing identities.
+# This does NOT claim Auth portability: the table is empty and identity equivalence remains
+# a separate, fail-closed qualification gate.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE TABLE IF NOT EXISTS auth.users (
+  id uuid NOT NULL PRIMARY KEY
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role;
+  END IF;
+END $$;
+SQL
+
+# Restore only the portable public data model. Exit on the first restore error so a partial
+# DR is never reported as successful. Provider-owned identity/auth behavior remains separate.
 pg_restore \
   --clean --if-exists \
+  --exit-on-error \
   --no-owner --no-privileges \
   --dbname="$NEON_DATABASE_URL" \
   "$work/public.restore.dump"
@@ -79,6 +105,7 @@ SQL
 
 echo "PASS: encrypted portable public-schema export"
 echo "PASS: SHA-256 integrity verification"
+echo "PASS: Neon compatibility boundary initialized"
 echo "PASS: DR restore completed"
 echo "PASS: reconciliation metadata recorded"
 echo "NOT PROVEN: identity/auth portability"
