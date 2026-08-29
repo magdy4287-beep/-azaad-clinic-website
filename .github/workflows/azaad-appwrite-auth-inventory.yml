@@ -1,0 +1,56 @@
+name: AZAAD Appwrite Auth Inventory
+
+on:
+  push:
+    branches:
+      - emergency/supabase-evacuation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-appwrite-auth-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: Read-only Appwrite Auth inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify Appwrite secrets without printing them
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$APPWRITE_ENDPOINT"
+          test -n "$APPWRITE_PROJECT_ID"
+          test -n "$APPWRITE_API_KEY"
+
+      - name: Run read-only Appwrite Auth inventory
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: bash scripts/azaad-appwrite-auth-inventory.sh
