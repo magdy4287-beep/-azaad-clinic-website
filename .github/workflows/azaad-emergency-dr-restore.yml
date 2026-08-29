@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - codex/azaad-emergency-dr-execution
+      - emergency/supabase-evacuation
   workflow_dispatch:
 
 permissions:
@@ -65,12 +66,18 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$SUPABASE_DB_URL"
           test -n "$NEON_DATABASE_URL"
           test -n "$DR_BACKUP_PASSPHRASE"
+          test -n "$APPWRITE_ENDPOINT"
+          test -n "$APPWRITE_PROJECT_ID"
+          test -n "$APPWRITE_API_KEY"
 
       - name: Execute fail-closed restore
         env:
@@ -115,6 +122,14 @@ jobs:
           echo "recovery_artifact_digest=$ARTIFACT_DIGEST"
           echo 'PASS: encrypted recovery artifact was published and immutable identifiers were returned'
 
+      - name: Read-only Appwrite Auth inventory
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: bash scripts/azaad-appwrite-auth-inventory.sh
+
       - name: Preserve only non-sensitive certification evidence
         shell: bash
         run: |
@@ -124,6 +139,7 @@ jobs:
           echo 'source=Supabase public schema'
           echo 'destination=Neon PostgreSQL'
           echo 'encrypted_recovery_artifact=UPLOADED_AND_VERIFIED'
+          echo 'appwrite_auth_inventory=READ_ONLY_COMPLETED'
           echo 'identity_status=NOT_PROVEN'
           echo 'authorization_status=NOT_PROVEN'
           echo 'production_cutover=BLOCKED'
