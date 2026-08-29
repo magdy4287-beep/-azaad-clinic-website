@@ -18,8 +18,6 @@ mkdir -p "$work"
 chmod 700 "$work"
 trap 'rm -rf "$work"' EXIT
 
-# The portable source artifact is deliberately a PostgreSQL custom/archive dump.
-# Never pass this binary archive to psql; psql is used only for SQL text/queries.
 pg_dump "$SUPABASE_DB_URL" \
   --format=custom \
   --schema=public \
@@ -27,8 +25,6 @@ pg_dump "$SUPABASE_DB_URL" \
   --no-privileges \
   --file="$work/public.dump"
 
-# Prove the archive is readable by the matching PostgreSQL 17 restore client before
-# any destructive operation is performed against the Neon DR target.
 pg_restore --list "$work/public.dump" > "$work/archive.list"
 test -s "$work/archive.list"
 
@@ -51,8 +47,6 @@ cmp "$work/public.dump" "$work/public.restore.dump"
 pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
 
-# Neon receives an explicit compatibility boundary for Supabase-owned identity objects.
-# This does NOT claim identity portability or authentication equivalence.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
@@ -72,14 +66,10 @@ BEGIN
 END $$;
 SQL
 
-# Destructive operation is confined to the Neon DR target. Do not recreate public:
-# the dump's pre-data section owns CREATE SCHEMA public.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 SQL
 
-# Restore the archive with pg_restore only. Strict pre-data/data phases prevent silent
-# partial restores and keep binary archive content away from psql.
 pg_restore \
   --exit-on-error \
   --no-owner --no-privileges \
@@ -94,22 +84,30 @@ pg_restore \
   --dbname="$NEON_DATABASE_URL" \
   "$work/public.restore.dump"
 
-# Convert only the post-data archive section to SQL text. Filter only FK statements
-# targeting Supabase's intentionally non-portable auth identity plane. All remaining
-# post-data SQL is applied fail-closed with ON_ERROR_STOP.
 pg_restore \
   --no-owner --no-privileges \
   --section=post-data \
   --file="$work/post-data.sql" \
   "$work/public.restore.dump"
 
-awk 'BEGIN { RS=";"; ORS=";\n" } !/REFERENCES[[:space:]]+auth\.users[[:space:]]*\(/' \
-  "$work/post-data.sql" > "$work/post-data.portable.sql"
+# pg_restore --section=post-data --file produces SQL text. Reject archive/list
+# metadata accidentally supplied as the helper artifact instead of feeding it to psql.
+if grep -qE '^Type:' "$work/post-data.sql"; then
+  echo "ERROR: post-data artifact contains pg_restore list metadata, not SQL" >&2
+  exit 1
+fi
+
+# Apply only statements that are portable outside Supabase's identity plane.
+# We remove complete ALTER TABLE ... ADD CONSTRAINT statements whose target is
+# auth.users; all other SQL remains strict and fail-closed.
+awk 'BEGIN { RS=";"; ORS=";\n" }
+  /REFERENCES[[:space:]]+auth\.users[[:space:]]*\(/ { next }
+  { print }
+' "$work/post-data.sql" > "$work/post-data.portable.sql"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f "$work/post-data.portable.sql"
 
-# Reconcile without emitting row contents.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   checked_at timestamptz NOT NULL DEFAULT now(),
