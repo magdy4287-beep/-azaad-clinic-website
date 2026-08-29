@@ -25,6 +25,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-ai-gate.yml` | AI operating system | AI operating-system contract | Canonical AI platform gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
+| `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
 
 ## Proven non-duplication decisions
 
@@ -47,6 +48,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Clinical authorization
 
 `azaad-clinical-authorization-e2e.yml` is intentionally separate from `azaad-browser-e2e.yml`. Browser E2E owns production UI/runtime behavior; clinical authorization E2E owns authenticated multi-role authorization semantics and controlled clinical fixture creation. The clinical workflow is the single execution owner for that authorization contract and must not be duplicated by a second `workflow_run` trigger.
+
+### Emergency DR
+
+`azaad-emergency-dr-restore.yml` is intentionally separate from production certification and browser E2E. It owns only the emergency data-plane transport/restore boundary from Supabase public schema to Neon DR, with encryption, integrity, compatibility handling, and reconciliation. It does not certify identity equivalence, application authorization, RLS/RPC behavioral equivalence, or production cutover.
 
 ### Final release
 
