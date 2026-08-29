@@ -5,12 +5,12 @@ set -euo pipefail
 : "${NEON_DATABASE_URL:?Missing NEON_DATABASE_URL secret}"
 : "${DR_BACKUP_PASSPHRASE:?Missing DR_BACKUP_PASSPHRASE secret}"
 
-command -v pg_dump >/dev/null
-command -v pg_restore >/dev/null
-command -v psql >/dev/null
-command -v sha256sum >/dev/null
-command -v openssl >/dev/null
-command -v awk >/dev/null
+export PATH="/usr/lib/postgresql/17/bin:$PATH"
+export PGSSLMODE=require
+
+for cmd in pg_dump pg_restore psql sha256sum openssl awk cmp; do
+  command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
+done
 
 work="${RUNNER_TEMP}/azaad-dr"
 rm -rf "$work"
@@ -18,10 +18,8 @@ mkdir -p "$work"
 chmod 700 "$work"
 trap 'rm -rf "$work"' EXIT
 
-export PGSSLMODE=require
-
-# Capture a portable public-domain snapshot. Supabase Auth identities are deliberately
-# excluded from the portable data plane and are qualified separately.
+# The portable source artifact is deliberately a PostgreSQL custom/archive dump.
+# Never pass this binary archive to psql; psql is used only for SQL text/queries.
 pg_dump "$SUPABASE_DB_URL" \
   --format=custom \
   --schema=public \
@@ -29,10 +27,13 @@ pg_dump "$SUPABASE_DB_URL" \
   --no-privileges \
   --file="$work/public.dump"
 
+# Prove the archive is readable by the matching PostgreSQL 17 restore client before
+# any destructive operation is performed against the Neon DR target.
+pg_restore --list "$work/public.dump" > "$work/archive.list"
+test -s "$work/archive.list"
+
 sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 
-# Encrypt the snapshot for ephemeral transport/storage. The passphrase is supplied only
-# through the runner secret and is never printed or persisted to Git.
 openssl enc -aes-256-cbc -pbkdf2 -salt \
   -pass env:DR_BACKUP_PASSPHRASE \
   -in "$work/public.dump" \
@@ -40,7 +41,6 @@ openssl enc -aes-256-cbc -pbkdf2 -salt \
 
 sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"
 
-# Decrypt into an ephemeral file and prove the original checksum before touching DR.
 openssl enc -d -aes-256-cbc -pbkdf2 \
   -pass env:DR_BACKUP_PASSPHRASE \
   -in "$work/public.dump.enc" \
@@ -48,11 +48,11 @@ openssl enc -d -aes-256-cbc -pbkdf2 \
 
 sha256sum -c "$work/public.dump.sha256" --ignore-missing
 cmp "$work/public.dump" "$work/public.restore.dump"
+pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
+test -s "$work/restored-archive.list"
 
-# Supabase public objects can contain FK/RLS references to provider-owned auth roles and
-# auth.users. Neon does not provide those Supabase-owned objects. Create a minimal explicit
-# compatibility boundary so portable schema objects can be restored without importing
-# identities. Identity equivalence is NOT claimed by this step.
+# Neon receives an explicit compatibility boundary for Supabase-owned identity objects.
+# This does NOT claim identity portability or authentication equivalence.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
@@ -72,18 +72,14 @@ BEGIN
 END $$;
 SQL
 
-# This is a destructive DR-target operation by design. The public schema is replaced as a
-# whole so existing FK relationships cannot block DROP TABLE during restore. Supabase auth
-# compatibility objects live outside public and are retained.
-# IMPORTANT: do not recreate public here. The dump's pre-data section owns CREATE SCHEMA public;
-# recreating it manually would make pg_restore fail on a duplicate schema definition.
+# Destructive operation is confined to the Neon DR target. Do not recreate public:
+# the dump's pre-data section owns CREATE SCHEMA public.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 SQL
 
-# Restore in phases. Foreign keys are post-data objects. Because Supabase Auth rows are
-# intentionally not exported, FK constraints targeting auth.users cannot be truthfully
-# recreated in Neon. Pre-data and data are strict; no blanket ignore-errors behavior is used.
+# Restore the archive with pg_restore only. Strict pre-data/data phases prevent silent
+# partial restores and keep binary archive content away from psql.
 pg_restore \
   --exit-on-error \
   --no-owner --no-privileges \
@@ -98,8 +94,9 @@ pg_restore \
   --dbname="$NEON_DATABASE_URL" \
   "$work/public.restore.dump"
 
-# Extract post-data SQL, then remove ONLY statements that define FK constraints against the
-# deliberately absent Supabase auth identity plane. Everything else remains fail-closed.
+# Convert only the post-data archive section to SQL text. Filter only FK statements
+# targeting Supabase's intentionally non-portable auth identity plane. All remaining
+# post-data SQL is applied fail-closed with ON_ERROR_STOP.
 pg_restore \
   --no-owner --no-privileges \
   --section=post-data \
@@ -112,7 +109,7 @@ awk 'BEGIN { RS=";"; ORS=";\n" } !/REFERENCES[[:space:]]+auth\.users[[:space:]]*
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f "$work/post-data.portable.sql"
 
-# Reconcile counts without emitting row contents to logs.
+# Reconcile without emitting row contents.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   checked_at timestamptz NOT NULL DEFAULT now(),
@@ -120,7 +117,6 @@ CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   row_count bigint NOT NULL,
   PRIMARY KEY (checked_at, table_name)
 );
-
 DO $$
 DECLARE r record;
 BEGIN
@@ -134,11 +130,13 @@ BEGIN
 END $$;
 SQL
 
-echo "PASS: encrypted portable public-schema export"
-echo "PASS: SHA-256 integrity verification"
+echo "PASS: PostgreSQL 17 archive toolchain"
+echo "PASS: custom dump validated with pg_restore --list"
+echo "PASS: encrypted snapshot integrity verified"
+echo "PASS: decrypted archive revalidated"
 echo "PASS: Neon compatibility boundary initialized"
 echo "PASS: clean public-schema replacement completed"
-echo "PASS: portable pre-data and data restore completed"
+echo "PASS: strict pre-data and data restore completed"
 echo "PASS: portable post-data restore completed"
 echo "PASS: reconciliation metadata recorded"
 echo "NOT PROVEN: identity/auth portability"
