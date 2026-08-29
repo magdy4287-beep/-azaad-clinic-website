@@ -30,14 +30,24 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Install PostgreSQL client if needed
+      - name: Install PostgreSQL 17 client if needed
         shell: bash
         run: |
           set -euo pipefail
           if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null || ! command -v psql >/dev/null; then
             sudo apt-get update
-            sudo apt-get install -y postgresql-client
+            sudo apt-get install -y curl ca-certificates gnupg
+            sudo install -d -m 0755 /etc/apt/keyrings
+            curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+              | sudo gpg --dearmor --yes -o /etc/apt/keyrings/postgresql.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo \"$VERSION_CODENAME\")-pgdg main" \
+              | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-17
           fi
+          test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
+          test "$(pg_restore --version | awk '{print $3}' | cut -d. -f1)" = "17"
+          test "$(psql --version | awk '{print $3}' | cut -d. -f1)" = "17"
 
       - name: Verify required emergency secrets without printing them
         env:
