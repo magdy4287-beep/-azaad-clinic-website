@@ -1,0 +1,73 @@
+name: AZAAD Emergency DR Restore
+
+on:
+  push:
+    branches:
+      - codex/azaad-emergency-dr-execution
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-emergency-dr-restore
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    name: Free-only emergency DR restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Install PostgreSQL client if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null || ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Verify required emergency secrets without printing them
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_URL"
+          test -n "$NEON_DATABASE_URL"
+          test -n "$DR_BACKUP_PASSPHRASE"
+          echo 'PASS: required emergency DR secrets are configured'
+
+      - name: Execute fail-closed restore
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+        shell: bash
+        run: bash scripts/azaad-dr-real-restore.sh
+
+      - name: Preserve only non-sensitive certification evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "candidate_sha=$GITHUB_SHA"
+          echo 'restore_runner=azaad-dr-real-restore.sh'
+          echo 'source=Supabase public schema'
+          echo 'destination=Neon PostgreSQL'
+          echo 'identity_status=NOT_PROVEN'
+          echo 'authorization_status=NOT_PROVEN'
+          echo 'production_cutover=BLOCKED'
