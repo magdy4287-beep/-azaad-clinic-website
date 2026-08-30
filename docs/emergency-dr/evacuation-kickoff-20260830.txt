@@ -1,0 +1,5 @@
+AZAAD Emergency DR evacuation kickoff.
+
+Validated before execution: emergency branch contains database restore, Appwrite Auth inventory, and Supabase Storage evacuation workflows. This marker intentionally contains no runtime behavior; its push exists only to execute the current evacuation gates against the current emergency candidate.
+
+Safety: source Supabase data and objects must not be deleted by this workflow. Retirement and cutover remain blocked until fresh reconciliation evidence exists.
