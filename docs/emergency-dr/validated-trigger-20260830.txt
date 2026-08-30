@@ -1,0 +1,3 @@
+AZAAD Emergency DR validated trigger.
+
+This file intentionally contains no runtime behavior. Its only purpose is to create a push event on emergency/supabase-evacuation after the restore implementation and workflow pin were independently validated, so the emergency DR workflow executes against the current candidate.
