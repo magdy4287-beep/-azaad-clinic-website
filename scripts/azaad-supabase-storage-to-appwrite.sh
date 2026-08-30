@@ -7,7 +7,16 @@ set -euo pipefail
 : "${APPWRITE_PROJECT_ID:?Missing APPWRITE_PROJECT_ID}"
 : "${APPWRITE_API_KEY:?Missing APPWRITE_API_KEY}"
 
-export SUPABASE_URL="${SUPABASE_URL%/}"
+# Accept the canonical Supabase project URL. If a dashboard/rest URL was
+# accidentally supplied, normalize it to https://<project-ref>.supabase.co
+# instead of silently treating Storage HTTP 404 as an empty migration.
+SUPABASE_URL="${SUPABASE_URL%/}"
+if [[ "$SUPABASE_URL" =~ ^https://app\.supabase\.com/dashboard/project/([a-z0-9]+)(/.*)?$ ]]; then
+  SUPABASE_URL="https://${BASH_REMATCH[1]}.supabase.co"
+elif [[ "$SUPABASE_URL" =~ ^https://([a-z0-9]+)\.supabase\.co(/rest/v1|/storage/v1|/auth/v1)?$ ]]; then
+  SUPABASE_URL="https://${BASH_REMATCH[1]}.supabase.co"
+fi
+export SUPABASE_URL
 export APPWRITE_ENDPOINT="${APPWRITE_ENDPOINT%/}"
 
 node <<'NODE'
@@ -58,8 +67,8 @@ async function json(url, options, label) {
 function supabaseHeaders() {
   const h = {'apikey':supaKey, 'Accept':'application/json'};
   // New Supabase secret keys (sb_secret_*) are opaque API keys, not JWTs.
-  // They MUST be sent via apikey only; putting them in Authorization: Bearer
-  // makes the gateway attempt JWT parsing and can fail before Storage routing.
+  // They MUST be sent via apikey only. Legacy service_role is a JWT and also
+  // needs Authorization: Bearer for the Storage service.
   if (!supaKey.startsWith('sb_secret_')) h.Authorization = `Bearer ${supaKey}`;
   return h;
 }
@@ -155,9 +164,19 @@ async function verifyDestination(bucketIdValue, f, expectedSha, expectedSize) {
 }
 
 (async()=>{
-  const manifest={candidate_sha:process.env.GITHUB_SHA||'unknown',started_at:new Date().toISOString(),buckets:[],source_deleted:false};
-  const sbRes=await json(`${supabase}/storage/v1/bucket`,{headers:supabaseHeaders()},'Supabase bucket inventory');
+  const manifest={candidate_sha:process.env.GITHUB_SHA||'unknown',started_at:new Date().toISOString(),buckets:[],source_deleted:false,supabase_url:supabase};
+
+  // Do not interpret HTTP 404 as an empty Storage account. A 404 here means
+  // the supplied project URL is not reaching the Supabase Storage API (or the
+  // project is unavailable), and must remain fail-closed.
+  const inventoryResponse = await fetch(`${supabase}/storage/v1/bucket`, {headers:supabaseHeaders()});
+  if (inventoryResponse.status === 404) {
+    throw new Error(`Supabase Storage bucket inventory: HTTP 404 (normalized SUPABASE_URL=${supabase}; expected project API URL https://<project-ref>.supabase.co)`);
+  }
+  if (!inventoryResponse.ok) throw new Error(`Supabase Storage bucket inventory: HTTP ${inventoryResponse.status}`);
+  const sbRes = await inventoryResponse.json();
   if(!Array.isArray(sbRes)) throw new Error('Supabase bucket inventory was not an array');
+
   const awBuckets=await appwriteBuckets();
   for(const b of sbRes){
     const existing=awBuckets.find(x=>x.name===b.name);
