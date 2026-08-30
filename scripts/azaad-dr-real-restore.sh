@@ -53,15 +53,17 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# pg_restore list entries are: "N; OID OID TYPE SCHEMA NAME".
-# For schemas the public entry is "... SCHEMA - public". Exclude only that entry.
+# pg_restore list format: "... TYPE SCHEMA NAME ...".
+# For schemas: TYPE is $4, schema placeholder is $5, name is $6.
+# For tables: TYPE is $4, schema is $5, name is $6.
+# Exclude only the archive's CREATE SCHEMA public entry; never drop Neon's schema.
 awk '!(NF >= 6 && $4 == "SCHEMA" && $6 == "public")' "$work/restored-archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
 if awk 'NF >= 6 && $4 == "SCHEMA" && $6 == "public" {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list still contains CREATE SCHEMA public.' >&2
   exit 1
 fi
-if ! awk 'NF >= 5 && $4 == "TABLE" && $5 ~ /^public\./ {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
+if ! awk 'NF >= 6 && $4 == "TABLE" && $5 == "public" {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list contains no public tables.' >&2
   exit 1
 fi
