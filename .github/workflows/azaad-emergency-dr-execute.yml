@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
+          echo "candidate_ref=${{ inputs.candidate_ref || github.ref }}"
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "$candidate_sha" = "$GITHUB_SHA"
           fi
@@ -62,6 +63,14 @@ jobs:
       - name: Inventory source and runtime references
         shell: bash
         run: bash scripts/azaad-supabase-evacuation-inventory.sh
+      - name: Upload evacuation inventory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-supabase-evacuation-inventory-${{ github.sha }}
+          path: ${{ runner.temp }}/azaad-supabase-evacuation/
+          if-no-files-found: error
+          retention-days: 90
       - name: Verify database migration secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -119,6 +128,7 @@ jobs:
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
+          echo "candidate_ref=${{ inputs.candidate_ref || github.ref }}"
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "$candidate_sha" = "$GITHUB_SHA"
           fi
