@@ -1,0 +1,87 @@
+name: AZAAD Emergency DR Storage Evacuation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - emergency/supabase-evacuation
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-emergency-dr-storage
+  cancel-in-progress: false
+
+jobs:
+  storage:
+    name: Migrate Supabase Storage to Appwrite
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact emergency candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Verify required migration secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "MISSING_SECRET=$name"
+              missing=1
+            else
+              echo "PRESENT_SECRET=$name"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo 'FAIL-CLOSED: storage migration credentials are not all configured.'
+            exit 78
+          fi
+
+      - name: Migrate all Supabase Storage objects
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: bash scripts/azaad-supabase-storage-to-appwrite.sh
+
+      - name: Upload migration manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-storage-migration-${{ github.sha }}
+          path: ${{ runner.temp }}/azaad-storage-migration/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Fail closed for any incomplete migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "${RUNNER_TEMP}/azaad-storage-migration/manifest.json"
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=process.env.RUNNER_TEMP+'/azaad-storage-migration/manifest.json';
+          const m=JSON.parse(fs.readFileSync(p,'utf8'));
+          if(m.status!=='PASS') process.exit(1);
+          for(const b of m.buckets) if(b.file_count!==b.uploaded || b.failed.length) process.exit(1);
+          console.log('PASS: Storage migration manifest is complete and reconciled');
+          NODE
