@@ -62,13 +62,13 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# pg_restore list files are line-oriented TOC specifications.  Comment the exact
+# pg_restore list files are line-oriented TOC specifications. Comment the exact
 # public-schema CREATE entry rather than relying on a broad regex; the destination
 # PostgreSQL database owns the public schema and it must never be recreated.
 cp "$work/restored-archive.list" "$work/restore.list"
 awk '
   BEGIN { changed=0 }
-  /^[[:space:]]*[0-9]+;[[:space:]]+[^;]+;[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)/ {
+  /^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)/ {
     if ($0 !~ /^;/) { print ";" $0; changed=1; next }
   }
   { print }
@@ -76,7 +76,7 @@ awk '
 ' "$work/restored-archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
 
-if grep -Eq '^[[:space:]]*[0-9]+;[[:space:]]+[^;]+;[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
+if grep -Eq '^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
   echo 'FAIL-CLOSED: active CREATE SCHEMA public entry remains in restore list.' >&2
   grep -E 'SCHEMA|TABLE|TABLE DATA' "$work/restore.list" | head -100 >&2 || true
   exit 1
