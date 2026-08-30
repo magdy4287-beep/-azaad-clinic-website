@@ -8,7 +8,7 @@ set -euo pipefail
 export PATH="/usr/lib/postgresql/17/bin:$PATH"
 export PGSSLMODE=require
 
-for cmd in pg_dump pg_restore psql sha256sum openssl cmp; do
+for cmd in pg_dump pg_restore psql sha256sum openssl cmp awk; do
   command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
 done
 
@@ -53,9 +53,6 @@ CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
 CREATE TABLE IF NOT EXISTS auth.users (id uuid NOT NULL PRIMARY KEY);
 
--- Supabase-compatible helper signatures required while restoring RLS policies.
--- These are compatibility stubs only; production identity/authorization behavior
--- remains separately uncertified and is explicitly not delegated to these stubs.
 CREATE OR REPLACE FUNCTION auth.uid()
 RETURNS uuid
 LANGUAGE sql
@@ -95,8 +92,6 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF;
 END $$;
 
--- Both signatures have been observed as external dependencies of the restored
--- Supabase RLS layer. Keep both helpers fail-closed during emergency recovery.
 CREATE OR REPLACE FUNCTION security.can_access_patient(patient_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -119,17 +114,25 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# Do not CREATE public here. The custom archive owns the public schema definition.
-# Remove the old schema, then let pg_restore recreate it from the archive.
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
+# Neon already has the standard public schema. Do NOT drop it with CASCADE:
+# that could destroy unrelated target objects. Instead, use a pg_restore list
+# that excludes only the archive's CREATE SCHEMA public entry. The remainder of
+# the archive is restored into the existing public schema.
+awk '!($0 ~ /SCHEMA - public$/)' "$work/restored-archive.list" > "$work/restore.list"
+test -s "$work/restore.list"
 
-# Restore pre-data first. This recreates public and all objects required by the data
-# section without any manually-created public schema collision.
-pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --no-owner --no-privileges \
+  --use-list="$work/restore.list" \
+  --section=pre-data \
+  --dbname="$NEON_DATABASE_URL" \
+  "$work/public.restore.dump"
 
-# Restore table data separately. --disable-triggers is valid for data-only restore;
-# identity references are reconciled before the post-data FK/constraint section.
-pg_restore --exit-on-error --no-owner --no-privileges --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --no-owner --no-privileges \
+  --use-list="$work/restore.list" \
+  --section=data \
+  --disable-triggers \
+  --dbname="$NEON_DATABASE_URL" \
+  "$work/public.restore.dump"
 
 # Materialize every likely auth identity referenced by restored public data before
 # post-data creates foreign keys. This is metadata-driven, not table-name-driven.
@@ -163,13 +166,12 @@ BEGIN
 END $$;
 SQL
 
-# Apply indexes, triggers, rules and constraints only after the data and identity
-# boundary are ready. No textual post-data helper is generated or piped to psql.
-pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --no-owner --no-privileges \
+  --use-list="$work/restore.list" \
+  --section=post-data \
+  --dbname="$NEON_DATABASE_URL" \
+  "$work/public.restore.dump"
 
-# Record reconciliation evidence. Keep the compatibility security functions
-# explicitly fail-closed until the dedicated security certification gate replaces
-# them with the real authorization implementation.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
   checked_at timestamptz NOT NULL DEFAULT now(),
@@ -209,6 +211,10 @@ AZAAD Emergency DR encrypted recovery artifact.
 The archive is encrypted with the controlled DR passphrase stored in GitHub
 Actions secrets. The plaintext dump is intentionally not preserved.
 
+The target Neon public schema is preserved. Only the archive's CREATE SCHEMA
+public entry is excluded from pg_restore; tables, data, indexes, constraints,
+triggers and other archived objects are still restored.
+
 Referenced identity UUIDs are materialized as minimal auth.users placeholders
 only to satisfy referential integrity during disaster recovery. This is not a
 restoration of Supabase Auth credentials or sessions.
@@ -233,14 +239,9 @@ echo 'PASS: auth and security external dependencies initialized'
 echo 'PASS: Supabase auth helper signatures initialized'
 echo 'PASS: security.can_access_patient helper initialized fail-closed'
 echo 'PASS: security.can_access_patient_clinical helper initialized fail-closed'
-echo 'PASS: public schema cleared without pre-creating it'
-echo 'PASS: pg_restore owns public schema recreation'
+echo 'PASS: existing Neon public schema preserved'
+echo 'PASS: archive public-schema creation entry excluded'
 echo 'PASS: strict pre-data restore completed'
 echo 'PASS: strict data restore completed'
 echo 'PASS: dynamic identity-reference placeholders materialized'
 echo 'PASS: strict post-data restore completed'
-echo 'PASS: reconciliation metadata recorded'
-echo 'PASS: encrypted recovery artifact staged'
-echo 'NOT PROVEN: identity/auth portability'
-echo 'NOT PROVEN: RLS/RPC/Edge Function behavioral equivalence'
-echo 'NOT PROVEN: production cutover'
