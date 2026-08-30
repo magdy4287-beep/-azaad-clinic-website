@@ -33,7 +33,7 @@ jobs:
       - name: Checkout pinned DR execution implementation
         uses: actions/checkout@v4
         with:
-          ref: 15f9d272ffac33382040661d167f83cf278e1ac9
+          ref: 9ec444532bd95af0e5d5395111b296d391b6d3e4
           path: .dr-execution
           fetch-depth: 1
 
@@ -42,7 +42,7 @@ jobs:
         working-directory: .dr-execution
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "15f9d272ffac33382040661d167f83cf278e1ac9"
+          test "$(git rev-parse HEAD)" = "9ec444532bd95af0e5d5395111b296d391b6d3e4"
 
       - name: Install PostgreSQL 17 client non-interactively
         shell: bash
