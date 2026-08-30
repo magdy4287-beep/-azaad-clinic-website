@@ -1,3 +1,4 @@
+# Emergency DR execution gate — trigger a fresh candidate run after validated restore changes.
 name: AZAAD Emergency DR Execute
 
 on:
