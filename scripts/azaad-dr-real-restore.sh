@@ -25,13 +25,6 @@ pg_restore --list "$work/public.dump" > "$work/archive.list"
 test -s "$work/archive.list"
 sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 
-# Preflight the archive using pg_restore's documented list representation.
-# A public schema entry is intentionally excluded later; public table entries must remain.
-if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/archive.list"; then
-  echo 'PREFLIGHT: archive contains public schema entry; it will be excluded from restore list.'
-else
-  echo 'PREFLIGHT: archive has no explicit public schema entry; continuing.'
-fi
 if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list"; then
   echo 'FAIL-CLOSED: archive contains no public table entries.' >&2
   grep -E 'TABLE|TABLE DATA|SCHEMA' "$work/archive.list" | head -100 >&2 || true
@@ -69,8 +62,6 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# pg_restore list format prefixes entries with ';'. Exclude only the archive's
-# CREATE SCHEMA public entry; never drop or recreate Neon's existing public schema.
 grep -Ev '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restored-archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
 if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
@@ -85,7 +76,10 @@ fi
 
 echo 'PREFLIGHT: filtered restore list is valid.'
 
-pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# The previous emergency attempt partially populated the dedicated Neon DR target.
+# The archive is authoritative for the public schema objects, so clean only objects
+# represented by this archive before recreating them. This never touches Supabase.
+pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -130,6 +124,7 @@ AZAAD Emergency DR encrypted recovery artifact.
 The plaintext dump is intentionally not preserved.
 The Neon public schema is preserved; only the archive CREATE SCHEMA public entry is excluded.
 Auth identity placeholders are created only for referential-integrity compatibility; Supabase Auth credentials/sessions are not restored here.
+The destination is treated as the emergency DR target; --clean removes only objects represented by the recovery archive before recreation.
 EOF
 
 echo 'PASS: strict post-data restore completed'
