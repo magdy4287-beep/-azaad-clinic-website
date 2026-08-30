@@ -8,7 +8,7 @@ set -euo pipefail
 export PATH="/usr/lib/postgresql/17/bin:$PATH"
 export PGSSLMODE=require
 
-for cmd in pg_dump pg_restore psql sha256sum openssl cmp grep; do
+for cmd in pg_dump pg_restore psql sha256sum openssl cmp grep sed awk; do
   command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
 done
 
@@ -62,10 +62,23 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-grep -Ev '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restored-archive.list" > "$work/restore.list"
+# pg_restore list files are line-oriented TOC specifications.  Comment the exact
+# public-schema CREATE entry rather than relying on a broad regex; the destination
+# PostgreSQL database owns the public schema and it must never be recreated.
+cp "$work/restored-archive.list" "$work/restore.list"
+awk '
+  BEGIN { changed=0 }
+  /^[[:space:]]*[0-9]+;[[:space:]]+[^;]+;[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)/ {
+    if ($0 !~ /^;/) { print ";" $0; changed=1; next }
+  }
+  { print }
+  END { if (changed != 1) exit 2 }
+' "$work/restored-archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
-if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
-  echo 'FAIL-CLOSED: restore list still contains CREATE SCHEMA public.' >&2
+
+if grep -Eq '^[[:space:]]*[0-9]+;[[:space:]]+[^;]+;[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
+  echo 'FAIL-CLOSED: active CREATE SCHEMA public entry remains in restore list.' >&2
+  grep -E 'SCHEMA|TABLE|TABLE DATA' "$work/restore.list" | head -100 >&2 || true
   exit 1
 fi
 if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list"; then
@@ -74,7 +87,7 @@ if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore
   exit 1
 fi
 
-echo 'PREFLIGHT: filtered restore list is valid.'
+echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
 # The previous emergency attempt partially populated the dedicated Neon DR target.
 # The archive is authoritative for the public schema objects, so clean only objects
