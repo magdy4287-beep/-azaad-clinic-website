@@ -8,7 +8,7 @@ set -euo pipefail
 export PATH="/usr/lib/postgresql/17/bin:$PATH"
 export PGSSLMODE=require
 
-for cmd in pg_dump pg_restore psql sha256sum openssl cmp awk grep; do
+for cmd in pg_dump pg_restore psql sha256sum openssl cmp grep; do
   command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
 done
 
@@ -20,9 +20,25 @@ chmod 700 "$work" "$evidence"
 trap 'rm -rf "$work"' EXIT
 
 pg_dump "$SUPABASE_DB_URL" --format=custom --schema=public --no-owner --no-privileges --file="$work/public.dump"
+test -s "$work/public.dump"
 pg_restore --list "$work/public.dump" > "$work/archive.list"
 test -s "$work/archive.list"
 sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
+
+# Preflight the archive using pg_restore's documented list representation.
+# A public schema entry is intentionally excluded later; public table entries must remain.
+if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/archive.list"; then
+  echo 'PREFLIGHT: archive contains public schema entry; it will be excluded from restore list.'
+else
+  echo 'PREFLIGHT: archive has no explicit public schema entry; continuing.'
+fi
+if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list"; then
+  echo 'FAIL-CLOSED: archive contains no public table entries.' >&2
+  grep -E 'TABLE|TABLE DATA|SCHEMA' "$work/archive.list" | head -100 >&2 || true
+  exit 1
+fi
+
+echo 'PREFLIGHT: public table entries detected.'
 
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump" -out "$work/public.dump.enc"
 sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"
@@ -53,20 +69,21 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# pg_restore list format: "... TYPE SCHEMA NAME ...".
-# For schemas: TYPE is $4, schema placeholder is $5, name is $6.
-# For tables: TYPE is $4, schema is $5, name is $6.
-# Exclude only the archive's CREATE SCHEMA public entry; never drop Neon's schema.
-awk '!(NF >= 6 && $4 == "SCHEMA" && $6 == "public")' "$work/restored-archive.list" > "$work/restore.list"
+# pg_restore list format prefixes entries with ';'. Exclude only the archive's
+# CREATE SCHEMA public entry; never drop or recreate Neon's existing public schema.
+grep -Ev '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restored-archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
-if awk 'NF >= 6 && $4 == "SCHEMA" && $6 == "public" {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
+if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list still contains CREATE SCHEMA public.' >&2
   exit 1
 fi
-if ! awk 'NF >= 6 && $4 == "TABLE" && $5 == "public" {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
-  echo 'FAIL-CLOSED: restore list contains no public tables.' >&2
+if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list"; then
+  echo 'FAIL-CLOSED: restore list contains no public table entries.' >&2
+  grep -E 'TABLE|TABLE DATA|SCHEMA' "$work/restore.list" | head -100 >&2 || true
   exit 1
 fi
+
+echo 'PREFLIGHT: filtered restore list is valid.'
 
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
