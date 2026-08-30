@@ -1,4 +1,5 @@
-# Emergency DR execution gate — trigger a fresh candidate run after validated restore changes.
+# AZAAD Emergency DR — ordered evacuation gate.
+# Database must pass before Storage migration is allowed to start.
 name: AZAAD Emergency DR Execute
 
 on:
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   execute:
-    name: Execute emergency evacuation gates
+    name: Execute emergency database evacuation
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -30,20 +31,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-
-      - name: Checkout pinned DR execution implementation
-        uses: actions/checkout@v4
-        with:
-          ref: 77a6ec36e351a1b5f63ead9a8287dc1f2497d3bd
-          path: .dr-execution
-          fetch-depth: 1
-
-      - name: Verify pinned DR implementation SHA
-        shell: bash
-        working-directory: .dr-execution
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "77a6ec36e351a1b5f63ead9a8287dc1f2497d3bd"
 
       - name: Install PostgreSQL 17 client non-interactively
         shell: bash
@@ -64,40 +51,30 @@ jobs:
           command -v psql
           command -v pg_dump
           command -v pg_restore
-          psql --version
-          pg_dump --version
-          pg_restore --version
+          test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
 
       - name: Inventory source and runtime references
         shell: bash
         run: bash scripts/azaad-supabase-evacuation-inventory.sh
 
-      - name: Verify migration secrets are present
+      - name: Verify database migration secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
-          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
-          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           missing=0
-          for name in SUPABASE_DB_URL NEON_DATABASE_URL DR_BACKUP_PASSPHRASE APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
-            if [ -z "${!name:-}" ]; then
-              echo "MISSING_SECRET=$name"
-              missing=1
-            else
-              echo "PRESENT_SECRET=$name"
-            fi
+          for name in SUPABASE_DB_URL NEON_DATABASE_URL DR_BACKUP_PASSPHRASE; do
+            if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo 'FAIL-CLOSED: required evacuation secrets are not all configured.'
+            echo 'FAIL-CLOSED: required database evacuation secrets are not configured.'
             exit 78
           fi
 
-      - name: Execute Neon database restore
+      - name: Execute Neon database restore from this exact candidate
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
@@ -106,19 +83,86 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
-          test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
-          bash .dr-execution/scripts/azaad-dr-real-restore.sh
+          bash scripts/azaad-dr-real-restore.sh
 
-      - name: Record fail-closed certification state
+      - name: Record database evacuation gate
         shell: bash
         run: |
           set -euo pipefail
           echo "candidate_sha=$GITHUB_SHA"
-          echo 'database_restore=EXECUTED_IF_PRIOR_GATE_PASSED'
+          echo 'database_restore=PASS'
+          echo 'next_gate=STORAGE'
           echo 'identity_auth=NOT_PROVEN'
-          echo 'storage=NOT_PROVEN'
           echo 'edge_functions=NOT_PROVEN'
           echo 'browser_clinical_financial_e2e=NOT_PROVEN'
           echo 'production_cutover=BLOCKED'
           echo 'supabase_retirement=BLOCKED'
-          echo 'workflow_registration=DEFAULT_BRANCH_REGISTERED'
+
+  storage:
+    name: Migrate all Supabase Storage objects to Appwrite
+    needs: execute
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact emergency candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Verify Storage migration secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+            if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo 'FAIL-CLOSED: required Storage migration secrets are not configured.'
+            exit 78
+          fi
+
+      - name: Migrate every Supabase Storage object
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: bash scripts/azaad-supabase-storage-to-appwrite.sh
+
+      - name: Upload Storage reconciliation manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-storage-migration-${{ github.sha }}
+          path: ${{ runner.temp }}/azaad-storage-migration/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Fail closed unless every Storage object reconciles
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=process.env.RUNNER_TEMP+'/azaad-storage-migration/manifest.json';
+          const m=JSON.parse(fs.readFileSync(p,'utf8'));
+          if(m.status!=='PASS') process.exit(1);
+          for(const b of m.buckets) {
+            if(b.file_count !== b.verified || b.failed.length) process.exit(1);
+          }
+          console.log('PASS: every discovered Storage object is reconciled');
+          NODE
