@@ -55,6 +55,14 @@ async function json(url, options, label) {
   return res.json();
 }
 
+function supabaseHeaders() {
+  const h = {'apikey':supaKey, 'Accept':'application/json'};
+  // New Supabase secret keys (sb_secret_*) are opaque API keys, not JWTs.
+  // They MUST be sent via apikey only; putting them in Authorization: Bearer
+  // makes the gateway attempt JWT parsing and can fail before Storage routing.
+  if (!supaKey.startsWith('sb_secret_')) h.Authorization = `Bearer ${supaKey}`;
+  return h;
+}
 function headers() {
   return {'X-Appwrite-Project':project,'X-Appwrite-Key':awKey,'Accept':'application/json'};
 }
@@ -81,7 +89,7 @@ async function supaList(bucket, prefix='') {
   for (let offset=0;;offset+=1000) {
     const body=JSON.stringify({prefix, limit:1000, offset, sortBy:{column:'name', order:'asc'}});
     const data=await json(`${supabase}/storage/v1/object/list/${encodeURIComponent(bucket)}`, {
-      method:'POST', headers:{Authorization:`Bearer ${supaKey}`, apikey:supaKey, 'Content-Type':'application/json'}, body
+      method:'POST', headers:{...supabaseHeaders(), 'Content-Type':'application/json'}, body
     }, `Supabase list ${bucket}/${prefix}`);
     if (!Array.isArray(data) || data.length===0) break;
     rows.push(...data);
@@ -148,7 +156,7 @@ async function verifyDestination(bucketIdValue, f, expectedSha, expectedSize) {
 
 (async()=>{
   const manifest={candidate_sha:process.env.GITHUB_SHA||'unknown',started_at:new Date().toISOString(),buckets:[],source_deleted:false};
-  const sbRes=await json(`${supabase}/storage/v1/bucket`,{headers:{Authorization:`Bearer ${supaKey}`,apikey:supaKey,'Accept':'application/json'}},'Supabase bucket inventory');
+  const sbRes=await json(`${supabase}/storage/v1/bucket`,{headers:supabaseHeaders()},'Supabase bucket inventory');
   if(!Array.isArray(sbRes)) throw new Error('Supabase bucket inventory was not an array');
   const awBuckets=await appwriteBuckets();
   for(const b of sbRes){
@@ -161,7 +169,7 @@ async function verifyDestination(bucketIdValue, f, expectedSha, expectedSize) {
       const f={...item,sourceBucket:b.id};
       try {
         const url=`${supabase}/storage/v1/object/authenticated/${encodeURIComponent(b.id)}/${f.path.split('/').map(encodeURIComponent).join('/')}`;
-        const res=await request(url,{headers:{Authorization:`Bearer ${supaKey}`,apikey:supaKey}},`Supabase download ${b.id}/${f.path}`);
+        const res=await request(url,{headers:supabaseHeaders()},`Supabase download ${b.id}/${f.path}`);
         const bytes=Buffer.from(await res.arrayBuffer());
         const expectedSha=sha256(bytes);
         const expectedSize=bytes.length;
