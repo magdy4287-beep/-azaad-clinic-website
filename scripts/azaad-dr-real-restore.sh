@@ -62,9 +62,9 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# pg_restore list files are line-oriented TOC specifications. Comment the exact
-# public-schema CREATE entry rather than relying on a broad regex; the destination
-# PostgreSQL database owns the public schema and it must never be recreated.
+# pg_restore list files are line-oriented TOC specifications. Exclude only the
+# archive's CREATE SCHEMA public entry; the destination public schema itself is
+# preserved because it is a database-owned namespace, not an application object.
 cp "$work/restored-archive.list" "$work/restore.list"
 awk '
   BEGIN { changed=0 }
@@ -89,11 +89,26 @@ fi
 
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
-# The previous emergency attempt partially populated the dedicated Neon DR target.
-# The archive is authoritative for the public schema objects, so clean only objects
-# represented by this archive before recreating them. This never touches Supabase.
-pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# The previous emergency attempt may have partially populated the dedicated Neon
+# DR target. Clean only tables represented by the authoritative archive, using
+# CASCADE so dependency order cannot block individual DROP TABLE operations.
+# This never touches Supabase and never drops unrelated objects in public.
+awk -F';' '
+  $0 !~ /^;/ && $4 == "TABLE" && $5 ~ /^public$/ { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); if ($6 != "") print $6 }
+' "$work/restore.list" | sort -u > "$work/public.tables"
+test -s "$work/public.tables"
+
+while IFS= read -r table_name; do
+  printf 'DROP TABLE IF EXISTS %s CASCADE;\n' "$(printf '%s' "$table_name" | sed 's/"/""/g' | sed 's/^/public."/; s/$/"/')"
+done < "$work/public.tables" > "$work/drop-public-tables.sql"
+
+# The generated identifiers come exclusively from pg_restore's authoritative TOC
+# and are quoted before execution. A table-level CASCADE is intentionally limited
+# to those archive-owned tables; DROP SCHEMA public CASCADE is not used.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-tables.sql"
+
+pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --no-owner --privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
@@ -135,9 +150,9 @@ cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
 cat > "$evidence/README.txt" <<'EOF'
 AZAAD Emergency DR encrypted recovery artifact.
 The plaintext dump is intentionally not preserved.
-The Neon public schema is preserved; only the archive CREATE SCHEMA public entry is excluded.
+The Neon public schema is preserved; only archive-owned public tables are cleaned with CASCADE.
 Auth identity placeholders are created only for referential-integrity compatibility; Supabase Auth credentials/sessions are not restored here.
-The destination is treated as the emergency DR target; --clean removes only objects represented by the recovery archive before recreation.
+The destination is treated as the emergency DR target; unrelated public objects are not dropped.
 EOF
 
 echo 'PASS: strict post-data restore completed'
