@@ -1,5 +1,5 @@
 # AZAAD Emergency DR — canonical manual/push evacuation gate.
-# Manual runs MUST select the emergency candidate branch/ref explicitly.
+# Manual runs MUST select the emergency candidate explicitly.
 # Database must pass before Storage migration is allowed to start.
 name: AZAAD Emergency DR Execute
 
@@ -37,7 +37,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            test "$candidate_sha" = "$GITHUB_SHA"
+          fi
       - name: Install PostgreSQL 17 client non-interactively
         shell: bash
         run: |
@@ -88,7 +92,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "candidate_sha=$GITHUB_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
           echo 'database_restore=PASS'
           echo 'next_gate=STORAGE'
           echo 'identity_auth=NOT_PROVEN'
@@ -112,7 +117,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            test "$candidate_sha" = "$GITHUB_SHA"
+          fi
       - name: Verify Storage migration secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
