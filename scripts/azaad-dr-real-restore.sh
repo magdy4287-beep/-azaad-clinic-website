@@ -53,18 +53,18 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# pg_restore list entries are of the form: "N; OID OID SCHEMA - public".
-# Exclude only that archive entry. Never drop Neon's existing public schema.
+# pg_restore list entries are: "N; OID OID TYPE SCHEMA NAME".
+# For schemas the public entry is "... SCHEMA - public". Exclude only that entry.
 awk '!(NF >= 6 && $4 == "SCHEMA" && $6 == "public")' "$work/restored-archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
 if awk 'NF >= 6 && $4 == "SCHEMA" && $6 == "public" {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list still contains CREATE SCHEMA public.' >&2
   exit 1
 fi
-awk 'NF >= 6 && $4 == "TABLE" && $6 ~ /^public\./ {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list" || {
+if ! awk 'NF >= 5 && $4 == "TABLE" && $5 ~ /^public\./ {found=1} END {exit(found ? 0 : 1)}' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list contains no public tables.' >&2
   exit 1
-}
+fi
 
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
