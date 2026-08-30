@@ -1,10 +1,16 @@
 # AZAAD Emergency DR — ordered evacuation gate.
 # Database must pass before Storage migration is allowed to start.
-# Candidate retrigger after validated archive-object matching fix.
+# Manual runs may be dispatched from any workflow ref but MUST execute the explicit emergency candidate.
 name: AZAAD Emergency DR Execute
 
 on:
   workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: 'Exact emergency branch/ref to evacuate'
+        required: true
+        default: 'emergency/supabase-evacuation'
+        type: string
   push:
     branches:
       - emergency/supabase-evacuation
@@ -25,12 +31,17 @@ jobs:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.candidate_ref || github.ref }}
           fetch-depth: 1
       - name: Verify exact candidate SHA
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            test "$candidate_sha" = "$GITHUB_SHA"
+          fi
       - name: Install PostgreSQL 17 client non-interactively
         shell: bash
         run: |
@@ -81,7 +92,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "candidate_sha=$GITHUB_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
           echo 'database_restore=PASS'
           echo 'next_gate=STORAGE'
           echo 'identity_auth=NOT_PROVEN'
@@ -99,12 +111,17 @@ jobs:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.candidate_ref || github.ref }}
           fetch-depth: 1
       - name: Verify exact candidate SHA
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            test "$candidate_sha" = "$GITHUB_SHA"
+          fi
       - name: Verify Storage migration secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
