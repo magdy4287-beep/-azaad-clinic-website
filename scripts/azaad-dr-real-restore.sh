@@ -156,8 +156,13 @@ if [ -s "$work/drop-public-sequences.sql" ]; then
   psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-sequences.sql"
 fi
 
-pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# pg_restore also cleans every archive-listed object before recreating it.
+# This covers object classes not handled by the targeted pre-clean above
+# (for example views/types) while remaining scoped to the authoritative TOC.
+# --if-exists keeps already-absent objects harmless; --exit-on-error keeps
+# genuine restore failures fail-closed.
+pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
@@ -176,7 +181,7 @@ BEGIN
 END $$;
 SQL
 
-pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
@@ -199,7 +204,7 @@ cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
 cat > "$evidence/README.txt" <<'EOF'
 AZAAD Emergency DR encrypted recovery artifact.
 The plaintext dump is intentionally not preserved.
-The Neon public schema is preserved; only archive-listed public tables, functions, and sequences are cleaned with CASCADE.
+The Neon public schema is preserved; only archive-listed public objects are cleaned before restore.
 Auth identity placeholders are created only for referential-integrity compatibility; Supabase Auth credentials/sessions are not restored here.
 The destination is treated as the emergency DR target; the public schema itself is never dropped.
 EOF
