@@ -136,6 +136,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
@@ -143,7 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
           if [ "$missing" -ne 0 ]; then
@@ -154,11 +155,45 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         shell: bash
-        run: bash scripts/azaad-supabase-storage-to-appwrite.sh
+        run: |
+          set -euo pipefail
+          # GitHub Actions is IPv4-only in common configurations. More importantly,
+          # a bad dashboard/project URL produces the same Storage HTTP 404 we saw.
+          # The source DB URL is already a required, trusted evacuation secret and
+          # contains the project ref when using a direct/dedicated Supabase host or
+          # in the postgres.<PROJECT_REF> username for Supavisor.
+          canonical_url="$(node - <<'NODE'
+          const raw=process.env.SUPABASE_URL||'';
+          const db=process.env.SUPABASE_DB_URL||'';
+          function projectUrlFromDb(value){
+            try {
+              const u=new URL(value);
+              const host=u.hostname;
+              let m=host.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
+              if(m) return `https://${m[1]}.supabase.co`;
+              m=u.username.match(/^[^.]+\.([a-z0-9]+)$/i);
+              if(m) return `https://${m[1]}.supabase.co`;
+            } catch {}
+            return '';
+          }
+          const normalized=raw.replace(/\/$/,'');
+          if(/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(normalized)) { console.log(normalized); process.exit(0); }
+          const dashboard=normalized.match(/^https:\/\/app\.supabase\.com\/dashboard\/project\/([a-z0-9]+)(?:\/.*)?$/i);
+          if(dashboard) { console.log(`https://${dashboard[1]}.supabase.co`); process.exit(0); }
+          const derived=projectUrlFromDb(db);
+          if(derived) { console.log(derived); process.exit(0); }
+          console.error('Unable to derive canonical Supabase project URL from SUPABASE_URL or SUPABASE_DB_URL');
+          process.exit(1);
+          NODE
+          )"
+          echo "Using canonical Supabase project host derived for Storage API"
+          export SUPABASE_URL="$canonical_url"
+          bash scripts/azaad-supabase-storage-to-appwrite.sh
       - name: Upload Storage reconciliation manifest
         uses: actions/upload-artifact@v4
         with:
