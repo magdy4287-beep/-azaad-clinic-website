@@ -27,7 +27,7 @@ sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 
 if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list"; then
   echo 'FAIL-CLOSED: archive contains no public table entries.' >&2
-  grep -E 'TABLE|TABLE DATA|SCHEMA|FUNCTION' "$work/archive.list" | head -100 >&2 || true
+  grep -E 'TABLE|TABLE DATA|SCHEMA|FUNCTION|SEQUENCE' "$work/archive.list" | head -100 >&2 || true
   exit 1
 fi
 
@@ -77,19 +77,18 @@ test -s "$work/restore.list"
 
 if grep -Eq '^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
   echo 'FAIL-CLOSED: active CREATE SCHEMA public entry remains in restore list.' >&2
-  grep -E 'SCHEMA|TABLE|TABLE DATA|FUNCTION' "$work/restore.list" | head -100 >&2 || true
+  grep -E 'SCHEMA|TABLE|TABLE DATA|FUNCTION|SEQUENCE' "$work/restore.list" | head -100 >&2 || true
   exit 1
 fi
 if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list contains no public table entries.' >&2
-  grep -E 'TABLE|TABLE DATA|SCHEMA|FUNCTION' "$work/restore.list" | head -100 >&2 || true
+  grep -E 'TABLE|TABLE DATA|SCHEMA|FUNCTION|SEQUENCE' "$work/restore.list" | head -100 >&2 || true
   exit 1
 fi
 
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
-# The previous emergency attempt may have partially populated the dedicated Neon
-# DR target. Clean only objects represented by the authoritative archive.
+# Clean only objects represented by the authoritative archive.
 # Tables are dropped with CASCADE so FK dependencies cannot abort cleanup.
 awk '
   $0 !~ /^;/ {
@@ -108,9 +107,7 @@ done < "$work/public.tables" > "$work/drop-public-tables.sql"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-tables.sql"
 
-# Existing functions are independent of table CASCADE. Drop only the exact
-# public functions present in the authoritative archive before replaying pre-data.
-# This prevents CREATE FUNCTION collisions without dropping unrelated schemas.
+# Drop only the exact public functions present in the authoritative archive.
 awk '
   $0 !~ /^;/ {
     line=$0
@@ -126,9 +123,6 @@ awk '
 : > "$work/drop-public-functions.sql"
 while IFS= read -r function_identity; do
   [ -n "$function_identity" ] || continue
-  # pg_restore's list uses the identity argument list in parentheses.
-  # Function names in this archive are emitted as separate tokens; quote the
-  # name and preserve the identity argument list verbatim.
   function_name="${function_identity%%(*}"
   function_args="${function_identity#*(}"
   function_args="${function_args%)}"
@@ -138,6 +132,28 @@ done < "$work/public.functions"
 
 if [ -s "$work/drop-public-functions.sql" ]; then
   psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-functions.sql"
+fi
+
+# Sequences are independent objects and are not guaranteed to disappear when
+# tables/functions are cleaned. Drop only sequences represented in the archive.
+awk '
+  $0 !~ /^;/ {
+    line=$0
+    sub(/^[[:space:]]*[0-9]+;[[:space:]]*/, "", line)
+    n=split(line, a, /[[:space:]]+/)
+    if (n >= 5 && a[3] == "SEQUENCE" && a[4] == "public" && a[5] != "") print a[5]
+  }
+' "$work/restore.list" | sort -u > "$work/public.sequences"
+
+: > "$work/drop-public-sequences.sql"
+while IFS= read -r sequence_name; do
+  [ -n "$sequence_name" ] || continue
+  escaped_name=$(printf '%s' "$sequence_name" | sed 's/"/""/g')
+  printf 'DROP SEQUENCE IF EXISTS public."%s" CASCADE;\n' "$escaped_name" >> "$work/drop-public-sequences.sql"
+done < "$work/public.sequences"
+
+if [ -s "$work/drop-public-sequences.sql" ]; then
+  psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-sequences.sql"
 fi
 
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
@@ -183,7 +199,7 @@ cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
 cat > "$evidence/README.txt" <<'EOF'
 AZAAD Emergency DR encrypted recovery artifact.
 The plaintext dump is intentionally not preserved.
-The Neon public schema is preserved; only archive-listed public tables and functions are cleaned with CASCADE.
+The Neon public schema is preserved; only archive-listed public tables, functions, and sequences are cleaned with CASCADE.
 Auth identity placeholders are created only for referential-integrity compatibility; Supabase Auth credentials/sessions are not restored here.
 The destination is treated as the emergency DR target; the public schema itself is never dropped.
 EOF
