@@ -85,97 +85,73 @@ fi
 
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
-# Clean only objects represented by the authoritative archive. Each generated
-# file is executed over one persistent psql connection, so cleanup does not
-# create one network round-trip per DROP statement.
-awk '
-  $0 !~ /^;/ {
-    line=$0
-    sub(/^[[:space:]]*[0-9]+;[[:space:]]*/, "", line)
-    n=split(line, a, /[[:space:]]+/)
-    if (n >= 5 && a[3] == "TABLE" && a[4] == "public" && a[5] != "") print a[5]
-  }
-' "$work/restore.list" | sort -u > "$work/public.tables"
-test -s "$work/public.tables"
+# Emergency target cleanup is based on the LIVE target inventory, not on parsing
+# the archive TOC. This prevents an object that is absent/misparsed in the TOC
+# from surviving and colliding with CREATE TABLE during restore. The target is
+# the disposable DR reconstruction database; Supabase source is never modified.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+BEGIN;
+DO $$
+DECLARE r record;
+BEGIN
+  -- Views/materialized views first; CASCADE also removes dependent objects.
+  FOR r IN
+    SELECT n.nspname AS schema_name, c.relname AS object_name,
+           CASE c.relkind WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'VIEW' END AS object_kind
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('v','m')
+  LOOP
+    EXECUTE format('DROP %s IF EXISTS public.%I CASCADE', r.object_kind, r.object_name);
+  END LOOP;
 
-{
-  echo 'BEGIN;'
-  while IFS= read -r table_name; do
-    escaped_name=$(printf '%s' "$table_name" | sed 's/"/""/g')
-    printf 'DROP TABLE IF EXISTS public."%s" CASCADE;\n' "$escaped_name"
-  done < "$work/public.tables"
-  echo 'COMMIT;'
-} > "$work/drop-public-tables.sql"
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-tables.sql"
+  -- Drop every user table currently present in the DR target. This is deliberate:
+  -- the target is reconstructed from the authoritative Supabase dump below.
+  FOR r IN
+    SELECT c.relname AS object_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r','p','f')
+  LOOP
+    EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.object_name);
+  END LOOP;
 
-awk '
-  $0 !~ /^;/ {
-    line=$0
-    sub(/^[[:space:]]*[0-9]+;[[:space:]]*/, "", line)
-    if (line ~ /FUNCTION[[:space:]]+public[[:space:]]+/) {
-      sub(/^.*FUNCTION[[:space:]]+public[[:space:]]+/, "", line)
-      sub(/[[:space:]]+[^[:space:]]*$/, "", line)
-      print line
-    }
-  }
-' "$work/restore.list" | sort -u > "$work/public.functions"
+  -- Remove target-only public sequences so stale defaults cannot collide.
+  FOR r IN
+    SELECT c.relname AS object_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'S'
+  LOOP
+    EXECUTE format('DROP SEQUENCE IF EXISTS public.%I CASCADE', r.object_name);
+  END LOOP;
 
-{
-  echo 'BEGIN;'
-  while IFS= read -r function_identity; do
-    [ -n "$function_identity" ] || continue
-    function_name="${function_identity%%(*}"
-    function_args="${function_identity#*(}"
-    function_args="${function_args%)}"
-    escaped_name=$(printf '%s' "$function_name" | sed 's/"/""/g')
-    printf 'DROP FUNCTION IF EXISTS public."%s"(%s) CASCADE;\n' "$escaped_name" "$function_args"
-  done < "$work/public.functions"
-  echo 'COMMIT;'
-} > "$work/drop-public-functions.sql"
+  -- Functions/procedures are dropped last so dependency cleanup is deterministic.
+  FOR r IN
+    SELECT p.oid, p.proname, pg_get_function_identity_arguments(p.oid) AS args,
+           CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END AS routine_kind
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+  LOOP
+    EXECUTE format('DROP %s IF EXISTS public.%I(%s) CASCADE', r.routine_kind, r.proname, r.args);
+  END LOOP;
+END $$;
+COMMIT;
+SQL
 
-if [ -s "$work/drop-public-functions.sql" ]; then
-  psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-functions.sql"
-fi
+echo 'PASS: live public target inventory cleaned with CASCADE before restore.'
 
-awk '
-  $0 !~ /^;/ {
-    line=$0
-    sub(/^[[:space:]]*[0-9]+;[[:space:]]*/, "", line)
-    n=split(line, a, /[[:space:]]+/)
-    if (n >= 5 && a[3] == "SEQUENCE" && a[4] == "public" && a[5] != "") print a[5]
-  }
-' "$work/restore.list" | sort -u > "$work/public.sequences"
-
-{
-  echo 'BEGIN;'
-  while IFS= read -r sequence_name; do
-    [ -n "$sequence_name" ] || continue
-    escaped_name=$(printf '%s' "$sequence_name" | sed 's/"/""/g')
-    printf 'DROP SEQUENCE IF EXISTS public."%s" CASCADE;\n' "$escaped_name"
-  done < "$work/public.sequences"
-  echo 'COMMIT;'
-} > "$work/drop-public-sequences.sql"
-
-if [ -s "$work/drop-public-sequences.sql" ]; then
-  psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-sequences.sql"
-fi
-
-# Restore in three explicit PostgreSQL phases. This is deliberate: pre-data
-# creates all TABLE/type objects first; data then runs with trigger disabling;
-# post-data adds indexes, constraints, policies, and other dependent objects.
-# No --clean is used here because the destination has already been cleaned with
-# CASCADE. This prevents pg_restore from attempting DROP operations against
-# dependencies while simultaneously applying the archive.
+# Restore in three explicit PostgreSQL phases. Pre-data creates all TABLE/type
+# objects first; data populates them; post-data adds indexes/constraints/policies.
 pg_restore --exit-on-error --no-owner --no-privileges \
   --section=pre-data --use-list="$work/restore.list" \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-
 echo 'PASS: restore pre-data phase completed; table definitions exist before data phase.'
 
 pg_restore --exit-on-error --no-owner --no-privileges --disable-triggers \
   --section=data --use-list="$work/restore.list" \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-
 echo 'PASS: restore data phase completed with triggers disabled.'
 
 pg_restore --exit-on-error --no-owner --no-privileges \
@@ -183,8 +159,7 @@ pg_restore --exit-on-error --no-owner --no-privileges \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 echo 'PASS: restore post-data phase completed.'
 
-# Post-restore invariant: every archive-listed public table must now exist before
-# any reconciliation is declared successful.
+# Post-restore invariant: every archive-listed public table must now exist.
 missing_tables=0
 while IFS= read -r table_name; do
   [ -n "$table_name" ] || continue
@@ -235,9 +210,9 @@ cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
 cat > "$evidence/README.txt" <<'EOF'
 AZAAD Emergency DR encrypted recovery artifact.
 The plaintext dump is intentionally not preserved.
-The Neon public schema is preserved; only archive-listed public objects are cleaned before restore.
+The Neon public schema is reconstructed from the authoritative Supabase public dump.
 Auth identity placeholders are created only for referential-integrity compatibility; Supabase Auth credentials/sessions are not restored here.
-The destination is treated as the emergency DR target; the public schema itself is never dropped.
+The destination is the emergency DR target. Supabase source is never modified by this script.
 EOF
 
 echo 'PASS: ordered database restore completed'
