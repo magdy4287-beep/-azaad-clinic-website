@@ -1,8 +1,8 @@
 # Manual Storage-only recovery tool.
 # Normal evacuation is ordered inside azaad-emergency-dr-execute.yml:
 # database PASS -> storage migration.
-# Emergency execution trigger: this commit intentionally starts Storage evacuation independently.
-# chore(DR): trigger storage evacuation — storage must complete before database repair.
+# Emergency execution trigger: this workflow is independently executable so
+# Storage evacuation can complete before any database repair.
 name: AZAAD Emergency DR Storage Evacuation
 
 on:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   storage:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(DR): trigger storage evacuation')
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/emergency/supabase-evacuation'
     name: Manual Supabase Storage evacuation
     runs-on: ubuntu-latest
     timeout-minutes: 90
