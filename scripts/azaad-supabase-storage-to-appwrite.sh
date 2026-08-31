@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Normalize CI-provided environment values before validation or HTTP use.
+# GitHub Secrets may be pasted with a trailing CR/LF; never allow those bytes
+# to reach fetch/Headers because Node rejects them as invalid HTTP header data.
+clean_env() {
+  printf '%s' "${1:-}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+SUPABASE_URL="$(clean_env "${SUPABASE_URL:-}")"
+SUPABASE_SERVICE_ROLE_KEY="$(clean_env "${SUPABASE_SERVICE_ROLE_KEY:-}")"
+APPWRITE_ENDPOINT="$(clean_env "${APPWRITE_ENDPOINT:-}")"
+APPWRITE_PROJECT_ID="$(clean_env "${APPWRITE_PROJECT_ID:-}")"
+APPWRITE_API_KEY="$(clean_env "${APPWRITE_API_KEY:-}")"
+export SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY
+
 : "${SUPABASE_URL:?Missing SUPABASE_URL}"
 : "${SUPABASE_SERVICE_ROLE_KEY:?Missing SUPABASE_SERVICE_ROLE_KEY}"
 : "${APPWRITE_ENDPOINT:?Missing APPWRITE_ENDPOINT}"
@@ -24,11 +38,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const supabase = process.env.SUPABASE_URL;
-const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const aw = process.env.APPWRITE_ENDPOINT;
-const project = process.env.APPWRITE_PROJECT_ID;
-const awKey = process.env.APPWRITE_API_KEY;
+// Defense in depth: sanitize values again at the Node boundary immediately
+// before they can be consumed by fetch/Headers or SDK calls.
+const cleanEnv = val => (val ? val.trim().replace(/[\r\n]+/g, '') : '');
+const supabase = cleanEnv(process.env.SUPABASE_URL);
+const supaKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const aw = cleanEnv(process.env.APPWRITE_ENDPOINT);
+const project = cleanEnv(process.env.APPWRITE_PROJECT_ID);
+const awKey = cleanEnv(process.env.APPWRITE_API_KEY);
+if (!supabase || !supaKey || !aw || !project || !awKey) throw new Error('FAIL-CLOSED: required migration environment variable is empty after sanitization');
 const out = path.join(process.env.RUNNER_TEMP || '/tmp', 'azaad-storage-migration');
 const CHUNK = 5 * 1024 * 1024;
 fs.rmSync(out, {recursive:true, force:true});
