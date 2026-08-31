@@ -5,6 +5,9 @@ name: AZAAD Emergency DR Storage Evacuation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - emergency/supabase-evacuation
 
 permissions:
   contents: read
@@ -15,6 +18,7 @@ concurrency:
 
 jobs:
   storage:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(DR): trigger storage evacuation')
     name: Manual Supabase Storage evacuation
     runs-on: ubuntu-latest
     timeout-minutes: 90
