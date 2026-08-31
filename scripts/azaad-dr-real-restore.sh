@@ -42,8 +42,6 @@ pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
 
 # Build the authoritative table invariant directly from the dump TOC.
-# This avoids relying on a stale/generated file and makes the post-restore
-# check cover exactly the tables the emergency artifact declares.
 awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ {
   for (i=1; i<=NF; i++) if ($i == "public") { print $(i+1); break }
 }' "$work/restored-archive.list" | sed '/^$/d' | sort -u > "$work/public.tables"
@@ -93,48 +91,25 @@ fi
 
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
-# Emergency target reset is based on the LIVE target inventory. The target is
-# reconstructed from the authoritative Supabase dump; the source is untouched.
+# Emergency target reset: public is a disposable reconstruction boundary.
+# Recreate the schema atomically so no stale table/view/function/sequence can
+# survive into pg_restore. Supabase source is never modified.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 BEGIN;
-DO $$
-DECLARE r record;
-BEGIN
-  FOR r IN
-    SELECT c.relname AS object_name,
-           CASE c.relkind WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'VIEW' END AS object_kind
-    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-    WHERE n.nspname='public' AND c.relkind IN ('v','m')
-  LOOP
-    EXECUTE format('DROP %s IF EXISTS public.%I CASCADE', r.object_kind, r.object_name);
-  END LOOP;
-  FOR r IN
-    SELECT c.relname AS object_name
-    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-    WHERE n.nspname='public' AND c.relkind IN ('r','p','f')
-  LOOP
-    EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.object_name);
-  END LOOP;
-  FOR r IN
-    SELECT c.relname AS object_name
-    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-    WHERE n.nspname='public' AND c.relkind='S'
-  LOOP
-    EXECUTE format('DROP SEQUENCE IF EXISTS public.%I CASCADE', r.object_name);
-  END LOOP;
-  FOR r IN
-    SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args,
-           CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END AS routine_kind
-    FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-    WHERE n.nspname='public'
-  LOOP
-    EXECUTE format('DROP %s IF EXISTS public.%I(%s) CASCADE', r.routine_kind, r.proname, r.args);
-  END LOOP;
-END $$;
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT USAGE ON SCHEMA public TO PUBLIC;
 COMMIT;
 SQL
 
-echo 'PASS: live public target inventory cleaned with CASCADE before restore.'
+# Hard invariant: zero public relations must remain before pg_restore.
+leftover="$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f','S')")"
+if [ "$leftover" != "0" ]; then
+  echo "FAIL-CLOSED: public target reset invariant failed; remaining relations=$leftover" >&2
+  psql "$NEON_DATABASE_URL" -Atqc "SELECT n.nspname||'.'||c.relname||' ['||c.relkind||']' FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f','S') ORDER BY c.relname" >&2
+  exit 1
+fi
+echo 'PASS: emergency public schema reset invariant completed; zero stale relations remain.'
 
 pg_restore --exit-on-error --no-owner --no-privileges \
   --section=pre-data --use-list="$work/restore.list" \
