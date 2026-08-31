@@ -10,8 +10,8 @@ work="${RUNNER_TEMP}/azaad-dr"; evidence="${RUNNER_TEMP}/azaad-dr-evidence"; rm 
 pg_dump "$SUPABASE_DB_URL" --format=custom --schema=public --no-owner --no-privileges --file="$work/public.dump"; test -s "$work/public.dump"; pg_restore --list "$work/public.dump" > "$work/archive.list"; test -s "$work/archive.list"; sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list" || { echo 'FAIL-CLOSED: authoritative dump contains no public table entries.' >&2; exit 1; }
 awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ { for (i=1; i<=NF; i++) if ($i == "public") { print $(i+1); break } }' "$work/archive.list" | sed '/^$/d' | sort -u > "$work/public.tables"; test -s "$work/public.tables"; echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
-# pg_restore cannot recreate the already-existing PostgreSQL public schema. Exclude only that schema-creation entry from the restore list; all public tables/data/post-data remain authoritative.
-grep -Ev '^[0-9]+;[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]+public$' "$work/archive.list" > "$work/restore.list"
+# Exclude only the CREATE SCHEMA public TOC entry; preserve every table, sequence, function, data and post-data entry.
+awk '$0 !~ /SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]+public/' "$work/archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump" -out "$work/public.dump.enc"; sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"; openssl enc -d -aes-256-cbc -pbkdf2 -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump.enc" -out "$work/public.restore.dump"; sha256sum -c "$work/public.dump.sha256"; cmp "$work/public.dump" "$work/public.restore.dump"
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
