@@ -1,8 +1,5 @@
 # Manual Storage-only recovery tool.
-# Normal evacuation is ordered inside azaad-emergency-dr-execute.yml:
-# database PASS -> storage migration.
-# Emergency execution trigger: this workflow is independently executable so
-# Storage evacuation can complete before any database repair.
+# Normal evacuation remains ordered inside azaad-emergency-dr-execute.yml.
 name: AZAAD Emergency DR Storage Evacuation
 
 on:
@@ -45,11 +42,30 @@ jobs:
           for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
-          if [ "$missing" -ne 0 ]; then exit 78; fi
+          [ "$missing" -eq 0 ]
+
+      - name: Normalize canonical Supabase project URL
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          canonical_url="$(node - <<'NODE'
+          const raw=String(process.env.SUPABASE_URL||'').trim().replace(/\/$/,'');
+          const db=String(process.env.SUPABASE_DB_URL||'').trim();
+          if(/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(raw)){console.log(raw);process.exit(0)}
+          let m=raw.match(/^https:\/\/app\.supabase\.com\/dashboard\/project\/([a-z0-9]+)(?:\/.*)?$/i);
+          if(m){console.log(`https://${m[1]}.supabase.co`);process.exit(0)}
+          try { const u=new URL(db); m=u.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/i); if(m){console.log(`https://${m[1]}.supabase.co`);process.exit(0)} } catch {}
+          console.error('FAIL-CLOSED: unable to derive canonical Supabase project URL');process.exit(1);
+          NODE
+          )"
+          echo "canonical_supabase_host=$canonical_url"
+          echo "SUPABASE_URL=$canonical_url" >> "$GITHUB_ENV"
 
       - name: Migrate every Supabase Storage object
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
