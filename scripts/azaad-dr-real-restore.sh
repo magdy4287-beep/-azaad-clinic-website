@@ -62,7 +62,6 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# Keep the archive's native TOC, excluding only CREATE SCHEMA public.
 cp "$work/restored-archive.list" "$work/restore.list"
 awk '
   BEGIN { changed=0 }
@@ -85,54 +84,40 @@ fi
 
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
-# Emergency target cleanup is based on the LIVE target inventory, not on parsing
-# the archive TOC. This prevents an object that is absent/misparsed in the TOC
-# from surviving and colliding with CREATE TABLE during restore. The target is
-# the disposable DR reconstruction database; Supabase source is never modified.
+# Emergency target reset is based on the LIVE target inventory. The target is
+# reconstructed from the authoritative Supabase dump; the source is untouched.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 BEGIN;
 DO $$
 DECLARE r record;
 BEGIN
-  -- Views/materialized views first; CASCADE also removes dependent objects.
   FOR r IN
-    SELECT n.nspname AS schema_name, c.relname AS object_name,
+    SELECT c.relname AS object_name,
            CASE c.relkind WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'VIEW' END AS object_kind
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public' AND c.relkind IN ('v','m')
+    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relkind IN ('v','m')
   LOOP
     EXECUTE format('DROP %s IF EXISTS public.%I CASCADE', r.object_kind, r.object_name);
   END LOOP;
-
-  -- Drop every user table currently present in the DR target. This is deliberate:
-  -- the target is reconstructed from the authoritative Supabase dump below.
   FOR r IN
     SELECT c.relname AS object_name
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public' AND c.relkind IN ('r','p','f')
+    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relkind IN ('r','p','f')
   LOOP
     EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.object_name);
   END LOOP;
-
-  -- Remove target-only public sequences so stale defaults cannot collide.
   FOR r IN
     SELECT c.relname AS object_name
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public' AND c.relkind = 'S'
+    FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relkind='S'
   LOOP
     EXECUTE format('DROP SEQUENCE IF EXISTS public.%I CASCADE', r.object_name);
   END LOOP;
-
-  -- Functions/procedures are dropped last so dependency cleanup is deterministic.
   FOR r IN
-    SELECT p.oid, p.proname, pg_get_function_identity_arguments(p.oid) AS args,
+    SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args,
            CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END AS routine_kind
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
+    FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public'
   LOOP
     EXECUTE format('DROP %s IF EXISTS public.%I(%s) CASCADE', r.routine_kind, r.proname, r.args);
   END LOOP;
@@ -142,8 +127,6 @@ SQL
 
 echo 'PASS: live public target inventory cleaned with CASCADE before restore.'
 
-# Restore in three explicit PostgreSQL phases. Pre-data creates all TABLE/type
-# objects first; data populates them; post-data adds indexes/constraints/policies.
 pg_restore --exit-on-error --no-owner --no-privileges \
   --section=pre-data --use-list="$work/restore.list" \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
@@ -159,7 +142,6 @@ pg_restore --exit-on-error --no-owner --no-privileges \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 echo 'PASS: restore post-data phase completed.'
 
-# Post-restore invariant: every archive-listed public table must now exist.
 missing_tables=0
 while IFS= read -r table_name; do
   [ -n "$table_name" ] || continue
@@ -168,9 +150,7 @@ while IFS= read -r table_name; do
     missing_tables=1
   fi
 done < "$work/public.tables"
-if [ "$missing_tables" -ne 0 ]; then
-  exit 1
-fi
+if [ "$missing_tables" -ne 0 ]; then exit 1; fi
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
@@ -182,7 +162,6 @@ BEGIN
     WHERE table_schema = 'public' AND data_type = 'uuid'
       AND (column_name = 'auth_user_id' OR column_name = 'user_id' OR column_name LIKE '%_user_id'
            OR column_name IN ('created_by','updated_by','approved_by','verified_by','cancelled_by','completed_by','checked_in_by','checked_out_by'))
-    ORDER BY table_schema, table_name, column_name
   LOOP
     EXECUTE format('INSERT INTO auth.users (id) SELECT DISTINCT %I FROM %I.%I WHERE %I IS NOT NULL ON CONFLICT (id) DO NOTHING', r.column_name, r.table_schema, r.table_name, r.column_name);
   END LOOP;
