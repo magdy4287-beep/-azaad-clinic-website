@@ -1,6 +1,7 @@
 # Manual Storage-only recovery tool.
 # Normal evacuation is ordered inside azaad-emergency-dr-execute.yml:
 # database PASS -> storage migration.
+# Emergency execution trigger: this commit intentionally starts Storage evacuation independently.
 name: AZAAD Emergency DR Storage Evacuation
 
 on:
