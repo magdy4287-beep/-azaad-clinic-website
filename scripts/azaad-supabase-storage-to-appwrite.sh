@@ -41,6 +41,7 @@ const awKey = cleanEnv(process.env.APPWRITE_API_KEY);
 if (!supabase || !supaKey || !aw || !project || !awKey) throw new Error('FAIL-CLOSED: required migration environment variable is empty after sanitization');
 const out = path.join(process.env.RUNNER_TEMP || '/tmp', 'azaad-storage-migration');
 const CHUNK = 5 * 1024 * 1024;
+const APPWRITE_MAX_FILE_SIZE = 50_000_000;
 fs.rmSync(out, {recursive:true, force:true});
 fs.mkdirSync(out, {recursive:true, mode:0o700});
 
@@ -110,13 +111,14 @@ async function appwriteBuckets(){
   return result;
 }
 async function createBucket(id,name){
-  // Appwrite Cloud REST documents a 5 GB maximum file-size limit for buckets.
-  // Use the decimal platform limit rather than 5 GiB to avoid exceeding the service validator.
-  const body={bucketId:id,name,permissions:[],fileSecurity:false,enabled:true,maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false};
+  // Appwrite Cloud validates maximumFileSize in the range 1..50,000,000 bytes.
+  const body={bucketId:id,name,permissions:[],fileSecurity:false,enabled:true,maximumFileSize:APPWRITE_MAX_FILE_SIZE,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false};
   return json(`${aw}/storage/buckets`,{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify(body)},`Appwrite create bucket ${name}`);
 }
 async function uploadChunks(bucketIdValue,f,bytes,mime){
-  const id=fileId(f.sourceBucket,f.path); const name=fileName(f.path); const folder=folderName(f.path); const total=bytes.byteLength; let response;
+  const id=fileId(f.sourceBucket,f.path); const name=fileName(f.path); const folder=folderName(f.path); const total=bytes.byteLength;
+  if(total>APPWRITE_MAX_FILE_SIZE) throw new Error(`FAIL-CLOSED: ${f.sourceBucket}/${f.path} is ${total} bytes, above Appwrite Cloud maximum ${APPWRITE_MAX_FILE_SIZE} bytes; refusing lossy split or truncation`);
+  let response;
   for(let start=0;start<total;start+=CHUNK){
     const end=Math.min(start+CHUNK,total)-1; const part=bytes.slice(start,end+1); const form=new FormData();
     if(start===0)form.append('fileId',id); form.append('file',new Blob([part],{type:mime}),name); form.append('folder',folder); form.append('permissions[]','read("any")');
