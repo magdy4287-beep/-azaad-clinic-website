@@ -151,6 +151,53 @@ jobs:
             echo 'FAIL-CLOSED: required Storage migration secrets are not configured.'
             exit 78
           fi
+      - name: Diagnose Appwrite Storage authentication (read-only)
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('crypto');
+          const clean = v => String(v || '').trim().replace(/[\r\n]+/g, '');
+          const endpoint = clean(process.env.APPWRITE_ENDPOINT).replace(/\/$/, '');
+          const project = clean(process.env.APPWRITE_PROJECT_ID);
+          const key = clean(process.env.APPWRITE_API_KEY);
+          if (!endpoint || !project || !key) throw new Error('FAIL-CLOSED: Appwrite diagnostic received an empty normalized secret');
+          let u;
+          try { u = new URL(endpoint); } catch { throw new Error('FAIL-CLOSED: APPWRITE_ENDPOINT is not a valid URL'); }
+          const projectFingerprint = crypto.createHash('sha256').update(project).digest('hex').slice(0,16);
+          const keyFingerprint = crypto.createHash('sha256').update(key).digest('hex').slice(0,16);
+          console.log(`appwrite_protocol=${u.protocol}`);
+          console.log(`appwrite_host=${u.hostname}`);
+          console.log(`appwrite_path=${u.pathname}`);
+          console.log(`project_id_length=${project.length}`);
+          console.log(`project_id_fingerprint=${projectFingerprint}`);
+          console.log(`api_key_length=${key.length}`);
+          console.log(`api_key_fingerprint=${keyFingerprint}`);
+          if (u.protocol !== 'https:') throw new Error('FAIL-CLOSED: APPWRITE_ENDPOINT must use HTTPS');
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 30000);
+          try {
+            const res = await fetch(`${endpoint}/storage/buckets?limit=1`, {
+              method: 'GET',
+              headers: {'X-Appwrite-Project': project, 'X-Appwrite-Key': key, 'Accept':'application/json'},
+              signal: controller.signal
+            });
+            const body = await res.text();
+            let message = body;
+            try { const parsed=JSON.parse(body); message=JSON.stringify({type:parsed.type,message:parsed.message,code:parsed.code}); } catch {}
+            console.log(`appwrite_http_status=${res.status}`);
+            console.log(`appwrite_response=${message.slice(0,1000)}`);
+            if (!res.ok) process.exit(1);
+            console.log('PASS: Appwrite Storage authentication accepted the read-only bucket probe');
+          } catch (e) {
+            console.error(`Appwrite diagnostic transport error: ${e.name || 'Error'}: ${e.message || ''}`);
+            process.exit(1);
+          } finally { clearTimeout(timer); }
+          NODE
       - name: Migrate every Supabase Storage object
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -162,11 +209,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # GitHub Actions is IPv4-only in common configurations. More importantly,
-          # a bad dashboard/project URL produces the same Storage HTTP 404 we saw.
-          # The source DB URL is already a required, trusted evacuation secret and
-          # contains the project ref when using a direct/dedicated Supabase host or
-          # in the postgres.<PROJECT_REF> username for Supavisor.
           canonical_url="$(node - <<'NODE'
           const raw=process.env.SUPABASE_URL||'';
           const db=process.env.SUPABASE_DB_URL||'';
