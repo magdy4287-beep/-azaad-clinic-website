@@ -37,6 +37,18 @@ awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ {
 test -s "$work/public.tables"
 echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
 
+# The dump's public-schema TOC entry is not replayed: public is a database-owned
+# namespace boundary for this DR target. Keeping the namespace alive prevents
+# pg_restore from removing it between pre-data and trigger-management phases.
+awk '$0 !~ /^;/ && $0 !~ /[[:space:]]SCHEMA[[:space:]]+public([[:space:]]|$)/ { print }' \
+  "$work/archive.list" > "$work/restore.list"
+test -s "$work/restore.list"
+
+grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list" || {
+  echo 'FAIL-CLOSED: filtered restore list lost all public table entries.' >&2
+  exit 1
+}
+
 # Encrypted recovery artifact and byte-for-byte decrypt verification.
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE \
   -in "$work/public.dump" -out "$work/public.dump.enc"
@@ -46,8 +58,7 @@ openssl enc -d -aes-256-cbc -pbkdf2 -pass env:DR_BACKUP_PASSPHRASE \
 sha256sum -c "$work/public.dump.sha256"
 cmp "$work/public.dump" "$work/public.restore.dump"
 
-# Compatibility schemas/functions required by the target environment. These are
-# created before restore, while public remains a disposable reconstruction boundary.
+# Compatibility schemas/functions required by the target environment.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
@@ -69,19 +80,18 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# CRITICAL: public is the authoritative disposable reconstruction boundary. A
-# schema-only dump does not necessarily contain CREATE SCHEMA public because
-# PostgreSQL normally creates it with the database. Recreate it explicitly after
-# the destructive CASCADE so pg_restore's trigger/index/post-data entries have a
-# live namespace to reference.
+# Reset only the disposable public application namespace. Keep the schema itself
+# alive so the filtered authoritative restore can recreate all objects into it.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 SQL
 
-# Full pre-data restore recreates public exactly from the dump's own dependency graph.
+# Restore pre-data using a TOC list that excludes the public schema entry. This
+# preserves the live namespace required by later trigger/index operations.
 pg_restore --exit-on-error --no-owner --no-privileges \
-  --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+  --use-list="$work/restore.list" --section=pre-data \
+  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 echo 'PASS: complete authoritative pre-data restore completed.'
 
 # Hard invariant before any data/post-data operation: every dump table must exist.
@@ -97,11 +107,13 @@ done < "$work/public.tables"
 echo 'PASS: pre-data table invariant completed.'
 
 pg_restore --exit-on-error --no-owner --no-privileges --disable-triggers \
-  --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+  --use-list="$work/restore.list" --section=data \
+  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 echo 'PASS: complete authoritative data restore completed.'
 
 pg_restore --exit-on-error --no-owner --no-privileges \
-  --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+  --use-list="$work/restore.list" --section=post-data \
+  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 echo 'PASS: complete authoritative post-data restore completed.'
 
 # Final table invariant.
