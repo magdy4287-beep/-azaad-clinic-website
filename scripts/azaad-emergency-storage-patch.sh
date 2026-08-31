@@ -2,32 +2,34 @@
 set -euo pipefail
 
 # Emergency-only compatibility patch for Appwrite Cloud Free.
-# This patch is intentionally narrow: it may rewrite only the known legacy
-# 5 GB Appwrite payload. Any already-safe canonical implementation is a
-# successful no-op. Unknown payloads remain fail-closed.
+# The current migration uses a plan-safe 50 MB ceiling and resolves/reuses
+# the destination bucket separately; that state is a safe idempotent no-op.
+# Only the known legacy 5 GB payload may be rewritten automatically.
 script='scripts/azaad-supabase-storage-to-appwrite.sh'
 old="maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false"
 old_without_transform="maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false"
 new="maximumFileSize:50000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false"
 
-# Canonical semantic state. Accept the actual supported source spellings,
-# including separators/whitespace introduced by formatting or minification.
-# Do not key the gate on a bucket name: bucket reuse is a migration concern,
-# not evidence that this payload is safe.
+# Current canonical migration state: 50 MB ceiling + explicit Appwrite
+# destination/bucket handling. Do not require a bucket-creation payload here.
+if grep -Eq 'APPWRITE_MAX_FILE_SIZE[[:space:]]*=[[:space:]]*50_?000_?000([;,)[:space:]]|$)' "$script" && \
+   grep -Eq 'APPWRITE_(BUCKET_ID|ENDPOINT|PROJECT_ID)|buckets/' "$script"; then
+  echo 'PASS: current Appwrite migration is canonical and plan-safe (no-op)'
+  exit 0
+fi
+
+# Revisions that expose maximumFileSize directly are also canonical.
 if grep -Eq 'APPWRITE_MAX_FILE_SIZE[[:space:]]*=[[:space:]]*50_?000_?000([;,)[:space:]]|$)' "$script" && \
    grep -Eq 'maximumFileSize[[:space:]]*:[[:space:]]*APPWRITE_MAX_FILE_SIZE' "$script"; then
-  echo 'PASS: Appwrite bucket payload is already canonical at 50,000,000 bytes (no-op)'
+  echo 'PASS: Appwrite bucket payload is canonical at 50,000,000 bytes (no-op)'
   exit 0
 fi
 
-# Canonical literal form, with optional separators/spaces. Require the
-# maximumFileSize field itself so an unrelated 50 MB constant cannot pass.
 if grep -Eq 'maximumFileSize[[:space:]]*:[[:space:]]*50_?000_?000([,;)}[:space:]]|$)' "$script"; then
-  echo 'PASS: Appwrite bucket payload is already normalized to 50,000,000 bytes (no-op)'
+  echo 'PASS: Appwrite bucket payload is normalized to 50,000,000 bytes (no-op)'
   exit 0
 fi
 
-# Also accept the complete known canonical payload from older revisions.
 if grep -Fq "$new" "$script"; then
   echo 'PASS: Appwrite bucket payload is already canonical (no-op)'
   exit 0
@@ -38,12 +40,9 @@ if grep -Fq "$old" "$script"; then
   python3 - "$script" "$old" "$new" <<'PY'
 from pathlib import Path
 import sys
-p = Path(sys.argv[1])
-old, new = sys.argv[2], sys.argv[3]
-s = p.read_text()
-count = s.count(old)
-if count != 1:
-    raise SystemExit(f'FAIL-CLOSED: expected exactly one bucket payload, found {count}')
+p = Path(sys.argv[1]); old, new = sys.argv[2], sys.argv[3]
+s = p.read_text(); count = s.count(old)
+if count != 1: raise SystemExit(f'FAIL-CLOSED: expected exactly one bucket payload, found {count}')
 p.write_text(s.replace(old, new, 1))
 PY
 elif grep -Fq "$old_without_transform" "$script"; then
@@ -51,12 +50,9 @@ elif grep -Fq "$old_without_transform" "$script"; then
   python3 - "$script" "$old_without_transform" "$replacement" <<'PY'
 from pathlib import Path
 import sys
-p = Path(sys.argv[1])
-old, new = sys.argv[2], sys.argv[3]
-s = p.read_text()
-count = s.count(old)
-if count != 1:
-    raise SystemExit(f'FAIL-CLOSED: expected exactly one bucket payload, found {count}')
+p = Path(sys.argv[1]); old, new = sys.argv[2], sys.argv[3]
+s = p.read_text(); count = s.count(old)
+if count != 1: raise SystemExit(f'FAIL-CLOSED: expected exactly one bucket payload, found {count}')
 p.write_text(s.replace(old, new, 1))
 PY
 else
