@@ -2,6 +2,7 @@
 # Normal evacuation is ordered inside azaad-emergency-dr-execute.yml:
 # database PASS -> storage migration.
 # Emergency execution trigger: this commit intentionally starts Storage evacuation independently.
+# chore(DR): trigger storage evacuation — storage must complete before database repair.
 name: AZAAD Emergency DR Storage Evacuation
 
 on:
