@@ -7,7 +7,7 @@ set -euo pipefail
 
 export PATH="/usr/lib/postgresql/17/bin:$PATH"
 export PGSSLMODE=require
-for cmd in pg_dump pg_restore psql sha256sum openssl cmp grep awk sed; do
+for cmd in pg_dump pg_restore psql sha256sum openssl cmp awk sed grep; do
   command -v "$cmd" >/dev/null || { echo "ERROR: required command not found: $cmd" >&2; exit 127; }
 done
 
@@ -18,7 +18,7 @@ mkdir -p "$work" "$evidence"
 chmod 700 "$work" "$evidence"
 trap 'rm -rf "$work"' EXIT
 
-# READ ONLY from Supabase: create the authoritative public-schema recovery dump.
+# Supabase is READ ONLY. Create the authoritative public-schema dump.
 pg_dump "$SUPABASE_DB_URL" --format=custom --schema=public --no-owner --no-privileges --file="$work/public.dump"
 test -s "$work/public.dump"
 pg_restore --list "$work/public.dump" > "$work/archive.list"
@@ -30,49 +30,18 @@ grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list
   exit 1
 }
 
-# Record table names from the authoritative TOC for hard invariants.
 awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ {
   for (i=1; i<=NF; i++) if ($i == "public") { print $(i+1); break }
 }' "$work/archive.list" | sed '/^$/d' | sort -u > "$work/public.tables"
 test -s "$work/public.tables"
 echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
 
-# pg_restore TOC formats the public schema entry as "SCHEMA - public" when it
-# is present. It is not guaranteed to be present in a --schema=public dump.
-# Filter it only when present; requiring exactly one entry is incorrect and
-# caused a fail-closed exit on a valid authoritative dump.
-schema_rows="$(grep -Ec '^[[:space:]]*[^;].*[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$' "$work/archive.list" || true)"
-case "$schema_rows" in
-  0)
-    cp "$work/archive.list" "$work/restore.list"
-    echo 'PREFLIGHT: public schema TOC entry absent; no schema-row filtering required.'
-    ;;
-  1)
-    awk '!($0 !~ /^;/ && $0 ~ /[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$/)' "$work/archive.list" > "$work/restore.list"
-    echo 'PREFLIGHT: filtered one public schema TOC entry.'
-    ;;
-  *)
-    echo "FAIL-CLOSED: unexpected public schema TOC entry count: $schema_rows" >&2
-    exit 42
-    ;;
-esac
+# Preserve the complete authoritative TOC. The previous implementation
+# manually DROP/CREATE'd public and then restored a CREATE SCHEMA public entry,
+# causing a duplicate-schema failure. pg_restore --clean --if-exists now owns
+# target object cleanup and creation atomically.
+cp "$work/archive.list" "$work/restore.list"
 
-test -s "$work/restore.list"
-
-# Validate using the exact same TOC-row grammar used above. A broad substring
-# search is unsafe because other TOC descriptions can legitimately contain the
-# words "SCHEMA - public" without being a schema entry.
-if grep -Eq '^[[:space:]]*[^;].*[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$' "$work/restore.list"; then
-  echo 'FAIL-CLOSED: filtered restore list still contains a public schema TOC entry.' >&2
-  exit 1
-fi
-
-grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list" || {
-  echo 'FAIL-CLOSED: filtered restore list lost all public table entries.' >&2
-  exit 1
-}
-
-# Encrypted recovery artifact and byte-for-byte decrypt verification.
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE \
   -in "$work/public.dump" -out "$work/public.dump.enc"
 sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"
@@ -81,7 +50,7 @@ openssl enc -d -aes-256-cbc -pbkdf2 -pass env:DR_BACKUP_PASSPHRASE \
 sha256sum -c "$work/public.dump.sha256"
 cmp "$work/public.dump" "$work/public.restore.dump"
 
-# Compatibility schemas/functions required by the target environment.
+# Target compatibility helpers. Do not import Supabase auth credentials/sessions.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
@@ -103,43 +72,31 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# Reset only the disposable public application namespace. Keep the schema itself
-# alive so the filtered authoritative restore can recreate all objects into it.
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA public;
-SQL
+# Restore in three phases. --clean --if-exists prevents conflicts from any
+# earlier failed attempt and correctly handles a CREATE SCHEMA public entry.
+pg_restore --exit-on-error --no-owner --no-privileges --clean --if-exists \
+  --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+echo 'PASS: authoritative pre-data restore.'
 
-# Restore pre-data using a TOC list that excludes the public schema entry when
-# one existed. This preserves the live namespace required by later operations.
-pg_restore --exit-on-error --no-owner --no-privileges \
-  --use-list="$work/restore.list" --section=pre-data \
-  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-echo 'PASS: complete authoritative pre-data restore completed.'
-
-# Hard invariant before any data/post-data operation: every dump table must exist.
 missing=0
 while IFS= read -r table_name; do
   [ -n "$table_name" ] || continue
   if ! psql "$NEON_DATABASE_URL" -Atqc "SELECT to_regclass(format('public.%I', '$table_name')) IS NOT NULL" | grep -qx 't'; then
-    echo "FAIL-CLOSED: table missing after pre-data: $table_name" >&2
+    echo "FAIL-CLOSED: table missing after pre-data restore: $table_name" >&2
     missing=1
   fi
 done < "$work/public.tables"
 [ "$missing" -eq 0 ] || exit 1
-echo 'PASS: pre-data table invariant completed.'
+echo 'PASS: pre-data table invariant.'
 
 pg_restore --exit-on-error --no-owner --no-privileges --disable-triggers \
-  --use-list="$work/restore.list" --section=data \
-  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-echo 'PASS: complete authoritative data restore completed.'
+  --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+echo 'PASS: authoritative data restore.'
 
 pg_restore --exit-on-error --no-owner --no-privileges \
-  --use-list="$work/restore.list" --section=post-data \
-  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-echo 'PASS: complete authoritative post-data restore completed.'
+  --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+echo 'PASS: authoritative post-data restore.'
 
-# Final table invariant.
 missing=0
 while IFS= read -r table_name; do
   [ -n "$table_name" ] || continue
@@ -150,9 +107,10 @@ while IFS= read -r table_name; do
 done < "$work/public.tables"
 [ "$missing" -eq 0 ] || exit 1
 
-echo 'PASS: final public table invariant completed.'
+echo 'PASS: final public table invariant.'
 
-# Preserve referential-integrity placeholder identities without importing Supabase credentials/sessions.
+# Preserve referential identities only as UUID placeholders; never copy
+# passwords, sessions, refresh tokens, or Supabase auth records.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
 DECLARE r record;
@@ -163,6 +121,7 @@ BEGIN
     WHERE table_schema='public' AND data_type='uuid'
       AND (column_name='auth_user_id' OR column_name='user_id' OR column_name LIKE '%_user_id'
            OR column_name IN ('created_by','updated_by','approved_by','verified_by','cancelled_by','completed_by','checked_in_by','checked_out_by'))
+    ORDER BY table_schema, table_name, column_name
   LOOP
     EXECUTE format('INSERT INTO auth.users(id) SELECT DISTINCT %I FROM %I.%I WHERE %I IS NOT NULL ON CONFLICT(id) DO NOTHING', r.column_name,r.table_schema,r.table_name,r.column_name);
   END LOOP;
@@ -171,6 +130,7 @@ SQL
 
 cp "$work/public.dump.enc" "$evidence/public.dump.enc"
 cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
+chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256"
 printf '%s\n' \
   'AZAAD Emergency DR encrypted recovery artifact.' \
   'Plaintext dump is intentionally not retained.' \
