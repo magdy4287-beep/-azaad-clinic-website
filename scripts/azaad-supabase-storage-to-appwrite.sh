@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Normalize CI-provided environment values before validation or HTTP use.
-# GitHub Secrets may be pasted with a trailing CR/LF; never allow those bytes
-# to reach fetch/Headers because Node rejects them as invalid HTTP header data.
 clean_env() {
   printf '%s' "${1:-}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
@@ -21,9 +18,6 @@ export SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT
 : "${APPWRITE_PROJECT_ID:?Missing APPWRITE_PROJECT_ID}"
 : "${APPWRITE_API_KEY:?Missing APPWRITE_API_KEY}"
 
-# Accept the canonical Supabase project URL. If a dashboard/rest URL was
-# accidentally supplied, normalize it to https://<project-ref>.supabase.co
-# instead of silently treating Storage HTTP 404 as an empty migration.
 SUPABASE_URL="${SUPABASE_URL%/}"
 if [[ "$SUPABASE_URL" =~ ^https://app\.supabase\.com/dashboard/project/([a-z0-9]+)(/.*)?$ ]]; then
   SUPABASE_URL="https://${BASH_REMATCH[1]}.supabase.co"
@@ -38,8 +32,6 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Defense in depth: sanitize values again at the Node boundary immediately
-// before they can be consumed by fetch/Headers or SDK calls.
 const cleanEnv = val => (val ? val.trim().replace(/[\r\n]+/g, '') : '');
 const supabase = cleanEnv(process.env.SUPABASE_URL);
 const supaKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -63,10 +55,18 @@ async function request(url, options={}, label='request') {
         await sleep(1000 * attempt);
         continue;
       }
-      throw new Error(`${label}: HTTP ${res.status}`);
+      let detail='';
+      try {
+        const raw=await res.text();
+        try {
+          const parsed=JSON.parse(raw);
+          detail=JSON.stringify({type:parsed.type, message:parsed.message, code:parsed.code});
+        } catch { detail=raw.slice(0,500); }
+      } catch {}
+      throw new Error(`${label}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`);
     } catch (e) {
       last=e;
-      if (attempt < 4) await sleep(1000 * attempt); else throw last;
+      if (attempt < 4 && !String(e.message||'').includes('HTTP ')) await sleep(1000 * attempt); else if (attempt < 4 && (String(e.message||'').includes('HTTP 429') || String(e.message||'').match(/HTTP 5\d\d/))) await sleep(1000 * attempt); else if (attempt < 4 && String(e.message||'').includes('HTTP ')) throw e; else if (attempt < 4) await sleep(1000 * attempt); else throw last;
     }
   }
   throw last;
@@ -74,7 +74,11 @@ async function request(url, options={}, label='request') {
 async function getMaybe(url, options={}, label='request') {
   const res = await fetch(url, options);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`);
+  if (!res.ok) {
+    let detail='';
+    try { const raw=await res.text(); detail=raw.slice(0,500); } catch {}
+    throw new Error(`${label}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`);
+  }
   return res;
 }
 async function json(url, options, label) {
@@ -84,9 +88,6 @@ async function json(url, options, label) {
 
 function supabaseHeaders() {
   const h = {'apikey':supaKey, 'Accept':'application/json'};
-  // New Supabase secret keys (sb_secret_*) are opaque API keys, not JWTs.
-  // They MUST be sent via apikey only. Legacy service_role is a JWT and also
-  // needs Authorization: Bearer for the Storage service.
   if (!supaKey.startsWith('sb_secret_')) h.Authorization = `Bearer ${supaKey}`;
   return h;
 }
@@ -146,7 +147,11 @@ async function appwriteBuckets() {
   return result;
 }
 async function createBucket(id,name) {
-  const body={bucketId:id,name,permissions:[],fileSecurity:false,enabled:true,maximumFileSize:30000000000,allowedFileExtensions:[],compression:'none',encryption:true,antivirus:true};
+  // Appwrite Cloud currently caps a bucket's maximum file size at 5 GiB.
+  // The previous 30,000,000,000-byte payload exceeded that platform limit and
+  // caused the observed HTTP 400. Use only documented fields and the platform
+  // maximum so bucket creation is accepted without weakening fail-closed mode.
+  const body={bucketId:id,name,permissions:[],fileSecurity:false,enabled:true,maximumFileSize:5*1024*1024*1024,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false};
   return json(`${aw}/storage/buckets`, {method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify(body)}, `Appwrite create bucket ${name}`);
 }
 async function uploadChunks(bucketIdValue, f, bytes, mime) {
@@ -184,13 +189,8 @@ async function verifyDestination(bucketIdValue, f, expectedSha, expectedSize) {
 (async()=>{
   const manifest={candidate_sha:process.env.GITHUB_SHA||'unknown',started_at:new Date().toISOString(),buckets:[],source_deleted:false,supabase_url:supabase};
 
-  // Do not interpret HTTP 404 as an empty Storage account. A 404 here means
-  // the supplied project URL is not reaching the Supabase Storage API (or the
-  // project is unavailable), and must remain fail-closed.
   const inventoryResponse = await fetch(`${supabase}/storage/v1/bucket`, {headers:supabaseHeaders()});
-  if (inventoryResponse.status === 404) {
-    throw new Error(`Supabase Storage bucket inventory: HTTP 404 (normalized SUPABASE_URL=${supabase}; expected project API URL https://<project-ref>.supabase.co)`);
-  }
+  if (inventoryResponse.status === 404) throw new Error(`Supabase Storage bucket inventory: HTTP 404 (normalized SUPABASE_URL=${supabase}; expected project API URL https://<project-ref>.supabase.co)`);
   if (!inventoryResponse.ok) throw new Error(`Supabase Storage bucket inventory: HTTP ${inventoryResponse.status}`);
   const sbRes = await inventoryResponse.json();
   if(!Array.isArray(sbRes)) throw new Error('Supabase bucket inventory was not an array');
