@@ -37,17 +37,27 @@ awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ {
 test -s "$work/public.tables"
 echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
 
-# The dump's public-schema TOC entry is not replayed: public is a database-owned
-# namespace boundary for this DR target. Keeping the namespace alive prevents
-# pg_restore from removing it between pre-data and trigger-management phases.
-awk '$0 !~ /^;/ && $0 !~ /[[:space:]]SCHEMA[[:space:]]+public([[:space:]]|$)/ { print }' \
-  "$work/archive.list" > "$work/restore.list"
+# PostgreSQL custom-dump TOC schema rows are formatted as e.g.
+# "... SCHEMA - public". The previous filter looked for "SCHEMA public"
+# directly and therefore failed to exclude the public-schema CREATE SCHEMA
+# command. Exclude the exact public schema TOC row while preserving every
+# TABLE/INDEX/CONSTRAINT row needed for the authoritative restore.
+awk 'BEGIN { excluded=0 }
+  $0 !~ /^;/ && $0 ~ /[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$/ { excluded++; next }
+  { print }
+  END { if (excluded != 1) exit 42 }
+' "$work/archive.list" > "$work/restore.list"
 test -s "$work/restore.list"
 
 grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list" || {
   echo 'FAIL-CLOSED: filtered restore list lost all public table entries.' >&2
   exit 1
 }
+
+if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
+  echo 'FAIL-CLOSED: filtered restore list still contains public schema TOC entry.' >&2
+  exit 1
+fi
 
 # Encrypted recovery artifact and byte-for-byte decrypt verification.
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE \
