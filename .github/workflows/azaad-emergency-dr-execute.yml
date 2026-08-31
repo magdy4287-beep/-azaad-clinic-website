@@ -31,7 +31,7 @@ jobs:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_ref || github.ref }}
+          ref: ${{ inputs.candidate_ref || github.sha }}
           fetch-depth: 1
       - name: Verify exact candidate SHA
         shell: bash
@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
-          echo "candidate_ref=${{ inputs.candidate_ref || github.ref }}"
+          echo "candidate_ref=${{ inputs.candidate_ref || github.sha }}"
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "$candidate_sha" = "$GITHUB_SHA"
           fi
@@ -120,7 +120,7 @@ jobs:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_ref || github.ref }}
+          ref: ${{ inputs.candidate_ref || github.sha }}
           fetch-depth: 1
       - name: Verify exact candidate SHA
         shell: bash
@@ -128,7 +128,7 @@ jobs:
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
-          echo "candidate_ref=${{ inputs.candidate_ref || github.ref }}"
+          echo "candidate_ref=${{ inputs.candidate_ref || github.sha }}"
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "$candidate_sha" = "$GITHUB_SHA"
           fi
