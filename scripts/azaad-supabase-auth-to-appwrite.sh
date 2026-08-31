@@ -7,7 +7,6 @@ set -euo pipefail
 : "${APPWRITE_PROJECT_ID:?APPWRITE_PROJECT_ID is required}"
 : "${APPWRITE_API_KEY:?APPWRITE_API_KEY is required}"
 
-SUPABASE_URL="${SUPABASE_URL%/}"
 APPWRITE_ENDPOINT="${APPWRITE_ENDPOINT%/}"
 EVIDENCE_DIR="${RUNNER_TEMP:-/tmp}/azaad-auth-migration"
 mkdir -p "$EVIDENCE_DIR"
@@ -17,12 +16,25 @@ MANIFEST="$EVIDENCE_DIR/manifest.json"
 node <<'NODE'
 const fs=require('fs');
 const crypto=require('crypto');
-const s=String(process.env.SUPABASE_URL).replace(/\/$/,'');
+const raw=String(process.env.SUPABASE_URL||'').trim().replace(/[\r\n]+/g,'');
 const sk=String(process.env.SUPABASE_SERVICE_ROLE_KEY);
 const a=String(process.env.APPWRITE_ENDPOINT).replace(/\/$/,'');
 const p=String(process.env.APPWRITE_PROJECT_ID);
 const k=String(process.env.APPWRITE_API_KEY);
 const out=process.env.RUNNER_TEMP+'/azaad-auth-migration/manifest.json';
+function canonical(v){
+  try{
+    const u=new URL(v);
+    if(!/^https?:$/.test(u.protocol)) return '';
+    if(/^[a-z0-9]+\.supabase\.co$/i.test(u.hostname)) return `${u.protocol}//${u.hostname}`;
+    const m=u.hostname.match(/^app\.supabase\.com$/i)&&u.pathname.match(/\/dashboard\/project\/([a-z0-9]+)(?:\/|$)/i);
+    if(m) return `https://${m[1]}.supabase.co`;
+  }catch{}
+  return '';
+}
+const s=canonical(raw);
+if(!s) throw new Error('FAIL-CLOSED: SUPABASE_URL is not a canonical Supabase project URL or dashboard URL');
+console.log(`supabase_auth_host=${new URL(s).hostname}`);
 const headers={Authorization:`Bearer ${sk}`,apikey:sk,Accept:'application/json'};
 const ah={'X-Appwrite-Project':p,'X-Appwrite-Key':k,'Accept':'application/json','Content-Type':'application/json'};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -47,10 +59,12 @@ async function appUsers(){let all=[],offset=0;for(;;){const j=await req(`${a}/us
      existing++;results.push({id,status:'EXISTS'});continue;
    }
    if(sameEmail){conflicts++;results.push({id,status:'CONFLICT_EMAIL'});continue}
-   // Password hashes are intentionally not exported. A unique temporary secret is sent only in the API request;
-   // it is never logged or written to artifacts. The account must use the application's recovery/reset flow.
    const temporaryPassword=crypto.randomBytes(32).toString('base64url')+'Aa1!';
-   const createdUser=await req(`${a}/users`,{method:'POST',headers:ah,body:JSON.stringify({userId:id,email,password:temporaryPassword,name:u.user_metadata?.full_name||u.user_metadata?.name||undefined,emailVerification:Boolean(u.email_confirmed_at)})});
+   const payload={userId:id,email,password:temporaryPassword};
+   const name=u.user_metadata?.full_name||u.user_metadata?.name;
+   if(name) payload.name=String(name).slice(0,256);
+   payload.emailVerification=Boolean(u.email_confirmed_at);
+   const createdUser=await req(`${a}/users`,{method:'POST',headers:ah,body:JSON.stringify(payload)});
    byId.set(createdUser.$id,createdUser);byEmail.set(email,createdUser);created++;results.push({id,status:'CREATED'});
  }
  if(conflicts)throw new Error(`FAIL-CLOSED: ${conflicts} identity conflicts require manual resolution`);
