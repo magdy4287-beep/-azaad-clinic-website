@@ -62,8 +62,7 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# Exclude only the archive's CREATE SCHEMA public entry. Keep all table/data/
-# function/sequence/view/type entries so pg_restore retains its native TOC order.
+# Keep the archive's native TOC, excluding only CREATE SCHEMA public.
 cp "$work/restored-archive.list" "$work/restore.list"
 awk '
   BEGIN { changed=0 }
@@ -77,18 +76,18 @@ test -s "$work/restore.list"
 
 if grep -Eq '^[[:space:]]*[0-9]+;[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
   echo 'FAIL-CLOSED: active CREATE SCHEMA public entry remains in restore list.' >&2
-  grep -E 'SCHEMA|TABLE|TABLE DATA|FUNCTION|SEQUENCE' "$work/restore.list" | head -100 >&2 || true
   exit 1
 fi
 if ! grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list"; then
   echo 'FAIL-CLOSED: restore list contains no public table entries.' >&2
-  grep -E 'TABLE|TABLE DATA|SCHEMA|FUNCTION|SEQUENCE' "$work/restore.list" | head -100 >&2 || true
   exit 1
 fi
 
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
-# Clean only objects represented by the authoritative archive.
+# Clean only objects represented by the authoritative archive. Each generated
+# file is executed over one persistent psql connection, so cleanup does not
+# create one network round-trip per DROP statement.
 awk '
   $0 !~ /^;/ {
     line=$0
@@ -99,13 +98,16 @@ awk '
 ' "$work/restore.list" | sort -u > "$work/public.tables"
 test -s "$work/public.tables"
 
-while IFS= read -r table_name; do
-  escaped_name=$(printf '%s' "$table_name" | sed 's/"/""/g')
-  printf 'DROP TABLE IF EXISTS public."%s" CASCADE;\n' "$escaped_name"
-done < "$work/public.tables" > "$work/drop-public-tables.sql"
+{
+  echo 'BEGIN;'
+  while IFS= read -r table_name; do
+    escaped_name=$(printf '%s' "$table_name" | sed 's/"/""/g')
+    printf 'DROP TABLE IF EXISTS public."%s" CASCADE;\n' "$escaped_name"
+  done < "$work/public.tables"
+  echo 'COMMIT;'
+} > "$work/drop-public-tables.sql"
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-tables.sql"
 
-# Drop only exact public functions represented by the authoritative archive.
 awk '
   $0 !~ /^;/ {
     line=$0
@@ -118,15 +120,18 @@ awk '
   }
 ' "$work/restore.list" | sort -u > "$work/public.functions"
 
-: > "$work/drop-public-functions.sql"
-while IFS= read -r function_identity; do
-  [ -n "$function_identity" ] || continue
-  function_name="${function_identity%%(*}"
-  function_args="${function_identity#*(}"
-  function_args="${function_args%)}"
-  escaped_name=$(printf '%s' "$function_name" | sed 's/"/""/g')
-  printf 'DROP FUNCTION IF EXISTS public."%s"(%s) CASCADE;\n' "$escaped_name" "$function_args" >> "$work/drop-public-functions.sql"
-done < "$work/public.functions"
+{
+  echo 'BEGIN;'
+  while IFS= read -r function_identity; do
+    [ -n "$function_identity" ] || continue
+    function_name="${function_identity%%(*}"
+    function_args="${function_identity#*(}"
+    function_args="${function_args%)}"
+    escaped_name=$(printf '%s' "$function_name" | sed 's/"/""/g')
+    printf 'DROP FUNCTION IF EXISTS public."%s"(%s) CASCADE;\n' "$escaped_name" "$function_args"
+  done < "$work/public.functions"
+  echo 'COMMIT;'
+} > "$work/drop-public-functions.sql"
 
 if [ -s "$work/drop-public-functions.sql" ]; then
   psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-functions.sql"
@@ -141,25 +146,42 @@ awk '
   }
 ' "$work/restore.list" | sort -u > "$work/public.sequences"
 
-: > "$work/drop-public-sequences.sql"
-while IFS= read -r sequence_name; do
-  [ -n "$sequence_name" ] || continue
-  escaped_name=$(printf '%s' "$sequence_name" | sed 's/"/""/g')
-  printf 'DROP SEQUENCE IF EXISTS public."%s" CASCADE;\n' "$escaped_name" >> "$work/drop-public-sequences.sql"
-done < "$work/public.sequences"
+{
+  echo 'BEGIN;'
+  while IFS= read -r sequence_name; do
+    [ -n "$sequence_name" ] || continue
+    escaped_name=$(printf '%s' "$sequence_name" | sed 's/"/""/g')
+    printf 'DROP SEQUENCE IF EXISTS public."%s" CASCADE;\n' "$escaped_name"
+  done < "$work/public.sequences"
+  echo 'COMMIT;'
+} > "$work/drop-public-sequences.sql"
 
 if [ -s "$work/drop-public-sequences.sql" ]; then
   psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-sequences.sql"
 fi
 
-# IMPORTANT: restore the archive as one ordered operation rather than manually
-# splitting pre-data/data/post-data. pg_restore then owns the authoritative TOC
-# dependency ordering and creates TABLE objects before applying TABLE DATA.
-# --disable-triggers is applied during the data phase, after those TABLE objects
-# have been created. --exit-on-error keeps the evacuation fail-closed.
-pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges \
-  --use-list="$work/restore.list" --disable-triggers \
+# Restore in three explicit PostgreSQL phases. This is deliberate: pre-data
+# creates all TABLE/type objects first; data then runs with trigger disabling;
+# post-data adds indexes, constraints, policies, and other dependent objects.
+# No --clean is used here because the destination has already been cleaned with
+# CASCADE. This prevents pg_restore from attempting DROP operations against
+# dependencies while simultaneously applying the archive.
+pg_restore --exit-on-error --no-owner --no-privileges \
+  --section=pre-data --use-list="$work/restore.list" \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+
+echo 'PASS: restore pre-data phase completed; table definitions exist before data phase.'
+
+pg_restore --exit-on-error --no-owner --no-privileges --disable-triggers \
+  --section=data --use-list="$work/restore.list" \
+  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+
+echo 'PASS: restore data phase completed with triggers disabled.'
+
+pg_restore --exit-on-error --no-owner --no-privileges \
+  --section=post-data --use-list="$work/restore.list" \
+  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+echo 'PASS: restore post-data phase completed.'
 
 # Post-restore invariant: every archive-listed public table must now exist before
 # any reconciliation is declared successful.
