@@ -1,6 +1,3 @@
-# AZAAD Emergency DR — ordered evacuation gate.
-# Database must pass before Storage migration is allowed to start.
-# Manual runs may be dispatched from any workflow ref but MUST execute the explicit emergency candidate.
 name: AZAAD Emergency DR Execute
 
 on:
@@ -22,6 +19,10 @@ concurrency:
   group: azaad-emergency-dr-execute
   cancel-in-progress: false
 
+env:
+  # Push events MUST execute the immutable event SHA. Manual dispatches execute the explicit candidate ref.
+  CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_ref || github.sha }}
+
 jobs:
   execute:
     name: Execute emergency database evacuation
@@ -31,18 +32,20 @@ jobs:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_ref || github.sha }}
+          ref: ${{ env.CANDIDATE_REF }}
           fetch-depth: 1
+
       - name: Verify exact candidate SHA
         shell: bash
         run: |
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
-          echo "candidate_ref=${{ inputs.candidate_ref || github.sha }}"
+          echo "candidate_ref=$CANDIDATE_REF"
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "$candidate_sha" = "$GITHUB_SHA"
           fi
+
       - name: Install PostgreSQL 17 client non-interactively
         shell: bash
         run: |
@@ -60,17 +63,20 @@ jobs:
           command -v pg_dump
           command -v pg_restore
           test "$(pg_dump --version | awk '{print $3}' | cut -d. -f1)" = "17"
+
       - name: Inventory source and runtime references
         shell: bash
         run: bash scripts/azaad-supabase-evacuation-inventory.sh
+
       - name: Upload evacuation inventory evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: azaad-supabase-evacuation-inventory-${{ github.sha }}
+          name: azaad-supabase-evacuation-inventory-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/azaad-supabase-evacuation/
           if-no-files-found: error
           retention-days: 90
+
       - name: Verify database migration secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -83,10 +89,8 @@ jobs:
           for name in SUPABASE_DB_URL NEON_DATABASE_URL DR_BACKUP_PASSPHRASE; do
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
-          if [ "$missing" -ne 0 ]; then
-            echo 'FAIL-CLOSED: required database evacuation secrets are not configured.'
-            exit 78
-          fi
+          if [ "$missing" -ne 0 ]; then echo 'FAIL-CLOSED: required database evacuation secrets are not configured.'; exit 78; fi
+
       - name: Execute Neon database restore from this exact candidate
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -97,12 +101,12 @@ jobs:
           set -euo pipefail
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
           bash scripts/azaad-dr-real-restore.sh
+
       - name: Record database evacuation gate
         shell: bash
         run: |
           set -euo pipefail
-          candidate_sha="$(git rev-parse HEAD)"
-          echo "candidate_sha=$candidate_sha"
+          echo "candidate_sha=$(git rev-parse HEAD)"
           echo 'database_restore=PASS'
           echo 'next_gate=STORAGE'
           echo 'identity_auth=NOT_PROVEN'
@@ -120,18 +124,18 @@ jobs:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_ref || github.sha }}
+          ref: ${{ env.CANDIDATE_REF }}
           fetch-depth: 1
+
       - name: Verify exact candidate SHA
         shell: bash
         run: |
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
-          echo "candidate_ref=${{ inputs.candidate_ref || github.sha }}"
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            test "$candidate_sha" = "$GITHUB_SHA"
-          fi
+          echo "candidate_ref=$CANDIDATE_REF"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then test "$candidate_sha" = "$GITHUB_SHA"; fi
+
       - name: Verify Storage migration secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -147,10 +151,8 @@ jobs:
           for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
-          if [ "$missing" -ne 0 ]; then
-            echo 'FAIL-CLOSED: required Storage migration secrets are not configured.'
-            exit 78
-          fi
+          if [ "$missing" -ne 0 ]; then echo 'FAIL-CLOSED: required Storage migration secrets are not configured.'; exit 78; fi
+
       - name: Diagnose Appwrite Storage authentication (read-only)
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
@@ -161,46 +163,34 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import crypto from 'node:crypto';
-          const clean = v => String(v || '').trim().replace(/[\r\n]+/g, '');
-          const endpoint = clean(process.env.APPWRITE_ENDPOINT).replace(/\/$/, '');
-          const project = clean(process.env.APPWRITE_PROJECT_ID);
-          const key = clean(process.env.APPWRITE_API_KEY);
-          if (!endpoint || !project || !key) throw new Error('FAIL-CLOSED: Appwrite diagnostic received an empty normalized secret');
-          let u;
-          try { u = new URL(endpoint); } catch { throw new Error('FAIL-CLOSED: APPWRITE_ENDPOINT is not a valid URL'); }
-          const projectFingerprint = crypto.createHash('sha256').update(project).digest('hex').slice(0,16);
-          const keyFingerprint = crypto.createHash('sha256').update(key).digest('hex').slice(0,16);
+          const clean=v=>String(v||'').trim().replace(/[\r\n]+/g,'');
+          const endpoint=clean(process.env.APPWRITE_ENDPOINT).replace(/\/$/,'');
+          const project=clean(process.env.APPWRITE_PROJECT_ID);
+          const key=clean(process.env.APPWRITE_API_KEY);
+          if(!endpoint||!project||!key) throw new Error('FAIL-CLOSED: empty normalized Appwrite credential');
+          const u=new URL(endpoint);
+          if(u.protocol!=='https:') throw new Error('FAIL-CLOSED: APPWRITE_ENDPOINT must use HTTPS');
           console.log(`appwrite_protocol=${u.protocol}`);
           console.log(`appwrite_host=${u.hostname}`);
-          console.log(`appwrite_path=${u.pathname}`);
-          console.log(`project_id_length=${project.length}`);
-          console.log(`project_id_fingerprint=${projectFingerprint}`);
-          console.log(`api_key_length=${key.length}`);
-          console.log(`api_key_fingerprint=${keyFingerprint}`);
-          if (u.protocol !== 'https:') throw new Error('FAIL-CLOSED: APPWRITE_ENDPOINT must use HTTPS');
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 30000);
+          console.log(`project_id_fingerprint=${crypto.createHash('sha256').update(project).digest('hex').slice(0,16)}`);
+          console.log(`api_key_fingerprint=${crypto.createHash('sha256').update(key).digest('hex').slice(0,16)}`);
+          const controller=new AbortController();
+          const timer=setTimeout(()=>controller.abort(),30000);
           try {
-            const res = await fetch(`${endpoint}/storage/buckets?limit=1`, {
-              method: 'GET',
-              headers: {'X-Appwrite-Project': project, 'X-Appwrite-Key': key, 'Accept':'application/json'},
-              signal: controller.signal
-            });
-            const body = await res.text();
-            let message = body;
-            try { const parsed=JSON.parse(body); message=JSON.stringify({type:parsed.type,message:parsed.message,code:parsed.code}); } catch {}
+            const res=await fetch(`${endpoint}/storage/buckets?limit=1`,{headers:{'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'},signal:controller.signal});
+            const body=await res.text();
+            let message=body; try {const p=JSON.parse(body); message=JSON.stringify({type:p.type,message:p.message,code:p.code});} catch {}
             console.log(`appwrite_http_status=${res.status}`);
             console.log(`appwrite_response=${message.slice(0,1000)}`);
-            if (!res.ok) process.exit(1);
+            if(!res.ok) process.exit(1);
             console.log('PASS: Appwrite Storage authentication accepted the read-only bucket probe');
-          } catch (e) {
-            console.error(`Appwrite diagnostic transport error: ${e.name || 'Error'}: ${e.message || ''}`);
-            process.exit(1);
           } finally { clearTimeout(timer); }
           NODE
+
       - name: Normalize Appwrite bucket payload for emergency evacuation
         shell: bash
         run: bash scripts/azaad-emergency-storage-patch.sh
+
       - name: Migrate every Supabase Storage object
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -213,39 +203,27 @@ jobs:
         run: |
           set -euo pipefail
           canonical_url="$(node - <<'NODE'
-          const raw=process.env.SUPABASE_URL||'';
-          const db=process.env.SUPABASE_DB_URL||'';
-          function projectUrlFromDb(value){
-            try {
-              const u=new URL(value);
-              const host=u.hostname;
-              let m=host.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
-              if(m) return `https://${m[1]}.supabase.co`;
-              m=u.username.match(/^[^.]+\.([a-z0-9]+)$/i);
-              if(m) return `https://${m[1]}.supabase.co`;
-            } catch {}
-            return '';
-          }
-          const normalized=raw.replace(/\/$/,'');
-          if(/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(normalized)) { console.log(normalized); process.exit(0); }
-          const dashboard=normalized.match(/^https:\/\/app\.supabase\.com\/dashboard\/project\/([a-z0-9]+)(?:\/.*)?$/i);
-          if(dashboard) { console.log(`https://${dashboard[1]}.supabase.co`); process.exit(0); }
-          const derived=projectUrlFromDb(db);
-          if(derived) { console.log(derived); process.exit(0); }
-          console.error('Unable to derive canonical Supabase project URL from SUPABASE_URL or SUPABASE_DB_URL');
-          process.exit(1);
+          const raw=process.env.SUPABASE_URL||''; const db=process.env.SUPABASE_DB_URL||'';
+          function fromDb(v){try{const u=new URL(v);let m=u.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);if(m)return `https://${m[1]}.supabase.co`;m=u.username.match(/^[^.]+\.([a-z0-9]+)$/i);if(m)return `https://${m[1]}.supabase.co`;}catch{}return ''}
+          const n=raw.replace(/\/$/,'');
+          if(/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(n)){console.log(n);process.exit(0)}
+          const d=n.match(/^https:\/\/app\.supabase\.com\/dashboard\/project\/([a-z0-9]+)(?:\/.*)?$/i); if(d){console.log(`https://${d[1]}.supabase.co`);process.exit(0)}
+          const x=fromDb(db); if(x){console.log(x);process.exit(0)}
+          console.error('Unable to derive canonical Supabase project URL'); process.exit(1);
           NODE
           )"
-          echo "Using canonical Supabase project host derived for Storage API"
+          echo 'Using canonical Supabase project host derived for Storage API'
           export SUPABASE_URL="$canonical_url"
           bash scripts/azaad-supabase-storage-to-appwrite.sh
+
       - name: Upload Storage reconciliation manifest
         uses: actions/upload-artifact@v4
         with:
-          name: azaad-storage-migration-${{ github.sha }}
+          name: azaad-storage-migration-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/azaad-storage-migration/manifest.json
           if-no-files-found: error
           retention-days: 90
+
       - name: Fail closed unless every Storage object reconciles
         shell: bash
         run: |
@@ -255,8 +233,6 @@ jobs:
           const p=process.env.RUNNER_TEMP+'/azaad-storage-migration/manifest.json';
           const m=JSON.parse(fs.readFileSync(p,'utf8'));
           if(m.status!=='PASS') process.exit(1);
-          for(const b of m.buckets) {
-            if(b.file_count !== b.verified || b.failed.length) process.exit(1);
-          }
+          for(const b of m.buckets){if(b.file_count!==b.verified||b.failed.length) process.exit(1)}
           console.log('PASS: every discovered Storage object is reconciled');
           NODE
