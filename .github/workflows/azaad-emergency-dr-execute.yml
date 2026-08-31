@@ -159,8 +159,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const crypto = require('crypto');
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
           const clean = v => String(v || '').trim().replace(/[\r\n]+/g, '');
           const endpoint = clean(process.env.APPWRITE_ENDPOINT).replace(/\/$/, '');
           const project = clean(process.env.APPWRITE_PROJECT_ID);
