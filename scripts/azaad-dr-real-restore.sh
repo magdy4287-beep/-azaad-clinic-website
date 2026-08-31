@@ -10,8 +10,6 @@ work="${RUNNER_TEMP}/azaad-dr"; evidence="${RUNNER_TEMP}/azaad-dr-evidence"; rm 
 pg_dump "$SUPABASE_DB_URL" --format=custom --schema=public --no-owner --no-privileges --file="$work/public.dump"; test -s "$work/public.dump"; pg_restore --list "$work/public.dump" > "$work/archive.list"; test -s "$work/archive.list"; sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list" || { echo 'FAIL-CLOSED: authoritative dump contains no public table entries.' >&2; exit 1; }
 awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ { for (i=1; i<=NF; i++) if ($i == "public") { print $(i+1); break } }' "$work/archive.list" | sed '/^$/d' | sort -u > "$work/public.tables"; test -s "$work/public.tables"; echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
-# The Neon database is the dedicated evacuation target. Reset only its public schema so the authoritative Supabase dump can be restored deterministically.
-# The Supabase source is never modified by this operation.
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump" -out "$work/public.dump.enc"; sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"; openssl enc -d -aes-256-cbc -pbkdf2 -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump.enc" -out "$work/public.restore.dump"; sha256sum -c "$work/public.dump.sha256"; cmp "$work/public.dump" "$work/public.restore.dump"
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth; CREATE SCHEMA IF NOT EXISTS security;
@@ -25,10 +23,14 @@ CREATE OR REPLACE FUNCTION security.can_access_patient(patient_id uuid) RETURNS 
 CREATE OR REPLACE FUNCTION security.can_access_patient_clinical(patient_id uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false; $$;
 REVOKE ALL ON FUNCTION security.can_access_patient(uuid) FROM PUBLIC; REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated; GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
--- Neon is the evacuation target. Reset only public; do not touch auth/security or the Supabase source.
+-- Neon is the dedicated evacuation target. Reset only public; never modify the Supabase source.
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO postgres;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='postgres') THEN
+    EXECUTE 'GRANT ALL ON SCHEMA public TO postgres';
+  END IF;
+END $$;
 GRANT USAGE ON SCHEMA public TO PUBLIC;
 SQL
 pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"; echo 'PASS: authoritative pre-data restore.'
