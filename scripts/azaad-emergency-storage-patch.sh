@@ -2,23 +2,24 @@
 set -euo pipefail
 
 # Emergency-only compatibility patch for Appwrite Cloud Free.
-# This patch is intentionally narrow and idempotent: the migration script may
-# already express the canonical 50 MB Appwrite limit through a constant.
+# The migration script may express the canonical 50 MB limit through a
+# variable rather than an inline object literal. Treat that representation as
+# already normalized; only rewrite the known legacy 5 GB payload.
 script='scripts/azaad-supabase-storage-to-appwrite.sh'
 old="maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false"
 old_without_transform="maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false"
 new="maximumFileSize:50000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false"
 
-# Already-canonical implementations are a successful no-op. This covers the
-# current migration implementation, which passes APPWRITE_MAX_FILE_SIZE into
-# the bucket payload rather than embedding 50000000 inline.
+# Canonical current implementation: APPWRITE_MAX_FILE_SIZE is 50,000,000
+# and the bucket payload references that constant. This is an intentional
+# successful no-op and keeps the patch idempotent.
 if grep -Fq 'APPWRITE_MAX_FILE_SIZE=50_000_000' "$script" && \
    grep -Fq 'maximumFileSize:APPWRITE_MAX_FILE_SIZE' "$script"; then
   echo 'PASS: Appwrite bucket payload is already canonical at 50,000,000 bytes'
   exit 0
 fi
 
-if grep -Fq "$new" "$script"; then
+if grep -Fq "$new" "$script" || grep -Fq 'maximumFileSize:50000000' "$script"; then
   echo 'PASS: Appwrite bucket payload is already normalized to 50,000,000 bytes'
   exit 0
 fi
