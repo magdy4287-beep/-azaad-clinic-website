@@ -1,0 +1,45 @@
+name: AZAAD Emergency Remaining Evacuation
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: 'Exact emergency branch/ref'
+        required: true
+        default: 'emergency/supabase-evacuation'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-emergency-remaining-evacuation
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: Inventory remaining Supabase services
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 1
+      - name: Deep evacuation inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/azaad-remaining-evacuation"
+          echo "candidate_sha=$(git rev-parse HEAD)" | tee "$RUNNER_TEMP/azaad-remaining-evacuation/summary.txt"
+          echo 'Scanning repository for Supabase runtime/service references...'
+          grep -RInE --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next --exclude='*.lock' 'supabase|SUPABASE|createClient|supabase-js|functions\.invoke|storage\.from|auth\.' . > "$RUNNER_TEMP/azaad-remaining-evacuation/references.txt" || true
+          echo 'Inventory only: no application changes and no destructive Supabase operations.'
+          echo 'identity_auth=INVENTORY_ONLY'
+          echo 'edge_functions=INVENTORY_ONLY'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: azaad-remaining-supabase-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/azaad-remaining-evacuation/
+          if-no-files-found: error
+          retention-days: 90
