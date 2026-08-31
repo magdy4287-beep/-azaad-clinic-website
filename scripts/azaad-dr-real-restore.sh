@@ -62,8 +62,8 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# Exclude only the archive's CREATE SCHEMA public entry. The destination public
-# schema is preserved; it is not a disposable application object.
+# Exclude only the archive's CREATE SCHEMA public entry. Keep all table/data/
+# function/sequence/view/type entries so pg_restore retains its native TOC order.
 cp "$work/restored-archive.list" "$work/restore.list"
 awk '
   BEGIN { changed=0 }
@@ -89,7 +89,6 @@ fi
 echo 'PREFLIGHT: filtered restore list is valid and public schema creation is excluded.'
 
 # Clean only objects represented by the authoritative archive.
-# Tables are dropped with CASCADE so FK dependencies cannot abort cleanup.
 awk '
   $0 !~ /^;/ {
     line=$0
@@ -104,10 +103,9 @@ while IFS= read -r table_name; do
   escaped_name=$(printf '%s' "$table_name" | sed 's/"/""/g')
   printf 'DROP TABLE IF EXISTS public."%s" CASCADE;\n' "$escaped_name"
 done < "$work/public.tables" > "$work/drop-public-tables.sql"
-
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-tables.sql"
 
-# Drop only the exact public functions present in the authoritative archive.
+# Drop only exact public functions represented by the authoritative archive.
 awk '
   $0 !~ /^;/ {
     line=$0
@@ -134,8 +132,6 @@ if [ -s "$work/drop-public-functions.sql" ]; then
   psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-functions.sql"
 fi
 
-# Sequences are independent objects and are not guaranteed to disappear when
-# tables/functions are cleaned. Drop only sequences represented in the archive.
 awk '
   $0 !~ /^;/ {
     line=$0
@@ -156,13 +152,28 @@ if [ -s "$work/drop-public-sequences.sql" ]; then
   psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$work/drop-public-sequences.sql"
 fi
 
-# pg_restore also cleans every archive-listed object before recreating it.
-# This covers object classes not handled by the targeted pre-clean above
-# (for example views/types) while remaining scoped to the authoritative TOC.
-# --if-exists keeps already-absent objects harmless; --exit-on-error keeps
-# genuine restore failures fail-closed.
-pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
-pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# IMPORTANT: restore the archive as one ordered operation rather than manually
+# splitting pre-data/data/post-data. pg_restore then owns the authoritative TOC
+# dependency ordering and creates TABLE objects before applying TABLE DATA.
+# --disable-triggers is applied during the data phase, after those TABLE objects
+# have been created. --exit-on-error keeps the evacuation fail-closed.
+pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges \
+  --use-list="$work/restore.list" --disable-triggers \
+  --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+
+# Post-restore invariant: every archive-listed public table must now exist before
+# any reconciliation is declared successful.
+missing_tables=0
+while IFS= read -r table_name; do
+  [ -n "$table_name" ] || continue
+  if ! psql "$NEON_DATABASE_URL" -Atqc "SELECT to_regclass('public.' || quote_ident('$table_name')) IS NOT NULL" | grep -qx 't'; then
+    echo "FAIL-CLOSED: restored public table is missing: $table_name" >&2
+    missing_tables=1
+  fi
+done < "$work/public.tables"
+if [ "$missing_tables" -ne 0 ]; then
+  exit 1
+fi
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
@@ -180,8 +191,6 @@ BEGIN
   END LOOP;
 END $$;
 SQL
-
-pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges --use-list="$work/restore.list" --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS public.azaad_dr_reconciliation (
@@ -209,6 +218,7 @@ Auth identity placeholders are created only for referential-integrity compatibil
 The destination is treated as the emergency DR target; the public schema itself is never dropped.
 EOF
 
-echo 'PASS: strict post-data restore completed'
+echo 'PASS: ordered database restore completed'
+echo 'PASS: post-restore public table invariant completed'
 echo 'PASS: encrypted recovery artifact retained'
 echo 'FAIL-CLOSED: Supabase retirement/cutover remains blocked until identity, storage, edge functions, E2E, and production certification pass'
