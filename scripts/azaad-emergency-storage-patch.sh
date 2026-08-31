@@ -10,11 +10,12 @@ old="maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encr
 old_without_transform="maximumFileSize:5000000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false"
 new="maximumFileSize:50000000,allowedFileExtensions:[],compression:'none',encryption:false,antivirus:false,transformations:false"
 
-# Canonical current implementation: APPWRITE_MAX_FILE_SIZE is 50,000,000
-# and the bucket payload references that constant. This is an intentional
-# successful no-op and keeps the patch idempotent.
-if grep -Fq 'APPWRITE_MAX_FILE_SIZE=50_000_000' "$script" && \
-   grep -Fq 'maximumFileSize:APPWRITE_MAX_FILE_SIZE' "$script"; then
+# Canonical current implementation: accept the semantic representation rather
+# than one exact formatting/number-literal spelling. This is intentionally a
+# successful no-op and keeps the emergency patch idempotent across formatting
+# changes while retaining the fail-closed guard against broad rewrites.
+if grep -Eq 'APPWRITE_MAX_FILE_SIZE[[:space:]]*=[[:space:]]*50_?000_?000' "$script" && \
+   grep -Eq 'maximumFileSize[[:space:]]*:[[:space:]]*APPWRITE_MAX_FILE_SIZE' "$script"; then
   echo 'PASS: Appwrite bucket payload is already canonical at 50,000,000 bytes'
   exit 0
 fi
