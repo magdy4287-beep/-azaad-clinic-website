@@ -69,10 +69,14 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# CRITICAL: do not filter the pg_restore TOC. The complete authoritative dump
-# ordering is required so post-data policies/indexes/triggers retain their table dependencies.
+# CRITICAL: public is the authoritative disposable reconstruction boundary. A
+# schema-only dump does not necessarily contain CREATE SCHEMA public because
+# PostgreSQL normally creates it with the database. Recreate it explicitly after
+# the destructive CASCADE so pg_restore's trigger/index/post-data entries have a
+# live namespace to reference.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
 SQL
 
 # Full pre-data restore recreates public exactly from the dump's own dependency graph.
