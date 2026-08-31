@@ -59,15 +59,18 @@ esac
 
 test -s "$work/restore.list"
 
+# Validate using the exact same TOC-row grammar used above. A broad substring
+# search is unsafe because other TOC descriptions can legitimately contain the
+# words "SCHEMA - public" without being a schema entry.
+if grep -Eq '^[[:space:]]*[^;].*[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$' "$work/restore.list"; then
+  echo 'FAIL-CLOSED: filtered restore list still contains a public schema TOC entry.' >&2
+  exit 1
+fi
+
 grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list" || {
   echo 'FAIL-CLOSED: filtered restore list lost all public table entries.' >&2
   exit 1
 }
-
-if grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list"; then
-  echo 'FAIL-CLOSED: filtered restore list still contains public schema TOC entry.' >&2
-  exit 1
-fi
 
 # Encrypted recovery artifact and byte-for-byte decrypt verification.
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE \
