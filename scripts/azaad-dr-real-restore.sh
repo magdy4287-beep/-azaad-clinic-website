@@ -37,16 +37,26 @@ awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ {
 test -s "$work/public.tables"
 echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
 
-# PostgreSQL custom-dump TOC schema rows are formatted as e.g.
-# "... SCHEMA - public". The previous filter looked for "SCHEMA public"
-# directly and therefore failed to exclude the public-schema CREATE SCHEMA
-# command. Exclude the exact public schema TOC row while preserving every
-# TABLE/INDEX/CONSTRAINT row needed for the authoritative restore.
-awk 'BEGIN { excluded=0 }
-  $0 !~ /^;/ && $0 ~ /[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$/ { excluded++; next }
-  { print }
-  END { if (excluded != 1) exit 42 }
-' "$work/archive.list" > "$work/restore.list"
+# pg_restore TOC formats the public schema entry as "SCHEMA - public" when it
+# is present. It is not guaranteed to be present in a --schema=public dump.
+# Filter it only when present; requiring exactly one entry is incorrect and
+# caused a fail-closed exit on a valid authoritative dump.
+schema_rows="$(grep -Ec '^[[:space:]]*[^;].*[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$' "$work/archive.list" || true)"
+case "$schema_rows" in
+  0)
+    cp "$work/archive.list" "$work/restore.list"
+    echo 'PREFLIGHT: public schema TOC entry absent; no schema-row filtering required.'
+    ;;
+  1)
+    awk '!($0 !~ /^;/ && $0 ~ /[[:space:]]SCHEMA[[:space:]]+-[[:space:]]+public[[:space:]]*$/)' "$work/archive.list" > "$work/restore.list"
+    echo 'PREFLIGHT: filtered one public schema TOC entry.'
+    ;;
+  *)
+    echo "FAIL-CLOSED: unexpected public schema TOC entry count: $schema_rows" >&2
+    exit 42
+    ;;
+esac
+
 test -s "$work/restore.list"
 
 grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/restore.list" || {
@@ -97,8 +107,8 @@ DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 SQL
 
-# Restore pre-data using a TOC list that excludes the public schema entry. This
-# preserves the live namespace required by later trigger/index operations.
+# Restore pre-data using a TOC list that excludes the public schema entry when
+# one existed. This preserves the live namespace required by later operations.
 pg_restore --exit-on-error --no-owner --no-privileges \
   --use-list="$work/restore.list" --section=pre-data \
   --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
