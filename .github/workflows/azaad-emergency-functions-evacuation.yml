@@ -1,0 +1,64 @@
+name: AZAAD Emergency Edge Functions Evacuation
+
+on:
+  push:
+    branches:
+      - emergency/supabase-evacuation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-emergency-functions-evacuation
+  cancel-in-progress: false
+
+jobs:
+  functions:
+    name: Evacuate Supabase Edge Functions to Appwrite
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact pushed candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "candidate_sha=$GITHUB_SHA"
+
+      - name: Verify migration secrets
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+            if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
+          done
+          if [ "$missing" -ne 0 ]; then echo 'FAIL-CLOSED: required Appwrite Function migration secrets are missing'; exit 78; fi
+
+      - name: Evacuate and reconcile every Supabase Function
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: bash scripts/azaad-supabase-functions-to-appwrite.sh
+
+      - name: Upload non-sensitive reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-functions-migration-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/azaad-functions-migration/manifest.json
+          if-no-files-found: error
+          retention-days: 90
