@@ -41,6 +41,15 @@ cmp "$work/public.dump" "$work/public.restore.dump"
 pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
 
+# Build the authoritative table invariant directly from the dump TOC.
+# This avoids relying on a stale/generated file and makes the post-restore
+# check cover exactly the tables the emergency artifact declares.
+awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ {
+  for (i=1; i<=NF; i++) if ($i == "public") { print $(i+1); break }
+}' "$work/restored-archive.list" | sed '/^$/d' | sort -u > "$work/public.tables"
+test -s "$work/public.tables"
+echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded for post-restore invariant."
+
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
@@ -151,6 +160,8 @@ while IFS= read -r table_name; do
   fi
 done < "$work/public.tables"
 if [ "$missing_tables" -ne 0 ]; then exit 1; fi
+
+echo 'PASS: restored public table invariant completed.'
 
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 DO $$
