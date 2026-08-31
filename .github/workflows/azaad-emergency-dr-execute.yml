@@ -198,6 +198,9 @@ jobs:
             process.exit(1);
           } finally { clearTimeout(timer); }
           NODE
+      - name: Normalize Appwrite bucket payload for emergency evacuation
+        shell: bash
+        run: bash scripts/azaad-emergency-storage-patch.sh
       - name: Migrate every Supabase Storage object
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
