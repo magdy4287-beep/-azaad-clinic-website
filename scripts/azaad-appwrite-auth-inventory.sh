@@ -5,9 +5,6 @@ set -euo pipefail
 : "${APPWRITE_PROJECT_ID:?APPWRITE_PROJECT_ID is required}"
 : "${APPWRITE_API_KEY:?APPWRITE_API_KEY is required}"
 
-# Normalize credentials at the process boundary. GitHub Actions secrets can
-# accidentally contain CR/LF or surrounding whitespace; Node fetch rejects
-# such values when constructing HTTP headers. Do not print the values.
 clean_env() {
   printf '%s' "$1" | tr -d '\r\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g'
 }
@@ -24,7 +21,6 @@ evidence_dir="${RUNNER_TEMP:-/tmp}/azaad-appwrite-evidence"
 mkdir -p "$evidence_dir"
 response="$evidence_dir/users.json"
 
-# Read-only inventory. Never print user records or the API key.
 node <<'NODE'
 const fs = require('fs');
 const endpoint = String(process.env.APPWRITE_ENDPOINT || '').trim().replace(/[\r\n]+/g, '').replace(/\/$/, '');
@@ -35,7 +31,14 @@ const controller = new AbortController();
 const timer = setTimeout(() => controller.abort(), 30000);
 (async () => {
   try {
-    const res = await fetch(`${endpoint}/users?limit=1`, {
+    let url;
+    try { url = new URL(`${endpoint}/users?limit=1`); }
+    catch (err) {
+      console.error(`FAIL: Appwrite endpoint URL invalid: ${err.name || 'Error'}`);
+      process.exit(1);
+    }
+    console.log(`Appwrite endpoint diagnostic: protocol=${url.protocol} host=${url.host} path=${url.pathname}`);
+    const res = await fetch(url, {
       method: 'GET',
       headers: {
         'X-Appwrite-Project': project,
@@ -46,12 +49,15 @@ const timer = setTimeout(() => controller.abort(), 30000);
     });
     const text = await res.text();
     fs.writeFileSync(output, text, { mode: 0o600 });
+    console.log(`Appwrite users response: HTTP ${res.status}`);
     if (res.status !== 200) {
       console.error(`FAIL: Appwrite users read returned HTTP ${res.status}`);
       process.exit(1);
     }
   } catch (err) {
-    console.error(`FAIL: Appwrite users request failed: ${err.name || 'Error'}`);
+    console.error(`FAIL: Appwrite users request failed: ${err.name || 'Error'}${err.code ? ` code=${err.code}` : ''}`);
+    if (err.cause?.code) console.error(`FAIL: Appwrite network cause code=${err.cause.code}`);
+    if (err.cause?.message) console.error(`FAIL: Appwrite network cause=${err.cause.message}`);
     process.exit(1);
   } finally {
     clearTimeout(timer);
