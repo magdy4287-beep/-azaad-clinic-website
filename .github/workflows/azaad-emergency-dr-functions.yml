@@ -16,6 +16,7 @@ on:
       - emergency/supabase-evacuation
     paths:
       - scripts/azaad-supabase-functions-to-appwrite.sh
+      - scripts/azaad-supabase-auth-evacuation-inventory.sh
       - .github/workflows/azaad-emergency-dr-functions.yml
       - .github/workflows/azaad-emergency-dr-final.yml
       - supabase/functions/**
