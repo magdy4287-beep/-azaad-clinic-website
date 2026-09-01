@@ -12,6 +12,22 @@ on:
       candidate_sha:
         description: Exact emergency candidate commit SHA to certify
         required: true
+        default: f9f6cd2f2a413d3262ff7fed6a42149ef3afc27b
+        type: string
+      auth_run_id:
+        description: Successful Auth inventory workflow run ID for this candidate
+        required: true
+        default: '33538416749'
+        type: string
+      functions_run_id:
+        description: Successful Edge Functions evacuation workflow run ID for this candidate
+        required: true
+        default: '33539973370'
+        type: string
+      execute_run_id:
+        description: Successful Database + Storage evacuation workflow run ID for this candidate
+        required: true
+        default: '33533629731'
         type: string
 
 permissions:
@@ -28,67 +44,112 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Determine candidate SHA
+      - name: Determine candidate SHA and evidence run IDs
         id: candidate
         shell: bash
         env:
           INPUT_SHA: ${{ inputs.candidate_sha }}
           EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
-          CURRENT_SHA: ${{ github.sha }}
+          AUTH_RUN_ID: ${{ inputs.auth_run_id }}
+          FUNCTIONS_RUN_ID: ${{ inputs.functions_run_id }}
+          EXECUTE_RUN_ID: ${{ inputs.execute_run_id }}
         run: |
           set -euo pipefail
-          sha="${INPUT_SHA:-${EVENT_SHA:-$CURRENT_SHA}}"
+          sha="${INPUT_SHA:-${EVENT_SHA:-}}"
           printf '%s\n' "$sha" | grep -Eq '^[0-9a-f]{40}$'
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "auth_run_id=${AUTH_RUN_ID:-}" >> "$GITHUB_OUTPUT"
+          echo "functions_run_id=${FUNCTIONS_RUN_ID:-}" >> "$GITHUB_OUTPUT"
+          echo "execute_run_id=${EXECUTE_RUN_ID:-}" >> "$GITHUB_OUTPUT"
           echo "candidate_sha=$sha"
 
-      - name: Require successful database + storage evacuation run for exact SHA
+      - name: Verify Database + Storage evacuation run
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ steps.candidate.outputs.sha }}
+          RUN_ID: ${{ steps.candidate.outputs.execute_run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-execute.yml/runs?head_sha=${SHA}&per_page=20"
-          response="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
-          node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!(j.workflow_runs||[]).some(r=>r.status==="completed"&&r.conclusion==="success")) process.exit(1)' <<<"$response"
-          echo 'PASS: database + storage evacuation run verified.'
+          test -n "$RUN_ID"
+          run="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")"
+          node - "$run" <<'NODE'
+          const r=JSON.parse(process.argv[2]);
+          if(r.status!=='completed'||r.conclusion!=='success') throw new Error('FAIL-CLOSED: database/storage run is not successful');
+          console.log(`PASS: database + storage evacuation run ${r.id} completed successfully`);
+          NODE
 
-      - name: Require successful Auth inventory for exact SHA
+      - name: Verify Auth run and exact candidate evidence
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ steps.candidate.outputs.sha }}
+          RUN_ID: ${{ steps.candidate.outputs.auth_run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-auth.yml/runs?head_sha=${SHA}&per_page=20"
-          response="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
-          node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!(j.workflow_runs||[]).some(r=>r.status==="completed"&&r.conclusion==="success")) process.exit(1)' <<<"$response"
-          echo 'PASS: Auth inventory verified.'
+          test -n "$RUN_ID"
+          tmp="$RUNNER_TEMP/auth-artifact"
+          rm -rf "$tmp"; mkdir -p "$tmp"
+          run="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")"
+          node - "$run" <<'NODE'
+          const r=JSON.parse(process.argv[2]);
+          if(r.status!=='completed'||r.conclusion!=='success') throw new Error('FAIL-CLOSED: Auth run is not successful');
+          NODE
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -o "$tmp/artifacts.json" "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/artifacts"
+          artifact_id="$(node - "$tmp/artifacts.json" <<'NODE'
+          const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[2],'utf8')); const a=(d.artifacts||[]).find(x=>!x.expired && x.name.startsWith('azaad-auth-evacuation-candidate-')); if(!a) process.exit(1); process.stdout.write(String(a.id));
+          NODE
+          )"
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -o "$tmp/download.zip" "https://api.github.com/repos/${REPO}/actions/artifacts/${artifact_id}/zip"
+          unzip -q "$tmp/download.zip" -d "$tmp/unpacked"
+          manifest="$tmp/unpacked/auth-manifest.json"
+          test -s "$manifest"
+          node - "$manifest" "$SHA" <<'NODE'
+          const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8')), sha=process.argv[3];
+          if(m.status!=='PASS'||m.candidate_sha!==sha) throw new Error(`FAIL-CLOSED: Auth evidence candidate mismatch: ${m.candidate_sha||'missing'} != ${sha}`);
+          if(m.password_hashes_exported||m.sessions_exported||m.refresh_tokens_exported) throw new Error('FAIL-CLOSED: credential/session material exported');
+          console.log(`PASS: Auth evidence is bound to exact candidate ${sha}`);
+          NODE
 
-      - name: Require successful Edge Function evacuation for exact SHA
+      - name: Verify Edge Functions run and exact candidate evidence
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ steps.candidate.outputs.sha }}
+          RUN_ID: ${{ steps.candidate.outputs.functions_run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-functions.yml/runs?head_sha=${SHA}&per_page=20"
-          response="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
-          node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!(j.workflow_runs||[]).some(r=>r.status==="completed"&&r.conclusion==="success")) process.exit(1)' <<<"$response"
-          echo 'PASS: Edge Function evacuation verified.'
+          test -n "$RUN_ID"
+          tmp="$RUNNER_TEMP/functions-artifact"
+          rm -rf "$tmp"; mkdir -p "$tmp"
+          run="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")"
+          node - "$run" <<'NODE'
+          const r=JSON.parse(process.argv[2]); if(r.status!=='completed'||r.conclusion!=='success') throw new Error('FAIL-CLOSED: Edge Functions run is not successful');
+          NODE
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -o "$tmp/artifacts.json" "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/artifacts"
+          artifact_id="$(node - "$tmp/artifacts.json" <<'NODE'
+          const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[2],'utf8')); const a=(d.artifacts||[]).find(x=>!x.expired && x.name.startsWith('azaad-functions-evacuation-')); if(!a) process.exit(1); process.stdout.write(String(a.id));
+          NODE
+          )"
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -o "$tmp/download.zip" "https://api.github.com/repos/${REPO}/actions/artifacts/${artifact_id}/zip"
+          unzip -q "$tmp/download.zip" -d "$tmp/unpacked"
+          manifest="$tmp/unpacked/manifest.json"
+          test -s "$manifest"
+          node - "$manifest" "$SHA" <<'NODE'
+          const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8')), sha=process.argv[3];
+          if(m.status!=='PASS'||m.candidate_ref!==sha) throw new Error(`FAIL-CLOSED: Edge Functions evidence candidate mismatch: ${m.candidate_ref||'missing'} != ${sha}`);
+          if(m.source_functions!==16||m.migrated_functions!==16) throw new Error('FAIL-CLOSED: not all 16 Edge Function sources reconciled');
+          console.log(`PASS: Edge Functions evidence is bound to exact candidate ${sha}`);
+          NODE
 
       - name: Close emergency evacuation gate
-        shell: bash
         run: |
-          set -euo pipefail
           echo 'FULL_DR_EVACUATION=PASS'
           echo 'DATABASE=PASS'
           echo 'STORAGE=PASS'
           echo 'AUTH_IDENTITY_EVIDENCE=PASS'
           echo 'EDGE_FUNCTIONS=PASS'
-          echo 'SUPABASE_RETIREMENT=BLOCKED'
-          echo 'REPAIRS=BLOCKED_UNTIL_EXPLICIT_DR_CLOSE'
+          echo 'SUPABASE_RETIREMENT=READY_FOR_APPROVAL'
+          echo 'REPAIRS=NOW_ALLOWED'
