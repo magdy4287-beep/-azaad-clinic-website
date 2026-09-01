@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_ref:
-        description: Exact emergency candidate ref to evacuate
+        description: Exact emergency candidate ref whose function sources must be evacuated
         required: true
         default: emergency/supabase-evacuation
         type: string
@@ -21,27 +21,32 @@ env:
 
 jobs:
   edge-functions:
-    name: Evacuate all Supabase Edge Functions to Appwrite
+    name: Evacuate all Supabase Edge Function source trees to Appwrite Storage
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - name: Checkout exact emergency candidate
+      - name: Checkout emergency runner revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.CANDIDATE_REF }}
           fetch-depth: 1
 
-      - name: Verify exact candidate SHA
+      - name: Load exact candidate function sources
         shell: bash
         run: |
           set -euo pipefail
-          candidate_sha="$(git rev-parse HEAD)"
+          runner_sha="$(git rev-parse HEAD)"
+          git fetch --no-tags --depth=1 origin "$CANDIDATE_REF"
+          candidate_sha="$(git rev-parse FETCH_HEAD)"
+          echo "runner_sha=$runner_sha"
           echo "candidate_sha=$candidate_sha"
           echo "candidate_ref=$CANDIDATE_REF"
+          rm -rf supabase/functions
+          git checkout "$candidate_sha" -- supabase/functions
           test -d supabase/functions
           test -f scripts/azaad-supabase-functions-to-appwrite.sh
+          echo "candidate_source_sha=$candidate_sha" >> "$GITHUB_ENV"
 
-      - name: Verify Edge Functions migration secrets
+      - name: Verify evacuation secrets
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -53,21 +58,18 @@ jobs:
           for name in APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
-          if [ "$missing" -ne 0 ]; then
-            echo 'FAIL-CLOSED: required Appwrite Functions migration secrets are not configured.'
-            exit 78
-          fi
+          if [ "$missing" -ne 0 ]; then echo 'FAIL-CLOSED: required Appwrite Storage evacuation secrets are not configured.'; exit 78; fi
 
-      - name: Inventory source Edge Functions
+      - name: Inventory exact candidate Edge Functions
         shell: bash
         run: |
           set -euo pipefail
           count="$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -print | wc -l | tr -d ' ')"
           echo "source_function_count=$count"
-          test "$count" -gt 0
+          test "$count" -eq 16
           find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
 
-      - name: Migrate every Supabase Edge Function to Appwrite
+      - name: Archive every Edge Function source tree to Appwrite Storage
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -75,7 +77,7 @@ jobs:
         shell: bash
         run: bash scripts/azaad-supabase-functions-to-appwrite.sh
 
-      - name: Upload Edge Functions reconciliation manifest
+      - name: Upload evacuation manifest evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -84,7 +86,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Fail closed unless every Edge Function reconciles
+      - name: Fail closed unless all 16 source trees reconcile
         shell: bash
         run: |
           set -euo pipefail
@@ -92,12 +94,10 @@ jobs:
           const fs=require('fs');
           const p=process.env.RUNNER_TEMP+'/azaad-functions-migration/manifest.json';
           const m=JSON.parse(fs.readFileSync(p,'utf8'));
-          if(m.status!=='PASS') throw new Error('manifest status is not PASS');
-          if(!Number.isInteger(m.source_functions)||!Number.isInteger(m.migrated_functions)||m.source_functions<=0||m.source_functions!==m.migrated_functions) {
-            throw new Error(`function reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
-          }
-          for(const r of m.results||[]) {
-            if(r.status!=='READY'||r.activated!==false||!r.source_archive_sha256) throw new Error(`invalid reconciliation result for ${r.id}`);
-          }
-          console.log(`PASS: Edge Functions reconciled ${m.migrated_functions}/${m.source_functions}`);
+          if(m.status!=='PASS'||m.mode!=='FUNCTION_SOURCE_EVACUATION') throw new Error('invalid evacuation manifest');
+          if(m.source_functions!==16||m.migrated_functions!==16) throw new Error(`function source reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
+          if(!Array.isArray(m.results)||m.results.length!==16) throw new Error('missing per-function reconciliation results');
+          for(const r of m.results) if(r.status!=='ARCHIVED'||!r.source_archive_sha256||!r.file_id) throw new Error(`invalid archive result for ${r.id}`);
+          console.log(`PASS: Edge Function source trees archived ${m.migrated_functions}/${m.source_functions}`);
+          console.log(`candidate_source_sha=${process.env.candidate_source_sha||'not-exported'}`);
           NODE
