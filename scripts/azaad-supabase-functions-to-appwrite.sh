@@ -14,7 +14,7 @@ const endpoint=String(process.env.APPWRITE_ENDPOINT).replace(/\/$/,''),project=S
 const headers={'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json','Content-Type':'application/json'};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function req(url,opt={}){for(let i=0;i<3;i++){const r=await fetch(url,opt),t=await r.text();let j;try{j=JSON.parse(t)}catch{j={raw:t}};if(r.ok)return j;if(r.status>=500&&i<2){await sleep(700*(i+1));continue}throw new Error(`${opt.method||'GET'} ${url} -> HTTP ${r.status}: ${JSON.stringify({type:j.type,message:j.message,code:j.code})}`)}}
-async function upload(bucketId,fileId,buffer,filename,mime){const form=new FormData();form.append('file',new Blob([buffer],{type:mime}),filename);return req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files`,{method:'POST',headers:{'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'},body:form});}
+async function upload(bucketId,fileId,buffer,filename,mime){const form=new FormData();form.append('fileId',fileId);form.append('file',new Blob([buffer],{type:mime}),filename);return req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files`,{method:'POST',headers:{'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'},body:form});}
 async function listBuckets(){const d=await req(`${endpoint}/storage/buckets?limit=100`,{headers});return Array.isArray(d.buckets)?d.buckets:[];}
 async function main(){
  const source=fs.readdirSync(root,{withFileTypes:true}).filter(x=>x.isDirectory()).map(x=>x.name).sort();
