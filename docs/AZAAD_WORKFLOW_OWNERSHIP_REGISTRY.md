@@ -27,6 +27,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
 | `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
 | `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
+| `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
 
 ## Proven non-duplication decisions
 
@@ -57,6 +58,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Controlled Neon parity
 
 `azaad-controlled-p0-neon-parity.yml` is intentionally separate from the emergency DR workflow. Emergency DR is closed and owns disaster-recovery transport/restore evidence; this controlled workflow owns only post-DR runtime parity repair and verification required by the provider-neutral runtime boundary. It does not reopen the emergency gate, perform production cutover, or replace final certification.
+
+### Controlled provider readiness
+
+`azaad-controlled-runtime-provider-readiness.yml` is intentionally read-only and separate from both Emergency DR and the P0 Neon parity repair. It verifies that the already-selected free provider surfaces (Appwrite identity/storage and Neon database) are reachable with controlled credentials before wiring them into the production runtime contract. It performs no data migration and no production mutation.
 
 ### Final release
 
