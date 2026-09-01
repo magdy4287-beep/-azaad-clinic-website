@@ -41,11 +41,18 @@ jobs:
         run: |
           set -euo pipefail
           runner_sha="$(git rev-parse HEAD)"
-          git fetch --no-tags --depth=1 origin "$CANDIDATE_REF"
+          raw_ref="$CANDIDATE_REF"
+          # Accept both the canonical raw SHA/ref and the human-labelled value
+          # accidentally pasted as `candidate_ref: <sha>`; never pass the label
+          # itself to git as a refspec.
+          candidate_ref="${raw_ref#candidate_ref:}"
+          candidate_ref="$(printf '%s' "$candidate_ref" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          test -n "$candidate_ref"
+          git fetch --no-tags --depth=1 origin "$candidate_ref"
           candidate_sha="$(git rev-parse FETCH_HEAD)"
           echo "runner_sha=$runner_sha"
           echo "candidate_sha=$candidate_sha"
-          echo "candidate_ref=$CANDIDATE_REF"
+          echo "candidate_ref=$candidate_ref"
           rm -rf supabase/functions
           git checkout "$candidate_sha" -- supabase/functions
           test -d supabase/functions
