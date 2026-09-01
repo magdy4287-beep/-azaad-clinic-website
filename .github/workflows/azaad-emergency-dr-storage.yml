@@ -4,9 +4,6 @@ name: AZAAD Emergency DR Storage Evacuation
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - emergency/supabase-evacuation
 
 permissions:
   contents: read
@@ -17,7 +14,6 @@ concurrency:
 
 jobs:
   storage:
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/emergency/supabase-evacuation'
     name: Manual Supabase Storage evacuation
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -30,7 +26,6 @@ jobs:
 
       - name: Verify required migration secrets
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -39,30 +34,17 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+          for name in SUPABASE_SERVICE_ROLE_KEY APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
           [ "$missing" -eq 0 ]
 
-      - name: Normalize canonical Supabase project URL
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Set canonical Supabase project URL from immutable project ref
         shell: bash
         run: |
           set -euo pipefail
-          canonical_url="$(node - <<'NODE'
-          const raw=String(process.env.SUPABASE_URL||'').trim().replace(/\/$/,'');
-          const db=String(process.env.SUPABASE_DB_URL||'').trim();
-          if(/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(raw)){console.log(raw);process.exit(0)}
-          let m=raw.match(/^https:\/\/app\.supabase\.com\/dashboard\/project\/([a-z0-9]+)(?:\/.*)?$/i);
-          if(m){console.log(`https://${m[1]}.supabase.co`);process.exit(0)}
-          try { const u=new URL(db); m=u.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/i); if(m){console.log(`https://${m[1]}.supabase.co`);process.exit(0)} } catch {}
-          console.error('FAIL-CLOSED: unable to derive canonical Supabase project URL');process.exit(1);
-          NODE
-          )"
-          echo "canonical_supabase_host=$canonical_url"
-          echo "SUPABASE_URL=$canonical_url" >> "$GITHUB_ENV"
+          echo 'SUPABASE_URL=https://derofsthjivlkcdnojww.supabase.co' >> "$GITHUB_ENV"
+          echo 'canonical_supabase_host=derofsthjivlkcdnojww.supabase.co'
 
       - name: Migrate every Supabase Storage object
         env:
