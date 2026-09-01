@@ -20,23 +20,29 @@ This document freezes the current controlled-evolution verification boundary aft
 | Gate | State | Evidence / blocker |
 |---|---|---|
 | Emergency DR | CLOSED | Historical DR gate remains closed; no reopening required |
-| Provider-neutral runtime boundary | ACTIVE | Neon database boundary implemented |
-| Neon runtime reachability | PASS | Vercel runtime-health reached Neon successfully |
-| Neon data parity | NOT PROVEN | Controlled parity restore/verification still requires fresh execution evidence |
-| Vercel build | BLOCKED / TRANSITIONING | Workflow ownership registry was missing for the newly added controlled P0 workflow; registry entry has now been added and a fresh deployment is being evaluated |
+| Provider-neutral runtime boundary | ACTIVE | Neon database boundary implemented; Supabase runtime explicitly forbidden |
+| Neon runtime reachability | PASS | Latest controlled Vercel runtime-health reached Neon and verified required runtime tables |
+| Neon data parity | NOT PROVEN | Corrected public+private authoritative restore exists, but fresh controlled execution/reconciliation evidence is still required |
+| Vercel build | PASS | Latest controlled deployment reached READY; build logs completed without errors |
+| Provider-neutral runtime health | BLOCKED | Neon is reachable and schema-complete, but Vercel runtime is missing Appwrite endpoint/project configuration and non-Supabase identity-provider configuration |
+| Authentication | P0 BLOCKED | Production Browser E2E receives HTTP 402 from Supabase staff-login/Realtime because the Free-plan usage grace period has ended; this is an external provider dependency, not a test defect |
 | Public Booking | NOT PROVEN | Runtime implementation exists; schema/data parity and end-to-end behavior remain gated |
 | Security | BLOCKED BY OPEN FINDINGS | SECURITY DEFINER advisory requires architectural review; leaked-password protection remains disabled |
-| Clinical E2E | BLOCKED | Depends on runtime/data/auth parity evidence |
+| Clinical E2E | BLOCKED | Depends on provider-neutral identity, runtime data parity, and authorization evidence |
 | Financial E2E | BLOCKED | Depends on runtime/data parity and authorization evidence |
-| Canonical production artifact parity | NOT PROVEN | Requires same-contract PR/build/production evidence |
+| Canonical production artifact parity | NOT PROVEN | Requires same-contract PR/build/production evidence after the provider-neutral boundary is operational |
 | Final Security Certification | BLOCKED | P0/P1 evidence incomplete |
 | Go-Live Certification | BLOCKED | Required gates not yet all proven |
 
 ## Verified findings driving controlled repair
 
+### P0 — Provider-neutral authentication/runtime dependency
+
+Production Browser E2E proved that the current Admin authentication path still calls the Supabase `staff-login` Edge Function and Supabase Realtime. The provider responds with HTTP 402, causing CORS failure and preventing the Admin shell from activating. The correct root cause is therefore a remaining runtime dependency on Supabase, not a Browser E2E defect. Tests remain fail-closed and are not bypassed.
+
 ### P0 — Runtime data parity
 
-The provider-neutral runtime is database-reachable, but the authoritative clinical dataset must be proven equivalent before the new runtime can be certified. The controlled repair gate therefore restores the authoritative snapshot and reconciles clinical counts plus runtime-critical schemas/functions.
+The provider-neutral runtime is database-reachable and the latest health endpoint verified the required clinical tables are present in Neon, but authoritative data parity has not yet been proven by a fresh controlled restore/reconciliation execution.
 
 ### P1 — Public Booking transaction correctness
 
@@ -50,16 +56,21 @@ The live Supabase database currently exposes `public.clinic_frontdesk_checkin(uu
 
 Supabase Security Advisor reports leaked-password protection disabled. This remains a security finding and is not converted into a paid-plan requirement.
 
+### P2 — Public media rendering
+
+The latest Browser E2E also observed zero rendered images on the local canonical build for the public media test. This remains explicitly deferred because P0/P1 runtime and identity blockers must be resolved first.
+
 ## Exit criteria for this baseline
 
 This baseline may advance toward certification only when fresh evidence proves:
 
 1. authoritative Neon data parity;
 2. runtime-critical schema/function parity;
-3. Public Booking targeted behavior and Browser E2E;
-4. production build/runtime parity;
-5. clinical authorization E2E;
-6. final security/RLS/RPC/Auth/Storage/AI checks;
-7. production smoke and browser evidence on the certified artifact.
+3. provider-neutral identity/session boundary operationally replaces Supabase runtime authentication;
+4. Public Booking targeted behavior and Browser E2E;
+5. production build/runtime parity;
+6. clinical authorization E2E;
+7. final security/RLS/RPC/Auth/Storage/AI checks;
+8. production smoke and browser evidence on the certified artifact.
 
 Until then the state is **NOT PROVEN**, not Certified.
