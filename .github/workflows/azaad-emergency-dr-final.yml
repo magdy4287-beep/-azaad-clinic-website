@@ -5,7 +5,9 @@ on:
     workflows:
       - AZAAD Emergency DR Execute
       - AZAAD Emergency DR — Auth Inventory
+      - AZAAD Emergency Auth Evacuation
       - AZAAD Emergency DR - Edge Functions
+      - AZAAD Emergency DR - Deployed Edge Functions
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -26,7 +28,7 @@ jobs:
   reconcile:
     name: Reconcile all emergency evacuation gates
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Determine candidate SHA
         id: candidate
@@ -61,7 +63,7 @@ jobs:
           if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful database+storage evacuation run for exact SHA.'; exit 1; fi
           echo 'PASS: database + storage evacuation verified.'
 
-      - name: Require successful Auth evacuation inventory for exact SHA
+      - name: Require successful Auth inventory for exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -77,10 +79,29 @@ jobs:
             done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
             sleep 10
           done
-          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Auth evacuation inventory for exact SHA.'; exit 1; fi
-          echo 'PASS: Auth evacuation inventory verified.'
+          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Auth inventory for exact SHA.'; exit 1; fi
+          echo 'PASS: Auth inventory verified.'
 
-      - name: Require successful Edge Function evacuation for exact SHA
+      - name: Require successful Auth identity evacuation to Appwrite for exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.candidate.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-auth-evacuation.yml/runs?head_sha=${SHA}&per_page=20"
+          ok=0
+          for attempt in $(seq 1 30); do
+            while IFS=$'\t' read -r status conclusion; do
+              if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break 2; fi
+            done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+            sleep 10
+          done
+          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Auth identity evacuation run for exact SHA.'; exit 1; fi
+          echo 'PASS: Auth identity evacuation verified.'
+
+      - name: Require successful repository Edge Function source evacuation for exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -96,8 +117,27 @@ jobs:
             done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
             sleep 10
           done
-          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Edge Function evacuation for exact SHA.'; exit 1; fi
-          echo 'PASS: Edge Function evacuation verified.'
+          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful repository Edge Function evacuation for exact SHA.'; exit 1; fi
+          echo 'PASS: repository Edge Function source evacuation verified.'
+
+      - name: Require successful deployed Edge Function source evacuation for exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.candidate.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-deployed-functions.yml/runs?head_sha=${SHA}&per_page=20"
+          ok=0
+          for attempt in $(seq 1 30); do
+            while IFS=$'\t' read -r status conclusion; do
+              if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break 2; fi
+            done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+            sleep 10
+          done
+          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful deployed Edge Function evacuation for exact SHA.'; exit 1; fi
+          echo 'PASS: deployed Edge Function source evacuation verified.'
 
       - name: Close emergency evacuation gate
         shell: bash
@@ -107,6 +147,8 @@ jobs:
           echo 'DATABASE=PASS'
           echo 'STORAGE=PASS'
           echo 'AUTH_IDENTITY_EVIDENCE=PASS'
-          echo 'EDGE_FUNCTIONS=PASS'
+          echo 'AUTH_IDENTITY_APPWRITE_EVACUATION=PASS'
+          echo 'REPOSITORY_EDGE_FUNCTIONS=PASS'
+          echo 'DEPLOYED_EDGE_FUNCTIONS=PASS'
           echo 'SUPABASE_RETIREMENT=BLOCKED'
           echo 'REPAIRS=BLOCKED_UNTIL_EXPLICIT_DR_CLOSE'
