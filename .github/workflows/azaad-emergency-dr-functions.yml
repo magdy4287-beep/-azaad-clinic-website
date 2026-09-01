@@ -1,5 +1,7 @@
 name: AZAAD Emergency DR - Edge Functions
 
+# DR evacuation workflow: source archival only; activation remains disabled until reconciliation.
+
 on:
   workflow_dispatch:
     inputs:
@@ -42,9 +44,6 @@ jobs:
           set -euo pipefail
           runner_sha="$(git rev-parse HEAD)"
           raw_ref="$CANDIDATE_REF"
-          # Accept both the canonical raw SHA/ref and the human-labelled value
-          # accidentally pasted as `candidate_ref: <sha>`; never pass the label
-          # itself to git as a refspec.
           candidate_ref="${raw_ref#candidate_ref:}"
           candidate_ref="$(printf '%s' "$candidate_ref" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
           test -n "$candidate_ref"
