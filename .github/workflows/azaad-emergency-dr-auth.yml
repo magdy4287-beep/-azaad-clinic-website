@@ -39,19 +39,49 @@ jobs:
           echo "candidate_ref=$CANDIDATE_REF"
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then test "$candidate_sha" = "$GITHUB_SHA"; fi
 
-      - name: Verify Auth inventory secret
+      - name: Verify Auth inventory secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "${SUPABASE_URL:-}" || { echo 'FAIL-CLOSED: SUPABASE_URL missing.'; exit 78; }
+          test -n "${SUPABASE_DB_URL:-}" || { echo 'FAIL-CLOSED: SUPABASE_DB_URL missing.'; exit 78; }
           test -n "${SUPABASE_SERVICE_ROLE_KEY:-}" || { echo 'FAIL-CLOSED: SUPABASE_SERVICE_ROLE_KEY missing.'; exit 78; }
+
+      - name: Normalize canonical Supabase project URL
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          canonical_url="$(node - <<'NODE'
+          const candidates=[process.env.SUPABASE_URL||'',process.env.SUPABASE_DB_URL||''];
+          function from(v){
+            try{
+              const u=new URL(v.trim());
+              let m=u.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
+              if(m) return `https://${m[1]}.supabase.co`;
+              m=u.hostname.match(/^([a-z0-9]+)\.supabase\.co$/i);
+              if(m) return `https://${m[1]}.supabase.co`;
+              m=u.pathname.match(/\/project\/([a-z0-9]+)/i);
+              if(m) return `https://${m[1]}.supabase.co`;
+            }catch{}
+            return '';
+          }
+          for(const v of candidates){const x=from(v);if(x){console.log(x);process.exit(0)}}
+          console.error('FAIL-CLOSED: unable to derive canonical Supabase project URL');
+          process.exit(1);
+          NODE
+          )"
+          echo "canonical_supabase_host=$canonical_url"
+          printf 'SUPABASE_URL=%s\n' "$canonical_url" >> "$GITHUB_ENV"
 
       - name: Inventory Auth identities without exporting credentials
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         shell: bash
         run: bash scripts/azaad-supabase-auth-evacuation-inventory.sh
