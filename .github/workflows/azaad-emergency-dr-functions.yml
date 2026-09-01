@@ -6,8 +6,14 @@ on:
       candidate_ref:
         description: Exact emergency candidate ref whose function sources must be evacuated
         required: true
-        default: emergency/supabase-evacuation
+        default: 7668b6296d332a4693c1f930e6411d3e8fc77b25
         type: string
+  push:
+    branches:
+      - emergency/supabase-evacuation
+    paths:
+      - scripts/azaad-supabase-functions-to-appwrite.sh
+      - .github/workflows/azaad-emergency-dr-functions.yml
 
 permissions:
   contents: read
@@ -17,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CANDIDATE_REF: ${{ inputs.candidate_ref }}
+  CANDIDATE_REF: ${{ inputs.candidate_ref || '7668b6296d332a4693c1f930e6411d3e8fc77b25' }}
 
 jobs:
   edge-functions:
