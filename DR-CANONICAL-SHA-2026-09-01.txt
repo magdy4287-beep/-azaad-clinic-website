@@ -1,0 +1,7 @@
+Canonical emergency DR candidate SHA
+b74fa920e4790438e6d3c56f0ca2fd239991ae7d
+
+Emergency branch:
+emergency/supabase-evacuation
+
+Purpose: establish an exact-SHA marker for the emergency evacuation chain. No application repairs are included.
