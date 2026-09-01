@@ -17,6 +17,7 @@ permissions:
 
 env:
   CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_ref || github.sha }}
+  SUPABASE_CANONICAL_URL: https://derofsthjivlkcdnojww.supabase.co
 
 jobs:
   auth_inventory:
@@ -51,10 +52,13 @@ jobs:
 
       - name: Inventory Auth identities without exporting credentials
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ env.SUPABASE_CANONICAL_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         shell: bash
-        run: bash scripts/azaad-supabase-auth-evacuation-inventory.sh
+        run: |
+          set -euo pipefail
+          echo "supabase_auth_endpoint=${SUPABASE_URL}/auth/v1/admin/users"
+          bash scripts/azaad-supabase-auth-evacuation-inventory.sh
 
       - name: Upload Auth evacuation evidence
         if: always()
