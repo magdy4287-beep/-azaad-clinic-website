@@ -14,7 +14,11 @@ const endpoint=String(process.env.APPWRITE_ENDPOINT).replace(/\/$/,''),project=S
 const headers={'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json','Content-Type':'application/json'};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function req(url,opt={}){for(let i=0;i<3;i++){const r=await fetch(url,opt),t=await r.text();let j;try{j=JSON.parse(t)}catch{j={raw:t}};if(r.ok)return j;if(r.status>=500&&i<2){await sleep(700*(i+1));continue}throw new Error(`${opt.method||'GET'} ${url} -> HTTP ${r.status}: ${JSON.stringify({type:j.type,message:j.message,code:j.code})}`)}}
-async function upload(bucketId,fileId,buffer,filename,mime){const form=new FormData();form.append('fileId',fileId);form.append('file',new Blob([buffer],{type:mime}),filename);return req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files`,{method:'POST',headers:{'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'},body:form});}
+function formFor(fileId,buffer,filename,mime){const form=new FormData();form.append('fileId',fileId);form.append('file',new Blob([buffer],{type:mime}),filename);return form;}
+async function upload(bucketId,fileId,buffer,filename,mime){return req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files`,{method:'POST',headers:{'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'},body:formFor(fileId,buffer,filename,mime)});}
+async function update(bucketId,fileId,buffer,filename,mime){return req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files/${encodeURIComponent(fileId)}`,{method:'PUT',headers:{'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'},body:formFor(fileId,buffer,filename,mime)});}
+async function getFile(bucketId,fileId){try{return await req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files/${encodeURIComponent(fileId)}`,{headers});}catch(e){if(String(e.message).includes('404'))return null;throw e;}}
+async function upsertFile(bucketId,fileId,buffer,filename,mime){const existing=await getFile(bucketId,fileId);return existing?update(bucketId,fileId,buffer,filename,mime):upload(bucketId,fileId,buffer,filename,mime);}
 async function listBuckets(){const d=await req(`${endpoint}/storage/buckets?limit=100`,{headers});return Array.isArray(d.buckets)?d.buckets:[];}
 async function main(){
  const source=fs.readdirSync(root,{withFileTypes:true}).filter(x=>x.isDirectory()).map(x=>x.name).sort();
@@ -35,9 +39,7 @@ async function main(){
    const data=fs.readFileSync(archive),sha=crypto.createHash('sha256').update(data).digest('hex');
    if(data.length>50000000) throw new Error(`FAIL-CLOSED: ${name} archive exceeds Appwrite Cloud file limit`);
    const fileId=`fn-${name}`;
-   let file;
-   try{file=await req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files/${encodeURIComponent(fileId)}`,{headers});}
-   catch(e){if(!String(e.message).includes('404')) throw e;file=await upload(bucketId,fileId,data,`${name}.tar.gz`,'application/gzip');}
+   const file=await upsertFile(bucketId,fileId,data,`${name}.tar.gz`,'application/gzip');
    if(file.$id!==fileId) throw new Error(`FAIL-CLOSED: unexpected file id for ${name}: ${file.$id}`);
    if(Number(file.sizeOriginal)!==data.length) throw new Error(`FAIL-CLOSED: size reconciliation failed for ${name}: source=${data.length} destination=${file.sizeOriginal}`);
    results.push({id:name,status:'ARCHIVED',entrypoint:entry,file_id:fileId,source_archive_sha256:sha,bytes:data.length,destination_bucket_id:bucketId});
@@ -45,8 +47,9 @@ async function main(){
  const manifest={status:'PASS',mode:'FUNCTION_SOURCE_EVACUATION',bucket_id:bucketId,bucket_name:bucket.name,source_functions:source.length,migrated_functions:results.length,activation_policy:'not_applicable_source_archive',results};
  fs.writeFileSync(out,JSON.stringify(manifest,null,2),{mode:0o600});
  const mdata=Buffer.from(JSON.stringify(manifest,null,2));
- try{await req(`${endpoint}/storage/buckets/${encodeURIComponent(bucketId)}/files/fn-manifest`,{headers});}
- catch(e){if(!String(e.message).includes('404')) throw e;await upload(bucketId,'fn-manifest',mdata,'manifest.json','application/json');}
+ const manifestFile=await getFile(bucketId,'fn-manifest');
+ const savedManifest=manifestFile?await update(bucketId,'fn-manifest',mdata,'manifest.json','application/json'):await upload(bucketId,'fn-manifest',mdata,'manifest.json','application/json');
+ if(savedManifest.$id!=='fn-manifest') throw new Error('FAIL-CLOSED: manifest reconciliation failed');
  console.log(`PASS: archived ${results.length}/${source.length} Supabase Edge Function source trees to Appwrite Storage bucket ${bucketId}`);
 }
 main().catch(e=>{console.error('FAIL-CLOSED:',e.message);process.exit(1)})
