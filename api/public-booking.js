@@ -122,15 +122,15 @@ export default async function handler(req, res) {
             WHERE NOT EXISTS (SELECT 1 FROM existing_patient)
             RETURNING id
           ),
-          target_patient AS (
-            SELECT id FROM existing_patient
-            UNION ALL SELECT id FROM upsert_patient
-            LIMIT 1
-          ),
           update_existing AS (
             UPDATE public.clinic_patients p
             SET patient_name = ${patientName}, patient_phone = ${phone}, patient_email = COALESCE(${email}, p.patient_email), date_of_birth = COALESCE(${dateOfBirth}, p.date_of_birth), gender = COALESCE(${gender}, p.gender), marital_status = COALESCE(${maritalStatus}, p.marital_status), residence = COALESCE(${residence}, p.residence), updated_at = now()
             FROM existing_patient e WHERE p.id = e.id RETURNING p.id
+          ),
+          target_patient AS (
+            SELECT id FROM update_existing
+            UNION ALL SELECT id FROM upsert_patient
+            LIMIT 1
           ),
           inserted AS (
             INSERT INTO public.clinic_bookings (booking_code, doctor_id, service_id, patient_name, patient_phone, patient_email, appointment_date, appointment_time, mode, notes, status, patient_language, patient_id, payment_status, service_authorization_status)
