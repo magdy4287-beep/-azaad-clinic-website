@@ -1,0 +1,81 @@
+name: AZAAD Emergency DR — Auth Inventory
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: 'Exact emergency branch/ref to inspect'
+        required: true
+        default: 'emergency/supabase-evacuation'
+        type: string
+  push:
+    branches:
+      - emergency/supabase-evacuation
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_ref || github.sha }}
+
+jobs:
+  auth_inventory:
+    name: Inventory Supabase Auth identities
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact emergency candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_REF }}
+          fetch-depth: 1
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          echo "candidate_sha=$candidate_sha"
+          echo "candidate_ref=$CANDIDATE_REF"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then test "$candidate_sha" = "$GITHUB_SHA"; fi
+
+      - name: Verify Auth inventory secret
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_URL:-}" || { echo 'FAIL-CLOSED: SUPABASE_URL missing.'; exit 78; }
+          test -n "${SUPABASE_SERVICE_ROLE_KEY:-}" || { echo 'FAIL-CLOSED: SUPABASE_SERVICE_ROLE_KEY missing.'; exit 78; }
+
+      - name: Inventory Auth identities without exporting credentials
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: bash scripts/azaad-supabase-auth-evacuation-inventory.sh
+
+      - name: Upload Auth evacuation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-auth-evacuation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/azaad-auth-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Final Auth inventory gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json"
+          node - "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json" <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(m.status!=='PASS') throw new Error('FAIL-CLOSED: Auth inventory status is not PASS');
+          if(m.password_hashes_exported || m.sessions_exported || m.refresh_tokens_exported) throw new Error('FAIL-CLOSED: credential/session material must not be exported');
+          console.log(`PASS: Auth identity inventory = ${m.user_count} users / ${m.identity_count} identities`);
+          console.log('PASS: credentials, sessions and refresh tokens remain excluded');
+          console.log('NEXT GATE: final DR reconciliation');
+          NODE
