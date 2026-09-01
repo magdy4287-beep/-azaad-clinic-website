@@ -50,11 +50,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-execute.yml/runs?head_sha=${SHA}&event=push&per_page=20"
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-execute.yml/runs?head_sha=${SHA}&per_page=20"
           ok=0
-          while IFS=$'\t' read -r status conclusion; do
-            if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break; fi
-          done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+          for attempt in $(seq 1 30); do
+            while IFS=$'\t' read -r status conclusion; do
+              if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break 2; fi
+            done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+            sleep 10
+          done
           if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful database+storage evacuation run for exact SHA.'; exit 1; fi
           echo 'PASS: database + storage evacuation verified.'
 
@@ -66,11 +69,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-auth.yml/runs?head_sha=${SHA}&event=push&per_page=20"
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-auth.yml/runs?head_sha=${SHA}&per_page=20"
           ok=0
-          while IFS=$'\t' read -r status conclusion; do
-            if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break; fi
-          done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+          for attempt in $(seq 1 30); do
+            while IFS=$'\t' read -r status conclusion; do
+              if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break 2; fi
+            done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+            sleep 10
+          done
           if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Auth evacuation inventory for exact SHA.'; exit 1; fi
           echo 'PASS: Auth evacuation inventory verified.'
 
@@ -82,11 +88,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-functions.yml/runs?head_sha=${SHA}&event=push&per_page=20"
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-functions.yml/runs?head_sha=${SHA}&per_page=20"
           ok=0
-          while IFS=$'\t' read -r status conclusion; do
-            if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break; fi
-          done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+          for attempt in $(seq 1 30); do
+            while IFS=$'\t' read -r status conclusion; do
+              if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break 2; fi
+            done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
+            sleep 10
+          done
           if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Edge Function evacuation for exact SHA.'; exit 1; fi
           echo 'PASS: Edge Function evacuation verified.'
 
