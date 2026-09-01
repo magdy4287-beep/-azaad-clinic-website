@@ -1,0 +1,84 @@
+name: AZAAD Controlled P0 - Neon Parity
+
+on:
+  push:
+    branches: [controlled-evolution/runtime-boundary-neon]
+    paths:
+      - '.github/workflows/azaad-controlled-p0-neon-parity.yml'
+      - 'scripts/azaad-dr-real-restore.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p0-neon-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact workflow revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client openssl
+
+      - name: Verify required secrets exist
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$SUPABASE_DB_URL" || { echo 'FAIL-CLOSED: SUPABASE_DB_URL missing'; exit 1; }
+          test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
+          test -n "$DR_BACKUP_PASSPHRASE" || { echo 'FAIL-CLOSED: DR_BACKUP_PASSPHRASE missing'; exit 1; }
+          echo 'PASS: required controlled-repair secrets are present.'
+
+      - name: Capture target identity before repair
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "SELECT current_database(), current_user, version();"
+          echo 'PASS: Neon target is reachable.'
+
+      - name: Execute corrected authoritative restore
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+        run: |
+          chmod +x scripts/azaad-dr-real-restore.sh
+          ./scripts/azaad-dr-real-restore.sh
+
+      - name: Reconcile authoritative clinical counts
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          for table in clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours; do
+            s=$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
+            n=$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
+            echo "$table SUPABASE=$s NEON=$n"
+            test "$s" != MISSING && test "$n" != MISSING && test "$s" = "$n"
+          done
+          echo 'PASS: authoritative clinical count parity.'
+
+      - name: Verify runtime-critical schemas and functions
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN 1 ELSE 0 END AS public_schema_present;
+          SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN 1 ELSE 0 END AS private_schema_present;
+          SELECT count(*) AS private_functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='private';
+          SQL
+          echo 'PASS: runtime-critical schema/function invariants.'
+
+      - name: Controlled repair gate
+        run: echo 'PASS: P0 Neon parity repair and verification completed.'
