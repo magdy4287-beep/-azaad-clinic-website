@@ -5,21 +5,81 @@ export const config = {
   runtime: 'edge'
 };
 
+const REQUIRED_TABLES = [
+  'clinic_settings',
+  'clinic_doctors',
+  'clinic_services',
+  'clinic_patients',
+  'clinic_bookings',
+  'clinic_clinical_visits',
+  'clinic_invoices',
+  'clinic_payments',
+  'clinic_audit_log'
+];
+
+async function verifyNeon(sql) {
+  const rows = await sql`
+    select table_name
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = any(${REQUIRED_TABLES})
+  `;
+  const present = new Set(rows.map((row) => row.table_name));
+  const missing = REQUIRED_TABLES.filter((name) => !present.has(name));
+  return { reachable: true, requiredTablesPresent: missing.length === 0, missingTables: missing };
+}
+
+async function verifyAppwrite() {
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').trim().replace(/\/$/, '');
+  const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
+  const key = String(process.env.APPWRITE_API_KEY || '').trim();
+  if (!endpoint || !project || !key) {
+    return { configured: false, reachable: false, usersApi: false };
+  }
+
+  try {
+    const response = await fetch(`${endpoint}/users?limit=1`, {
+      method: 'GET',
+      headers: {
+        'X-Appwrite-Project': project,
+        'X-Appwrite-Key': key,
+        Accept: 'application/json'
+      }
+    });
+    return {
+      configured: true,
+      reachable: response.ok,
+      usersApi: response.ok
+    };
+  } catch (error) {
+    console.error('[AZAAD runtime-health] Appwrite connectivity failed', error);
+    return { configured: true, reachable: false, usersApi: false };
+  }
+}
+
 export default async function handler() {
   const contract = runtimeContract();
   let databaseReachable = false;
+  let databaseTables = { reachable: false, requiredTablesPresent: false, missingTables: REQUIRED_TABLES };
 
   if (contract.database) {
     try {
       const sql = neon(process.env.DATABASE_URL);
-      const rows = await sql`select 1 as ok`;
-      databaseReachable = rows?.[0]?.ok === 1;
+      databaseTables = await verifyNeon(sql);
+      databaseReachable = databaseTables.reachable;
     } catch (error) {
-      console.error('[AZAAD runtime-health] Neon connectivity failed', error);
+      console.error('[AZAAD runtime-health] Neon connectivity/schema verification failed', error);
     }
   }
 
-  const ready = databaseReachable && contract.storage && contract.identity;
+  const appwrite = await verifyAppwrite();
+  const ready =
+    databaseReachable &&
+    databaseTables.requiredTablesPresent &&
+    contract.storage &&
+    contract.identity &&
+    appwrite.reachable &&
+    appwrite.usersApi;
 
   return jsonResponse(
     {
@@ -30,7 +90,9 @@ export default async function handler() {
         ...contract,
         database: databaseReachable,
         databaseConfigured: contract.configured.DATABASE_URL,
-        databaseReachable
+        databaseReachable,
+        databaseTables,
+        appwrite
       }
     },
     ready ? 200 : 503
