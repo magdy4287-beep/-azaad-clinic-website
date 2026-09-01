@@ -1,0 +1,44 @@
+name: AZAAD - Supabase Dependency Elimination Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - emergency/supabase-evacuation
+    paths:
+      - 'scripts/azaad-supabase-dependency-audit.sh'
+      - '.github/workflows/azaad-supabase-dependency-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-supabase-dependency-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit runtime for Supabase dependency
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Run dependency elimination audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/azaad-supabase-dependency-audit.sh
+          scripts/azaad-supabase-dependency-audit.sh supabase-dependency-audit.txt
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-supabase-dependency-audit-${{ github.sha }}
+          path: supabase-dependency-audit.txt
+          if-no-files-found: error
