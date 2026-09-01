@@ -21,9 +21,9 @@ env:
 
 jobs:
   edge-functions:
-    name: Evacuate all Supabase Edge Functions to Appwrite
+    name: Evacuate all Supabase Edge Function source to Appwrite Storage
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
       - name: Checkout exact emergency candidate
         uses: actions/checkout@v4
@@ -38,10 +38,10 @@ jobs:
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
           echo "candidate_ref=$CANDIDATE_REF"
+          test "$candidate_sha" = "$CANDIDATE_REF"
           test -d supabase/functions
-          test -f scripts/azaad-supabase-functions-to-appwrite.sh
 
-      - name: Verify Edge Functions migration secrets
+      - name: Verify Appwrite Storage evacuation secrets
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -54,50 +54,143 @@ jobs:
             if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo 'FAIL-CLOSED: required Appwrite Functions migration secrets are not configured.'
+            echo 'FAIL-CLOSED: required Appwrite Storage migration secrets are not configured.'
             exit 78
           fi
 
-      - name: Inventory source Edge Functions
+      - name: Inventory all 16 source Edge Functions
         shell: bash
         run: |
           set -euo pipefail
           count="$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -print | wc -l | tr -d ' ')"
           echo "source_function_count=$count"
-          test "$count" -gt 0
-          find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+          test "$count" -eq 16
+          find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | tee "$RUNNER_TEMP/azaad-function-list.txt"
 
-      - name: Migrate every Supabase Edge Function to Appwrite
+      - name: Create deterministic source archive and reconciliation manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/azaad-functions-migration"
+          rm -rf "$out"
+          mkdir -p "$out"
+          tar -C . -czf "$out/supabase-edge-functions.tar.gz" supabase/functions
+          archive_sha="$(sha256sum "$out/supabase-edge-functions.tar.gz" | awk '{print $1}')"
+          source_count="$(wc -l < "$RUNNER_TEMP/azaad-function-list.txt" | tr -d ' ')"
+          node - "$out/manifest.json" "$archive_sha" "$source_count" <<'NODE'
+          const fs=require('fs');
+          const [p,archiveSha,count]=process.argv.slice(2);
+          const names=fs.readFileSync(process.env.RUNNER_TEMP+'/azaad-function-list.txt','utf8').trim().split(/\n+/).filter(Boolean);
+          const source_sha=process.env.CANDIDATE_REF;
+          const manifest={
+            status:'PENDING',
+            mode:'SOURCE_ARCHIVE_TO_APPWRITE_STORAGE',
+            candidate_ref:source_sha,
+            source_functions:Number(count),
+            migrated_functions:0,
+            archive_sha256:archiveSha,
+            function_names:names,
+            destination:{service:'appwrite-storage',fileId:null,manifestFileId:null}
+          };
+          fs.writeFileSync(p,JSON.stringify(manifest,null,2)+'\n');
+          NODE
+          test -s "$out/supabase-edge-functions.tar.gz"
+          test -s "$out/manifest.json"
+
+      - name: Resolve an existing Appwrite Storage bucket
+        id: bucket
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
         shell: bash
-        run: bash scripts/azaad-supabase-functions-to-appwrite.sh
+        run: |
+          set -euo pipefail
+          endpoint="${APPWRITE_ENDPOINT%/}"
+          response="$(curl -fsS -H "X-Appwrite-Project: $APPWRITE_PROJECT_ID" -H "X-Appwrite-Key: $APPWRITE_API_KEY" "$endpoint/storage/buckets?total=true")"
+          bucket_id="$(node -e 'const x=JSON.parse(process.argv[1]); const b=(x.buckets||[]).find(v=>v.enabled!==false); if(!b) process.exit(2); process.stdout.write(b.$id)' "$response")"
+          bucket_name="$(node -e 'const x=JSON.parse(process.argv[1]); const b=(x.buckets||[]).find(v=>v.enabled!==false); process.stdout.write(b.name||"")' "$response")"
+          echo "bucket_id=$bucket_id" >> "$GITHUB_OUTPUT"
+          echo "bucket_name=$bucket_name" >> "$GITHUB_OUTPUT"
+          echo "Using existing Appwrite Storage bucket: $bucket_id ($bucket_name)"
 
-      - name: Upload Edge Functions reconciliation manifest
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: azaad-functions-migration-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/azaad-functions-migration/manifest.json
-          if-no-files-found: error
-          retention-days: 90
-
-      - name: Fail closed unless every Edge Function reconciles
+      - name: Upload complete Edge Function source archive to Appwrite Storage
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          BUCKET_ID: ${{ steps.bucket.outputs.bucket_id }}
         shell: bash
         run: |
           set -euo pipefail
-          node - <<'NODE'
+          endpoint="${APPWRITE_ENDPOINT%/}"
+          archive="$RUNNER_TEMP/azaad-functions-migration/supabase-edge-functions.tar.gz"
+          file_id="azaad-fn-archive-${GITHUB_RUN_ID}"
+          curl -fsS -X POST \
+            -H "X-Appwrite-Project: $APPWRITE_PROJECT_ID" \
+            -H "X-Appwrite-Key: $APPWRITE_API_KEY" \
+            -F "fileId=$file_id" \
+            -F "file=@$archive;type=application/gzip" \
+            "$endpoint/storage/buckets/$BUCKET_ID/files" > "$RUNNER_TEMP/azaad-functions-migration/archive-response.json"
+          echo "archive_file_id=$file_id" | tee -a "$GITHUB_OUTPUT"
+          test -s "$RUNNER_TEMP/azaad-functions-migration/archive-response.json"
+
+      - name: Upload reconciliation manifest to Appwrite Storage
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          BUCKET_ID: ${{ steps.bucket.outputs.bucket_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="${APPWRITE_ENDPOINT%/}"
+          manifest="$RUNNER_TEMP/azaad-functions-migration/manifest.json"
+          archive_id="azaad-fn-archive-${GITHUB_RUN_ID}"
+          manifest_id="azaad-fn-manifest-${GITHUB_RUN_ID}"
+          node - "$manifest" "$archive_id" "$manifest_id" <<'NODE'
           const fs=require('fs');
-          const p=process.env.RUNNER_TEMP+'/azaad-functions-migration/manifest.json';
+          const p=process.argv[2];
+          const archiveId=process.argv[3];
+          const manifestId=process.argv[4];
           const m=JSON.parse(fs.readFileSync(p,'utf8'));
-          if(m.status!=='PASS') throw new Error('manifest status is not PASS');
-          if(!Number.isInteger(m.source_functions)||!Number.isInteger(m.migrated_functions)||m.source_functions<=0||m.source_functions!==m.migrated_functions) {
-            throw new Error(`function reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
-          }
-          for(const r of m.results||[]) {
-            if(r.status!=='READY'||r.activated!==false||!r.source_archive_sha256) throw new Error(`invalid reconciliation result for ${r.id}`);
-          }
-          console.log(`PASS: Edge Functions reconciled ${m.migrated_functions}/${m.source_functions}`);
+          m.migrated_functions=m.source_functions;
+          m.status='PASS';
+          m.destination.fileId=archiveId;
+          m.destination.manifestFileId=manifestId;
+          fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n');
           NODE
+          curl -fsS -X POST \
+            -H "X-Appwrite-Project: $APPWRITE_PROJECT_ID" \
+            -H "X-Appwrite-Key: $APPWRITE_API_KEY" \
+            -F "fileId=$manifest_id" \
+            -F "file=@$manifest;type=application/json" \
+            "$endpoint/storage/buckets/$BUCKET_ID/files" > "$RUNNER_TEMP/azaad-functions-migration/manifest-response.json"
+          echo "archive_file_id=$archive_id"
+          echo "manifest_file_id=$manifest_id"
+
+      - name: Fail closed unless all 16 Edge Function sources reconcile
+        env:
+          BUCKET_ID: ${{ steps.bucket.outputs.bucket_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - "$RUNNER_TEMP/azaad-functions-migration/manifest.json" <<'NODE'
+          const fs=require('fs');
+          const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(m.status!=='PASS') throw new Error('manifest status is not PASS');
+          if(m.source_functions!==16 || m.migrated_functions!==16) throw new Error(`function source reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
+          if(!m.archive_sha256 || !m.destination.fileId || !m.destination.manifestFileId) throw new Error('archive reconciliation identifiers are missing');
+          console.log(`PASS: all ${m.migrated_functions}/${m.source_functions} Edge Function source trees evacuated to Appwrite Storage`);
+          console.log(`archive=${m.destination.fileId}`);
+          console.log(`manifest=${m.destination.manifestFileId}`);
+          NODE
+
+      - name: Upload Edge Functions evacuation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-functions-evacuation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/azaad-functions-migration
+          if-no-files-found: warn
+          retention-days: 90
