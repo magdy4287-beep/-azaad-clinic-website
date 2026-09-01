@@ -1,0 +1,102 @@
+name: AZAAD Emergency DR - Deployed Edge Functions
+
+# Evacuates the actual functions currently deployed in Supabase, not only repository source trees.
+# Source is encrypted before Appwrite Storage upload; plaintext source is not retained.
+
+on:
+  push:
+    branches:
+      - emergency/supabase-evacuation
+    paths:
+      - scripts/azaad-supabase-deployed-functions-to-appwrite.sh
+      - .github/workflows/azaad-emergency-dr-deployed-functions.yml
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: Exact emergency candidate ref
+        required: true
+        default: emergency/supabase-evacuation
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  SUPABASE_PROJECT_ID: derofsthjivlkcdnojww
+  CANDIDATE_REF: ${{ inputs.candidate_ref || github.ref_name }}
+
+jobs:
+  deployed-functions:
+    name: Evacuate all currently deployed Supabase Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "candidate_sha=$GITHUB_SHA"
+
+      - name: Verify required evacuation secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in SUPABASE_ACCESS_TOKEN DR_BACKUP_PASSPHRASE APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+            if [ -z "${!name:-}" ]; then echo "MISSING_SECRET=$name"; missing=1; else echo "PRESENT_SECRET=$name"; fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo 'FAIL-CLOSED: deployed Edge Function evacuation requires a Supabase Management/CLI access token plus existing DR/Appwrite secrets.'
+            exit 78
+          fi
+
+      - name: Install official Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Download and archive every deployed Edge Function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: bash scripts/azaad-supabase-deployed-functions-to-appwrite.sh
+
+      - name: Upload non-sensitive reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-deployed-functions-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/azaad-deployed-functions/evidence/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Fail closed unless every deployed function reconciles
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=process.env.RUNNER_TEMP+'/azaad-deployed-functions/evidence/manifest.json';
+          const m=JSON.parse(fs.readFileSync(p,'utf8'));
+          if(m.status!=='PASS'||m.mode!=='DEPLOYED_EDGE_FUNCTION_SOURCE_EVACUATION') throw new Error('invalid deployed-function evacuation manifest');
+          if(!Number.isInteger(m.source_functions)||m.source_functions<1||m.migrated_functions!==m.source_functions) throw new Error(`deployed function reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
+          for(const r of m.results){if(r.status!=='ARCHIVED_ENCRYPTED'||!r.file_id||!r.encrypted_archive_sha256) throw new Error(`invalid archive result for ${r.slug}`)}
+          console.log(`PASS: deployed Edge Function source evacuation ${m.migrated_functions}/${m.source_functions}`);
+          NODE
