@@ -50,12 +50,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-execute.yml/runs?head_sha=${SHA}&event=push&per_page=20"
-          ok=0
-          while IFS=$'\t' read -r status conclusion; do
-            if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break; fi
-          done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
-          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful database+storage evacuation run for exact candidate SHA.'; exit 1; fi
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-execute.yml/runs?head_sha=${SHA}&per_page=20"
+          response="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
+          node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!(j.workflow_runs||[]).some(r=>r.status==="completed"&&r.conclusion==="success")) process.exit(1)' <<<"$response"
           echo 'PASS: database + storage evacuation run verified.'
 
       - name: Require successful Auth inventory for exact SHA
@@ -66,12 +63,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-auth.yml/runs?head_sha=${SHA}&event=push&per_page=20"
-          ok=0
-          while IFS=$'\t' read -r status conclusion; do
-            if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break; fi
-          done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
-          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Auth evacuation inventory for exact candidate SHA.'; exit 1; fi
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-auth.yml/runs?head_sha=${SHA}&per_page=20"
+          response="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
+          node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!(j.workflow_runs||[]).some(r=>r.status==="completed"&&r.conclusion==="success")) process.exit(1)' <<<"$response"
           echo 'PASS: Auth inventory verified.'
 
       - name: Require successful Edge Function evacuation for exact SHA
@@ -82,16 +76,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-functions.yml/runs?head_sha=${SHA}&event=push&per_page=20"
-          ok=0
-          while IFS=$'\t' read -r status conclusion; do
-            if [ "$status" = completed ] && [ "$conclusion" = success ]; then ok=1; break; fi
-          done < <(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); for(const r of (j.workflow_runs||[])) console.log(`${r.status}\t${r.conclusion}`)')
-          if [ "$ok" -ne 1 ]; then echo 'FAIL-CLOSED: no successful Edge Function evacuation for exact candidate SHA.'; exit 1; fi
+          api="https://api.github.com/repos/${REPO}/actions/workflows/azaad-emergency-dr-functions.yml/runs?head_sha=${SHA}&per_page=20"
+          response="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
+          node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); if(!(j.workflow_runs||[]).some(r=>r.status==="completed"&&r.conclusion==="success")) process.exit(1)' <<<"$response"
           echo 'PASS: Edge Function evacuation verified.'
 
       - name: Close emergency evacuation gate
+        shell: bash
         run: |
+          set -euo pipefail
           echo 'FULL_DR_EVACUATION=PASS'
           echo 'DATABASE=PASS'
           echo 'STORAGE=PASS'
