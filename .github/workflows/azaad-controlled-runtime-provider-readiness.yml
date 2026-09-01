@@ -35,12 +35,14 @@ jobs:
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
           test -n "$APPWRITE_ENDPOINT" || { echo 'FAIL-CLOSED: APPWRITE_ENDPOINT missing'; exit 1; }
           test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
           test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
           test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
+          test -n "$SUPABASE_DB_URL" || { echo 'FAIL-CLOSED: SUPABASE_DB_URL missing'; exit 1; }
           echo 'Provider secret configuration is present.'
 
       - name: Read-only Appwrite identity inventory
@@ -60,7 +62,30 @@ jobs:
           if(!users.ok) throw new Error(`Appwrite Users API HTTP ${users.status}`);
           const usersBody=await users.json();
           console.log(`APPWRITE_USERS_TOTAL=${Number(usersBody.total||0)}`);
+          if(!Number.isInteger(Number(usersBody.total))) throw new Error('Appwrite user total is not numeric');
           NODE
+
+      - name: Read-only Supabase identity baseline comparison
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y postgresql-client >/dev/null
+          count="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users")"
+          hashes="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE encrypted_password IS NOT NULL AND encrypted_password <> ''")"
+          bcrypt="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE encrypted_password LIKE '$2%'")"
+          emails="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE email IS NOT NULL AND email <> ''")"
+          echo "SUPABASE_AUTH_USERS=$count"
+          echo "SUPABASE_AUTH_PASSWORD_HASHES=$hashes"
+          echo "SUPABASE_AUTH_BCRYPT_HASHES=$bcrypt"
+          echo "SUPABASE_AUTH_EMAILS=$emails"
+          test "$count" -gt 0
+          test "$count" = "$hashes"
+          test "$count" = "$bcrypt"
+          test "$count" = "$emails"
+          echo 'PASS: rollback identity baseline is internally consistent and bcrypt-compatible.'
 
       - name: Read-only Appwrite storage inventory
         env:
@@ -83,17 +108,21 @@ jobs:
           console.log(`APPWRITE_STORAGE_BUCKET_NAMES=${names.join('|')}`);
           NODE
 
-      - name: Verify Neon database reachability
+      - name: Verify Neon database reachability and runtime contract
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
-          sudo apt-get update >/dev/null
-          sudo apt-get install -y postgresql-client >/dev/null
           psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "SELECT current_database(), current_user;"
-          echo 'PASS: Neon database is reachable.'
+          psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN 1 ELSE 0 END;
+          SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN 1 ELSE 0 END;
+          SQL
+          echo 'PASS: Neon database and runtime-critical schemas are reachable.'
 
       - name: Provider readiness verdict
         run: |
           echo 'READINESS_EVIDENCE=COLLECTED'
-          echo 'NOTE: This gate is read-only; Vercel runtime environment configuration remains a separate controlled deployment concern.'
+          echo 'IDENTITY_MIGRATION=READ_ONLY_VERIFIED_OR_BLOCKED_BY_COUNT_MISMATCH'
+          echo 'NOTE: This gate performs no data migration and no production mutation.'
+          echo 'NOTE: Vercel runtime environment configuration remains a separate controlled deployment concern.'
