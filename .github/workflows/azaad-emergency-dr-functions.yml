@@ -1,6 +1,7 @@
 name: AZAAD Emergency DR - Edge Functions
 
 # DR evacuation workflow: source archival only; activation remains disabled until reconciliation.
+# Pushes evacuate the exact emergency branch head; workflow_dispatch can pin an immutable SHA.
 
 on:
   workflow_dispatch:
