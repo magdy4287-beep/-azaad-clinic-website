@@ -17,6 +17,7 @@ on:
     paths:
       - scripts/azaad-supabase-functions-to-appwrite.sh
       - .github/workflows/azaad-emergency-dr-functions.yml
+      - .github/workflows/azaad-emergency-dr-final.yml
       - supabase/functions/**
 
 permissions:
