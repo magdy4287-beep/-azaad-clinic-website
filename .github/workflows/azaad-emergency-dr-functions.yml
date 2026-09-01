@@ -8,7 +8,7 @@ on:
       candidate_ref:
         description: Exact emergency candidate ref whose function sources must be evacuated
         required: true
-        default: 7668b6296d332a4693c1f930e6411d3e8fc77b25
+        default: emergency/supabase-evacuation
         type: string
   push:
     branches:
@@ -16,6 +16,7 @@ on:
     paths:
       - scripts/azaad-supabase-functions-to-appwrite.sh
       - .github/workflows/azaad-emergency-dr-functions.yml
+      - supabase/functions/**
 
 permissions:
   contents: read
@@ -25,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CANDIDATE_REF: ${{ inputs.candidate_ref || '7668b6296d332a4693c1f930e6411d3e8fc77b25' }}
+  CANDIDATE_REF: ${{ inputs.candidate_ref || github.ref_name }}
 
 jobs:
   edge-functions:
@@ -43,9 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           runner_sha="$(git rev-parse HEAD)"
-          raw_ref="$CANDIDATE_REF"
-          candidate_ref="${raw_ref#candidate_ref:}"
-          candidate_ref="$(printf '%s' "$candidate_ref" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          candidate_ref="$(printf '%s' "$CANDIDATE_REF" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
           test -n "$candidate_ref"
           git fetch --no-tags --depth=1 origin "$candidate_ref"
           candidate_sha="$(git rev-parse FETCH_HEAD)"
