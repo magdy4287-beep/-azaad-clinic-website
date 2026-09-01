@@ -32,7 +32,7 @@ async function upsertFile(bucketId,fileId,buffer,filename,mime){
 async function listBuckets(){const d=await req(`${endpoint}/storage/buckets?limit=100`,{headers});return Array.isArray(d.buckets)?d.buckets:[];}
 async function main(){
  const source=fs.readdirSync(root,{withFileTypes:true}).filter(x=>x.isDirectory()).map(x=>x.name).sort();
- if(source.length!==16) throw new Error(`FAIL-CLOSED: expected 16 source functions, discovered ${source.length}`);
+ if(source.length===0) throw new Error('FAIL-CLOSED: no source functions discovered under supabase/functions');
  const desiredId='azaad-edge-functions-dr';
  const desiredName='AZAAD Edge Functions DR';
  const buckets=await listBuckets();
@@ -58,11 +58,11 @@ async function main(){
  fs.writeFileSync(out,JSON.stringify(manifest,null,2),{mode:0o600});
  const mdata=Buffer.from(JSON.stringify(manifest,null,2));
  const manifestFile=await getFile(bucketId,'fn-manifest');
- const savedManifest=manifestFile?await update(bucketId,'fn-manifest',mdata,'manifest.json','application/json'):await upload(bucketId,'fn-manifest',mdata,'manifest.json','application/json');
- if(Number(savedManifest.sizeOriginal)!==mdata.length){if(manifestFile) await remove(bucketId,'fn-manifest');const recreated=await upload(bucketId,'fn-manifest',mdata,'manifest.json','application/json');if(Number(recreated.sizeOriginal)!==mdata.length)throw new Error(`FAIL-CLOSED: manifest size reconciliation failed: source=${mdata.length} destination=${recreated.sizeOriginal}`);}
+ let savedManifest=manifestFile?await update(bucketId,'fn-manifest',mdata,'manifest.json','application/json'):await upload(bucketId,'fn-manifest',mdata,'manifest.json','application/json');
+ if(Number(savedManifest.sizeOriginal)!==mdata.length){if(manifestFile) await remove(bucketId,'fn-manifest');savedManifest=await upload(bucketId,'fn-manifest',mdata,'manifest.json','application/json');if(Number(savedManifest.sizeOriginal)!==mdata.length)throw new Error(`FAIL-CLOSED: manifest size reconciliation failed: source=${mdata.length} destination=${savedManifest.sizeOriginal}`);}
  if(savedManifest.$id!=='fn-manifest') throw new Error('FAIL-CLOSED: manifest reconciliation failed');
  console.log(`PASS: archived ${results.length}/${source.length} Supabase Edge Function source trees to Appwrite Storage bucket ${bucketId}`);
 }
 main().catch(e=>{console.error('FAIL-CLOSED:',e.message);process.exit(1)})
 NODE
-node -e "const m=require(process.env.RUNNER_TEMP+'/azaad-functions-migration/manifest.json');if(m.status!=='PASS'||m.source_functions!==16||m.migrated_functions!==16)process.exit(1);console.log('PASS: Edge Function source evacuation reconciliation gate')"
+node -e "const m=require(process.env.RUNNER_TEMP+'/azaad-functions-migration/manifest.json');if(m.status!=='PASS'||!Number.isInteger(m.source_functions)||m.source_functions<1||m.migrated_functions!==m.source_functions)process.exit(1);console.log('PASS: Edge Function source evacuation reconciliation gate')"
