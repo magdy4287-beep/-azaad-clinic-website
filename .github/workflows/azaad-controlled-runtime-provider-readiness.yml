@@ -1,0 +1,98 @@
+name: AZAAD Controlled Runtime Provider Readiness
+
+on:
+  push:
+    branches: [controlled-evolution/runtime-boundary-neon]
+    paths:
+      - '.github/workflows/azaad-controlled-runtime-provider-readiness.yml'
+      - 'lib/azaad-runtime-contract.js'
+      - 'scripts/azaad-appwrite-auth-inventory.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-readiness:
+    name: Appwrite identity/storage + Neon runtime readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact revision
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Verify controlled provider secrets exist
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$APPWRITE_ENDPOINT" || { echo 'FAIL-CLOSED: APPWRITE_ENDPOINT missing'; exit 1; }
+          test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
+          test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
+          echo 'Provider secret configuration is present.'
+
+      - name: Read-only Appwrite identity inventory
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const endpoint=(process.env.APPWRITE_ENDPOINT||'').replace(/\/$/,'');
+          const project=process.env.APPWRITE_PROJECT_ID;
+          const key=process.env.APPWRITE_API_KEY;
+          const headers={'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'};
+          const users=await fetch(`${endpoint}/users?limit=1`,{headers});
+          if(!users.ok) throw new Error(`Appwrite Users API HTTP ${users.status}`);
+          const usersBody=await users.json();
+          console.log(`APPWRITE_USERS_TOTAL=${Number(usersBody.total||0)}`);
+          NODE
+
+      - name: Read-only Appwrite storage inventory
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const endpoint=(process.env.APPWRITE_ENDPOINT||'').replace(/\/$/,'');
+          const project=process.env.APPWRITE_PROJECT_ID;
+          const key=process.env.APPWRITE_API_KEY;
+          const headers={'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'};
+          const buckets=await fetch(`${endpoint}/storage/buckets?limit=100`,{headers});
+          if(!buckets.ok) throw new Error(`Appwrite Storage API HTTP ${buckets.status}`);
+          const body=await buckets.json();
+          const names=(body.buckets||[]).map(x=>x.name).sort();
+          console.log(`APPWRITE_STORAGE_BUCKETS=${names.length}`);
+          console.log(`APPWRITE_STORAGE_BUCKET_NAMES=${names.join('|')}`);
+          NODE
+
+      - name: Verify Neon database reachability
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update >/dev/null
+          sudo apt-get install -y postgresql-client >/dev/null
+          psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "SELECT current_database(), current_user;"
+          echo 'PASS: Neon database is reachable.'
+
+      - name: Provider readiness verdict
+        run: |
+          echo 'READINESS_EVIDENCE=COLLECTED'
+          echo 'NOTE: This gate is read-only; Vercel runtime environment configuration remains a separate controlled deployment concern.'
