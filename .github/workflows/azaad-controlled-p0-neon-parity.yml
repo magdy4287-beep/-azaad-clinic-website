@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/azaad-controlled-p0-neon-parity.yml'
       - 'scripts/azaad-dr-real-restore.sh'
+      - 'scripts/azaad-dr-real-restore-v2.sh'
   workflow_dispatch:
 
 permissions:
@@ -51,8 +52,8 @@ jobs:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
         run: |
-          chmod +x scripts/azaad-dr-real-restore.sh
-          ./scripts/azaad-dr-real-restore.sh
+          chmod +x scripts/azaad-dr-real-restore-v2.sh
+          ./scripts/azaad-dr-real-restore-v2.sh
 
       - name: Reconcile authoritative clinical counts
         env:
@@ -74,9 +75,14 @@ jobs:
         run: |
           set -euo pipefail
           psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN 1 ELSE 0 END AS public_schema_present;
-          SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN 1 ELSE 0 END AS private_schema_present;
-          SELECT count(*) AS private_functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='private';
+          DO $$
+          DECLARE private_functions integer;
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN RAISE EXCEPTION 'PUBLIC_SCHEMA_MISSING'; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN RAISE EXCEPTION 'PRIVATE_SCHEMA_MISSING'; END IF;
+            SELECT count(*) INTO private_functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='private';
+            IF private_functions = 0 THEN RAISE EXCEPTION 'PRIVATE_FUNCTIONS_MISSING'; END IF;
+          END $$;
           SQL
           echo 'PASS: runtime-critical schema/function invariants.'
 
