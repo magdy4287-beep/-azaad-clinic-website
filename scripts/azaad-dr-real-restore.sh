@@ -19,43 +19,51 @@ mkdir -p "$work" "$evidence"
 chmod 700 "$work" "$evidence"
 trap 'rm -rf "$work"' EXIT
 
+# The public runtime depends on SECURITY DEFINER helpers in private. The
+# authoritative portability archive therefore includes both schemas. This is
+# still a database restore only; Auth credentials/sessions remain separate.
 pg_dump "$SUPABASE_DB_URL" \
   --format=custom \
   --schema=public \
+  --schema=private \
   --no-owner \
   --no-privileges \
-  --file="$work/public.dump"
+  --file="$work/runtime.dump"
 
-pg_restore --list "$work/public.dump" > "$work/archive.list"
+pg_restore --list "$work/runtime.dump" > "$work/archive.list"
 test -s "$work/archive.list"
-sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
+grep -Eq 'SCHEMA[[:space:]]+-[[:space:]]+public' "$work/archive.list"
+grep -Eq 'SCHEMA[[:space:]]+-[[:space:]]+private' "$work/archive.list"
+grep -Eq 'FUNCTION[[:space:]]+private\\.' "$work/archive.list"
+sha256sum "$work/runtime.dump" | tee "$work/runtime.dump.sha256"
 
 openssl enc -aes-256-cbc -pbkdf2 -salt \
   -pass env:DR_BACKUP_PASSPHRASE \
-  -in "$work/public.dump" \
-  -out "$work/public.dump.enc"
-sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"
+  -in "$work/runtime.dump" \
+  -out "$work/runtime.dump.enc"
+sha256sum "$work/runtime.dump.enc" | tee "$work/runtime.dump.enc.sha256"
 
 openssl enc -d -aes-256-cbc -pbkdf2 \
   -pass env:DR_BACKUP_PASSPHRASE \
-  -in "$work/public.dump.enc" \
-  -out "$work/public.restore.dump"
-sha256sum -c "$work/public.dump.sha256" --ignore-missing
-cmp "$work/public.dump" "$work/public.restore.dump"
-pg_restore --list "$work/public.restore.dump" > "$work/restored-archive.list"
+  -in "$work/runtime.dump.enc" \
+  -out "$work/runtime.restore.dump"
+sha256sum -c "$work/runtime.dump.sha256" --ignore-missing
+cmp "$work/runtime.dump" "$work/runtime.restore.dump"
+pg_restore --list "$work/runtime.restore.dump" > "$work/restored-archive.list"
 test -s "$work/restored-archive.list"
+grep -Eq 'SCHEMA[[:space:]]+-[[:space:]]+public' "$work/restored-archive.list"
+grep -Eq 'SCHEMA[[:space:]]+-[[:space:]]+private' "$work/restored-archive.list"
+grep -Eq 'FUNCTION[[:space:]]+private\\.' "$work/restored-archive.list"
 
-# External dependencies required by the public-schema archive are prepared first.
-# Security compatibility helpers are deliberately fail-closed. They exist only
-# so restored RLS definitions can be created; they are not authorization logic.
+# External dependencies required by the restored public/private schemas are
+# prepared first. Security compatibility helpers are deliberately fail-closed.
+# They exist only so restored RLS definitions can be created; they are not
+# production authorization logic.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS security;
 CREATE TABLE IF NOT EXISTS auth.users (id uuid NOT NULL PRIMARY KEY);
 
--- Supabase-compatible helper signatures required while restoring RLS policies.
--- These are compatibility stubs only; production identity/authorization behavior
--- remains separately uncertified and is explicitly not delegated to these stubs.
 CREATE OR REPLACE FUNCTION auth.uid()
 RETURNS uuid
 LANGUAGE sql
@@ -95,8 +103,6 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF;
 END $$;
 
--- Both signatures have been observed as external dependencies of the restored
--- Supabase RLS layer. Keep both helpers fail-closed during emergency recovery.
 CREATE OR REPLACE FUNCTION security.can_access_patient(patient_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -119,17 +125,27 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-# Do not CREATE public here. The custom archive owns the public schema definition.
-# Remove the old schema, then let pg_restore recreate it from the archive.
-psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE;'
+# Do not CREATE public/private here. The authoritative archive owns both schema
+# definitions. Drop both targets, then let pg_restore recreate them from the dump.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS private CASCADE; DROP SCHEMA IF EXISTS public CASCADE;'
 
-# Restore pre-data first. This recreates public and all objects required by the data
-# section without any manually-created public schema collision.
-pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# Restore pre-data first. This recreates private and public and their functions,
+# triggers and types before table data is loaded.
+pg_restore --exit-on-error --no-owner --no-privileges --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/runtime.restore.dump"
 
-# Restore table data separately. --disable-triggers is valid for data-only restore;
-# identity references are reconciled before the post-data FK/constraint section.
-pg_restore --exit-on-error --no-owner --no-privileges --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# Fail closed if the runtime-critical private schema/function boundary was not
+# recreated by the authoritative archive.
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN 1 ELSE raise_exception('PUBLIC_SCHEMA_MISSING') END;
+SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN 1 ELSE raise_exception('PRIVATE_SCHEMA_MISSING') END;
+SELECT CASE WHEN count(*) > 0 THEN count(*) ELSE raise_exception('PRIVATE_FUNCTIONS_MISSING') END AS private_functions
+FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+WHERE n.nspname='private';
+SQL
+
+# Restore table data separately. Identity references are reconciled before the
+# post-data FK/constraint section.
+pg_restore --exit-on-error --no-owner --no-privileges --section=data --disable-triggers --dbname="$NEON_DATABASE_URL" "$work/runtime.restore.dump"
 
 # Materialize every likely auth identity referenced by restored public data before
 # post-data creates foreign keys. This is metadata-driven, not table-name-driven.
@@ -163,11 +179,11 @@ BEGIN
 END $$;
 SQL
 
-# Apply indexes, triggers, rules and constraints only after the data and identity
-# boundary are ready. No textual post-data helper is generated or piped to psql.
-pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"
+# Apply indexes, triggers, rules and constraints only after data and identity
+# boundaries are ready.
+pg_restore --exit-on-error --no-owner --no-privileges --section=post-data --dbname="$NEON_DATABASE_URL" "$work/runtime.restore.dump"
 
-# Record reconciliation evidence. Keep the compatibility security functions
+# Record reconciliation evidence. Keep compatibility security functions
 # explicitly fail-closed until the dedicated security certification gate replaces
 # them with the real authorization implementation.
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -201,41 +217,40 @@ GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 SQL
 
-cp "$work/public.dump.enc" "$evidence/public.dump.enc"
-cp "$work/public.dump.enc.sha256" "$evidence/public.dump.enc.sha256"
+cp "$work/runtime.dump.enc" "$evidence/runtime.dump.enc"
+cp "$work/runtime.dump.enc.sha256" "$evidence/runtime.dump.enc.sha256"
 cat > "$evidence/README.txt" <<'EOF'
-AZAAD Emergency DR encrypted recovery artifact.
+AZAAD controlled Neon runtime recovery artifact.
 
+The authoritative PostgreSQL archive includes both public and private schemas
+because public runtime functions depend on private SECURITY DEFINER helpers.
 The archive is encrypted with the controlled DR passphrase stored in GitHub
 Actions secrets. The plaintext dump is intentionally not preserved.
 
 Referenced identity UUIDs are materialized as minimal auth.users placeholders
-only to satisfy referential integrity during disaster recovery. This is not a
-restoration of Supabase Auth credentials or sessions.
+only to satisfy referential integrity. This is not restoration of Supabase Auth
+passwords, identities, refresh tokens, or sessions.
 
 auth.uid/auth.role/auth.email/auth.jwt are compatibility helpers required to
 restore Supabase RLS definitions. They are not a production authorization
-implementation; identity and authorization portability must be certified
-separately before production cutover.
+implementation.
 
 security.can_access_patient and security.can_access_patient_clinical are
 fail-closed compatibility dependencies used only while restoring RLS definitions.
-They return false and are NOT authorization implementations. RLS/RPC/Edge Function
-behavioral portability must be certified separately before production cutover.
+They return false and are NOT authorization implementations.
+
+Identity/auth portability, RLS/RPC/Edge Function behavioral equivalence and
+production cutover remain separately gated.
 EOF
-chmod 600 "$evidence/public.dump.enc" "$evidence/public.dump.enc.sha256" "$evidence/README.txt"
+chmod 600 "$evidence/runtime.dump.enc" "$evidence/runtime.dump.enc.sha256" "$evidence/README.txt"
 
 echo 'PASS: PostgreSQL archive toolchain available'
-echo 'PASS: custom dump validated with pg_restore --list'
+echo 'PASS: authoritative public+private dump validated'
 echo 'PASS: encrypted snapshot integrity verified'
 echo 'PASS: decrypted archive revalidated'
 echo 'PASS: auth and security external dependencies initialized'
-echo 'PASS: Supabase auth helper signatures initialized'
-echo 'PASS: security.can_access_patient helper initialized fail-closed'
-echo 'PASS: security.can_access_patient_clinical helper initialized fail-closed'
-echo 'PASS: public schema cleared without pre-creating it'
-echo 'PASS: pg_restore owns public schema recreation'
-echo 'PASS: strict pre-data restore completed'
+echo 'PASS: public/private schemas restored from authoritative archive'
+echo 'PASS: runtime-critical private functions restored'
 echo 'PASS: strict data restore completed'
 echo 'PASS: dynamic identity-reference placeholders materialized'
 echo 'PASS: strict post-data restore completed'
