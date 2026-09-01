@@ -9,9 +9,10 @@ work="${RUNNER_TEMP}/azaad-dr"; evidence="${RUNNER_TEMP}/azaad-dr-evidence"; rm 
 pg_dump "$SUPABASE_DB_URL" --format=custom --schema=public --no-owner --no-privileges --file="$work/public.dump"; test -s "$work/public.dump"; pg_restore --list "$work/public.dump" > "$work/archive.list"; test -s "$work/archive.list"; sha256sum "$work/public.dump" | tee "$work/public.dump.sha256"
 grep -Eq '(^|[[:space:]])TABLE[[:space:]]+public[[:space:]]' "$work/archive.list" || { echo 'FAIL-CLOSED: authoritative dump contains no public table entries.' >&2; exit 1; }
 awk '$0 !~ /^;/ && $0 ~ /[[:space:]]TABLE[[:space:]]+public[[:space:]]/ { for (i=1; i<=NF; i++) if ($i == "public") { print $(i+1); break } }' "$work/archive.list" | sed '/^$/d' | sort -u > "$work/public.tables"; test -s "$work/public.tables"; echo "PREFLIGHT: $(wc -l < "$work/public.tables") public tables recorded."
-# Neon public is deliberately created by the controlled target reset. Exclude exactly the dump's SCHEMA - public TOC entry; retain every table/data/index/constraint/trigger entry.
-awk 'BEGIN{removed=0} /^;/ {print; next} { if ($0 ~ /(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)/) {removed++; next} print } END{ if (removed != 1) { printf "FAIL-CLOSED: expected exactly one SCHEMA - public entry, removed %d.\n", removed > "/dev/stderr"; exit 1 } }' "$work/archive.list" > "$work/restore.list"
-test -s "$work/restore.list"; grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list" && { echo 'FAIL-CLOSED: public schema CREATE entry remains in restore list.' >&2; exit 1; } || true
+# Keep the authoritative CREATE SCHEMA public TOC entry. We deliberately drop the destination public schema first, then let pg_restore recreate it from the dump before restoring tables/data/indexes/constraints.
+cp "$work/archive.list" "$work/restore.list"
+test -s "$work/restore.list"
+grep -Eq '(^|[[:space:]])SCHEMA[[:space:]]+-[[:space:]]+public([[:space:]]|$)' "$work/restore.list" || { echo 'FAIL-CLOSED: authoritative dump is missing the public schema TOC entry.' >&2; exit 1; }
 openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump" -out "$work/public.dump.enc"; sha256sum "$work/public.dump.enc" | tee "$work/public.dump.enc.sha256"; openssl enc -d -aes-256-cbc -pbkdf2 -pass env:DR_BACKUP_PASSPHRASE -in "$work/public.dump.enc" -out "$work/public.restore.dump"; sha256sum -c "$work/public.dump.sha256"; cmp "$work/public.dump" "$work/public.restore.dump"
 psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE SCHEMA IF NOT EXISTS auth; CREATE SCHEMA IF NOT EXISTS security;
@@ -26,11 +27,13 @@ CREATE OR REPLACE FUNCTION security.can_access_patient_clinical(patient_id uuid)
 REVOKE ALL ON FUNCTION security.can_access_patient(uuid) FROM PUBLIC; REVOKE ALL ON FUNCTION security.can_access_patient_clinical(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION security.can_access_patient(uuid) TO authenticated; GRANT EXECUTE ON FUNCTION security.can_access_patient_clinical(uuid) TO authenticated;
 DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA public;
-DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='postgres') THEN EXECUTE 'GRANT ALL ON SCHEMA public TO postgres'; END IF; END $$;
+SQL
+# The public schema is intentionally NOT recreated here: the authoritative dump contains its CREATE SCHEMA TOC entry, and pg_restore must recreate it. Recreating it manually would make the authoritative schema entry fail with "already exists".
+pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"; echo 'PASS: authoritative pre-data restore.'
+psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+GRANT ALL ON SCHEMA public TO postgres;
 GRANT USAGE ON SCHEMA public TO PUBLIC;
 SQL
-pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=pre-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"; echo 'PASS: authoritative pre-data restore.'
 missing=0; while IFS= read -r table_name; do [ -n "$table_name" ] || continue; if ! psql "$NEON_DATABASE_URL" -Atqc "SELECT to_regclass(format('public.%I', '$table_name')) IS NOT NULL" | grep -qx 't'; then echo "FAIL-CLOSED: table missing after pre-data restore: $table_name" >&2; missing=1; fi; done < "$work/public.tables"; [ "$missing" -eq 0 ] || exit 1; echo 'PASS: pre-data table invariant.'
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --disable-triggers --section=data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"; echo 'PASS: authoritative data restore.'
 pg_restore --exit-on-error --no-owner --no-privileges --use-list="$work/restore.list" --section=post-data --dbname="$NEON_DATABASE_URL" "$work/public.restore.dump"; echo 'PASS: authoritative post-data restore.'
