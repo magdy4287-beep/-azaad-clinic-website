@@ -5,6 +5,7 @@ on:
     branches: [controlled-evolution/runtime-boundary-neon]
     paths:
       - '.github/workflows/azaad-controlled-runtime-provider-readiness.yml'
+      - 'docs/AZAAD_WORKFLOW_OWNERSHIP_REGISTRY.md'
       - 'lib/azaad-runtime-contract.js'
       - 'scripts/azaad-appwrite-auth-inventory.sh'
   workflow_dispatch:
