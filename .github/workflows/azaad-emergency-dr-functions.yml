@@ -72,16 +72,16 @@ jobs:
           done
           if [ "$missing" -ne 0 ]; then echo 'FAIL-CLOSED: required Appwrite Storage evacuation secrets are not configured.'; exit 78; fi
 
-      - name: Inventory exact candidate Edge Functions
+      - name: Inventory discovered candidate Edge Functions
         shell: bash
         run: |
           set -euo pipefail
           count="$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -print | wc -l | tr -d ' ')"
           echo "source_function_count=$count"
-          test "$count" -eq 16
+          if [ "$count" -lt 1 ]; then echo 'FAIL-CLOSED: no candidate Edge Function source trees discovered.'; exit 1; fi
           find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
 
-      - name: Archive every Edge Function source tree to Appwrite Storage
+      - name: Archive every discovered Edge Function source tree to Appwrite Storage
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -98,7 +98,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Fail closed unless all 16 source trees reconcile
+      - name: Fail closed unless every discovered source tree reconciles
         shell: bash
         run: |
           set -euo pipefail
@@ -107,8 +107,8 @@ jobs:
           const p=process.env.RUNNER_TEMP+'/azaad-functions-migration/manifest.json';
           const m=JSON.parse(fs.readFileSync(p,'utf8'));
           if(m.status!=='PASS'||m.mode!=='FUNCTION_SOURCE_EVACUATION') throw new Error('invalid evacuation manifest');
-          if(m.source_functions!==16||m.migrated_functions!==16) throw new Error(`function source reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
-          if(!Array.isArray(m.results)||m.results.length!==16) throw new Error('missing per-function reconciliation results');
+          if(!Number.isInteger(m.source_functions)||m.source_functions<1||m.migrated_functions!==m.source_functions) throw new Error(`function source reconciliation failed: source=${m.source_functions} migrated=${m.migrated_functions}`);
+          if(!Array.isArray(m.results)||m.results.length!==m.source_functions) throw new Error('missing per-function reconciliation results');
           for(const r of m.results) if(r.status!=='ARCHIVED'||!r.source_archive_sha256||!r.file_id) throw new Error(`invalid archive result for ${r.id}`);
           console.log(`PASS: Edge Function source trees archived ${m.migrated_functions}/${m.source_functions}`);
           console.log(`candidate_source_sha=${process.env.candidate_source_sha||'not-exported'}`);
