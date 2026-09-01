@@ -20,7 +20,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Push events MUST execute the immutable event SHA. Manual dispatches execute the explicit candidate ref.
   CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_ref || github.sha }}
 
 jobs:
@@ -101,6 +100,15 @@ jobs:
           set -euo pipefail
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
           bash scripts/azaad-dr-real-restore.sh
+
+      - name: Upload database recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-database-evacuation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/azaad-dr-evidence/
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Record database evacuation gate
         shell: bash
@@ -236,3 +244,20 @@ jobs:
           for(const b of m.buckets){if(b.file_count!==b.verified||b.failed.length) process.exit(1)}
           console.log('PASS: every discovered Storage object is reconciled');
           NODE
+
+  final_dr_gate:
+    name: Final database + storage evacuation gate
+    needs: [execute, storage]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Fail closed unless database and storage jobs passed
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "database_job=${{ needs.execute.result }}"
+          echo "storage_job=${{ needs.storage.result }}"
+          if [ "${{ needs.execute.result }}" != "success" ]; then echo 'FAIL-CLOSED: database evacuation did not pass.'; exit 1; fi
+          if [ "${{ needs.storage.result }}" != "success" ]; then echo 'FAIL-CLOSED: Storage evacuation did not pass.'; exit 1; fi
+          echo 'PASS: database + Storage evacuation gates passed.'
+          echo 'NEXT: identity/auth + edge-function reconciliation + final DR certification.'
