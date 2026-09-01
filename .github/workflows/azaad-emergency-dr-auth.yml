@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       candidate_ref:
-        description: 'Exact emergency branch/ref to inspect'
+        description: 'Exact emergency candidate SHA to inspect'
         required: true
-        default: 'emergency/supabase-evacuation'
+        default: 'f9f6cd2f2a413d3262ff7fed6a42149ef3afc27b'
         type: string
   push:
     branches:
@@ -38,7 +38,8 @@ jobs:
           candidate_sha="$(git rev-parse HEAD)"
           echo "candidate_sha=$candidate_sha"
           echo "candidate_ref=$CANDIDATE_REF"
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then test "$candidate_sha" = "$GITHUB_SHA"; fi
+          printf '%s\n' "$candidate_sha" | grep -Eq '^[0-9a-f]{40}$'
+          test "$candidate_sha" = "$CANDIDATE_REF"
 
       - name: Verify Auth inventory secret
         env:
@@ -60,26 +61,47 @@ jobs:
           echo "supabase_auth_endpoint=${SUPABASE_URL}/auth/v1/admin/users"
           bash scripts/azaad-supabase-auth-evacuation-inventory.sh
 
+      - name: Bind Auth evidence to exact candidate
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ env.CANDIDATE_REF }}
+        run: |
+          set -euo pipefail
+          node - "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json" "$CANDIDATE_SHA" <<'NODE'
+          const fs=require('fs');
+          const p=process.argv[2];
+          const sha=process.argv[3];
+          const m=JSON.parse(fs.readFileSync(p,'utf8'));
+          if(!/^[0-9a-f]{40}$/.test(sha)) throw new Error('FAIL-CLOSED: invalid candidate SHA');
+          m.candidate_sha=sha;
+          fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n',{mode:0o600});
+          NODE
+          grep -q '"candidate_sha"' "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json"
+
       - name: Upload Auth evacuation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: azaad-auth-evacuation-${{ github.run_id }}-${{ github.run_attempt }}
+          name: azaad-auth-evacuation-candidate-${{ env.CANDIDATE_REF }}-${{ github.run_id }}
           path: ${{ runner.temp }}/azaad-auth-evidence/
           if-no-files-found: error
           retention-days: 90
 
       - name: Final Auth inventory gate
         shell: bash
+        env:
+          CANDIDATE_SHA: ${{ env.CANDIDATE_REF }}
         run: |
           set -euo pipefail
           test -s "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json"
-          node - "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json" <<'NODE'
+          node - "$RUNNER_TEMP/azaad-auth-evidence/auth-manifest.json" "$CANDIDATE_SHA" <<'NODE'
           const fs=require('fs');
           const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const sha=process.argv[3];
           if(m.status!=='PASS') throw new Error('FAIL-CLOSED: Auth inventory status is not PASS');
+          if(m.candidate_sha!==sha) throw new Error('FAIL-CLOSED: Auth evidence candidate SHA mismatch');
           if(m.password_hashes_exported || m.sessions_exported || m.refresh_tokens_exported) throw new Error('FAIL-CLOSED: credential/session material must not be exported');
           console.log(`PASS: Auth identity inventory = ${m.user_count} users / ${m.identity_count} identities`);
+          console.log(`PASS: Auth evidence bound to candidate ${m.candidate_sha}`);
           console.log('PASS: credentials, sessions and refresh tokens remain excluded');
-          console.log('NEXT GATE: final DR reconciliation');
           NODE
