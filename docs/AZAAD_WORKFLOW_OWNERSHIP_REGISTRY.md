@@ -26,6 +26,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
 | `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
+| `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
 
 ## Proven non-duplication decisions
 
@@ -52,6 +53,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Emergency DR
 
 `azaad-emergency-dr-restore.yml` is intentionally separate from production certification and browser E2E. It owns only the emergency data-plane transport/restore boundary from Supabase public schema to Neon DR, with encryption, integrity, compatibility handling, and reconciliation. It does not certify identity equivalence, application authorization, RLS/RPC behavioral equivalence, or production cutover.
+
+### Controlled Neon parity
+
+`azaad-controlled-p0-neon-parity.yml` is intentionally separate from the emergency DR workflow. Emergency DR is closed and owns disaster-recovery transport/restore evidence; this controlled workflow owns only post-DR runtime parity repair and verification required by the provider-neutral runtime boundary. It does not reopen the emergency gate, perform production cutover, or replace final certification.
 
 ### Final release
 
