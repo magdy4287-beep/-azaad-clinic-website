@@ -106,7 +106,7 @@ text = replace_function(text, 'logout', LOGOUT)
 
 # Some canonical Admin transforms intentionally retire the old startup helper.
 # At this final runtime boundary the Appwrite-backed helper is the canonical
-# owner, so insert it when absent rather than depending on a historical shape.
+# owner, so install it when absent rather than depending on a historical shape.
 restore_pattern = re.compile(r'async function restoreStaffProfile\s*\([^)]*\)\s*\{', re.S)
 restore_matches = list(restore_pattern.finditer(text))
 if len(restore_matches) == 1:
@@ -127,13 +127,23 @@ if not startup_pattern.search(text):
     raise SystemExit('Canonical Admin DOMContentLoaded startup block not found')
 text = startup_pattern.sub(STARTUP, text, count=1)
 
+# Remove the legacy endpoint constant left by the historical login canonicalizer.
+# Other Supabase data clients may still exist elsewhere in the Admin artifact, but
+# authentication ownership must be exclusively Appwrite at this boundary.
+text = re.sub(
+    r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?',
+    '\n',
+    text,
+    count=1,
+)
+
 # The Appwrite session is an in-memory credential only. Never persist it in sessionStorage/localStorage.
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
 if 'STAFF_LOGIN_FUNCTION' in text:
     raise SystemExit('Legacy STAFF_LOGIN_FUNCTION remains after Appwrite auth transform')
-if 'fetch(`${SUPABASE_URL}/functions/v1/staff-login' in text:
-    raise SystemExit('Legacy staff-login fetch remains after Appwrite auth transform')
+if 'functions/v1/staff-login' in text:
+    raise SystemExit('Legacy staff-login endpoint remains after Appwrite auth transform')
 for legacy_auth in (
     'supabase.auth.getSession(',
     'supabase.auth.refreshSession(',
