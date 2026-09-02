@@ -56,32 +56,52 @@ jobs:
           echo "NEON_TARGET=$neon_identity"
           echo 'PASS: both database targets are reachable.'
 
-      - name: Compare authoritative clinical row counts and report all mismatches
+      - name: Compare authoritative clinical row counts and retain evidence
+        id: row-counts
+        continue-on-error: true
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          report="$RUNNER_TEMP/neon-parity-row-counts.txt"
           tables='clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours'
           mismatch=0
+          : > "$report"
           for table in $tables; do
             s=$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
             n=$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
             if [ "$s" = MISSING ] || [ "$n" = MISSING ]; then
-              echo "MISMATCH $table SUPABASE=$s NEON=$n (missing table/query failure)"
+              line="MISMATCH $table SUPABASE=$s NEON=$n (missing table/query failure)"
               mismatch=1
             elif [ "$s" != "$n" ]; then
-              echo "MISMATCH $table SUPABASE=$s NEON=$n"
+              line="MISMATCH $table SUPABASE=$s NEON=$n"
               mismatch=1
             else
-              echo "MATCH $table count=$s"
+              line="MATCH $table count=$s"
             fi
+            echo "$line" | tee -a "$report"
           done
+          echo "MISMATCH_FLAG=$mismatch" | tee -a "$report"
           if [ "$mismatch" -ne 0 ]; then
             echo 'FAIL-CLOSED: authoritative row-count parity is not proven; no mutation was performed.'
             exit 1
           fi
           echo 'PASS: authoritative clinical row-count parity.'
+
+      - name: Upload read-only parity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-parity-row-count-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/neon-parity-row-counts.txt
+          if-no-files-found: error
+
+      - name: Stop before deeper parity checks when row counts differ
+        if: steps.row-counts.outcome != 'success'
+        run: |
+          echo 'P0 remains BLOCKED: row-count mismatch is retained as evidence.'
+          exit 1
 
       - name: Verify deterministic data fingerprints for authoritative tables
         env:
