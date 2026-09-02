@@ -20,7 +20,7 @@ checks = [
     ('Admin appointments enforces role', "'OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'" in appointments),
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical build applies Appwrite auth transform', 'finalize-appwrite-admin-auth.py' in build),
-    ('Canonical transform rejects legacy staff-login fetch', 'functions/v1/staff-login' in transform and 'Legacy staff-login endpoint remains after Appwrite auth transform' in transform),
+    ('Canonical transform contains retired staff-login endpoint assertion', 'functions/v1/staff-login' in transform and 'raise SystemExit' in transform and 'Legacy staff-login' in transform),
     ('Canonical transform rejects legacy staff-login marker', 'Legacy STAFF_LOGIN_FUNCTION remains' in transform),
     ('Appwrite API key is not embedded in frontend transform', 'APPWRITE_API_KEY' not in transform),
 ]
