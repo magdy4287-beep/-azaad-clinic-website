@@ -28,6 +28,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
 | `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
+| `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
 
 ## Proven non-duplication decisions
 
@@ -64,6 +65,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Controlled provider readiness
 
 `azaad-controlled-runtime-provider-readiness.yml` is intentionally read-only and separate from both Emergency DR and the P0 Neon parity repair. It verifies that the already-selected free provider surfaces (Appwrite identity/storage and Neon database) are reachable with controlled credentials before wiring them into the production runtime contract. It performs no data migration and no production mutation.
+
+### Controlled auth parity preflight
+
+`azaad-controlled-auth-parity-preflight.yml` is intentionally read-only. It verifies identity UUID parity between the retained Supabase Auth source and the selected Appwrite identity provider before any credential import or session cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials, and it performs no user mutation.
 
 ### Final release
 
