@@ -44,7 +44,7 @@ jobs:
           done
           echo 'PASS: controlled auth preflight configuration is present.'
 
-      - name: Run read-only identity parity preflight
+      - name: Run read-only identity ID + email parity preflight
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
