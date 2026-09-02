@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# This repair is stateful: never allow two Neon restores to overlap.
+concurrency:
+  group: azaad-controlled-neon-parity
+  cancel-in-progress: false
+
 jobs:
   p0-neon-parity:
     runs-on: ubuntu-latest
