@@ -30,6 +30,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
 | `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
 | `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical Supabase JWT/PostgREST probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
+| `azaad-browser-e2e-root-fix.yml` | Controlled Browser E2E root-cause verification | Rebuild exact PR merge artifact, enforce final Admin restore boundary, then run Browser E2E without production mutation | Temporary controlled verification |
 
 ## Proven non-duplication decisions
 
@@ -69,7 +70,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 ### Controlled auth parity preflight
 
-`azaad-controlled-auth-parity-preflight.yml` is intentionally read-only. It verifies identity UUID parity between the retained Supabase Auth source and the selected Appwrite identity provider before any credential import or session cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials, and it performs no user mutation.
+`azaad-controlled-auth-parity-preflight.yml` is intentionally read-only. It verifies identity UUID parity between the retained Supabase Auth source and the selected Appwrite identity provider before any credential import or session cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials, and performs no user mutation.
 
 ### Legacy PGRST303 diagnostic
 
@@ -78,6 +79,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Final release
 
 `azaad-final-release-certification.yml` is not a duplicate of the automatic production certification gate. It is a manually invoked, candidate-SHA-locked go-live decision that consumes fresh evidence from multiple required workflows.
+
+### Browser E2E root-fix verification
+
+`azaad-browser-e2e-root-fix.yml` is temporary and intentionally separate from the canonical Browser E2E workflow. It exists only to verify a specific P1 root-cause repair on the exact PR merge artifact. It does not replace the canonical Browser E2E gate, alter production, bypass tests, or create a second production trigger. It is eligible for retirement after the repaired boundary passes the canonical Browser E2E evidence path and the root-cause PR is closed or merged.
 
 ## Retirement rule
 
