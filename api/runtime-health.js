@@ -17,6 +17,20 @@ const REQUIRED_TABLES = [
   'clinic_audit_log'
 ];
 
+async function databaseTargetFingerprint() {
+  const raw = String(process.env.DATABASE_URL || '').trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    const canonical = `${url.protocol}//${url.hostname}:${url.port || ''}${url.pathname}`;
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+    return Array.from(new Uint8Array(digest)).map((value) => value.toString(16).padStart(2, '0')).join('');
+  } catch (error) {
+    console.error('[AZAAD runtime-health] database target fingerprint failed', error);
+    return null;
+  }
+}
+
 async function verifyNeon(sql) {
   const rows = await sql`
     select table_name
@@ -72,7 +86,10 @@ export default async function handler() {
     }
   }
 
-  const appwrite = await verifyAppwrite();
+  const [appwrite, targetFingerprint] = await Promise.all([
+    verifyAppwrite(),
+    databaseTargetFingerprint()
+  ]);
   const ready =
     databaseReachable &&
     databaseTables.requiredTablesPresent &&
@@ -91,6 +108,7 @@ export default async function handler() {
         database: databaseReachable,
         databaseConfigured: contract.configured.DATABASE_URL,
         databaseReachable,
+        databaseTargetFingerprint: targetFingerprint,
         databaseTables,
         appwrite
       }
