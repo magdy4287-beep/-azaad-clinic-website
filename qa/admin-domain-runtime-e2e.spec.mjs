@@ -15,6 +15,7 @@ async function readAuthState(page) {
     initializing: Boolean(window.AZAAD?.state?.initializing),
     staffRole: window.AZAAD?.state?.staff?.role || null,
     session: Boolean(window.AZAAD?.state?.session?.access_token),
+    provider: window.AZAAD?.state?.provider || null,
     loginError: document.getElementById('loginError')?.textContent?.trim() || null
   }));
 }
@@ -26,7 +27,7 @@ async function login(page) {
   const authResponses = [];
   const runtimeErrors = [];
   page.on('response', response => {
-    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+    if (response.url().includes('/api/admin-auth') && response.request().method() === 'POST') {
       authResponses.push({ status: response.status(), url: response.url() });
     }
   });
@@ -42,15 +43,11 @@ async function login(page) {
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm button[type="submit"]').click();
 
-  const deadline = Date.now() + AUTH_READY_TIMEOUT;
-  let state = await readAuthState(page);
-  while (Date.now() < deadline && !(state.loginHidden && state.adminVisible)) {
-    await page.waitForTimeout(250);
-    state = await readAuthState(page);
-  }
-
+  await expect.poll(() => authResponses.length, { timeout: AUTH_READY_TIMEOUT }).toBeGreaterThan(0);
+  expect(authResponses.at(-1).status).toBe(200);
+  const state = await readAuthState(page);
   if (!(state.loginHidden && state.adminVisible)) {
-    throw new Error(`Admin shell did not activate. staffLoginResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
+    throw new Error(`Admin shell did not activate. adminAuthResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
   }
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
@@ -67,7 +64,7 @@ test('authenticated admin domain runtime certification covers every accessible p
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('response', response => {
     const url = response.url();
-    if (url.includes('/functions/v1/') && (response.status() >= 500 || response.status() === 401 || response.status() === 403)) {
+    if (url.includes('/api/') && (response.status() >= 500 || response.status() === 401 || response.status() === 403)) {
       failedBackendResponses.push({ status: response.status(), method: response.request().method(), url });
     }
   });
