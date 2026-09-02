@@ -75,7 +75,7 @@ jobs:
           sudo apt-get install -y postgresql-client >/dev/null
           count="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users")"
           hashes="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE encrypted_password IS NOT NULL AND encrypted_password <> ''")"
-          bcrypt="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE encrypted_password LIKE '$2%'")"
+          bcrypt="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE encrypted_password LIKE '$' || '2%'")"
           emails="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM auth.users WHERE email IS NOT NULL AND email <> ''")"
           echo "SUPABASE_AUTH_USERS=$count"
           echo "SUPABASE_AUTH_PASSWORD_HASHES=$hashes"
