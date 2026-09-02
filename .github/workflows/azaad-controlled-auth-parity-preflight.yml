@@ -1,0 +1,55 @@
+name: AZAAD Controlled Auth Parity Preflight
+
+on:
+  push:
+    branches: [controlled-evolution/runtime-boundary-neon]
+    paths:
+      - '.github/workflows/azaad-controlled-auth-parity-preflight.yml'
+      - 'scripts/azaad-controlled-auth-parity-preflight.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azaad-controlled-auth-parity-preflight
+  cancel-in-progress: false
+
+jobs:
+  auth-parity-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify required secrets exist
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_DB_URL APPWRITE_ENDPOINT APPWRITE_PROJECT_ID APPWRITE_API_KEY; do
+            test -n "${!name:-}" || { echo "FAIL-CLOSED: $name missing"; exit 1; }
+          done
+          echo 'PASS: controlled auth preflight configuration is present.'
+
+      - name: Run read-only identity parity preflight
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        run: |
+          chmod +x scripts/azaad-controlled-auth-parity-preflight.sh
+          ./scripts/azaad-controlled-auth-parity-preflight.sh
