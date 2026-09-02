@@ -6,11 +6,7 @@ const SESSION_MAX_AGE = 60 * 60 * 8;
 function json(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      ...headers,
-    },
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
   });
 }
 
@@ -37,12 +33,7 @@ async function appwriteRequest(path, options = {}) {
   if (!endpoint || !project || !apiKey) throw new Error('APPWRITE_RUNTIME_NOT_CONFIGURED');
   return fetch(`${endpoint}${path}`, {
     ...options,
-    headers: {
-      'X-Appwrite-Project': project,
-      'X-Appwrite-Key': apiKey,
-      accept: 'application/json',
-      ...(options.headers || {}),
-    },
+    headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, accept: 'application/json', ...(options.headers || {}) },
   });
 }
 
@@ -93,13 +84,14 @@ async function verifySession(request) {
     limit 1
   `;
   const staff = rows[0] || null;
-  if (!staff) return null;
-  return { user, staff, secret };
+  return staff ? { user, staff, secret } : null;
 }
 
 export default async function handler(request) {
   const cors = corsHeaders(request.headers.get('origin'));
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-azaad-appwrite-session' } });
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-azaad-appwrite-session' } });
+  }
 
   try {
     if (request.method === 'POST') {
@@ -110,23 +102,17 @@ export default async function handler(request) {
       const result = await createSession(username, password);
       if (!result) return json({ error: 'invalid_credentials' }, 401, cors);
       const { session, staff } = result;
-      const headers = {
-        ...cors,
-        'set-cookie': `${COOKIE}=${encodeURIComponent(session.secret)}; Path=/; Max-Age=${SESSION_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`,
-      };
       return json({
         user: { id: session.userId, email: staff.email },
         staff,
         session: { access_token: session.secret, user: { id: session.userId, email: staff.email } },
         provider: 'appwrite',
-      }, 200, headers);
+      }, 200, { ...cors, 'set-cookie': `${COOKIE}=${encodeURIComponent(session.secret)}; Path=/; Max-Age=${SESSION_MAX_AGE}; HttpOnly; Secure; SameSite=Lax` });
     }
 
     if (request.method === 'DELETE') {
       const secret = cookieValue(request);
-      if (secret) {
-        await appwriteRequest(`/account/sessions/${encodeURIComponent(secret)}`, { method: 'DELETE', headers: { 'X-Appwrite-Session': secret } }).catch(() => {});
-      }
+      if (secret) await appwriteRequest('/account/sessions/current', { method: 'DELETE', headers: { 'X-Appwrite-Session': secret } }).catch(() => {});
       return json({ ok: true }, 200, { ...cors, 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` });
     }
 
