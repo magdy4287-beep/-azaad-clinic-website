@@ -90,9 +90,12 @@ export default async function handler() {
     verifyAppwrite(),
     databaseTargetFingerprint()
   ]);
+  const expectedFingerprint = contract.expectedDatabaseTargetFingerprint;
+  const databaseTargetMatches = Boolean(targetFingerprint && expectedFingerprint && targetFingerprint === expectedFingerprint);
   const ready =
     databaseReachable &&
     databaseTables.requiredTablesPresent &&
+    databaseTargetMatches &&
     contract.storage &&
     contract.identity &&
     appwrite.reachable &&
@@ -109,6 +112,7 @@ export default async function handler() {
         databaseConfigured: contract.configured.DATABASE_URL,
         databaseReachable,
         databaseTargetFingerprint: targetFingerprint,
+        databaseTargetMatches,
         databaseTables,
         appwrite
       }
