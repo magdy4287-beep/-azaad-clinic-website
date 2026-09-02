@@ -23,11 +23,11 @@ This document freezes the controlled-evolution verification boundary after Emerg
 |---|---|---|
 | Emergency DR | CLOSED | Historical DR gate remains closed; no reopening required |
 | Provider-neutral runtime boundary | ACTIVE | Neon database boundary implemented; Supabase runtime explicitly forbidden on the controlled branch |
-| Neon runtime reachability | PASS | Latest controlled Vercel runtime-health reached Neon and verified required runtime tables |
-| Neon data parity | NOT PROVEN | A read-only reconciliation gate is now the only permitted verification path; no new transfer/restore is required or authorized |
+| Neon runtime reachability | PASS | Latest controlled Vercel runtime-health reached a Neon database and verified its required runtime tables |
+| Neon data parity | **P0 BLOCKED** | Read-only reconciliation proved the GitHub Actions `NEON_DATABASE_URL` target is not the same data target represented by the current Vercel runtime. Authoritative counts: `clinic_ai_insights` 297 vs missing, `clinic_audit_log` 809 vs missing, `clinic_bookings` 1150 vs 0, `clinic_clinical_visits` 399 vs missing, `clinic_doctors` 12 vs missing, `clinic_invoices` 401 vs missing, `clinic_patients` 573 vs missing, `clinic_services` 4 vs missing, `clinic_settings` 1 vs missing, `clinic_working_hours` 7 vs missing. No mutation was performed. |
 | Vercel build | PASS | Latest controlled deployment reached READY; build logs completed without build errors |
-| Provider-neutral runtime health | BLOCKED | Neon is reachable and schema-complete, but Vercel runtime is missing Appwrite endpoint/project configuration and non-Supabase identity-provider configuration |
-| Authentication | P0 BLOCKED | Production Browser E2E evidence shows the existing Admin authentication path still depends on Supabase staff-login/Realtime and receives HTTP 402 under the current provider limit; the root cause is the remaining provider runtime dependency, not a test bypass |
+| Provider-neutral runtime health | BLOCKED | Vercel runtime is missing Appwrite endpoint/project/API-key configuration and explicit Appwrite identity-provider configuration; runtime contract is now Appwrite-only and fail-closed |
+| Authentication | P0 BLOCKED | Existing Admin authentication path still depends on Supabase staff-login/Realtime and receives HTTP 402 under the current provider limit; the root cause is the remaining provider runtime dependency, not a test bypass |
 | Public Booking | NOT PROVEN | Provider-neutral runtime implementation exists; schema/data parity and targeted end-to-end behavior remain gated |
 | Security | BLOCKED BY OPEN FINDINGS | SECURITY DEFINER advisory requires architectural review; leaked-password protection remains disabled |
 | Clinical E2E | BLOCKED | Depends on provider-neutral identity, runtime data parity, and authorization evidence |
@@ -42,9 +42,13 @@ This document freezes the controlled-evolution verification boundary after Emerg
 
 Production Browser E2E proved that the current Admin authentication path still calls the Supabase `staff-login` Edge Function and Supabase Realtime. The provider responds with HTTP 402, causing CORS failure and preventing the Admin shell from activating. The correct root cause is therefore a remaining runtime dependency on Supabase, not a Browser E2E defect. Tests remain fail-closed and are not bypassed.
 
-### P0 — Runtime data parity
+### P0 — Authoritative Neon target mismatch
 
-The provider-neutral runtime is database-reachable and the latest health endpoint verified the required clinical tables are present in Neon. Controlled evolution must now prove parity by **read-only reconciliation against the already-restored target**. The closed Emergency DR archive/restore path is historical evidence only and must not be re-executed as part of this phase.
+The read-only parity gate established a critical environment-boundary defect: the database referenced by the GitHub Actions `NEON_DATABASE_URL` secret is not the database represented by the current Vercel runtime. The CI target is missing most authoritative clinical tables, while Vercel runtime-health reports those tables present. This cannot be reconciled by another restore because Emergency DR is closed and no new transfer is authorized. The correct repair is to identify and align the existing Vercel `DATABASE_URL` with the already-restored authoritative Neon target, then re-run read-only parity.
+
+### P0 — Provider runtime configuration
+
+The controlled Vercel runtime is fail-closed because the Appwrite endpoint/project/API-key and explicit Appwrite identity-provider configuration are not present. The runtime contract now rejects any identity provider other than Appwrite and requires the server-side Appwrite API key for provider readiness.
 
 ### P1 — Public Booking transaction correctness
 
@@ -62,17 +66,26 @@ Supabase Security Advisor reports leaked-password protection disabled. This rema
 
 The latest Browser E2E observed zero rendered images on the local canonical build for the public media test. This remains explicitly deferred because P0/P1 runtime and identity blockers must be resolved first.
 
+## Process corrections applied in this phase
+
+- Emergency restore implementations were removed from the controlled-evolution diff; the closed DR scripts are no longer modified by PR #94.
+- The Neon parity gate was converted from a stateful restore workflow to a strictly read-only reconciliation workflow.
+- The provider-readiness workflow shell-expansion defect in the bcrypt query was fixed.
+- The runtime contract now requires Appwrite explicitly rather than accepting an arbitrary non-Supabase provider.
+- Runtime-health now emits a non-secret database-target fingerprint so environment drift can be diagnosed without exposing connection credentials.
+
 ## Exit criteria for this baseline
 
 This baseline may advance toward certification only when fresh evidence proves:
 
-1. authoritative Neon data parity through read-only reconciliation;
-2. runtime-critical schema/function parity;
-3. provider-neutral identity/session boundary operationally replaces Supabase runtime authentication;
-4. Public Booking targeted behavior and Browser E2E;
-5. production build/runtime parity;
-6. clinical authorization E2E;
-7. final security/RLS/RPC/Auth/Storage/AI checks;
-8. production smoke and browser evidence on the certified artifact.
+1. the existing authoritative Neon target is the same target used by Vercel;
+2. authoritative Neon data parity through read-only reconciliation;
+3. runtime-critical schema/function parity;
+4. provider-neutral identity/session boundary operationally replaces Supabase runtime authentication;
+5. Public Booking targeted behavior and Browser E2E;
+6. production build/runtime parity;
+7. clinical authorization E2E;
+8. final security/RLS/RPC/Auth/Storage/AI checks;
+9. production smoke and browser evidence on the certified artifact.
 
 Until then the state is **NOT PROVEN**, not Certified.
