@@ -56,19 +56,31 @@ jobs:
           echo "NEON_TARGET=$neon_identity"
           echo 'PASS: both database targets are reachable.'
 
-      - name: Verify public schema and authoritative table parity
+      - name: Compare authoritative clinical row counts and report all mismatches
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
           tables='clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours'
+          mismatch=0
           for table in $tables; do
             s=$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
             n=$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
-            echo "$table SUPABASE=$s NEON=$n"
-            test "$s" != MISSING && test "$n" != MISSING && test "$s" = "$n"
+            if [ "$s" = MISSING ] || [ "$n" = MISSING ]; then
+              echo "MISMATCH $table SUPABASE=$s NEON=$n (missing table/query failure)"
+              mismatch=1
+            elif [ "$s" != "$n" ]; then
+              echo "MISMATCH $table SUPABASE=$s NEON=$n"
+              mismatch=1
+            else
+              echo "MATCH $table count=$s"
+            fi
           done
+          if [ "$mismatch" -ne 0 ]; then
+            echo 'FAIL-CLOSED: authoritative row-count parity is not proven; no mutation was performed.'
+            exit 1
+          fi
           echo 'PASS: authoritative clinical row-count parity.'
 
       - name: Verify deterministic data fingerprints for authoritative tables
@@ -82,12 +94,14 @@ jobs:
             local url="$1" table="$2"
             psql "$url" -Atqc "SELECT COALESCE(md5(string_agg(md5(to_jsonb(t)::text), '' ORDER BY md5(to_jsonb(t)::text))), md5('')) FROM public.\"$table\" t"
           }
+          mismatch=0
           for table in $tables; do
             s=$(fingerprint "$SUPABASE_DB_URL" "$table")
             n=$(fingerprint "$NEON_DATABASE_URL" "$table")
             echo "$table FINGERPRINT_SUPABASE=$s FINGERPRINT_NEON=$n"
-            test -n "$s" && test -n "$n" && test "$s" = "$n"
+            if [ -z "$s" ] || [ -z "$n" ] || [ "$s" != "$n" ]; then mismatch=1; fi
           done
+          test "$mismatch" -eq 0 || { echo 'FAIL-CLOSED: deterministic authoritative data fingerprints differ.'; exit 1; }
           echo 'PASS: deterministic authoritative data fingerprints match.'
 
       - name: Verify public schema shape parity
