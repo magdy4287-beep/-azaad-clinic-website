@@ -29,6 +29,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
 | `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
+| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical Supabase JWT/PostgREST probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
 
 ## Proven non-duplication decisions
 
@@ -69,6 +70,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Controlled auth parity preflight
 
 `azaad-controlled-auth-parity-preflight.yml` is intentionally read-only. It verifies identity UUID parity between the retained Supabase Auth source and the selected Appwrite identity provider before any credential import or session cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials, and it performs no user mutation.
+
+### Legacy PGRST303 diagnostic
+
+`pgrst303-rest-root-diagnostic.yml` previously authenticated through the retired Supabase `staff-login` path. Once Admin identity became Appwrite-backed, that probe could no longer be treated as a current PR health gate; a provider-limit response there does not diagnose the canonical runtime. The workflow therefore retains the historical probe only for explicit manual incident investigation and uses a static retirement contract on pull requests. It does not suppress or replace any current Browser, Clinical, Security, or Certification evidence.
 
 ### Final release
 
