@@ -1,0 +1,85 @@
+name: Azaad Browser E2E Root Fix Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin.js'
+      - 'qa/**'
+      - '.github/workflows/azaad-browser-e2e-root-fix.yml'
+      - '.github/patch-admin.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e-root-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact commit under test
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Verify exact commit under test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: true
+
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Build immutable canonical artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/azaad-build
+          cp -a . /tmp/azaad-build
+          cd /tmp/azaad-build
+          python3 qa/vercel-build.py
+          python3 qa/final-admin-restore-boundary.py
+          node --check admin.js
+
+      - name: Verify final restore boundary is top-level and unique
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          grep -Fq "async function restoreStaffProfile()" admin.js
+          test "$(grep -Fc "async function restoreStaffProfile()" admin.js)" -eq 1
+          grep -Fq "fetch('/api/admin-auth'" admin.js
+          ! grep -Fq "functions/v1/staff-login" admin.js
+          echo 'Final Admin restore boundary: PASS'
+
+      - name: Start immutable artifact server
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/azaad-http.log || true
+          exit 1
+
+      - name: Run Browser E2E against repaired canonical artifact
+        env:
+          AZAAD_BASE_URL: http://127.0.0.1:4173
+          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
+          AZAAD_TEST_USERNAME: frontdesk_azaad
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
