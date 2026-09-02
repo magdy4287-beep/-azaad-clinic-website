@@ -111,9 +111,6 @@ def replace_function(source, name, replacement):
 text = replace_function(text, 'login', LOGIN)
 text = replace_function(text, 'logout', LOGOUT)
 
-# Some canonical Admin transforms intentionally retire the old startup helper.
-# At this final runtime boundary the Appwrite-backed helper is the canonical
-# owner, so install it when absent rather than depending on a historical shape.
 restore_pattern = re.compile(r'async function restoreStaffProfile\s*\([^)]*\)\s*\{', re.S)
 restore_matches = list(restore_pattern.finditer(text))
 if len(restore_matches) == 1:
@@ -148,7 +145,7 @@ text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?
 if 'STAFF_LOGIN_FUNCTION' in text:
     raise SystemExit('Legacy STAFF_LOGIN_FUNCTION remains after Appwrite auth transform')
 if 'functions/v1/staff-login' in text:
-    raise SystemExit('Legacy staff-login endpoint remains after Appwrite auth transform')
+    raise SystemExit('Legacy staff-login fetch remains after Appwrite auth transform: legacy staff-login endpoint remains')
 for legacy_auth in (
     'supabase.auth.getSession(',
     'supabase.auth.refreshSession(',
