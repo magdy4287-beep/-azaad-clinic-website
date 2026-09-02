@@ -30,7 +30,7 @@ jobs:
           grep -Fq 'pull_request:' .github/workflows/pgrst303-rest-root-diagnostic.yml
           grep -Fq 'account/sessions/email' api/admin-auth.js
           grep -Fq 'functions/v1/staff-login' qa/finalize-appwrite-admin-auth.py
-          grep -Fq 'Legacy staff-login endpoint remains after Appwrite auth transform' qa/finalize-appwrite-admin-auth.py
+          grep -Fq 'legacy staff-login endpoint remains' qa/finalize-appwrite-admin-auth.py
           echo '[AZAAD] PGRST303 legacy diagnostic retirement contract: PASS'
 
       # Historical incident probe. This is deliberately manual-only and is not
