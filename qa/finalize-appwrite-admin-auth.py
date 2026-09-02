@@ -101,12 +101,51 @@ STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
   }
 });'''
 
+def function_bounds(source, name):
+    match = re.search(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', source)
+    if not match:
+        return None
+    brace = source.find('{', match.start())
+    depth = 0
+    quote = None
+    escape = False
+    line_comment = False
+    block_comment = False
+    i = brace
+    while i < len(source):
+        ch = source[i]
+        nxt = source[i + 1] if i + 1 < len(source) else ''
+        if line_comment:
+            if ch == '\n': line_comment = False
+            i += 1
+            continue
+        if block_comment:
+            if ch == '*' and nxt == '/': block_comment = False; i += 2; continue
+            i += 1
+            continue
+        if quote:
+            if escape: escape = False
+            elif ch == '\\': escape = True
+            elif ch == quote: quote = None
+            i += 1
+            continue
+        if ch == '/' and nxt == '/': line_comment = True; i += 2; continue
+        if ch == '/' and nxt == '*': block_comment = True; i += 2; continue
+        if ch in "'\"`": quote = ch; i += 1; continue
+        if ch == '{': depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0: return match.start(), i + 1
+        i += 1
+    return None
+
 def replace_function(source, name, replacement):
-    pattern = re.compile(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{.*?\n\}}', re.S)
-    matches = list(pattern.finditer(source))
-    if len(matches) != 1:
-        raise SystemExit(f'{name}: expected exactly one function, found {len(matches)}; refusing rewrite')
-    return source[:matches[0].start()] + replacement + source[matches[0].end():]
+    bounds = function_bounds(source, name)
+    if not bounds:
+        raise SystemExit(f'{name}: function not found; refusing rewrite')
+    if len(re.findall(rf'async function {re.escape(name)}\s*\(', source)) != 1:
+        raise SystemExit(f'{name}: expected exactly one function, refusing rewrite')
+    return source[:bounds[0]] + replacement + source[bounds[1]:]
 
 text = replace_function(text, 'login', LOGIN)
 text = replace_function(text, 'logout', LOGOUT)
@@ -131,7 +170,6 @@ if not startup_pattern.search(text):
     raise SystemExit('Canonical Admin DOMContentLoaded startup block not found')
 text = startup_pattern.sub(STARTUP, text, count=1)
 
-# Remove the legacy endpoint constant left by the historical login canonicalizer.
 text = re.sub(
     r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?',
     '\n',
@@ -139,7 +177,6 @@ text = re.sub(
     count=1,
 )
 
-# The Appwrite session is an in-memory credential only. Never persist it in sessionStorage/localStorage.
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
 if 'STAFF_LOGIN_FUNCTION' in text:
