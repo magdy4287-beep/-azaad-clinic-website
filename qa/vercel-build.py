@@ -41,6 +41,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-admin-runtime-manifest.py"],
     ["python3", "qa/restore-canonical-admin-controller.py"],
     ["python3", "qa/finalize-admin-navigation-ownership.py"],
+    ["python3", "qa/finalize-appwrite-admin-auth.py"],
 ]
 
 VERIFY_STEPS = [
@@ -62,6 +63,8 @@ if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-operational-da
     raise SystemExit("Canonical operational-data boundary transform must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-ownership.py") != 1:
     raise SystemExit("Canonical navigation ownership transform must exist exactly once")
+if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-appwrite-admin-auth.py") != 1:
+    raise SystemExit("Canonical Appwrite Admin auth transform must exist exactly once")
 
 
 def run_steps(steps, phase):
@@ -75,9 +78,6 @@ def run_steps(steps, phase):
 run_steps(TRANSFORM_STEPS, "transform")
 run_steps(VERIFY_STEPS, "verify")
 
-# Production provenance: bind the generated Admin artifact to the exact Git
-# commit that Vercel/GitHub is building. Browser certification can then fail
-# closed if it ever tests a different deployment than the certified SHA.
 commit_sha = (
     os.environ.get("VERCEL_GIT_COMMIT_SHA")
     or os.environ.get("GITHUB_SHA")
