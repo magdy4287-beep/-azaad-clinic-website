@@ -49,7 +49,7 @@ jobs:
           cp -a . /tmp/azaad-build
           cd /tmp/azaad-build
           python3 qa/vercel-build.py
-          python3 qa/final-admin-restore-boundary.py
+          npm install --no-save --no-package-lock @neondatabase/serverless
           node --check admin.js
 
       - name: Verify final restore boundary is top-level and unique
@@ -63,12 +63,21 @@ jobs:
           ! grep -Fq "functions/v1/staff-login" admin.js
           echo 'Final Admin restore boundary: PASS'
 
-      - name: Start immutable artifact server
+      - name: Start immutable artifact API runtime
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$APPWRITE_ENDPOINT" || { echo 'FAIL-CLOSED: APPWRITE_ENDPOINT missing'; exit 1; }
+          test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
+          test -n "$DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
           cd /tmp/azaad-build
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
+          node qa/local-vercel-runtime.mjs >/tmp/azaad-http.log 2>&1 &
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
