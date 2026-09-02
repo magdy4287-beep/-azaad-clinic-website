@@ -42,6 +42,11 @@ TRANSFORM_STEPS = [
     ["python3", "qa/restore-canonical-admin-controller.py"],
     ["python3", "qa/finalize-admin-navigation-ownership.py"],
     ["python3", "qa/finalize-appwrite-admin-auth.py"],
+    # Must be the final auth-normalization step: finalize-appwrite-admin-auth.py
+    # can replace a nested legacy restore owner in-place. Re-run the existing
+    # fail-closed controller repair after it so restoreStaffProfile is guaranteed
+    # to be a single top-level declaration in the canonical production artifact.
+    ["python3", "qa/final-admin-restore-boundary.py"],
 ]
 
 VERIFY_STEPS = [
@@ -66,6 +71,8 @@ if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-own
     raise SystemExit("Canonical navigation ownership transform must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-appwrite-admin-auth.py") != 1:
     raise SystemExit("Canonical Appwrite Admin auth transform must exist exactly once")
+if [step[1] for step in TRANSFORM_STEPS].count("qa/final-admin-restore-boundary.py") != 1:
+    raise SystemExit("Canonical Admin restore boundary transform must exist exactly once")
 if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
     raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
 
