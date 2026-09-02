@@ -24,9 +24,9 @@ This document freezes the controlled-evolution verification boundary after Emerg
 | Emergency DR | CLOSED | Historical DR gate remains closed; no reopening required |
 | Provider-neutral runtime boundary | ACTIVE | Neon database boundary implemented; Supabase runtime explicitly forbidden on the controlled branch |
 | Neon runtime reachability | PASS | Latest controlled Vercel runtime-health reached a Neon database and verified its required runtime tables |
-| Neon data parity | **P0 BLOCKED** | Read-only reconciliation proved the GitHub Actions `NEON_DATABASE_URL` target is not the same data target represented by the current Vercel runtime. Authoritative counts: `clinic_ai_insights` 297 vs missing, `clinic_audit_log` 809 vs missing, `clinic_bookings` 1150 vs 0, `clinic_clinical_visits` 399 vs missing, `clinic_doctors` 12 vs missing, `clinic_invoices` 401 vs missing, `clinic_patients` 573 vs missing, `clinic_services` 4 vs missing, `clinic_settings` 1 vs missing, `clinic_working_hours` 7 vs missing. No mutation was performed. |
+| Neon data parity | **P0 BLOCKED** | Read-only reconciliation proved the GitHub Actions `NEON_DATABASE_URL` target is not the same data target represented by the current Vercel runtime. CI target fingerprint: `69b433b6f1a939f6f37e810606eae1f8345547c43cf83cf524dbf48aa18a05f7`; current Vercel runtime fingerprint: `efcfb7176b16b62192ca9d8e15515d8fd20e5fc670704f271305eee62ef6e410`. These are different targets. Authoritative counts: `clinic_ai_insights` 297 vs missing, `clinic_audit_log` 809 vs missing, `clinic_bookings` 1150 vs 0, `clinic_clinical_visits` 399 vs missing, `clinic_doctors` 12 vs missing, `clinic_invoices` 401 vs missing, `clinic_patients` 573 vs missing, `clinic_services` 4 vs missing, `clinic_settings` 1 vs missing, `clinic_working_hours` 7 vs missing. No mutation was performed. |
 | Vercel build | PASS | Latest controlled deployment reached READY; build logs completed without build errors |
-| Provider-neutral runtime health | BLOCKED | Vercel runtime is missing Appwrite endpoint/project/API-key configuration and explicit Appwrite identity-provider configuration; runtime contract is now Appwrite-only and fail-closed |
+| Provider-neutral runtime health | BLOCKED | Current Vercel runtime is missing Appwrite endpoint/project/API-key configuration and explicit Appwrite identity-provider configuration; runtime contract is now Appwrite-only and fail-closed |
 | Authentication | P0 BLOCKED | Existing Admin authentication path still depends on Supabase staff-login/Realtime and receives HTTP 402 under the current provider limit; the root cause is the remaining provider runtime dependency, not a test bypass |
 | Public Booking | NOT PROVEN | Provider-neutral runtime implementation exists; schema/data parity and targeted end-to-end behavior remain gated |
 | Security | BLOCKED BY OPEN FINDINGS | SECURITY DEFINER advisory requires architectural review; leaked-password protection remains disabled |
@@ -44,7 +44,7 @@ Production Browser E2E proved that the current Admin authentication path still c
 
 ### P0 — Authoritative Neon target mismatch
 
-The read-only parity gate established a critical environment-boundary defect: the database referenced by the GitHub Actions `NEON_DATABASE_URL` secret is not the database represented by the current Vercel runtime. The CI target is missing most authoritative clinical tables, while Vercel runtime-health reports those tables present. This cannot be reconciled by another restore because Emergency DR is closed and no new transfer is authorized. The correct repair is to identify and align the existing Vercel `DATABASE_URL` with the already-restored authoritative Neon target, then re-run read-only parity.
+The read-only parity gate established a critical environment-boundary defect: the database referenced by the GitHub Actions `NEON_DATABASE_URL` secret is not the database represented by the current Vercel runtime. The latest evidence is independently consistent: GitHub Actions connected to `neondb|neondb_owner` with target fingerprint `69b433b6f1a939f6f37e810606eae1f8345547c43cf83cf524dbf48aa18a05f7`, while Vercel runtime-health connected to a different target with fingerprint `efcfb7176b16b62192ca9d8e15515d8fd20e5fc670704f271305eee62ef6e410` and reported all required runtime tables present. This cannot be reconciled by another restore because Emergency DR is closed and no new transfer is authorized. The correct repair is to identify and align the existing Vercel `DATABASE_URL` with the already-restored authoritative Neon target, then re-run read-only parity.
 
 ### P0 — Provider runtime configuration
 
@@ -73,6 +73,7 @@ The latest Browser E2E observed zero rendered images on the local canonical buil
 - The provider-readiness workflow shell-expansion defect in the bcrypt query was fixed.
 - The runtime contract now requires Appwrite explicitly rather than accepting an arbitrary non-Supabase provider.
 - Runtime-health now emits a non-secret database-target fingerprint so environment drift can be diagnosed without exposing connection credentials.
+- The latest runtime evidence confirms the fingerprint mismatch directly; no inference from row counts alone is being used for the environment-boundary diagnosis.
 
 ## Exit criteria for this baseline
 
