@@ -42,7 +42,7 @@ jobs:
           test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
           echo 'PASS: read-only parity configuration is present.'
 
-      - name: Verify both database targets are reachable
+      - name: Verify both database targets are reachable and fingerprint the authoritative target
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
@@ -54,6 +54,13 @@ jobs:
           test -n "$neon_identity"
           echo "SUPABASE_TARGET=$supabase_identity"
           echo "NEON_TARGET=$neon_identity"
+          NEON_DATABASE_URL="$NEON_DATABASE_URL" python3 - <<'PY'
+          import hashlib, os
+          from urllib.parse import urlparse
+          u = urlparse(os.environ['NEON_DATABASE_URL'])
+          canonical = f'{u.scheme}://{u.hostname}:{u.port or ""}{u.path}'
+          print('NEON_DATABASE_TARGET_FINGERPRINT=' + hashlib.sha256(canonical.encode()).hexdigest())
+          PY
           echo 'PASS: both database targets are reachable.'
 
       - name: Compare authoritative clinical row counts and retain evidence
