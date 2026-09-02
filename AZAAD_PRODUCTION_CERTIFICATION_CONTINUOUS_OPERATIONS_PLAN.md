@@ -252,3 +252,69 @@ The permanent project delivery path is:
 with **centralized Arabic/English bilingual support limited to the Patient Dashboard and Administration Dashboard**.
 
 This sentence is the project-level delivery contract. It does not replace the individual gates above; it is the concise operating map connecting them from the certified baseline to live clinic operations.
+
+## 15. Controlled-Evolution Certification Overlay — Current State
+
+This section is authoritative for the current controlled-evolution workstream and does not reopen Emergency DR.
+
+### 15.1 DR boundary
+
+Emergency DR is **CLOSED**. Supabase remains retained as rollback/reference. No controlled-evolution workflow may reopen the emergency transport gate or perform emergency re-entry.
+
+### 15.2 Provider-neutral runtime contract
+
+The controlled runtime target is:
+
+`Vercel → Neon PostgreSQL + Appwrite identity/storage`
+
+Supabase runtime access is not an accepted production dependency for the provider-neutral path. The runtime-health contract is fail-closed and requires Neon plus independent identity/storage configuration.
+
+### 15.3 Fresh Production Health evidence
+
+- Latest controlled Vercel deployment reached **READY** after the workflow-ownership build gate was corrected.
+- The preceding build failure was a concrete workflow-governance root cause: the new controlled P0 workflow was not accepted by the workflow ownership gate at that revision.
+- The production project currently reports **no runtime error clusters in the selected 1-hour audit window**.
+- Vercel build logs currently contain only the existing Node engine warning and a successful build completion; the warning is non-blocking and does not constitute a certification failure.
+
+### 15.4 P0 root causes currently open
+
+**P0-A — Authentication provider dependency**
+
+Production/clinical authentication still depends on Supabase `staff-login` / Supabase Auth. Prior controlled clinical evidence showed HTTP 402 at that boundary. This blocks provider-neutral authentication certification and therefore blocks Clinical E2E certification.
+
+**P0-B — Neon data parity is not yet independently proven**
+
+The controlled Neon parity gate exists and is fail-closed. It must prove authoritative clinical count parity plus public/private runtime schema/function invariants before Neon can be treated as certification-equivalent.
+
+### 15.5 P1 findings currently open
+
+**P1-A — Public SECURITY DEFINER RPC exposure**
+
+Supabase Security Advisor currently reports `public.clinic_frontdesk_checkin(uuid,text)` as executable by authenticated users while defined as SECURITY DEFINER. This must be reviewed against the intended authorization boundary and corrected or explicitly constrained before final security certification.
+
+**P1-B — Leaked Password Protection disabled**
+
+Supabase Auth Security Advisor currently reports leaked-password protection disabled. This remains a security certification blocker for the Supabase rollback/reference environment until the control is addressed or the environment is formally excluded from the final security boundary with evidence.
+
+### 15.6 Performance findings
+
+The current Supabase Performance Advisor reports many `unused_index` INFO findings. These are optimization candidates, not P0/P1 release blockers, and are intentionally deferred until blocking runtime/security issues are resolved.
+
+### 15.7 Controlled repair rule
+
+Every P0/P1 repair must follow:
+
+`Root cause → smallest safe change → isolated controlled revision → targeted verification → Browser/clinical verification → security verification → production verification`
+
+No test bypass, assertion weakening, empty commit, or stale evidence substitution is permitted.
+
+### 15.8 Certification lock
+
+Until P0-A and P0-B are closed with fresh exact-commit evidence:
+
+- Clinical E2E: **BLOCKED / NOT PROVEN**
+- Financial E2E: **BLOCKED / NOT PROVEN**
+- Final Security Certification: **BLOCKED / NOT PROVEN**
+- Production Go-Live Certification: **BLOCKED / NOT PROVEN**
+
+The project remains in controlled evolution, not Emergency DR.

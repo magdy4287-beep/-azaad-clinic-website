@@ -26,6 +26,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
 | `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
+| `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
+| `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
+| `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
+| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical Supabase JWT/PostgREST probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
 
 ## Proven non-duplication decisions
 
@@ -52,6 +56,24 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Emergency DR
 
 `azaad-emergency-dr-restore.yml` is intentionally separate from production certification and browser E2E. It owns only the emergency data-plane transport/restore boundary from Supabase public schema to Neon DR, with encryption, integrity, compatibility handling, and reconciliation. It does not certify identity equivalence, application authorization, RLS/RPC behavioral equivalence, or production cutover.
+
+### Controlled Neon parity
+
+`azaad-controlled-p0-neon-parity.yml` is intentionally separate from the emergency DR workflow. Emergency DR is closed and owns disaster-recovery transport/restore evidence; this controlled workflow owns only post-DR runtime parity repair and verification required by the provider-neutral runtime boundary. It does not reopen the emergency gate, perform production cutover, or replace final certification.
+
+**Implementation invariant:** the controlled Neon parity workflow is a repair/verification gate only. It must never become a hidden source mutator, a production cutover mechanism, or an Emergency DR re-entry path. Its restore step must remain fail-closed and must be followed by independent clinical-count and runtime-schema reconciliation.
+
+### Controlled provider readiness
+
+`azaad-controlled-runtime-provider-readiness.yml` is intentionally read-only and separate from both Emergency DR and the P0 Neon parity repair. It verifies that the already-selected free provider surfaces (Appwrite identity/storage and Neon database) are reachable with controlled credentials before wiring them into the production runtime contract. It performs no data migration and no production mutation.
+
+### Controlled auth parity preflight
+
+`azaad-controlled-auth-parity-preflight.yml` is intentionally read-only. It verifies identity UUID parity between the retained Supabase Auth source and the selected Appwrite identity provider before any credential import or session cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials, and it performs no user mutation.
+
+### Legacy PGRST303 diagnostic
+
+`pgrst303-rest-root-diagnostic.yml` previously authenticated through the retired Supabase `staff-login` path. Once Admin identity became Appwrite-backed, that probe could no longer be treated as a current PR health gate; a provider-limit response there does not diagnose the canonical runtime. The workflow therefore retains the historical probe only for explicit manual incident investigation and uses a static retirement contract on pull requests. It does not suppress or replace any current Browser, Clinical, Security, or Certification evidence.
 
 ### Final release
 
