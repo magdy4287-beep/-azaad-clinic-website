@@ -1,8 +1,10 @@
 name: PGRST303 REST Table Diagnostic
 
+# Retired from the PR certification path. Admin authentication is now Appwrite-backed,
+# so this legacy Supabase staff-login probe is no longer a valid health gate. Keep it
+# manually runnable only for historical PostgREST incident investigation.
 on:
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe authenticated PostgREST table with fresh Frontdesk JWT and delayed recheck
+      - name: Probe legacy Supabase PostgREST only when explicitly requested
         env:
           AZAAD_SUPABASE_URL: ${{ secrets.AZAAD_SUPABASE_URL }}
           AZAAD_SUPABASE_ANON_KEY: ${{ secrets.AZAAD_SUPABASE_ANON_KEY }}
@@ -27,9 +29,9 @@ jobs:
           if(!base||!anon||!password) throw new Error('Missing controlled diagnostic configuration');
           const login=await fetch(`${base}/functions/v1/staff-login`,{method:'POST',headers:{apikey:anon,Authorization:`Bearer ${anon}`,'Content-Type':'application/json'},body:JSON.stringify({username:'frontdesk_azaad',password})});
           const loginBody=await login.json();
-          if(!login.ok) throw new Error(`staff-login failed: HTTP ${login.status}`);
+          if(!login.ok) throw new Error(`legacy staff-login diagnostic failed: HTTP ${login.status}`);
           const token=(loginBody.access_token||loginBody.session?.access_token||'').trim();
-          if(!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) throw new Error('staff-login did not return JWT');
+          if(!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) throw new Error('legacy staff-login did not return JWT');
           const [h,p]=token.split('.');
           const decode=(s)=>JSON.parse(Buffer.from(s,'base64url').toString('utf8'));
           const header=decode(h), claims=decode(p);
