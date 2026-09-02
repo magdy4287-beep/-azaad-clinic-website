@@ -30,7 +30,8 @@ RESTORE = '''async function restoreStaffProfile() {
 }'''
 
 def find_top_level_function(source, name):
-    pattern = re.compile(rf'async function {re.escape(name)}\s*\(')
+    # Function declarations may be synchronous or async; both are valid here.
+    pattern = re.compile(rf'(?:async\s+)?function\s+{re.escape(name)}\s*\(')
     for match in pattern.finditer(source):
         depth = 0
         quote = None
@@ -64,7 +65,7 @@ def find_top_level_function(source, name):
 
 def function_end(source, start):
     brace = source.find('{', start)
-    if brace < 0: raise SystemExit('restoreStaffProfile opening brace missing')
+    if brace < 0: raise SystemExit('function opening brace missing')
     depth = 0; quote = None; escape = False; line_comment = False; block_comment = False; i = brace
     while i < len(source):
         ch = source[i]; nxt = source[i + 1] if i + 1 < len(source) else ''
@@ -87,7 +88,7 @@ def function_end(source, start):
             depth -= 1
             if depth == 0: return i + 1
         i += 1
-    raise SystemExit('restoreStaffProfile closing brace missing')
+    raise SystemExit('function closing brace missing')
 
 # Remove every executable restoreStaffProfile declaration, including a wrongly nested one.
 while True:
