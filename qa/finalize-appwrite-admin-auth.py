@@ -103,10 +103,22 @@ def replace_function(source, name, replacement):
 
 text = replace_function(text, 'login', LOGIN)
 text = replace_function(text, 'logout', LOGOUT)
-text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
 
-# canonicalize-admin-interactivity-v2 intentionally retires restoreSession; Appwrite owns
-# the remaining startup restore through restoreStaffProfile and the HttpOnly session cookie.
+# Some canonical Admin transforms intentionally retire the old startup helper.
+# At this final runtime boundary the Appwrite-backed helper is the canonical
+# owner, so insert it when absent rather than depending on a historical shape.
+restore_pattern = re.compile(r'async function restoreStaffProfile\s*\([^)]*\)\s*\{', re.S)
+restore_matches = list(restore_pattern.finditer(text))
+if len(restore_matches) == 1:
+    text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
+elif len(restore_matches) == 0:
+    startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
+    if not startup_match:
+        raise SystemExit('Cannot install Appwrite restoreStaffProfile: DOMContentLoaded startup not found')
+    text = text[:startup_match.start()] + RESTORE_STAFF + '\n\n' + text[startup_match.start():]
+else:
+    raise SystemExit(f'restoreStaffProfile: expected at most one function, found {len(restore_matches)}; refusing rewrite')
+
 startup_pattern = re.compile(
     r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
     re.S,
@@ -130,6 +142,9 @@ for legacy_auth in (
 ):
     if legacy_auth in text:
         raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
+
+if 'async function restoreStaffProfile()' not in text:
+    raise SystemExit('Canonical Appwrite restoreStaffProfile() missing after transform')
 
 path.write_text(text, encoding='utf-8')
 print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite')
