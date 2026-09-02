@@ -51,44 +51,48 @@ LOGOUT = r'''async function logout() {
   state.currentRole = null;
   state.permissions = new Set();
   state.initialized = false;
-  window.location.reload();
+  state.initializing = false;
+  window.location.replace('/admin.html');
 }'''
 
-RESTORE = r'''async function restoreSession() {
+RESTORE_STAFF = r'''async function restoreStaffProfile() {
   try {
     const response = await fetch('/api/admin-auth', {
-      method: 'GET', credentials: 'include', cache: 'no-store',
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
       headers: { Accept: 'application/json' }
     });
     if (!response.ok) return false;
     const result = await response.json();
-    if (result?.provider !== 'appwrite' || !result?.authenticated || !result?.session?.access_token || !result?.staff) return false;
-    if (result.staff.active === false || !applyStaffRole(result.staff)) return false;
+    if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || !result?.session?.access_token) return false;
+    if (result.staff.active === false) return false;
     state.session = result.session;
     state.user = result.user || result.session.user || null;
     state.provider = 'appwrite';
-    if (redirectDoctorIfNeeded()) return true;
-    await initializeApplication();
-    return true;
+    return applyStaffRole(result.staff);
   } catch (error) {
     console.warn('Appwrite session restore failed:', error);
     return false;
   }
 }'''
 
-RESTORE_STAFF = r'''async function restoreStaffProfile() {
+STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
+  bindLogin();
+  bindLogout();
+  bindBookingFilters();
+  bindPatientPage();
+
   try {
-    const response = await fetch('/api/admin-auth', { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } });
-    if (!response.ok) return false;
-    const result = await response.json();
-    if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff) return false;
-    state.session = result.session;
-    state.user = result.user || result.session?.user || null;
-    return applyStaffRole(result.staff);
-  } catch (_) {
-    return false;
+    const validStaff = await restoreStaffProfile();
+    if (validStaff) {
+      await initializeApplication();
+    }
+  } catch (error) {
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
   }
-}'''
+});'''
 
 def replace_function(source, name, replacement):
     pattern = re.compile(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{.*?\n\}}', re.S)
@@ -99,15 +103,33 @@ def replace_function(source, name, replacement):
 
 text = replace_function(text, 'login', LOGIN)
 text = replace_function(text, 'logout', LOGOUT)
-text = replace_function(text, 'restoreSession', RESTORE)
 text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
+
+# canonicalize-admin-interactivity-v2 intentionally retires restoreSession; Appwrite owns
+# the remaining startup restore through restoreStaffProfile and the HttpOnly session cookie.
+startup_pattern = re.compile(
+    r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
+    re.S,
+)
+if not startup_pattern.search(text):
+    raise SystemExit('Canonical Admin DOMContentLoaded startup block not found')
+text = startup_pattern.sub(STARTUP, text, count=1)
 
 # The Appwrite session is an in-memory credential only. Never persist it in sessionStorage/localStorage.
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
+
 if 'STAFF_LOGIN_FUNCTION' in text:
     raise SystemExit('Legacy STAFF_LOGIN_FUNCTION remains after Appwrite auth transform')
 if 'fetch(`${SUPABASE_URL}/functions/v1/staff-login' in text:
     raise SystemExit('Legacy staff-login fetch remains after Appwrite auth transform')
+for legacy_auth in (
+    'supabase.auth.getSession(',
+    'supabase.auth.refreshSession(',
+    'supabase.auth.signOut(',
+    'supabase.auth.setSession(',
+):
+    if legacy_auth in text:
+        raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
 
 path.write_text(text, encoding='utf-8')
 print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite')
