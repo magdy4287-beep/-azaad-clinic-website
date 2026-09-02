@@ -41,7 +41,14 @@ LOGIN = r'''async function login(username, password) {
 
 LOGOUT = r'''async function logout() {
   try {
-    await fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' });
+    await Promise.race([
+      fetch('/api/admin-auth', {
+        method: 'DELETE',
+        credentials: 'include',
+        cache: 'no-store'
+      }),
+      new Promise(resolve => setTimeout(resolve, 2500))
+    ]);
   } catch (error) {
     console.warn('Appwrite logout request failed:', error);
   }
@@ -128,8 +135,6 @@ if not startup_pattern.search(text):
 text = startup_pattern.sub(STARTUP, text, count=1)
 
 # Remove the legacy endpoint constant left by the historical login canonicalizer.
-# Other Supabase data clients may still exist elsewhere in the Admin artifact, but
-# authentication ownership must be exclusively Appwrite at this boundary.
 text = re.sub(
     r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?',
     '\n',
