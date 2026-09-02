@@ -59,6 +59,8 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 `azaad-controlled-p0-neon-parity.yml` is intentionally separate from the emergency DR workflow. Emergency DR is closed and owns disaster-recovery transport/restore evidence; this controlled workflow owns only post-DR runtime parity repair and verification required by the provider-neutral runtime boundary. It does not reopen the emergency gate, perform production cutover, or replace final certification.
 
+**Implementation invariant:** the controlled Neon parity workflow is a repair/verification gate only. It must never become a hidden source mutator, a production cutover mechanism, or an Emergency DR re-entry path. Its restore step must remain fail-closed and must be followed by independent clinical-count and runtime-schema reconciliation.
+
 ### Controlled provider readiness
 
 `azaad-controlled-runtime-provider-readiness.yml` is intentionally read-only and separate from both Emergency DR and the P0 Neon parity repair. It verifies that the already-selected free provider surfaces (Appwrite identity/storage and Neon database) are reachable with controlled credentials before wiring them into the production runtime contract. It performs no data migration and no production mutation.
