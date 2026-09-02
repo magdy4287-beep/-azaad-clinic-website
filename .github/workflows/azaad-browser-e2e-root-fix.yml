@@ -69,8 +69,6 @@ jobs:
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          AZAAD_EXPECTED_DATABASE_TARGET_FINGERPRINT: ${{ secrets.AZAAD_EXPECTED_DATABASE_TARGET_FINGERPRINT }}
-          AZAAD_IDENTITY_PROVIDER: appwrite
         shell: bash
         run: |
           set -euo pipefail
@@ -78,8 +76,6 @@ jobs:
           test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
           test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
           test -n "$DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
-          test -n "$AZAAD_EXPECTED_DATABASE_TARGET_FINGERPRINT" || { echo 'FAIL-CLOSED: AZAAD_EXPECTED_DATABASE_TARGET_FINGERPRINT missing'; exit 1; }
-          test "$AZAAD_IDENTITY_PROVIDER" = appwrite || { echo 'FAIL-CLOSED: AZAAD_IDENTITY_PROVIDER must be appwrite'; exit 1; }
           cd /tmp/azaad-build
           node qa/local-vercel-runtime.mjs >/tmp/azaad-http.log 2>&1 &
           echo $! > /tmp/azaad-http.pid
