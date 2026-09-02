@@ -5,14 +5,13 @@ on:
     branches: [controlled-evolution/runtime-boundary-neon]
     paths:
       - '.github/workflows/azaad-controlled-p0-neon-parity.yml'
-      - 'scripts/azaad-dr-real-restore.sh'
-      - 'scripts/azaad-dr-real-restore-v2.sh'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# This repair is stateful: never allow two Neon restores to overlap.
+# Controlled evolution must never reopen Emergency DR. This gate is strictly
+# read-only: it verifies the already-restored Neon target against Supabase.
 concurrency:
   group: azaad-controlled-neon-parity
   cancel-in-progress: false
@@ -31,50 +30,83 @@ jobs:
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client openssl
+          sudo apt-get install -y postgresql-client
 
-      - name: Verify required secrets exist
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
-        run: |
-          test -n "$SUPABASE_DB_URL" || { echo 'FAIL-CLOSED: SUPABASE_DB_URL missing'; exit 1; }
-          test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
-          test -n "$DR_BACKUP_PASSPHRASE" || { echo 'FAIL-CLOSED: DR_BACKUP_PASSPHRASE missing'; exit 1; }
-          echo 'PASS: required controlled-repair secrets are present.'
-
-      - name: Capture target identity before repair
-        env:
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: |
-          psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "SELECT current_database(), current_user, version();"
-          echo 'PASS: Neon target is reachable.'
-
-      - name: Execute corrected authoritative restore
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
-        run: |
-          chmod +x scripts/azaad-dr-real-restore-v2.sh
-          ./scripts/azaad-dr-real-restore-v2.sh
-
-      - name: Reconcile authoritative clinical counts
+      - name: Verify read-only parity configuration
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
-          for table in clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours; do
+          test -n "$SUPABASE_DB_URL" || { echo 'FAIL-CLOSED: SUPABASE_DB_URL missing'; exit 1; }
+          test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
+          echo 'PASS: read-only parity configuration is present.'
+
+      - name: Verify both database targets are reachable
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          supabase_identity="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT current_database() || '|' || current_user")"
+          neon_identity="$(psql "$NEON_DATABASE_URL" -Atqc "SELECT current_database() || '|' || current_user")"
+          test -n "$supabase_identity"
+          test -n "$neon_identity"
+          echo "SUPABASE_TARGET=$supabase_identity"
+          echo "NEON_TARGET=$neon_identity"
+          echo 'PASS: both database targets are reachable.'
+
+      - name: Verify public schema and authoritative table parity
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          tables='clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours'
+          for table in $tables; do
             s=$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
             n=$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
             echo "$table SUPABASE=$s NEON=$n"
             test "$s" != MISSING && test "$n" != MISSING && test "$s" = "$n"
           done
-          echo 'PASS: authoritative clinical count parity.'
+          echo 'PASS: authoritative clinical row-count parity.'
 
-      - name: Verify runtime-critical schemas and functions
+      - name: Verify deterministic data fingerprints for authoritative tables
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          tables='clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours'
+          fingerprint() {
+            local url="$1" table="$2"
+            psql "$url" -Atqc "SELECT COALESCE(md5(string_agg(md5(to_jsonb(t)::text), '' ORDER BY md5(to_jsonb(t)::text))), md5('')) FROM public.\"$table\" t"
+          }
+          for table in $tables; do
+            s=$(fingerprint "$SUPABASE_DB_URL" "$table")
+            n=$(fingerprint "$NEON_DATABASE_URL" "$table")
+            echo "$table FINGERPRINT_SUPABASE=$s FINGERPRINT_NEON=$n"
+            test -n "$s" && test -n "$n" && test "$s" = "$n"
+          done
+          echo 'PASS: deterministic authoritative data fingerprints match.'
+
+      - name: Verify public schema shape parity
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          schema_fingerprint() {
+            psql "$1" -Atqc "SELECT md5(COALESCE(string_agg(format('%s|%s|%s|%s|%s|%s|%s', table_schema, table_name, ordinal_position, column_name, data_type, COALESCE(character_maximum_length::text,''), is_nullable), E'\\n' ORDER BY table_schema, table_name, ordinal_position), '')) FROM information_schema.columns WHERE table_schema='public'"
+          }
+          s=$(schema_fingerprint "$SUPABASE_DB_URL")
+          n=$(schema_fingerprint "$NEON_DATABASE_URL")
+          echo "PUBLIC_SCHEMA_FINGERPRINT_SUPABASE=$s"
+          echo "PUBLIC_SCHEMA_FINGERPRINT_NEON=$n"
+          test "$s" = "$n"
+          echo 'PASS: public schema shape parity.'
+
+      - name: Verify runtime-critical private schema/function invariants
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
@@ -89,7 +121,8 @@ jobs:
             IF private_functions = 0 THEN RAISE EXCEPTION 'PRIVATE_FUNCTIONS_MISSING'; END IF;
           END $$;
           SQL
-          echo 'PASS: runtime-critical schema/function invariants.'
+          echo 'PASS: runtime-critical private schema/function invariants.'
 
-      - name: Controlled repair gate
-        run: echo 'PASS: P0 Neon parity repair and verification completed.'
+      - name: Controlled P0 gate
+        run: |
+          echo 'PASS: Neon parity verification completed without any restore, migration, or target mutation.'
