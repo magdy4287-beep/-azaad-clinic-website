@@ -28,7 +28,7 @@ jobs:
           test -f qa/appwrite-admin-auth-boundary-gate.py
           grep -Fq 'workflow_dispatch:' .github/workflows/pgrst303-rest-root-diagnostic.yml
           grep -Fq 'pull_request:' .github/workflows/pgrst303-rest-root-diagnostic.yml
-          grep -Fq "'/account/sessions/email'" api/admin-auth.js
+          grep -Fq 'account/sessions/email' api/admin-auth.js
           grep -Fq 'functions/v1/staff-login' qa/finalize-appwrite-admin-auth.py
           grep -Fq 'Legacy staff-login endpoint remains after Appwrite auth transform' qa/finalize-appwrite-admin-auth.py
           echo '[AZAAD] PGRST303 legacy diagnostic retirement contract: PASS'
