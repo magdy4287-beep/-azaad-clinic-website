@@ -37,16 +37,25 @@ async function resolveStaff(username) {
     order by case when lower(username) = lower(${username}) then 0 else 1 end
     limit 1
   `;
-  return rows[0] || null;
+  const staff = rows[0] || null;
+  if (!staff) console.error('admin-auth diagnostic', { stage: 'staff_resolution', found: false });
+  return staff;
 }
 
 async function createSession(username, password) {
   const staff = await resolveStaff(username);
   if (!staff?.email) return null;
   const response = await appwriteRequest('/account/sessions/email', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: staff.email, password }) });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    let detail = {};
+    try { detail = await response.json(); } catch {}
+    console.error('admin-auth diagnostic', { stage: 'session_create', status: response.status, type: typeof detail?.type === 'string' ? detail.type : undefined, code: typeof detail?.code === 'number' ? detail.code : undefined });
+    return null;
+  }
   const session = await response.json();
-  if (!session?.userId || !session?.secret || session.userId !== staff.auth_user_id) {
+  const parity = Boolean(session?.userId && staff.auth_user_id && session.userId === staff.auth_user_id);
+  if (!session?.userId || !session?.secret || !parity) {
+    console.error('admin-auth diagnostic', { stage: 'identity_parity', appwrite_user_id_present: Boolean(session?.userId), staff_auth_user_id_present: Boolean(staff.auth_user_id), equal: parity, session_secret_present: Boolean(session?.secret) });
     if (session?.secret) await appwriteRequest('/account/sessions/current', { method: 'DELETE', headers: { 'X-Appwrite-Session': session.secret } }).catch(() => {});
     return null;
   }
