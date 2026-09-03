@@ -93,3 +93,15 @@ jobs:
           AZAAD_TEST_USERNAME: frontdesk_azaad
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
+
+      - name: Capture local API boundary diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== AZAAD local API runtime log ==='
+          if test -f /tmp/azaad-http.log; then
+            cat /tmp/azaad-http.log
+          else
+            echo 'No local runtime log was produced.'
+          fi
