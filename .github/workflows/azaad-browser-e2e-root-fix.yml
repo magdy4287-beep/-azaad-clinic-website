@@ -123,6 +123,25 @@ jobs:
           }));
           NODE
 
+      - name: Diagnose Frontdesk E2E secret shape without exposing the secret
+        env:
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const value = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          console.log(JSON.stringify({
+            stage: 'frontdesk_e2e_secret_shape',
+            present: Boolean(value),
+            length: value.length,
+            min_length_8: value.length >= 8,
+            has_leading_whitespace: /^\s/.test(value),
+            has_trailing_whitespace: /\s$/.test(value),
+            contains_line_break: /[\r\n]/.test(value)
+          }));
+          NODE
+
       - name: Run Browser E2E against repaired canonical artifact
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
