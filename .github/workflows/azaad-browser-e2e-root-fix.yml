@@ -86,6 +86,43 @@ jobs:
           cat /tmp/azaad-http.log || true
           exit 1
 
+      - name: Diagnose Appwrite frontdesk identity without exposing credentials
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const url = new URL(`${endpoint}/users`);
+          url.searchParams.set('limit', '100');
+          const response = await fetch(url, {
+            headers: {
+              'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
+              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+              'Accept': 'application/json'
+            }
+          });
+          const text = await response.text();
+          let body = {};
+          try { body = text ? JSON.parse(text) : {}; } catch (_) {}
+          if (!response.ok) {
+            console.log(JSON.stringify({ stage: 'appwrite_users_list', status: response.status, type: body.type || null, code: body.code || null }));
+            process.exit(1);
+          }
+          const users = Array.isArray(body.users) ? body.users : [];
+          const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
+          console.log(JSON.stringify({
+            stage: 'appwrite_frontdesk_identity',
+            users_returned: users.length,
+            exact_email_matches: matches.length,
+            active_matches: matches.filter((u) => u?.status === true).length,
+            email_verified_matches: matches.filter((u) => u?.emailVerification === true).length
+          }));
+          NODE
+
       - name: Run Browser E2E against repaired canonical artifact
         env:
           AZAAD_BASE_URL: http://127.0.0.1:4173
