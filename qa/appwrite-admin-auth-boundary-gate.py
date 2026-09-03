@@ -12,7 +12,7 @@ checks = [
     ('Appwrite session is HttpOnly', 'HttpOnly' in auth),
     ('Appwrite session is Secure', 'Secure' in auth),
     ('Appwrite session has bounded lifetime', 'SESSION_MAX_AGE' in auth and 'Max-Age=${SESSION_MAX_AGE}' in auth),
-    ('Admin login enforces Appwrite user/clinic_staff ID parity', 'session.userId !== staff.auth_user_id' in auth),
+    ('Admin login enforces Appwrite user/clinic_staff ID parity', 'session?.userId === staff.auth_user_id' in auth and 'const parity = Boolean(' in auth and 'session.userId === staff.auth_user_id' in auth),
     ('Admin restore verifies Appwrite session', 'account' in auth and 'X-Appwrite-Session' in auth),
     ('Admin restore enforces active clinic_staff', 'active = true' in auth),
     ('Admin appointments reads Neon', 'from public.clinic_bookings' in appointments and 'neon(' in appointments),
