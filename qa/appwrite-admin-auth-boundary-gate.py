@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 
 root = Path(__file__).resolve().parents[1]
@@ -7,12 +8,16 @@ appointments = (root / 'api/admin-appointments.js').read_text(encoding='utf-8')
 transform = (root / 'qa/finalize-appwrite-admin-auth.py').read_text(encoding='utf-8')
 build = (root / 'qa/vercel-build.py').read_text(encoding='utf-8')
 
+parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and bool(
+    re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth)
+)
+
 checks = [
     ('Appwrite Admin auth endpoint exists', 'account/sessions/email' in auth),
     ('Appwrite session is HttpOnly', 'HttpOnly' in auth),
     ('Appwrite session is Secure', 'Secure' in auth),
     ('Appwrite session has bounded lifetime', 'SESSION_MAX_AGE' in auth and 'Max-Age=${SESSION_MAX_AGE}' in auth),
-    ('Admin login enforces Appwrite user/clinic_staff ID parity', 'session?.userId === staff.auth_user_id' in auth and 'const parity = Boolean(' in auth and 'session.userId === staff.auth_user_id' in auth),
+    ('Admin login enforces Appwrite user/clinic_staff ID parity', parity_guard),
     ('Admin restore verifies Appwrite session', 'account' in auth and 'X-Appwrite-Session' in auth),
     ('Admin restore enforces active clinic_staff', 'active = true' in auth),
     ('Admin appointments reads Neon', 'from public.clinic_bookings' in appointments and 'neon(' in appointments),
