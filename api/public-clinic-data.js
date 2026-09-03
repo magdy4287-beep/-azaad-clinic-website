@@ -1,8 +1,19 @@
 import { neon } from '@neondatabase/serverless';
 
-export default async function handler(req, res) {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!process.env.DATABASE_URL) return res.status(503).json({ error: 'Runtime database is not configured' });
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
+export default async function handler(request) {
+  if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+  if (!process.env.DATABASE_URL) return json({ error: 'Runtime database is not configured' }, 503);
+
   try {
     const sql = neon(process.env.DATABASE_URL);
     const [settings, doctors, services] = await Promise.all([
@@ -10,9 +21,9 @@ export default async function handler(req, res) {
       sql`SELECT id, name, name_en, title, title_en, bio, bio_en, image_url, services FROM public.clinic_doctors WHERE active = true ORDER BY sort_order, name`,
       sql`SELECT id, name, name_en, description, description_en, duration_minutes, price FROM public.clinic_services WHERE active = true ORDER BY sort_order, name`
     ]);
-    return res.status(200).json({ settings: settings[0] || {}, doctors, services });
+    return json({ settings: settings[0] || {}, doctors, services });
   } catch (error) {
-    console.error('public-clinic-data failed', error);
-    return res.status(503).json({ error: 'Clinic data unavailable' });
+    console.error('public-clinic-data failed', { name: error?.name, message: error?.message });
+    return json({ error: 'Clinic data unavailable' }, 503);
   }
 }
