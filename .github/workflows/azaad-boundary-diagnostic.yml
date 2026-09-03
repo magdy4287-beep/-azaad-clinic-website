@@ -1,0 +1,53 @@
+name: Azaad Canonical Boundary Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/azaad-boundary-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm install --no-save --no-package-lock @neondatabase/serverless
+      - name: Verify Neon and Appwrite canonical identity boundary
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { neon } from '@neondatabase/serverless';
+          const sql = neon(process.env.DATABASE_URL);
+          const rows = await sql`select username,email,role,active,auth_user_id from public.clinic_staff where lower(username)='frontdesk_azaad' limit 1`;
+          console.log(`NEON_FRONTDESK_PRESENT=${rows.length > 0}`);
+          console.log(`NEON_FRONTDESK_ACTIVE=${rows[0]?.active === true}`);
+          console.log(`NEON_FRONTDESK_ROLE=${rows[0]?.role || 'MISSING'}`);
+          console.log(`NEON_FRONTDESK_AUTH_ID_PRESENT=${Boolean(rows[0]?.auth_user_id)}`);
+          const endpoint = String(process.env.APPWRITE_ENDPOINT).replace(/\/$/,'');
+          const users = await fetch(`${endpoint}/users?limit=1`, {headers:{'X-Appwrite-Project':process.env.APPWRITE_PROJECT_ID,'X-Appwrite-Key':process.env.APPWRITE_API_KEY,accept:'application/json'}});
+          console.log(`APPWRITE_USERS_HTTP=${users.status}`);
+          if (!rows[0]?.email || !process.env.AZAAD_TEST_PASSWORD) throw new Error('E2E identity inputs unavailable');
+          const login = await fetch(`${endpoint}/account/sessions/email`, {method:'POST',headers:{'X-Appwrite-Project':process.env.APPWRITE_PROJECT_ID,'X-Appwrite-Key':process.env.APPWRITE_API_KEY,'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email:rows[0].email,password:process.env.AZAAD_TEST_PASSWORD})});
+          console.log(`APPWRITE_FRONTDESK_LOGIN_HTTP=${login.status}`);
+          if (!login.ok) process.exit(2);
+          const session = await login.json();
+          console.log(`APPWRITE_SESSION_USER_ID_PRESENT=${Boolean(session?.userId)}`);
+          console.log(`APPWRITE_NEON_ID_MATCH=${Boolean(session?.userId && rows[0]?.auth_user_id && session.userId === rows[0].auth_user_id)}`);
+          if (session?.secret) await fetch(`${endpoint}/account/sessions/current`, {method:'DELETE',headers:{'X-Appwrite-Project':process.env.APPWRITE_PROJECT_ID,'X-Appwrite-Key':process.env.APPWRITE_API_KEY,'X-Appwrite-Session':session.secret}}).catch(()=>{});
+          if (session?.userId !== rows[0]?.auth_user_id) process.exit(3);
+          NODE
