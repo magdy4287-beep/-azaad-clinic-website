@@ -2,7 +2,7 @@ name: AZAAD Controlled Auth Parity Preflight
 
 on:
   push:
-    branches: [controlled-evolution/runtime-boundary-neon]
+    branches: [controlled-evolution/browser-e2e-root-fix]
     paths:
       - '.github/workflows/azaad-controlled-auth-parity-preflight.yml'
       - 'scripts/azaad-controlled-auth-parity-preflight.sh'
