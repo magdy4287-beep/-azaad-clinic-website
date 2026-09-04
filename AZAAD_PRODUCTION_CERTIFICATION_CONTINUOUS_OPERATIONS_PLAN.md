@@ -5,15 +5,54 @@
 Status: **ACTIVE / CONTINUOUSLY EVIDENCE-GATED**  
 Effective branch: `main`  
 Production source of truth: `main` → GitHub Pages.  
-Backend: Supabase Auth/Postgres/RLS/Edge Functions.
+Backend: provider-neutral controlled runtime target with Neon PostgreSQL + Appwrite identity/storage; Supabase retained as rollback/reference and for the existing clinical control plane until provider blockers are resolved.
 
-## 1. Purpose
+## Current Controlled-Evolution State
 
-This plan is the certification and continuous-operations layer above `AZAAD_ENGINEERING_CONTROL_PLAN.md` and `AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md`.
+Emergency DR is **CLOSED** and must not be reopened by controlled-evolution work.
 
-It does not replace existing controls. It requires fresh evidence for each release candidate and prevents unrelated work from being treated as certified under an older evidence set.
+Current release candidate:
 
-## 2. Permanent Constraints
+- PR: `#96`
+- Branch: `controlled-evolution/browser-e2e-root-fix`
+- Head SHA: `35b3d13826e2ae7ce60afca7382e842fb7833011`
+- Base SHA: `558f3663a4dfaf78b07c916eea24e3050bf0029`
+- Certification state: **BLOCKED / NOT PROVEN**
+
+### Fresh blocker tree
+
+```text
+Controlled Evolution
+├── Canonical build / artifact parity              PASS
+├── Admin restore boundary                         PASS
+├── Appwrite static/security contract              PASS
+├── Public / Patient / Responsive contracts        PASS
+├── P0-A Admin authentication
+│   └── Appwrite session_create → HTTP 401
+│       └── user_invalid_credentials
+│           └── external credential state not proven
+└── P0-B Clinical authentication
+    └── Supabase Auth password grant → HTTP 402
+        └── provider/platform blocker
+```
+
+The latest Browser E2E evidence is **16/21 passing** with five failures downstream of the Appwrite authentication boundary. The E2E secret-shape diagnostic proved presence and valid formatting only; it does not prove that the secret value matches the Appwrite user's password. No authentication bypass or fallback is permitted.
+
+Clinical E2E remains independently blocked by Supabase HTTP 402 at native Auth before clinical authorization assertions execute. This is treated as a provider/platform blocker, not converted into an application workaround.
+
+### Health-audit findings
+
+- Correct Neon runtime-boundary branch is populated with the required clinical schema.
+- Neon current diagnostics found no long-running queries and no locks.
+- Supabase public tables relevant to the rollback/reference control plane remain present and RLS-enabled.
+- Supabase Auth logs did not provide additional diagnostic records in the latest 24-hour connector window.
+- Existing Supabase security-advisor findings remain separately classified and are not promoted to P0 without fresh causal evidence.
+
+### Controlled repair policy
+
+No P2/P3 work proceeds while P0 blockers remain open. P1 security findings are preserved for the final security gate and are not weakened to make CI green. Every repair must be canonical, isolated, targeted-tested, browser-tested where applicable, security-verified, and production-verified against the exact commit.
+
+## Permanent Constraints
 
 ### Free-Only
 
@@ -44,7 +83,7 @@ AZAAD supports **Arabic and English centrally only through the Patient Dashboard
 - Centralized language support must not alter authorization, clinical meaning, financial values, audit records, or authoritative database semantics.
 - Every bilingual change remains subject to the same exact-commit evidence and release gates as any other application change.
 
-## 3. Certification Model
+## Certification Model
 
 Certification is evidence-based:
 
@@ -54,46 +93,25 @@ A missing or stale evidence item is `NOT PROVEN`, not PASS.
 
 Evidence must correspond to the exact production commit under certification.
 
-## 4. Certification Gates
+## Certification Gates
 
 ### Gate A — Security Certification
 
-Verify:
-
-- authentication and session integrity
-- RBAC and privilege boundaries
-- RLS/server-side authorization
-- cross-patient/IDOR resistance
-- privilege-escalation resistance
-- secret exposure controls
-- browser trust boundaries
-- Edge Function authorization
-- SECURITY DEFINER safety where applicable
-- error/information leakage
+Verify authentication/session integrity, RBAC, RLS/server-side authorization, IDOR resistance, privilege escalation resistance, secret exposure controls, browser trust boundaries, Edge Function authorization, SECURITY DEFINER safety, and information leakage.
 
 Critical findings block release. High findings block release unless explicitly risk-accepted by an authorized human with evidence.
 
 ### Gate B — Clinical Safety Certification
 
-Verify:
-
-- patient isolation
-- doctor scope
-- clinical lifecycle integrity
-- controlled corrections/history
-- clinical auditability
-- safe AI assistance and fallback
-- no AI final clinical authority
+Verify patient isolation, doctor scope, clinical lifecycle integrity, controlled corrections/history, clinical auditability, safe AI assistance/fallback, and no AI final clinical authority.
 
 ### Gate C — Financial Integrity Certification
 
-Verify the invariant:
+Verify:
 
 `Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution`
 
-This applies to every payment/refund method, including Cash → Cash.
-
-Verify duplicate-payment/refund resistance, controlled financial corrections, authenticated attribution, and preserved approval history.
+for every payment/refund method, including Cash → Cash. Verify duplicate-payment/refund resistance, controlled financial corrections, authenticated attribution, and preserved approval history.
 
 ### Gate D — AI Governance Certification
 
@@ -103,21 +121,13 @@ For each changed AI surface verify:
 
 Test provider/model failure, timeout, malformed output, quota exhaustion where observable, unauthorized requests, and attempted consequential actions.
 
-AI failure must degrade to safe free/native/deterministic/manual behavior.
-
 ### Gate E — Free-Only Certification
 
-Review new dependencies, workflows, APIs, models, monitoring, storage, and recovery mechanisms.
-
-No paid dependency may be required by the release.
+Review new dependencies, workflows, APIs, models, monitoring, storage, and recovery mechanisms. No paid dependency may be required by the release.
 
 ### Gate F — Resilience Certification
 
-Verify free/native backup/export/recovery evidence where available. A real restore drill is required only when the free-only environment can perform it without introducing a paid dependency. Otherwise record:
-
-`NOT PROVEN ON FREE-ONLY STACK`
-
-Never claim recovery certification without evidence.
+Verify free/native backup/export/recovery evidence where available. A real restore drill is required only when the free-only environment can perform it without introducing a paid dependency. Otherwise record `NOT PROVEN ON FREE-ONLY STACK`.
 
 ### Gate G — Release Certification
 
@@ -125,17 +135,7 @@ Required sequence:
 
 `Requirement → bounded implementation → authorization → validation → security/audit → UAT → AI/fallback where applicable → deployment → production smoke/browser verification → evidence → certification`
 
-## 5. Continuous Operations
-
-Production follows:
-
-`Monitor → Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem`
-
-Monitor authentication, authorization denials, application/API failures, Edge Functions, payments/refunds, appointments, browser errors, AI failures/fallbacks, and unusual denial spikes.
-
-Do not log plaintext passwords, secrets, or unnecessary sensitive patient/AI data.
-
-## 6. UAT Certification Contract
+## UAT Certification Contract
 
 ### Reception
 
@@ -157,13 +157,9 @@ Do not log plaintext passwords, secrets, or unnecessary sensitive patient/AI dat
 
 `Language Select → Patient Dashboard / Administration Dashboard → Centralized Arabic/English resources → Authorized content rendering → Preserve data/authorization semantics → Logout`
 
-Negative bilingual paths must reject unsupported language states and must never allow translation or locale state to bypass authorization or change authoritative clinical/financial meaning.
+Negative paths must reject unauthorized patient/clinical/financial access, direct refunds without both approvals, AI approval/privilege escalation/RLS bypass, duplicate transactions, invalid appointment transitions, expired sessions, unsafe AI side effects, and locale state that attempts to bypass authorization.
 
-### Negative paths
-
-Reject unauthorized patient/clinical/financial access, direct refunds without both approvals, AI approval/privilege escalation/RLS bypass, duplicate transactions, invalid appointment transitions, expired sessions, unsafe AI side effects, and language/locale state that attempts to bypass authorization.
-
-## 7. Release Evidence Record
+## Release Evidence Record
 
 For every release candidate record:
 
@@ -183,30 +179,26 @@ For every release candidate record:
 
 If any required item is absent: `NOT PROVEN`.
 
-## 8. Change Freeze
+## Continuous Operations
 
-Once certified, the release candidate is frozen. Unrelated changes require a new bounded change and fresh evidence.
+Production follows:
 
-## 9. Certification States
+`Monitor → Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem`
+
+Monitor authentication, authorization denials, application/API failures, Edge Functions, payments/refunds, appointments, browser errors, AI failures/fallbacks, and unusual denial spikes.
+
+Do not log plaintext passwords, secrets, or unnecessary sensitive patient/AI data.
+
+## Certification States
 
 - **CERTIFIED** — all applicable gates PASS with fresh exact-commit evidence.
 - **CERTIFIED WITH ACCEPTED RISK** — only explicitly authorized non-blocking risks remain, with documented evidence.
 - **NOT PROVEN** — required evidence is missing or stale.
 - **BLOCKED** — a Critical/High unresolved finding or unsafe condition exists.
 
-Free-tier limitations are recorded as limitations, never hidden and never converted into paid requirements.
+## Historical Baseline Evidence
 
-## 10. Current Baseline
-
-Core Stack & Production Gates: **PASS / LOCKED** under `AZAAD_ENGINEERING_CONTROL_PLAN.md`.
-
-Production Hardening → UAT → Release Governance → Operations: **ACTIVE / ENFORCED** under `AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md`.
-
-This plan is the certification and continuous-operations layer.
-
-## 11. Verified Production Browser Evidence — Baseline
-
-A real GitHub Actions Production Browser E2E run has been verified for the `main` baseline:
+A real GitHub Actions Production Browser E2E baseline run was verified previously:
 
 - Workflow: `Azaad Production Browser E2E #347`
 - Run ID: `32005754596`
@@ -215,106 +207,10 @@ A real GitHub Actions Production Browser E2E run has been verified for the `main
 - Tested commit: `6935d6648a9e6a765ddd9c866af434928a5a3b2b`
 - Result: **SUCCESS**
 
-The job completed successfully for the following certification-relevant steps:
+This is historical baseline evidence only. It does not certify the current controlled-evolution candidate.
 
-- Checkout exact commit under test
-- Verify exact commit under test
-- Install Playwright test runner
-- Install Chromium
-- Run browser E2E against production on `main`
-- Enforce Production Certification policy
-- Upload Playwright report
-
-This is **fresh exact-commit browser/policy evidence** for the baseline. It does not by itself replace the individual Security, Clinical, Financial, AI Governance, Free-Only, and Resilience evidence requirements; those remain separately evidence-gated.
-
-## 12. Continuous Certification Rule
-
-The Production Browser E2E workflow is the recurring evidence path. It supports push/PR validation, manual dispatch, and scheduled re-certification.
-
-A successful browser run is recorded as production verification evidence. A failed run blocks the corresponding release candidate until triage and fresh verification succeed.
-
-No manual screenshot, inferred result, or stale run may be substituted for the required exact-commit CI evidence.
-
-## 13. Next Controlled-Evolution Phase
-
-After the current baseline evidence is recorded, feature work proceeds under:
-
-`AZAAD_CONTROLLED_EVOLUTION_FEATURE_DELIVERY_PLAN.md`
-
-The next phase does not loosen certification. Every new feature remains bounded, AI-first where applicable, free-only, safety-gated, UAT-tested, and independently evidenced before release.
-
-## 14. Master Delivery Path to Go-Live
-
-The permanent project delivery path is:
+## Master Delivery Path
 
 `Secure & Safety-Gated Production → Controlled Feature Evolution → Patient/Clinical/Financial E2E → Human-Approved AI → Security/UAT Certification → Go-Live → Continuous Operations`
 
-with **centralized Arabic/English bilingual support limited to the Patient Dashboard and Administration Dashboard**.
-
-This sentence is the project-level delivery contract. It does not replace the individual gates above; it is the concise operating map connecting them from the certified baseline to live clinic operations.
-
-## 15. Controlled-Evolution Certification Overlay — Current State
-
-This section is authoritative for the current controlled-evolution workstream and does not reopen Emergency DR.
-
-### 15.1 DR boundary
-
-Emergency DR is **CLOSED**. Supabase remains retained as rollback/reference. No controlled-evolution workflow may reopen the emergency transport gate or perform emergency re-entry.
-
-### 15.2 Provider-neutral runtime contract
-
-The controlled runtime target is:
-
-`Vercel → Neon PostgreSQL + Appwrite identity/storage`
-
-Supabase runtime access is not an accepted production dependency for the provider-neutral path. The runtime-health contract is fail-closed and requires Neon plus independent identity/storage configuration.
-
-### 15.3 Fresh Production Health evidence
-
-- Latest controlled Vercel deployment reached **READY** after the workflow-ownership build gate was corrected.
-- The preceding build failure was a concrete workflow-governance root cause: the new controlled P0 workflow was not accepted by the workflow ownership gate at that revision.
-- The production project currently reports **no runtime error clusters in the selected 1-hour audit window**.
-- Vercel build logs currently contain only the existing Node engine warning and a successful build completion; the warning is non-blocking and does not constitute a certification failure.
-
-### 15.4 P0 root causes currently open
-
-**P0-A — Authentication provider dependency**
-
-Production/clinical authentication still depends on Supabase `staff-login` / Supabase Auth. Prior controlled clinical evidence showed HTTP 402 at that boundary. This blocks provider-neutral authentication certification and therefore blocks Clinical E2E certification.
-
-**P0-B — Neon data parity is not yet independently proven**
-
-The controlled Neon parity gate exists and is fail-closed. It must prove authoritative clinical count parity plus public/private runtime schema/function invariants before Neon can be treated as certification-equivalent.
-
-### 15.5 P1 findings currently open
-
-**P1-A — Public SECURITY DEFINER RPC exposure**
-
-Supabase Security Advisor currently reports `public.clinic_frontdesk_checkin(uuid,text)` as executable by authenticated users while defined as SECURITY DEFINER. This must be reviewed against the intended authorization boundary and corrected or explicitly constrained before final security certification.
-
-**P1-B — Leaked Password Protection disabled**
-
-Supabase Auth Security Advisor currently reports leaked-password protection disabled. This remains a security certification blocker for the Supabase rollback/reference environment until the control is addressed or the environment is formally excluded from the final security boundary with evidence.
-
-### 15.6 Performance findings
-
-The current Supabase Performance Advisor reports many `unused_index` INFO findings. These are optimization candidates, not P0/P1 release blockers, and are intentionally deferred until blocking runtime/security issues are resolved.
-
-### 15.7 Controlled repair rule
-
-Every P0/P1 repair must follow:
-
-`Root cause → smallest safe change → isolated controlled revision → targeted verification → Browser/clinical verification → security verification → production verification`
-
-No test bypass, assertion weakening, empty commit, or stale evidence substitution is permitted.
-
-### 15.8 Certification lock
-
-Until P0-A and P0-B are closed with fresh exact-commit evidence:
-
-- Clinical E2E: **BLOCKED / NOT PROVEN**
-- Financial E2E: **BLOCKED / NOT PROVEN**
-- Final Security Certification: **BLOCKED / NOT PROVEN**
-- Production Go-Live Certification: **BLOCKED / NOT PROVEN**
-
-The project remains in controlled evolution, not Emergency DR.
+The current phase remains **Controlled Evolution**. Emergency DR remains closed. No emergency transport/re-entry operation is permitted.
