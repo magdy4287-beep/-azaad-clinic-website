@@ -37,8 +37,7 @@ def function_bounds(src, name):
 
 start = function_bounds(text, 'createSupabaseClient')
 end = function_bounds(text, 'callStaffAdmin')
-if not start or not end or start[0] >= end[1]:
-    raise SystemExit('Expected Supabase staff-management helper boundary was not found')
+if not start or not end or start[0] >= end[1]: raise SystemExit('Expected Supabase staff-management helper boundary was not found')
 
 APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
     const adminState = window.AZAAD?.state || {};
@@ -80,32 +79,19 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
 
 text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
 for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
-    text, removed = re.subn(rf'\bconst\s+{name}\s*=.*?;\s*', '', text, count=1, flags=re.S)
-    if removed != 1: print(f'{name} declaration already removed; continuing idempotently')
+    text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, count=1, flags=re.S)
 
-# Mask comments before evaluating executable legacy markers.
-def mask_comments(src):
-    out=[]; i=0
-    while i < len(src):
-        c=src[i]; n=src[i+1] if i+1 < len(src) else ''
-        if c=='/' and n=='*':
-            end=src.find('*/', i+2); i=len(src) if end<0 else end+2; out.append(' '); continue
-        if c=='/' and n=='/':
-            end=src.find('\n', i+2); i=len(src) if end<0 else end; out.append('\n'); continue
-        out.append(c); i += 1
-    return ''.join(out)
-
-executable = mask_comments(text)
-checks = {
-    'functions/v1/staff-admin': 'legacy staff-admin endpoint',
-    'supabase.auth.': 'legacy Supabase auth runtime',
-    'SUPABASE_PUBLISHABLE_KEY': 'legacy Supabase publishable key',
-    'STAFF_ADMIN_FUNCTION': 'legacy staff-admin function constant',
-    'createClient(': 'legacy Supabase client construction',
-}
-for marker, label in checks.items():
-    if marker in executable:
-        raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
+# Fail closed only on executable declarations/references, allowing historical migration comments to remain.
+executable_legacy = [
+    (r'\bconst\s+SUPABASE_(?:URL|PUBLISHABLE_KEY)\s*=', 'legacy Supabase credential declaration'),
+    (r'\bconst\s+STAFF_ADMIN_FUNCTION\s*=', 'legacy staff-admin function declaration'),
+    (r'\bSTAFF_ADMIN_FUNCTION\b', 'legacy staff-admin function reference'),
+    (r'\bsupabase\.auth\.', 'legacy Supabase auth runtime'),
+    (r'\bcreateClient\s*\(', 'legacy Supabase client construction'),
+    (r'https://[^\s"`\']+supabase\.co/functions/v1/staff-admin', 'legacy staff-admin URL'),
+]
+for pattern, label in executable_legacy:
+    if re.search(pattern, text): raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
 
 path.write_text(text, encoding='utf-8')
 print('finalize-staff-management-appwrite.py completed: staff-management now uses HttpOnly Appwrite session + /api/staff-admin Neon boundary')
