@@ -2,27 +2,18 @@ from pathlib import Path
 import re
 
 path = Path('staff-management.js')
-if not path.is_file():
-    raise SystemExit('staff-management.js is required')
+if not path.is_file(): raise SystemExit('staff-management.js is required')
 text = path.read_text(encoding='utf-8')
 
 
 def function_bounds(src, name):
     marker = re.search(rf'async function {re.escape(name)}\s*\(', src)
-    if not marker:
-        return None
+    if not marker: return None
     open_brace = src.find('{', marker.end())
-    if open_brace < 0:
-        return None
-    depth = 0
-    quote = None
-    escape = False
-    line_comment = False
-    block_comment = False
-    i = open_brace
+    if open_brace < 0: return None
+    depth = 0; quote = None; escape = False; line_comment = False; block_comment = False; i = open_brace
     while i < len(src):
-        c = src[i]
-        n = src[i + 1] if i + 1 < len(src) else ''
+        c = src[i]; n = src[i + 1] if i + 1 < len(src) else ''
         if line_comment:
             if c == '\n': line_comment = False
             i += 1; continue
@@ -58,12 +49,9 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
       state.currentRole = normalizeRole(adminState.role || adminState.currentRole || adminState.staff?.role || state.currentRole);
       return session;
     }
-
     const response = await fetch('/api/admin-auth', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result?.authenticated || !result?.session?.access_token) {
-      throw new Error('يجب تسجيل الدخول أولاً.');
-    }
+    if (!response.ok || !result?.authenticated || !result?.session?.access_token) throw new Error('يجب تسجيل الدخول أولاً.');
     state.currentSession = result.session;
     state.currentUser = result.user || result.session.user || null;
     state.currentRole = normalizeRole(result.staff?.role || state.currentRole);
@@ -80,9 +68,7 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
     if (!action) throw new Error('Staff action غير محدد.');
     await getSession();
     const response = await fetch('/api/staff-admin', {
-      method: 'POST',
-      credentials: 'include',
-      cache: 'no-store',
+      method: 'POST', credentials: 'include', cache: 'no-store',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...(payload || {}) })
     });
@@ -93,11 +79,21 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
   }'''
 
 text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
-text = re.sub(r'\s*const SUPABASE_URL\s*=.*?;\s*const SUPABASE_PUBLISHABLE_KEY\s*=.*?;\s*const STAFF_ADMIN_FUNCTION\s*=.*?;\s*\n', '\n', text, count=1, flags=re.S)
+for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
+    text, removed = re.subn(rf'\bconst\s+{name}\s*=.*?;\s*', '', text, count=1, flags=re.S)
+    if removed != 1: print(f'{name} declaration already removed; continuing idempotently')
 
-for marker in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION', 'functions/v1/staff-admin', 'createClient', 'supabase.auth'):
+# The executable runtime, not historical comments, is the security boundary.
+checks = {
+    'functions/v1/staff-admin': 'legacy staff-admin endpoint',
+    'supabase.auth.': 'legacy Supabase auth runtime',
+    'SUPABASE_PUBLISHABLE_KEY': 'legacy Supabase publishable key',
+    'STAFF_ADMIN_FUNCTION': 'legacy staff-admin function constant',
+    'createClient(': 'legacy Supabase client construction',
+}
+for marker, label in checks.items():
     if marker in text:
-        raise SystemExit(f'Legacy Supabase staff-management marker remains: {marker}')
+        raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
 
 path.write_text(text, encoding='utf-8')
 print('finalize-staff-management-appwrite.py completed: staff-management now uses HttpOnly Appwrite session + /api/staff-admin Neon boundary')
