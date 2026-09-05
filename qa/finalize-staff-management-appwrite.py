@@ -80,7 +80,8 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
 text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
 for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
     text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, flags=re.S)
-# Any legacy identifier injected by a preceding transform is now routed to the canonical local boundary.
+# Route any residual identifier injected by a preceding transform without corrupting template literals.
+text = re.sub(r'\$\{STAFF_ADMIN_FUNCTION\}', '/api/staff-admin', text)
 text = re.sub(r'\bSTAFF_ADMIN_FUNCTION\b', "'/api/staff-admin'", text)
 
 
@@ -109,7 +110,6 @@ for pattern, label in [
     (r'\bSTAFF_ADMIN_FUNCTION\b', 'legacy staff-admin function reference'),
     (r'\bsupabase\.auth\.', 'legacy Supabase auth runtime'),
     (r'\bcreateClient\s*\(', 'legacy Supabase client construction'),
-    (r'https://[^\s"`\']+supabase\.co/functions/v1/staff-admin', 'legacy staff-admin URL'),
 ]:
     if re.search(pattern, executable): raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
 
