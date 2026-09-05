@@ -31,7 +31,7 @@ async function login(page) {
       authResponses.push({ status: response.status(), url: response.url() });
     }
   });
-  page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
+  page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}\n${error.stack || ''}`));
   page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(`console:${message.text()}`); });
 
   await page.goto(`${baseURL}/admin.html`, navigation);
@@ -60,7 +60,7 @@ test('authenticated admin domain runtime certification covers every accessible p
   const failedBackendResponses = [];
   const loadedScripts = [];
 
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || null }));
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('response', response => {
     const url = response.url();
