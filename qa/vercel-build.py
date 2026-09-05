@@ -42,10 +42,11 @@ TRANSFORM_STEPS = [
     ["python3", "qa/restore-canonical-admin-controller.py"],
     ["python3", "qa/finalize-admin-navigation-ownership.py"],
     ["python3", "qa/finalize-appwrite-admin-auth.py"],
+    ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
     # Must be the final auth-normalization step: finalize-appwrite-admin-auth.py
-    # can replace a nested legacy restore owner in-place. Re-run the existing
-    # fail-closed controller repair after it so restoreStaffProfile is guaranteed
-    # to be a single top-level declaration in the canonical production artifact.
+    # can replace a nested legacy restore owner in-place. The staff-runtime
+    # normalization then exposes that exact owner globally and removes the
+    # remaining legacy Supabase staff-admin boundary before final verification.
     ["python3", "qa/final-admin-restore-boundary.py"],
 ]
 
@@ -71,6 +72,8 @@ if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-own
     raise SystemExit("Canonical navigation ownership transform must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-appwrite-admin-auth.py") != 1:
     raise SystemExit("Canonical Appwrite Admin auth transform must exist exactly once")
+if [step[1] for step in TRANSFORM_STEPS].count("qa/retire-legacy-admin-staff-runtime.py") != 1:
+    raise SystemExit("Final Admin staff-runtime normalization must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/final-admin-restore-boundary.py") != 1:
     raise SystemExit("Canonical Admin restore boundary transform must exist exactly once")
 if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
