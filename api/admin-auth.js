@@ -19,10 +19,6 @@ function cookieValue(request) {
 }
 
 function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
-  // Production is HTTPS and therefore always receives Secure. The local
-  // immutable-artifact E2E runtime is intentionally HTTP on localhost, where
-  // Secure cookies are not sent by the browser. This preserves the production
-  // security boundary without making the local certification harness false.
   const protocol = new URL(request.url).protocol;
   const secure = protocol === 'https:';
   return `${COOKIE}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax`;
@@ -36,6 +32,15 @@ async function appwriteRequest(path, options = {}) {
   return fetch(`${endpoint}${path}`, { ...options, headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, accept: 'application/json', ...(options.headers || {}) } });
 }
 
+async function appwriteAccount(secret) {
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+  const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
+  if (!endpoint || !project || !secret) return null;
+  const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}` } });
+  if (!response.ok) return null;
+  return response.json();
+}
+
 async function resolveStaff(username) {
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
   if (!databaseUrl) throw new Error('DATABASE_RUNTIME_NOT_CONFIGURED');
@@ -47,26 +52,18 @@ async function resolveStaff(username) {
     order by case when lower(username) = lower(${username}) then 0 else 1 end
     limit 1
   `;
-  const staff = rows[0] || null;
-  if (!staff) console.error('admin-auth diagnostic', { stage: 'staff_resolution', found: false });
-  return staff;
+  return rows[0] || null;
 }
 
 async function createSession(username, password) {
   const staff = await resolveStaff(username);
   if (!staff?.email) return null;
   const response = await appwriteRequest('/account/sessions/email', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: staff.email, password }) });
-  if (!response.ok) {
-    let detail = {};
-    try { detail = await response.json(); } catch {}
-    console.error('admin-auth diagnostic', { stage: 'session_create', status: response.status, type: typeof detail?.type === 'string' ? detail.type : undefined, code: typeof detail?.code === 'number' ? detail.code : undefined });
-    return null;
-  }
+  if (!response.ok) return null;
   const session = await response.json();
   const parity = Boolean(session?.userId && staff.auth_user_id && session.userId === staff.auth_user_id);
   if (!session?.userId || !session?.secret || !parity) {
-    console.error('admin-auth diagnostic', { stage: 'identity_parity', appwrite_user_id_present: Boolean(session?.userId), staff_auth_user_id_present: Boolean(staff.auth_user_id), equal: parity, session_secret_present: Boolean(session?.secret) });
-    if (session?.secret) await appwriteRequest('/account/sessions/current', { method: 'DELETE', headers: { 'X-Appwrite-Session': session.secret } }).catch(() => {});
+    if (session?.secret) await appwriteRequest(`/account/sessions/${encodeURIComponent(session.$id || 'current')}`, { method: 'DELETE' }).catch(() => {});
     return null;
   }
   return { session, staff };
@@ -74,12 +71,10 @@ async function createSession(username, password) {
 
 async function verifySession(request) {
   const secret = request.headers.get('x-azaad-appwrite-session') || cookieValue(request);
-  if (!secret) return null;
-  const response = await appwriteRequest('/account', { method: 'GET', headers: { 'X-Appwrite-Session': secret } });
-  if (!response.ok) return null;
-  const user = await response.json();
+  const user = await appwriteAccount(secret);
+  if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
-  if (!databaseUrl || !user?.$id) return null;
+  if (!databaseUrl) return null;
   const sql = neon(databaseUrl);
   const rows = await sql`
     select id, auth_user_id, full_name, username, email, phone, role, active
@@ -105,7 +100,11 @@ export default async function handler(request) {
     }
     if (request.method === 'DELETE') {
       const secret = cookieValue(request);
-      if (secret) await appwriteRequest('/account/sessions/current', { method: 'DELETE', headers: { 'X-Appwrite-Session': secret } }).catch(() => {});
+      if (secret) {
+        const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
+        const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+        if (project && endpoint) await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Cookie: `a_session_${project}=${secret}` } }).catch(() => {});
+      }
       return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
     }
     if (request.method === 'GET') {
