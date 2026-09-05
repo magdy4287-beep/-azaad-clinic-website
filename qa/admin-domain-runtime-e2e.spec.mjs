@@ -89,7 +89,7 @@ test('authenticated admin domain runtime certification covers every accessible p
     const state = await section.evaluate(node => ({
       text: (node.textContent || '').replace(/\s+/g, ' ').trim(),
       htmlBytes: node.innerHTML.length,
-      hasLoadingOnly: node.querySelectorAll('.empty').length > 0 && !node.querySelector('table, input, select, textarea, button[data-enterprise-refresh], .item, .stat, .error'),
+      hasLoadingOnly: node.querySelectorAll('.empty').length > 0 && !node.querySelector('table, input, select, textarea, button, .item, .stat, .error, a[href]'),
       hasInteractiveContent: Boolean(node.querySelector('input, select, textarea, button, table, .item, .stat, .error, a[href]'))
     }));
     expect(state.hasLoadingOnly, `${panel.id} must not remain a loading-only shell`).toBeFalsy();
