@@ -144,7 +144,7 @@ jobs:
 
       - name: Run Browser E2E against repaired canonical artifact
         env:
-          AZAAD_BASE_URL: http://127.0.0.1:4173
+          AZAAD_BASE_URL: http://localhost:4173
           AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
           AZAAD_TEST_USERNAME: frontdesk_azaad
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
