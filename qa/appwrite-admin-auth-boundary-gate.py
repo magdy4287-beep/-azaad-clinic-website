@@ -12,14 +12,21 @@ parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and b
     re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth)
 )
 
+# The runtime intentionally passes the bounded constant through the helper's
+# maxAge parameter so DELETE can override it with 0. Verify both links rather
+# than requiring the implementation to interpolate the constant directly.
 lifetime_guard = bool(re.search(r'const\s+SESSION_MAX_AGE\s*=\s*60\s*\*\s*60\s*8\s*;', auth)) and bool(
-    re.search(r'Max-Age=\$\{SESSION_MAX_AGE\}', auth)
+    re.search(r'function\s+sessionCookie\([^\n]*maxAge\s*=\s*SESSION_MAX_AGE', auth)
+) and bool(re.search(r'Max-Age=\$\{maxAge\}', auth))
+
+secure_guard = bool(re.search(r"const\s+secure\s*=\s*protocol\s*===\s*['\"]https:\\?['\"]", auth)) and bool(
+    re.search(r"secure\s*\?\s*['\"] Secure;['\"]", auth)
 )
 
 checks = [
     ('Appwrite Admin auth endpoint exists', 'account/sessions/email' in auth),
     ('Appwrite session is HttpOnly', 'HttpOnly' in auth),
-    ('Appwrite session is Secure', 'Secure' in auth),
+    ('Appwrite session is Secure in production', secure_guard),
     ('Appwrite session has bounded lifetime', lifetime_guard),
     ('Admin login enforces Appwrite user/clinic_staff ID parity', parity_guard),
     ('Admin restore verifies Appwrite session', 'account' in auth and 'X-Appwrite-Session' in auth),
