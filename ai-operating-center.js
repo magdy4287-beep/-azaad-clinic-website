@@ -1,12 +1,12 @@
 /* AZAAD CLINIC — AI Operating Center
    Cross-department, free-first advisory layer.
    Core workflows never depend on this module.
+   Runtime data boundary: Appwrite session + Neon local rules engine.
 */
 (() => {
   'use strict';
 
-  const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
-  const FUNCTION = `${SUPABASE_URL}/functions/v1/azaad-ai-insights`;
+  const FUNCTION = '/api/ai-insights';
   const ROLES = [
     ['frontdesk', '🧑‍💼', 'Front Desk Supervisor', 'Secretary workflow, required fields, duplicate warnings, follow-up and no-show queues.'],
     ['doctor', '🧑‍⚕️', 'Doctor Copilot', 'Visit preparation, progress trends, documentation prompts and follow-up suggestions.'],
@@ -21,19 +21,16 @@
   ];
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[c]));
-  const state = () => window.AZAAD?.state || {};
-  const token = () => state().session?.access_token || '';
   const english = () => String(document.documentElement.lang || '').toLowerCase().startsWith('en');
   const text = (ar, en) => english() ? en : ar;
 
   async function insights() {
-    const t = token();
-    if (!t) return { insights: [], fallback: true };
     try {
       const response = await fetch(FUNCTION, {
         method: 'GET',
+        credentials: 'include',
         cache: 'no-store',
-        headers: { Accept: 'application/json', Authorization: `Bearer ${t}` }
+        headers: { Accept: 'application/json' }
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) return { insights: [], fallback: true };
