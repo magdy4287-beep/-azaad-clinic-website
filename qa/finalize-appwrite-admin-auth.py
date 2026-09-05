@@ -94,7 +94,7 @@ RESTORE_STAFF = r'''async function restoreStaffProfile() {
   }
 }'''
 
-STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
+STARTUP = r'''document.addEventListener(\"DOMContentLoaded\", async () => {
   bindLogin();
   window.AZAAD_LOGIN_CONTROLLER_READY = true;
   bindLogout();
@@ -107,8 +107,8 @@ STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
       await initializeApplication();
     }
   } catch (error) {
-    console.error("Application startup error:", error);
-    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
+    console.error(\"Application startup error:\", error);
+    showToast(error?.message || \"تعذر استعادة جلسة الدخول.\", \"error\");
   }
 });'''
 
@@ -166,7 +166,7 @@ restore_matches = list(restore_pattern.finditer(text))
 if len(restore_matches) == 1:
     text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
 elif len(restore_matches) == 0:
-    startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
+    startup_match = re.search(r'document\.addEventListener\(\s*[\"\']DOMContentLoaded[\"\']', text)
     if not startup_match:
         raise SystemExit('Cannot install Appwrite restoreStaffProfile: DOMContentLoaded startup not found')
     text = text[:startup_match.start()] + RESTORE_STAFF + '\n\n' + text[startup_match.start():]
@@ -174,7 +174,7 @@ else:
     raise SystemExit(f'restoreStaffProfile: expected at most one function, found {len(restore_matches)}; refusing rewrite')
 
 startup_pattern = re.compile(
-    r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
+    r'document\.addEventListener\(\s*[\"\']DOMContentLoaded[\"\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
     re.S,
 )
 if not startup_pattern.search(text):
@@ -185,7 +185,7 @@ text = re.sub(
     r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?',
     '\n', text, count=1)
 text = re.sub(
-    r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];\s*\n',
+    r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*[\"\']https://esm\.sh/@supabase/supabase-js@2[\"\'];\s*\n',
     '', text, count=1, flags=re.M)
 
 # Retire the browser Supabase client and its public configuration completely.
@@ -193,8 +193,8 @@ text = re.sub(
 # this finalizer is deliberately idempotent. The fail-closed postconditions
 # below remain authoritative proof that no Supabase runtime survives.
 client_pattern = re.compile(
-    r'\n?const SUPABASE_URL\s*=\s*["\']https://[^"\']+\.supabase\.co["\'];\s*\n'
-    r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*["\'][^"\']+["\'];\s*\n'
+    r'\n?const SUPABASE_URL\s*=\s*[\"\']https://[^\"\']+\.supabase\.co[\"\'];\s*\n'
+    r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*[\"\'][^\"\']+[\"\'];\s*\n'
     r'\s*const supabase\s*=\s*createClient\([\s\S]*?\n\);\s*\n',
     re.M)
 text, removed_clients = client_pattern.subn('\n', text, count=1)
@@ -213,9 +213,16 @@ for legacy_auth in (
 ):
     if legacy_auth in text:
         raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
-if re.search(r'\bsupabase\b', text, re.I):
+
+# Scan executable JavaScript rather than historical comments. The source file
+# still contains legacy documentation comments describing the retired provider;
+# those comments are non-executable and must not weaken the fail-closed runtime
+# check. Runtime identifiers, endpoints and configuration remain checked above.
+executable_text = re.sub(r'/\*[\s\S]*?\*/', ' ', text)
+executable_text = re.sub(r'(^|[^:])//[^\n]*', r'\1', executable_text)
+if re.search(r'\bsupabase\b', executable_text, re.I):
     raise SystemExit('Executable Supabase identifier remains in canonical Admin controller after Appwrite transform')
-if re.search(r'SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)', text):
+if re.search(r'SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)', executable_text):
     raise SystemExit('Supabase configuration identifier remains in canonical Admin controller after Appwrite transform')
 
 if 'async function restoreStaffProfile()' not in text:
