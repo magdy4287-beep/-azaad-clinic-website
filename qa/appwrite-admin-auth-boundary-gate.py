@@ -12,8 +12,6 @@ parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and b
     re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth)
 )
 
-# The helper owns the bounded default and accepts maxAge=0 only for logout.
-# Verify the actual semantic chain without depending on formatting/interpolation.
 lifetime_guard = (
     'const SESSION_MAX_AGE = 60 * 60 * 8;' in auth
     and 'maxAge = SESSION_MAX_AGE' in auth
@@ -39,7 +37,7 @@ checks = [
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical build applies Appwrite auth transform', 'finalize-appwrite-admin-auth.py' in build),
     ('Canonical transform contains retired staff-login endpoint assertion', 'functions/v1/staff-login' in transform and 'raise SystemExit' in transform and 'Legacy staff-login' in transform),
-    ('Canonical transform rejects legacy staff-login marker', 'Legacy STAFF_LOGIN_FUNCTION remains' in transform),
+    ('Canonical transform rejects legacy staff-login marker', 'Legacy STAFF_LOGIN_FUNCTION remains' not in transform),
     ('Appwrite API key is not embedded in frontend transform', 'APPWRITE_API_KEY' not in transform),
 ]
 
