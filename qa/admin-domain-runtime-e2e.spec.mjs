@@ -96,7 +96,7 @@ test('authenticated admin domain runtime certification covers every accessible p
     expect(state.hasInteractiveContent || state.htmlBytes > 80, `${panel.id} must render a real control surface or substantive content`).toBeTruthy();
   }
 
-  expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
+  expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}; loadedScripts=${JSON.stringify([...new Set(loadedScripts)])}`).toEqual([]);
   expect(consoleErrors, `Unexpected console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
   expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect([...new Set(loadedScripts)].length).toBeGreaterThan(0);
