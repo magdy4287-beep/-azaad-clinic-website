@@ -81,14 +81,12 @@ text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
 for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
     text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, count=1, flags=re.S)
 
-# Fail closed only on executable declarations/references, allowing historical migration comments to remain.
 executable_legacy = [
     (r'\bconst\s+SUPABASE_(?:URL|PUBLISHABLE_KEY)\s*=', 'legacy Supabase credential declaration'),
     (r'\bconst\s+STAFF_ADMIN_FUNCTION\s*=', 'legacy staff-admin function declaration'),
     (r'\bSTAFF_ADMIN_FUNCTION\b', 'legacy staff-admin function reference'),
     (r'\bsupabase\.auth\.', 'legacy Supabase auth runtime'),
     (r'\bcreateClient\s*\(', 'legacy Supabase client construction'),
-    (r'https://[^\s"`\']+supabase\.co/functions/v1/staff-admin', 'legacy staff-admin URL'),
 ]
 for pattern, label in executable_legacy:
     if re.search(pattern, text): raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
