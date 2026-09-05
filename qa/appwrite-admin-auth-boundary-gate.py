@@ -12,11 +12,15 @@ parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and b
     re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth)
 )
 
+lifetime_guard = bool(re.search(r'const\s+SESSION_MAX_AGE\s*=\s*60\s*\*\s*60\s*8\s*;', auth)) and bool(
+    re.search(r'Max-Age=\$\{SESSION_MAX_AGE\}', auth)
+)
+
 checks = [
     ('Appwrite Admin auth endpoint exists', 'account/sessions/email' in auth),
     ('Appwrite session is HttpOnly', 'HttpOnly' in auth),
     ('Appwrite session is Secure', 'Secure' in auth),
-    ('Appwrite session has bounded lifetime', 'SESSION_MAX_AGE' in auth and 'Max-Age=${SESSION_MAX_AGE}' in auth),
+    ('Appwrite session has bounded lifetime', lifetime_guard),
     ('Admin login enforces Appwrite user/clinic_staff ID parity', parity_guard),
     ('Admin restore verifies Appwrite session', 'account' in auth and 'X-Appwrite-Session' in auth),
     ('Admin restore enforces active clinic_staff', 'active = true' in auth),
