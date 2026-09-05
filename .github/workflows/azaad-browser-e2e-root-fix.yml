@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'admin.js'
+      - 'admin-enterprise-centers.js'
       - 'qa/**'
       - '.github/workflows/azaad-browser-e2e-root-fix.yml'
       - '.github/patch-admin.py'
@@ -51,6 +52,7 @@ jobs:
           python3 qa/vercel-build.py
           npm install --no-save --no-package-lock @neondatabase/serverless
           node --check admin.js
+          node --check admin-enterprise-centers.js
 
       - name: Verify final restore boundary is top-level and unique
         shell: bash
