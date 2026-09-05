@@ -9,7 +9,26 @@ text = path.read_text(encoding='utf-8')
 def function_bounds(src, name):
     marker = re.search(rf'async function {re.escape(name)}\s*\(', src)
     if not marker: return None
-    open_brace = src.find('{', marker.end())
+    paren = src.find('(', marker.start())
+    if paren < 0: return None
+    depth = 0; quote = None; escape = False; i = paren
+    while i < len(src):
+        c = src[i]
+        if quote:
+            if escape: escape = False
+            elif c == '\\': escape = True
+            elif c == quote: quote = None
+            i += 1; continue
+        if c in "'\"`": quote = c; i += 1; continue
+        if c == '(':
+            depth += 1
+        elif c == ')':
+            depth -= 1
+            if depth == 0:
+                break
+        i += 1
+    if depth != 0: return None
+    open_brace = src.find('{', i + 1)
     if open_brace < 0: return None
     depth = 0; quote = None; escape = False; line_comment = False; block_comment = False; i = open_brace
     while i < len(src):
@@ -80,7 +99,6 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
 text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
 for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
     text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, flags=re.S)
-# Route any residual identifier injected by a preceding transform without corrupting template literals.
 text = re.sub(r'\$\{STAFF_ADMIN_FUNCTION\}', '/api/staff-admin', text)
 text = re.sub(r'\bSTAFF_ADMIN_FUNCTION\b', "'/api/staff-admin'", text)
 
