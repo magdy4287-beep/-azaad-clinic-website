@@ -79,9 +79,11 @@ APPWRITE_STAFF_RUNTIME = r'''async function getSession() {
 
 text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
 for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
-    text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, count=1, flags=re.S)
+    text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, flags=re.S)
+# Any legacy identifier injected by a preceding transform is now routed to the canonical local boundary.
+text = re.sub(r'\bSTAFF_ADMIN_FUNCTION\b', "'/api/staff-admin'", text)
 
-# Strip comments for the final executable contract scan; comments may document the retired provider.
+
 def strip_comments(src):
     out=[]; i=0; quote=None; escape=False
     while i < len(src):
