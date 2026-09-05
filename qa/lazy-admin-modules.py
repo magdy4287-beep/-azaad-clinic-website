@@ -104,12 +104,12 @@ def main():
   }};
   window.addEventListener('azaad:admin-panel-activated', event => {{
     const key = event.detail?.panel; if (!key) return;
-    // Calendar is a primary navigation surface. Its owner must be requested
-    // in the same task as activation so first paint cannot be stranded behind
-    // requestIdleCallback under a busy browser/main thread.
     if (key === 'calendar') {{ window.AZAAD_LOAD_ADMIN_PANEL(key); return; }}
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
+  window.addEventListener('azaad:admin-authenticated', () => {{
+    void window.AZAAD_LOAD_ADMIN_PANEL('calendar');
+  }}, {{ once: true }});
   window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
 }})();
 </script>

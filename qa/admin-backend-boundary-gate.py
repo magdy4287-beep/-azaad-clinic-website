@@ -10,12 +10,16 @@ def check(name, ok, detail=""):
     checks.append((name, ok, detail))
 
 check(
-    "Admin booking owner is appointments Edge Function",
-    "azaad-appointments-center" in admin,
+    "Admin booking owner is the Appwrite-authorized Neon boundary",
+    "/api/admin-appointments" in admin,
 )
 check(
-    "Admin booking loader uses authenticated Edge Function request",
+    "Admin booking loader sends the authenticated Appwrite session credential",
     "Authorization: `Bearer ${state.session.access_token}`" in admin,
+)
+check(
+    "Admin booking loader uses browser credentials for the HttpOnly session",
+    'credentials: "include"' in admin,
 )
 check(
     "Admin booking loader does not query clinic_bookings directly",
@@ -27,7 +31,7 @@ check(
 )
 check(
     "Admin booking boundary cannot silently fall back to browser-local Supabase data",
-    "supabase.from(\"clinic_bookings\")" not in admin,
+    "supabase.from(\"clinic_bookings\")" not in admin and "supabase.from('clinic_bookings')" not in admin,
 )
 
 failed = False
