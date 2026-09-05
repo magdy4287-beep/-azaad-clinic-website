@@ -1,40 +1,6 @@
 from pathlib import Path
 import re
 
-path = Path('admin.js')
-if not path.is_file():
-    raise SystemExit('admin.js is required')
-text = path.read_text(encoding='utf-8')
-
-restore_pattern = r'async function restoreStaffProfile\(\)\s*\{'
-if len(re.findall(restore_pattern, text)) != 1:
-    raise SystemExit('Expected exactly one restoreStaffProfile implementation before staff-runtime normalization')
-text = re.sub(restore_pattern, 'window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {', text, count=1)
-text = text.replace('const validStaff = await restoreStaffProfile();', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', 1)
-if text.count('window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {') != 1:
-    raise SystemExit('Global Appwrite restore owner was not established exactly once')
-if 'await restoreStaffProfile()' in text:
-    raise SystemExit('Legacy unqualified restoreStaffProfile startup call remains')
-
-STAFF_API = r'''async function staffApi(
-  action,
-  payload = {}
-){
-  const response = await fetch('/api/staff-admin', {
-    method: 'POST',
-    credentials: 'include',
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ action, ...(payload || {}) })
-  });
-  let body = {};
-  try { body = await response.json(); } catch (_) {}
-  if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
-  return body;
-}'''
 
 def function_bounds(src, name):
     marker = re.search(rf'async function {re.escape(name)}\s*\(', src)
@@ -76,17 +42,58 @@ def function_bounds(src, name):
         i += 1
     return None
 
-bounds = function_bounds(text, 'staffApi')
+admin = Path('admin.js')
+if not admin.is_file():
+    raise SystemExit('admin.js is required')
+text = admin.read_text(encoding='utf-8')
+
+restore_pattern = r'async function restoreStaffProfile\(\)\s*\{'
+if len(re.findall(restore_pattern, text)) != 1:
+    raise SystemExit('Expected exactly one restoreStaffProfile implementation before staff-runtime normalization')
+text = re.sub(restore_pattern, 'window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {', text, count=1)
+text = text.replace('const validStaff = await restoreStaffProfile();', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', 1)
+if text.count('window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {') != 1:
+    raise SystemExit('Global Appwrite restore owner was not established exactly once')
+if 'await restoreStaffProfile()' in text:
+    raise SystemExit('Legacy unqualified restoreStaffProfile startup call remains')
+admin.write_text(text, encoding='utf-8')
+
+STAFF_API = r'''async function staffApi(
+  action,
+  payload = {}
+){
+  const response = await fetch('/api/staff-admin', {
+    method: 'POST',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ action, ...(payload || {}) })
+  });
+  let body = {};
+  try { body = await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
+  return body;
+}'''
+
+html = Path('admin.html')
+if not html.is_file():
+    raise SystemExit('admin.html is required')
+html_text = html.read_text(encoding='utf-8')
+bounds = function_bounds(html_text, 'staffApi')
 if not bounds:
-    raise SystemExit('Canonical staffApi() boundary not found')
-text = text[:bounds[0]] + STAFF_API + text[bounds[1]:]
+    raise SystemExit('Canonical inline staffApi() boundary not found in admin.html')
+html_text = html_text[:bounds[0]] + STAFF_API + html_text[bounds[1]:]
+html.write_text(html_text, encoding='utf-8')
 
-if 'functions/v1/staff-admin' in text:
-    raise SystemExit('Legacy Supabase staff-admin endpoint remains')
-if 'supabase.auth.' in text:
-    raise SystemExit('Legacy Supabase auth runtime remains after Appwrite normalization')
-if 'SUPABASE_PUBLISHABLE_KEY' in text:
-    raise SystemExit('Legacy Supabase publishable key reference remains in executable Admin runtime')
+for name, value in [('admin.js', text), ('admin.html', html_text)]:
+    if 'functions/v1/staff-admin' in value:
+        raise SystemExit(f'Legacy Supabase staff-admin endpoint remains in {name}')
+    if 'supabase.auth.' in value:
+        raise SystemExit(f'Legacy Supabase auth runtime remains in {name}')
+    if 'SUPABASE_PUBLISHABLE_KEY' in value:
+        raise SystemExit(f'Legacy Supabase publishable key reference remains in executable {name}')
 
-path.write_text(text, encoding='utf-8')
 print('retire-legacy-admin-staff-runtime.py completed: Appwrite restore binding + Neon staff API boundary enforced')
