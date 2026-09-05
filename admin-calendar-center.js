@@ -148,6 +148,8 @@
 
   let bookingPanelObserver = null;
   let refreshQueued = false;
+  let bookingStatePollTimer = null;
+  let bookingStatePollStartedAt = 0;
 
   const queueRefreshFromBookingRender = () => {
     if (!isCalendarVisible() || refreshQueued) return;
@@ -157,6 +159,36 @@
       refreshQueued = false;
       render();
     });
+  };
+
+  const stopBookingStatePoll = () => {
+    if (bookingStatePollTimer !== null) {
+      clearTimeout(bookingStatePollTimer);
+      bookingStatePollTimer = null;
+    }
+  };
+
+  const pollBookingState = () => {
+    if (!isCalendarVisible()) {
+      stopBookingStatePoll();
+      return;
+    }
+
+    const state = window.AZAAD?.state;
+    if (!state?.loadingBookings) {
+      stopBookingStatePoll();
+      render();
+      return;
+    }
+
+    if (!bookingStatePollStartedAt) bookingStatePollStartedAt = performance.now();
+    if (performance.now() - bookingStatePollStartedAt >= 10000) {
+      stopBookingStatePoll();
+      render();
+      return;
+    }
+
+    bookingStatePollTimer = setTimeout(pollBookingState, 100);
   };
 
   const observeBookingPanel = () => {
@@ -182,8 +214,13 @@
     if (event?.detail?.panel === 'calendar') render();
   });
 
-  window.addEventListener('azaad:admin-bookings-updated', render);
+  window.addEventListener('azaad:admin-bookings-updated', () => {
+    stopBookingStatePoll();
+    render();
+  });
 
   observeBookingPanel();
   render();
+  bookingStatePollStartedAt = performance.now();
+  pollBookingState();
 })();
