@@ -96,6 +96,20 @@ test('authenticated admin domain runtime certification covers every accessible p
     expect(state.hasInteractiveContent || state.htmlBytes > 80, `${panel.id} must render a real control surface or substantive content`).toBeTruthy();
   }
 
+  const parseFailures = await page.evaluate(async (urls) => {
+    const failures = [];
+    for (const url of [...new Set(urls)]) {
+      try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) { failures.push({ url, error: `HTTP ${response.status}` }); continue; }
+        const source = await response.text();
+        try { new Function(source); } catch (error) { failures.push({ url, error: error?.message || String(error) }); }
+      } catch (error) { failures.push({ url, error: error?.message || String(error) }); }
+    }
+    return failures;
+  }, [...new Set(loadedScripts)]);
+
+  expect(parseFailures, `Browser-loaded JavaScript parse failures: ${JSON.stringify(parseFailures)}`).toEqual([]);
   expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}; loadedScripts=${JSON.stringify([...new Set(loadedScripts)])}`).toEqual([]);
   expect(consoleErrors, `Unexpected console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
   expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([]);
