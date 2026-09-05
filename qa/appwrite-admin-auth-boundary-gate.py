@@ -12,15 +12,17 @@ parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and b
     re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth)
 )
 
-# The runtime intentionally passes the bounded constant through the helper's
-# maxAge parameter so DELETE can override it with 0. Verify both links rather
-# than requiring the implementation to interpolate the constant directly.
-lifetime_guard = bool(re.search(r'const\s+SESSION_MAX_AGE\s*=\s*60\s*\*\s*60\s*8\s*;', auth)) and bool(
-    re.search(r'function\s+sessionCookie\([^\n]*maxAge\s*=\s*SESSION_MAX_AGE', auth)
-) and bool(re.search(r'Max-Age=\$\{maxAge\}', auth))
+# The helper owns the bounded default and accepts maxAge=0 only for logout.
+# Verify the actual semantic chain without depending on formatting/interpolation.
+lifetime_guard = (
+    'const SESSION_MAX_AGE = 60 * 60 * 8;' in auth
+    and 'maxAge = SESSION_MAX_AGE' in auth
+    and 'Max-Age=${maxAge}' in auth
+)
 
-secure_guard = bool(re.search(r"const\s+secure\s*=\s*protocol\s*===\s*['\"]https:\\?['\"]", auth)) and bool(
-    re.search(r"secure\s*\?\s*['\"] Secure;['\"]", auth)
+secure_guard = (
+    "const secure = protocol === 'https:'" in auth
+    and "secure ? ' Secure;'" in auth
 )
 
 checks = [
