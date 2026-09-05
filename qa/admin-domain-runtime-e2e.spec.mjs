@@ -1,3 +1,4 @@
+// Diagnostic trigger: execute the browser-loaded JavaScript parse sweep in CI on the current PR head.
 import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
