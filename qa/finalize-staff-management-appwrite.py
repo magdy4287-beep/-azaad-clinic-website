@@ -81,15 +81,35 @@ text = text[:start[0]] + APPWRITE_STAFF_RUNTIME + text[end[1]:]
 for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION'):
     text = re.sub(rf'\bconst\s+{name}\s*=\s*[^;]+;\s*', '', text, count=1, flags=re.S)
 
-executable_legacy = [
+# Strip comments for the final executable contract scan; comments may document the retired provider.
+def strip_comments(src):
+    out=[]; i=0; quote=None; escape=False
+    while i < len(src):
+        c=src[i]; n=src[i+1] if i+1 < len(src) else ''
+        if quote:
+            out.append(c)
+            if escape: escape=False
+            elif c=='\\': escape=True
+            elif c==quote: quote=None
+            i += 1; continue
+        if c in "'\"`": quote=c; out.append(c); i += 1; continue
+        if c=='/' and n=='*':
+            e=src.find('*/',i+2); i=len(src) if e<0 else e+2; out.append(' '); continue
+        if c=='/' and n=='/':
+            e=src.find('\n',i+2); i=len(src) if e<0 else e; out.append('\n'); continue
+        out.append(c); i += 1
+    return ''.join(out)
+
+executable = strip_comments(text)
+for pattern, label in [
     (r'\bconst\s+SUPABASE_(?:URL|PUBLISHABLE_KEY)\s*=', 'legacy Supabase credential declaration'),
     (r'\bconst\s+STAFF_ADMIN_FUNCTION\s*=', 'legacy staff-admin function declaration'),
     (r'\bSTAFF_ADMIN_FUNCTION\b', 'legacy staff-admin function reference'),
     (r'\bsupabase\.auth\.', 'legacy Supabase auth runtime'),
     (r'\bcreateClient\s*\(', 'legacy Supabase client construction'),
-]
-for pattern, label in executable_legacy:
-    if re.search(pattern, text): raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
+    (r'https://[^\s"`\']+supabase\.co/functions/v1/staff-admin', 'legacy staff-admin URL'),
+]:
+    if re.search(pattern, executable): raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
 
 path.write_text(text, encoding='utf-8')
 print('finalize-staff-management-appwrite.py completed: staff-management now uses HttpOnly Appwrite session + /api/staff-admin Neon boundary')
