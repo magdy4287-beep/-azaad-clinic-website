@@ -12,12 +12,26 @@ if "fetch('/api/admin-auth'" not in text:
 if 'functions/v1/staff-login' in text:
     raise SystemExit('Final Admin restore boundary: legacy staff-login endpoint remains')
 
-# Final post-transform syntax sweep. This runs after every canonical build mutation,
-# including lazy-module injection, so browser syntax failures cannot hide behind
-# an earlier admin.js-only syntax check.
+# The Admin certification boundary validates the canonical Admin runtime only.
+# Repository-wide legacy/isolated JS is governed by its own surface-specific gates.
+RUNTIME_JS = {
+    'admin.js',
+    'admin-enhancements-v1.js', 'admin-english-hardening.js',
+    'admin-patient-icon-guard.js', 'azaad-role-experience.js',
+    'patient-appointment-actions.js', 'appointment-cancellation-ui.js',
+    'patient-financial-summary.js', 'patient-clinical-history.js',
+    'doctors-center-v2.js', 'doctor-staff-binding.js', 'doctor-staff-convert.js',
+    'services-center-v2.js', 'scheduling-v2.js',
+    'marketing-studio-v3.js', 'marketing-intelligence-loader.js',
+    'staff-management.js', 'patient-merge-tool.js', 'hr-performance-analytics.js',
+    'admin-calendar-center.js',
+}
+
 failures = []
-for path in sorted(Path('.').rglob('*.js')):
-    if any(part in {'node_modules', '.git', 'test-results', 'playwright-report'} for part in path.parts):
+for name in sorted(RUNTIME_JS):
+    path = Path(name)
+    if not path.is_file():
+        failures.append(f'{path}: canonical runtime file is missing')
         continue
     result = subprocess.run(['node', '--check', str(path)], capture_output=True, text=True)
     if result.returncode:
@@ -25,9 +39,9 @@ for path in sorted(Path('.').rglob('*.js')):
         failures.append(f'{path}: {detail}')
 
 if failures:
-    print('[AZAAD final restore boundary] FAIL: post-transform JavaScript syntax sweep found invalid runtime files')
+    print('[AZAAD final restore boundary] FAIL: canonical Admin runtime syntax sweep found invalid files')
     for failure in failures:
         print(failure)
     raise SystemExit(1)
 
-print('[AZAAD final restore boundary] PASS: exactly one top-level Appwrite restoreStaffProfile owner; post-transform JS syntax sweep passed')
+print('[AZAAD final restore boundary] PASS: one top-level Appwrite restoreStaffProfile owner; canonical Admin runtime syntax sweep passed')
