@@ -94,7 +94,7 @@ RESTORE_STAFF = r'''async function restoreStaffProfile() {
   }
 }'''
 
-STARTUP = r'''document.addEventListener(\"DOMContentLoaded\", async () => {
+STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
   bindLogin();
   window.AZAAD_LOGIN_CONTROLLER_READY = true;
   bindLogout();
@@ -107,8 +107,8 @@ STARTUP = r'''document.addEventListener(\"DOMContentLoaded\", async () => {
       await initializeApplication();
     }
   } catch (error) {
-    console.error(\"Application startup error:\", error);
-    showToast(error?.message || \"تعذر استعادة جلسة الدخول.\", \"error\");
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
   }
 });'''
 
@@ -128,18 +128,15 @@ def function_bounds(source, name):
         nxt = source[i + 1] if i + 1 < len(source) else ''
         if line_comment:
             if ch == '\n': line_comment = False
-            i += 1
-            continue
+            i += 1; continue
         if block_comment:
             if ch == '*' and nxt == '/': block_comment = False; i += 2; continue
-            i += 1
-            continue
+            i += 1; continue
         if quote:
             if escape: escape = False
             elif ch == '\\': escape = True
             elif ch == quote: quote = None
-            i += 1
-            continue
+            i += 1; continue
         if ch == '/' and nxt == '/': line_comment = True; i += 2; continue
         if ch == '/' and nxt == '*': block_comment = True; i += 2; continue
         if ch in "'\"`": quote = ch; i += 1; continue
@@ -166,7 +163,7 @@ restore_matches = list(restore_pattern.finditer(text))
 if len(restore_matches) == 1:
     text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
 elif len(restore_matches) == 0:
-    startup_match = re.search(r'document\.addEventListener\(\s*[\"\']DOMContentLoaded[\"\']', text)
+    startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
     if not startup_match:
         raise SystemExit('Cannot install Appwrite restoreStaffProfile: DOMContentLoaded startup not found')
     text = text[:startup_match.start()] + RESTORE_STAFF + '\n\n' + text[startup_match.start():]
@@ -174,7 +171,7 @@ else:
     raise SystemExit(f'restoreStaffProfile: expected at most one function, found {len(restore_matches)}; refusing rewrite')
 
 startup_pattern = re.compile(
-    r'document\.addEventListener\(\s*[\"\']DOMContentLoaded[\"\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
+    r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$',
     re.S,
 )
 if not startup_pattern.search(text):
@@ -185,21 +182,36 @@ text = re.sub(
     r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?',
     '\n', text, count=1)
 text = re.sub(
-    r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*[\"\']https://esm\.sh/@supabase/supabase-js@2[\"\'];\s*\n',
+    r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];\s*\n',
     '', text, count=1, flags=re.M)
 
-# Retire the browser Supabase client and its public configuration completely.
-# Earlier canonicalization stages may already have removed this client, so
-# this finalizer is deliberately idempotent. The fail-closed postconditions
-# below remain authoritative proof that no Supabase runtime survives.
 client_pattern = re.compile(
-    r'\n?const SUPABASE_URL\s*=\s*[\"\']https://[^\"\']+\.supabase\.co[\"\'];\s*\n'
-    r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*[\"\'][^\"\']+[\"\'];\s*\n'
+    r'\n?const SUPABASE_URL\s*=\s*["\']https://[^"\']+\.supabase\.co["\'];\s*\n'
+    r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*["\'][^"\']+["\'];\s*\n'
     r'\s*const supabase\s*=\s*createClient\([\s\S]*?\n\);\s*\n',
     re.M)
 text, removed_clients = client_pattern.subn('\n', text, count=1)
 if removed_clients > 1:
     raise SystemExit('Multiple canonical Admin Supabase client blocks remain; refusing ambiguous rewrite')
+
+legacy_blocks = [
+    (r'/\* ============================================================\n\s*SAFE QUERY\n\s*============================================================ \*/.*?(?=/\* ============================================================\n\s*PERMISSIONS)', 'safeQuery'),
+    (r'/\* ============================================================\n\s*RESTORE SESSION\n\s*============================================================ \*/\s*async function restoreSession\(\).*?(?=/\* ============================================================\n\s*RESTORE STAFF)', 'restoreSession'),
+]
+for pattern, label in legacy_blocks:
+    text, removed = re.subn(pattern, '', text, count=1, flags=re.S)
+    if removed != 1:
+        raise SystemExit(f'Expected exactly one legacy {label} block to retire; found {removed}')
+
+text, removed_auth_listener = re.subn(
+    r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/\s*supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n',
+    '', text, count=1, flags=re.S)
+if removed_auth_listener != 1:
+    raise SystemExit(f'Expected exactly one legacy Supabase auth-state listener; found {removed_auth_listener}')
+
+text, removed_global_supabase = re.subn(r'window\.AZAAD\s*=\s*\{\s*supabase,\s*', 'window.AZAAD = {\n  ', text, count=1)
+if removed_global_supabase != 1:
+    raise SystemExit('Global AZAAD Supabase exposure not found; refusing incomplete retirement')
 
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
@@ -214,12 +226,9 @@ for legacy_auth in (
     if legacy_auth in text:
         raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
 
-# Scan executable JavaScript rather than historical comments. The source file
-# still contains legacy documentation comments describing the retired provider;
-# those comments are non-executable and must not weaken the fail-closed runtime
-# check. Runtime identifiers, endpoints and configuration remain checked above.
 executable_text = re.sub(r'/\*[\s\S]*?\*/', ' ', text)
 executable_text = re.sub(r'(^|[^:])//[^\n]*', r'\1', executable_text)
+executable_text = re.sub(r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|`(?:\\.|[^`\\])*`)', ' ', executable_text)
 if re.search(r'\bsupabase\b', executable_text, re.I):
     raise SystemExit('Executable Supabase identifier remains in canonical Admin controller after Appwrite transform')
 if re.search(r'SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)', executable_text):
@@ -233,4 +242,4 @@ if text.count('window.AZAAD_LOGIN_CONTROLLER_READY = true;') != 1:
     raise SystemExit('Admin login readiness marker must be unique')
 
 path.write_text(text, encoding='utf-8')
-print(f'finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; retired Supabase client blocks: {removed_clients}')
+print(f'finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; retired Supabase client blocks: {removed_clients}; retired dead legacy blocks: {len(legacy_blocks)}')
