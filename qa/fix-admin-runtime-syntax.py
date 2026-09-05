@@ -35,6 +35,11 @@ def normalize_role(match: re.Match[str]) -> str:
 
 text = role_block.sub(normalize_role, text)
 
+# RED contract: the Appwrite canonical runtime must not retain an executable
+# Supabase client. This is intentionally asserted before the repair is added.
+if "const supabase = createClient(" in text:
+    raise SystemExit("RED: retired Supabase client survives the Appwrite Admin transform")
+
 # Publish an explicit Supabase readiness marker after the canonical client is
 # created. This marker is diagnostic state only and contains no credentials.
 if "window.AZAAD_SUPABASE_READY = true;" not in text:
