@@ -96,6 +96,7 @@ RESTORE_STAFF = r'''async function restoreStaffProfile() {
 
 STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
   bindLogin();
+  window.AZAAD_LOGIN_CONTROLLER_READY = true;
   bindLogout();
   bindBookingFilters();
   bindPatientPage();
@@ -187,10 +188,6 @@ text = re.sub(
     count=1,
 )
 
-# The production Admin controller is loaded as a classic browser script.
-# Its source historically carried a remote ESM import for Supabase, but the
-# Appwrite transform retires that client boundary. Leaving the import behind
-# makes the final classic script fail before any startup code can run.
 text = re.sub(
     r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];\s*\n',
     '',
@@ -220,6 +217,10 @@ if 'async function restoreStaffProfile()' not in text:
     raise SystemExit('Canonical Appwrite restoreStaffProfile() missing after transform')
 if 'retryDelays = [0, 150, 350]' not in text:
     raise SystemExit('Bounded Appwrite restore retry contract missing')
+if 'window.AZAAD_LOGIN_CONTROLLER_READY = true;' not in text:
+    raise SystemExit('Admin login readiness marker missing after canonical Appwrite startup binding')
+if text.count('window.AZAAD_LOGIN_CONTROLLER_READY = true;') != 1:
+    raise SystemExit('Admin login readiness marker must be unique')
 
 path.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite with bounded restore retry')
+print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite with bounded restore retry and login readiness contract')
