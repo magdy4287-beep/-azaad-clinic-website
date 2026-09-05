@@ -190,8 +190,8 @@ text = re.sub(
 
 # Retire the browser Supabase client and its public configuration completely.
 # Earlier canonicalization stages may already have removed this client, so
-# this finalizer must be idempotent rather than requiring an intermediate
-# implementation detail to still exist.
+# this finalizer is deliberately idempotent. The fail-closed postconditions
+# below remain authoritative proof that no Supabase runtime survives.
 client_pattern = re.compile(
     r'\n?const SUPABASE_URL\s*=\s*["\']https://[^"\']+\.supabase\.co["\'];\s*\n'
     r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*["\'][^"\']+["\'];\s*\n'
@@ -226,4 +226,4 @@ if text.count('window.AZAAD_LOGIN_CONTROLLER_READY = true;') != 1:
     raise SystemExit('Admin login readiness marker must be unique')
 
 path.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite, retired browser Supabase client, and published login readiness contract')
+print(f'finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; retired Supabase client blocks: {removed_clients}')
