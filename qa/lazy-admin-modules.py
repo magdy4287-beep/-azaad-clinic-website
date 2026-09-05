@@ -107,10 +107,10 @@ def main():
     if (key === 'calendar') {{ window.AZAAD_LOAD_ADMIN_PANEL(key); return; }}
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
-  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
-  document.addEventListener('DOMContentLoaded', () => {{
+  window.addEventListener('azaad:admin-authenticated', () => {{
     void window.AZAAD_LOAD_ADMIN_PANEL('calendar');
   }}, {{ once: true }});
+  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
 }})();
 </script>
 """
