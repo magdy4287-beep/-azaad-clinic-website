@@ -2,38 +2,29 @@ from pathlib import Path
 import re
 
 path = Path('admin.js')
-if not path.is_file():
-    raise SystemExit('admin.js is required')
+if not path.is_file(): raise SystemExit('admin.js is required')
 text = path.read_text(encoding='utf-8')
 
-# Canonical Appwrite auth replacements are intentionally deterministic.
 LOGIN = r'''async function login(username, password) {
   const cleanUsername = String(username || '').trim().toLowerCase();
   const cleanPassword = String(password || '');
   if (!cleanUsername) throw new Error('اسم المستخدم مطلوب.');
   if (!cleanPassword) throw new Error('كلمة المرور مطلوبة.');
-  const response = await fetch('/api/admin-auth', {
-    method: 'POST', credentials: 'include', cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
-  });
+  const response = await fetch('/api/admin-auth', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ username: cleanUsername, password: cleanPassword }) });
   let result = null;
   try { result = await response.json(); } catch (_) {}
   if (!response.ok) throw new Error(result?.error === 'invalid_credentials' ? 'بيانات الدخول غير صحيحة.' : (result?.message || 'تعذر تسجيل الدخول.'));
   if (result?.provider !== 'appwrite' || !result?.session?.access_token || !result?.staff) throw new Error('جلسة Appwrite غير صالحة.');
   if (result.staff.active === false) throw new Error('حساب الموظف غير فعال.');
   if (!applyStaffRole(result.staff)) throw new Error('دور الموظف غير صالح.');
-  state.session = result.session;
-  state.user = result.user || result.session.user || null;
-  state.provider = 'appwrite';
+  state.session = result.session; state.user = result.user || result.session.user || null; state.provider = 'appwrite';
   if (redirectDoctorIfNeeded()) return;
   await initializeApplication();
 }'''
 
 LOGOUT = r'''async function logout() {
-  try {
-    await Promise.race([fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' }), new Promise(resolve => setTimeout(resolve, 2500))]);
-  } catch (error) { console.warn('Appwrite logout request failed:', error); }
+  try { await Promise.race([fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' }), new Promise(resolve => setTimeout(resolve, 2500))]); }
+  catch (error) { console.warn('Appwrite logout request failed:', error); }
   state.session = null; state.user = null; state.staff = null; state.currentRole = null; state.permissions = new Set(); state.initialized = false; state.initializing = false;
   window.location.replace('/admin.html');
 }'''
@@ -78,22 +69,22 @@ STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
 def function_bounds(source, name):
     match = re.search(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', source)
     if not match: return None
-    brace = source.find('{', match.start()); depth = 0; quote = None; escape = False; line_comment = False; block_comment = False; i = brace
+    i = source.find('{', match.start()); depth = 0; quote = None; escape = False; line = False; block = False
     while i < len(source):
         ch = source[i]; nxt = source[i + 1] if i + 1 < len(source) else ''
-        if line_comment:
-            if ch == '\n': line_comment = False
+        if line:
+            if ch == '\n': line = False
             i += 1; continue
-        if block_comment:
-            if ch == '*' and nxt == '/': block_comment = False; i += 2; continue
+        if block:
+            if ch == '*' and nxt == '/': block = False; i += 2; continue
             i += 1; continue
         if quote:
             if escape: escape = False
             elif ch == '\\': escape = True
             elif ch == quote: quote = None
             i += 1; continue
-        if ch == '/' and nxt == '/': line_comment = True; i += 2; continue
-        if ch == '/' and nxt == '*': block_comment = True; i += 2; continue
+        if ch == '/' and nxt == '/': line = True; i += 2; continue
+        if ch == '/' and nxt == '*': block = True; i += 2; continue
         if ch in "'\"`": quote = ch; i += 1; continue
         if ch == '{': depth += 1
         elif ch == '}':
@@ -111,24 +102,53 @@ def replace_function(source, name, replacement):
 text = replace_function(text, 'login', LOGIN)
 text = replace_function(text, 'logout', LOGOUT)
 
-restore_pattern = re.compile(r'async function restoreStaffProfile\s*\([^)]*\)\s*\{', re.S)
-restore_matches = list(restore_pattern.finditer(text))
-if len(restore_matches) == 1: text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
-elif len(restore_matches) == 0:
-    startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
-    if not startup_match: raise SystemExit('Cannot install Appwrite restoreStaffProfile: DOMContentLoaded startup not found')
-    text = text[:startup_match.start()] + RESTORE_STAFF + '\n\n' + text[startup_match.start():]
-else: raise SystemExit(f'restoreStaffProfile: expected at most one function, found {len(restore_matches)}; refusing rewrite')
+restore_count = len(re.findall(r'async function restoreStaffProfile\s*\(', text))
+if restore_count == 1:
+    text = replace_function(text, 'restoreStaffProfile', RESTORE_STAFF)
+elif restore_count == 0:
+    marker = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
+    if not marker: raise SystemExit('Cannot install Appwrite restoreStaffProfile: DOMContentLoaded startup not found')
+    text = text[:marker.start()] + RESTORE_STAFF + '\n\n' + text[marker.start():]
+else: raise SystemExit(f'restoreStaffProfile: expected at most one function, found {restore_count}; refusing rewrite')
 
 startup_pattern = re.compile(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{.*?\}\s*\)\s*;\s*$', re.S)
 if not startup_pattern.search(text): raise SystemExit('Canonical Admin DOMContentLoaded startup block not found')
 text = startup_pattern.sub(STARTUP, text, count=1)
 
-text = re.sub(r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?', '\n', text, count=1)
-text = re.sub(r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];\s*\n', '', text, count=1, flags=re.M)
-client_pattern = re.compile(r'\n?const SUPABASE_URL\s*=\s*["\']https://[^"\']+\.supabase\.co["\'];\s*\n\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*["\'][^"\']+["\'];\s*\n\s*const supabase\s*=\s*createClient\([\s\S]*?\n\);\s*\n', re.M)
-text, removed_clients = client_pattern.subn('\n', text, count=1)
-if removed_clients > 1: raise SystemExit('Multiple canonical Admin Supabase client blocks remain; refusing ambiguous rewrite')
+text = re.sub(r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];?\s*\n', '', text, count=1, flags=re.M)
+text = re.sub(r'\n?\s*const STAFF_LOGIN_FUNCTION\s*=\s*`[^`]*?/functions/v1/staff-login`;\s*\n?', '\n', text, count=1)
+
+# Robustly retire createClient(...) even when previous transforms changed the URL/key literals.
+client_matches = list(re.finditer(r'\bconst\s+supabase\s*=\s*createClient\s*\(', text))
+if len(client_matches) > 1: raise SystemExit(f'Multiple canonical Admin Supabase clients remain: {len(client_matches)}')
+if client_matches:
+    m = client_matches[0]; i = m.end(); depth = 1; quote = None; escape = False; line = False; block = False
+    while i < len(text) and depth:
+        ch = text[i]; nxt = text[i + 1] if i + 1 < len(text) else ''
+        if line:
+            if ch == '\n': line = False
+            i += 1; continue
+        if block:
+            if ch == '*' and nxt == '/': block = False; i += 2; continue
+            i += 1; continue
+        if quote:
+            if escape: escape = False
+            elif ch == '\\': escape = True
+            elif ch == quote: quote = None
+            i += 1; continue
+        if ch == '/' and nxt == '/': line = True; i += 2; continue
+        if ch == '/' and nxt == '*': block = True; i += 2; continue
+        if ch in "'\"`": quote = ch; i += 1; continue
+        if ch == '(': depth += 1
+        elif ch == ')': depth -= 1
+        i += 1
+    if depth != 0: raise SystemExit('Unbalanced Supabase createClient(...) call; refusing rewrite')
+    end = i + (1 if i < len(text) and text[i] == ';' else 0)
+    prefix = text[:m.start()]
+    prefix = re.sub(r'(?:\s*const\s+SUPABASE_URL\s*=\s*[^;]+;\s*)?(?:const\s+SUPABASE_(?:PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\s*=\s*[^;]+;\s*)?$', '', prefix, count=1, flags=re.S)
+    text = prefix + '\n' + text[end:]
+else:
+    text = re.sub(r'^\s*const\s+SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\s*=.*?;\s*$', '', text, flags=re.M)
 
 legacy_blocks = [
     (r'/\* ============================================================\n\s*SAFE QUERY\n\s*============================================================ \*/.*?(?=/\* ============================================================\n\s*PERMISSIONS)', 'safeQuery'),
@@ -136,15 +156,12 @@ legacy_blocks = [
 ]
 for pattern, label in legacy_blocks:
     text, removed = re.subn(pattern, '', text, count=1, flags=re.S)
-    if removed not in (0, 1): raise SystemExit(f'Expected at most one legacy {label} block to retire; found {removed}')
     if removed == 0: print(f'legacy {label} already retired by an earlier canonical transform; continuing idempotently')
 
 text, removed_auth_listener = re.subn(r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/\s*supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n', '', text, count=1, flags=re.S)
-if removed_auth_listener not in (0, 1): raise SystemExit(f'Expected at most one legacy Supabase auth-state listener; found {removed_auth_listener}')
 if removed_auth_listener == 0: print('legacy Supabase auth-state listener already retired by an earlier canonical transform; continuing idempotently')
 
 text, removed_global_supabase = re.subn(r'window\.AZAAD\s*=\s*\{\s*supabase,\s*', 'window.AZAAD = {\n  ', text, count=1)
-if removed_global_supabase not in (0, 1): raise SystemExit(f'Expected at most one global Supabase exposure; found {removed_global_supabase}')
 if removed_global_supabase == 0: print('global Supabase exposure already retired by an earlier canonical transform; continuing idempotently')
 
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
@@ -152,7 +169,6 @@ if 'STAFF_LOGIN_FUNCTION' in text or 'functions/v1/staff-login' in text: raise S
 for legacy_auth in ('supabase.auth.getSession(', 'supabase.auth.refreshSession(', 'supabase.auth.signOut(', 'supabase.auth.setSession('):
     if legacy_auth in text: raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
 
-# Lexically mask comments and quoted/template literals before the fail-closed runtime scan.
 masked = []; i = 0
 while i < len(text):
     ch = text[i]; nxt = text[i + 1] if i + 1 < len(text) else ''
@@ -176,4 +192,4 @@ if 'async function restoreStaffProfile()' not in text: raise SystemExit('Canonic
 if 'retryDelays = [0, 150, 350]' not in text: raise SystemExit('Bounded Appwrite restore retry contract missing')
 if text.count('window.AZAAD_LOGIN_CONTROLLER_READY = true;') != 1: raise SystemExit('Admin login readiness marker must be unique')
 path.write_text(text, encoding='utf-8')
-print(f'finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; retired Supabase client blocks: {removed_clients}')
+print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; Supabase executable runtime retired')
