@@ -1,9 +1,9 @@
-"""Canonical Admin runtime repair and syntax gate.
+"""Canonical Admin runtime syntax repair gate.
 
-This runs after all Admin source transforms and before production verification.
-It closes the exact failure mode where a generated ROLE_PERMISSIONS array is
-left syntactically invalid and, critically, publishes the login-controller
-readiness marker only after the real submit listener has been attached.
+This stage runs before the final Appwrite normalization stage. It is therefore
+responsible only for source-level syntax normalization and login-listener
+structure; the Appwrite stage owns retirement of the legacy browser client and
+its final runtime boundary.
 """
 from pathlib import Path
 import re
@@ -35,24 +35,8 @@ def normalize_role(match: re.Match[str]) -> str:
 
 text = role_block.sub(normalize_role, text)
 
-# RED contract: the Appwrite canonical runtime must not retain an executable
-# Supabase client. This is intentionally asserted before the repair is added.
-if "const supabase = createClient(" in text:
-    raise SystemExit("RED: retired Supabase client survives the Appwrite Admin transform")
-
-# Publish an explicit Supabase readiness marker after the canonical client is
-# created. This marker is diagnostic state only and contains no credentials.
-if "window.AZAAD_SUPABASE_READY = true;" not in text:
-    marker = "const supabase = createClient("
-    if marker not in text:
-        raise SystemExit("Could not locate canonical Supabase client marker")
-    close = text.find("\n);", text.find(marker))
-    if close == -1:
-        raise SystemExit("Could not locate Supabase client terminator")
-    insert_at = close + len("\n);")
-    text = text[:insert_at] + "\nwindow.AZAAD_SUPABASE_READY = true;" + text[insert_at:]
-
-# Remove any stale readiness marker from an earlier transform version.
+# Remove any stale readiness marker from an earlier transform version. The
+# final Appwrite auth stage publishes the single canonical readiness marker.
 text = re.sub(
     r"\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?",
     "\n",
@@ -60,18 +44,9 @@ text = re.sub(
     count=1,
 )
 
-# Readiness is a synchronization contract: it must become true only after the
-# actual submit listener is installed, never merely because bindLogin exists.
-marker = "    }\n  );\n}\n\n/* ============================================================\n   AUTH STATE"
-if marker not in text:
-    raise SystemExit("Could not locate canonical login listener terminator")
-text = text.replace(
-    marker,
-    "    }\n  );\n\n  window.AZAAD_LOGIN_CONTROLLER_READY = true;\n}\n\n/* ============================================================\n   AUTH STATE",
-    1,
-)
-
+# The listener-backed readiness marker is deliberately checked/installed by
+# the final Appwrite stage, which is the final owner of Admin auth startup.
 ADMIN_JS.write_text(text, encoding="utf-8")
 subprocess.run(["node", "--check", str(ADMIN_JS)], check=True)
 
-print("[AZAAD admin syntax] PASS: admin.js normalized, node --check succeeded, and login readiness is listener-backed")
+print("[AZAAD admin syntax] PASS: role syntax normalized and admin.js node --check succeeded; Appwrite normalization remains the final auth owner")
