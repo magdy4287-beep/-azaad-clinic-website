@@ -44,6 +44,12 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
+      - name: Verify universal AZAAD database UUID contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/database-identity-contract.py
+
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
