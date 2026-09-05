@@ -183,25 +183,28 @@ text = startup_pattern.sub(STARTUP, text, count=1)
 
 text = re.sub(
     r'\n?const STAFF_LOGIN_FUNCTION\s*=\s*`\$\{SUPABASE_URL\}/functions/v1/staff-login`;\s*\n?',
-    '\n',
-    text,
-    count=1,
-)
-
+    '\n', text, count=1)
 text = re.sub(
     r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];\s*\n',
-    '',
-    text,
-    count=1,
-    flags=re.M,
-)
+    '', text, count=1, flags=re.M)
+
+# Retire the browser Supabase client and its public configuration completely.
+# Admin authentication and authenticated operations must cross the canonical
+# Appwrite-backed /api boundary; leaving the client object alive creates a
+# second identity/data plane even when its auth methods are no longer called.
+client_pattern = re.compile(
+    r'\n?const SUPABASE_URL\s*=\s*["\']https://[^"\']+\.supabase\.co["\'];\s*\n'
+    r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*["\'][^"\']+["\'];\s*\n'
+    r'\s*const supabase\s*=\s*createClient\([\s\S]*?\n\);\s*\n',
+    re.M)
+text, removed_clients = client_pattern.subn('\n', text, count=1)
+if removed_clients != 1:
+    raise SystemExit('Canonical Admin Supabase client block was not removed exactly once')
 
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
-if 'STAFF_LOGIN_FUNCTION' in text:
-    raise SystemExit('Legacy STAFF_LOGIN_FUNCTION remains after Appwrite auth transform')
-if 'functions/v1/staff-login' in text:
-    raise SystemExit('Legacy staff-login fetch remains after Appwrite auth transform: legacy staff-login endpoint remains')
+if 'STAFF_LOGIN_FUNCTION' in text or 'functions/v1/staff-login' in text:
+    raise SystemExit('Legacy staff-login endpoint remains after Appwrite auth transform')
 for legacy_auth in (
     'supabase.auth.getSession(',
     'supabase.auth.refreshSession(',
@@ -210,17 +213,17 @@ for legacy_auth in (
 ):
     if legacy_auth in text:
         raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
-if 'from "https://esm.sh/@supabase/supabase-js@2"' in text or "from 'https://esm.sh/@supabase/supabase-js@2'" in text:
-    raise SystemExit('Legacy Supabase ESM import remains after Appwrite auth transform')
+if re.search(r'\bsupabase\b', text, re.I):
+    raise SystemExit('Executable Supabase identifier remains in canonical Admin controller after Appwrite transform')
+if re.search(r'SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)', text):
+    raise SystemExit('Supabase configuration identifier remains in canonical Admin controller after Appwrite transform')
 
 if 'async function restoreStaffProfile()' not in text:
     raise SystemExit('Canonical Appwrite restoreStaffProfile() missing after transform')
 if 'retryDelays = [0, 150, 350]' not in text:
     raise SystemExit('Bounded Appwrite restore retry contract missing')
-if 'window.AZAAD_LOGIN_CONTROLLER_READY = true;' not in text:
-    raise SystemExit('Admin login readiness marker missing after canonical Appwrite startup binding')
 if text.count('window.AZAAD_LOGIN_CONTROLLER_READY = true;') != 1:
     raise SystemExit('Admin login readiness marker must be unique')
 
 path.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite with bounded restore retry and login readiness contract')
+print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite, retired browser Supabase client, and published login readiness contract')
