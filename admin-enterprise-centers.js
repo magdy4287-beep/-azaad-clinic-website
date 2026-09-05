@@ -13,6 +13,15 @@
     insights: ['🧠 Smart Insights', 'توصيات مبنية على البيانات'],
     security: ['🛡️ IT Security', 'حدود الأمان والحسابات'],
   };
+  const ENTERPRISE_BACKENDS = {
+    patient360: 'azaad-patient-360',
+    rcm: 'azaad-invoice-center',
+    analytics: 'azaad-management-dashboard',
+    finance: 'azaad-finance',
+    marketing: 'azaad-management-dashboard',
+    insights: 'azaad-ai-insights',
+    security: 'azaad-security-center',
+  };
   const ROLE_SCOPES = {
     patient360: ['OWNER', 'ADMIN', 'MANAGER'],
     rcm: ['OWNER', 'ADMIN', 'MANAGER', 'CASHIER'],
@@ -23,16 +32,9 @@
     security: ['OWNER', 'ADMIN', 'MANAGER'],
   };
 
-  const role = () => String(
-    window.AZAAD?.state?.role ||
-    window.AZAAD?.state?.currentRole ||
-    window.AZAAD?.state?.staff?.role ||
-    document.body?.dataset?.role || ''
-  ).toUpperCase().trim();
+  const role = () => String(window.AZAAD?.state?.role || window.AZAAD?.state?.currentRole || window.AZAAD?.state?.staff?.role || document.body?.dataset?.role || '').toUpperCase().trim();
   const canAccess = (key) => ROLE_SCOPES[key]?.includes(role()) === true;
-  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-  }[char]));
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
   const money = (value) => `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} EGP`;
 
   async function call(path, options = {}) {
@@ -47,9 +49,7 @@
     return body;
   }
 
-  const cards = (items) => items.map((item) => (
-    `<div class="item"><strong>${esc(item[0])}</strong><strong>${esc(item[1])}</strong></div>`
-  )).join('');
+  const cards = (items) => items.map((item) => `<div class="item"><strong>${esc(item[0])}</strong><strong>${esc(item[1])}</strong></div>`).join('');
 
   const ensure = (key) => {
     if (!canAccess(key)) return;
@@ -73,10 +73,7 @@
     });
   }
 
-  const rcmStatus = (status) => ({
-    paid: '🟢 مدفوعة', partial: '🟡 جزئية', unpaid: '🔴 غير مدفوعة', overdue: '⏰ متأخرة'
-  }[String(status || 'unpaid').toLowerCase()] || String(status || 'unpaid'));
-
+  const rcmStatus = (status) => ({ paid: '🟢 مدفوعة', partial: '🟡 جزئية', unpaid: '🔴 غير مدفوعة', overdue: '⏰ متأخرة' }[String(status || 'unpaid').toLowerCase()] || String(status || 'unpaid'));
   const rcmRows = (rows) => rows.length
     ? `<div class="table" style="overflow:auto;margin-top:14px"><table style="width:100%;min-width:1050px;border-collapse:collapse"><thead><tr><th>🧾 الفاتورة</th><th>المريض</th><th>🆔 MRN</th><th>🧑‍⚕️ الطبيب</th><th>📅 التاريخ</th><th>💰 الإجمالي</th><th>💳 المدفوع</th><th>⚠️ المتبقي</th><th>🚦 الحالة</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${esc(row.invoice_number || row.id)}</td><td>${esc(row.patient_name || '—')}</td><td>${esc(row.mrn || '—')}</td><td>${esc(row.doctor_name || '—')}</td><td>${esc(row.invoice_date || row.created_at?.slice(0, 10) || '—')}</td><td>${money(row.total_amount)}</td><td>${money(row.paid_amount)}</td><td>${money(row.remaining_amount)}</td><td>${esc(rcmStatus(row.status))}</td></tr>`).join('')}</tbody></table></div>`
     : '<div class="empty">📭 لا توجد فواتير مطابقة.</div>';
@@ -88,8 +85,13 @@
     if (!body) return;
     body.innerHTML = '<div class="empty">⏳ قراءة البيانات الفعلية...</div>';
     try {
-      // Enterprise data is intentionally routed through same-origin API boundaries.
-      // The browser never receives a database credential or a legacy provider client.
+      // Backend ownership remains explicit: patient360 -> azaad-patient-360,
+      // rcm -> azaad-invoice-center, finance -> azaad-finance,
+      // analytics/marketing -> azaad-management-dashboard,
+      // insights -> azaad-ai-insights, security -> azaad-security-center.
+      const backend = ENTERPRISE_BACKENDS[key];
+      if (!backend) throw new Error('enterprise_backend_not_declared');
+
       if (key === 'patient360') {
         body.innerHTML = '<label>رقم المريض / MRN / الاسم / الهاتف<input id="patient360Query" placeholder="AZA-000001 أو اسم المريض"></label><button id="patient360Search" class="btn btn-primary" type="button">🔎 بحث</button><div id="patient360Result" class="items" style="margin-top:12px"></div>';
         $('patient360Search').onclick = async () => {
@@ -120,8 +122,6 @@
         body.innerHTML = cards([['Insights', rows.length], ['Open follow-ups', data.kpis?.open_followups || 0], ['Open alerts', data.kpis?.open_alerts || 0], ['No-show rate', `${data.kpis?.no_show_rate || 0}%`]]) + rows.map((row) => `<div class="item"><div><strong>${esc(row.title_ar || row.summary_ar || row.insight_type)}</strong><div class="muted">${esc(row.recommendation_ar || row.summary_ar || '')}</div></div><span class="badge">${esc(row.severity || '')} · ${esc(row.status || 'OPEN')}</span></div>`).join('');
         return;
       }
-      // Remaining enterprise panels expose a safe, explicit empty state until their
-      // same-origin API boundary is present; they never fall back to Supabase.
       if (key === 'rcm') {
         body.innerHTML = rcmRows([]);
         return;
