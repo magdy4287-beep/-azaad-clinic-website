@@ -187,6 +187,18 @@ text = re.sub(
     count=1,
 )
 
+# The production Admin controller is loaded as a classic browser script.
+# Its source historically carried a remote ESM import for Supabase, but the
+# Appwrite transform retires that client boundary. Leaving the import behind
+# makes the final classic script fail before any startup code can run.
+text = re.sub(
+    r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];\s*\n',
+    '',
+    text,
+    count=1,
+    flags=re.M,
+)
+
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
 if 'STAFF_LOGIN_FUNCTION' in text:
@@ -201,6 +213,8 @@ for legacy_auth in (
 ):
     if legacy_auth in text:
         raise SystemExit(f'Legacy Supabase auth runtime remains after Appwrite auth transform: {legacy_auth}')
+if 'from "https://esm.sh/@supabase/supabase-js@2"' in text or "from 'https://esm.sh/@supabase/supabase-js@2'" in text:
+    raise SystemExit('Legacy Supabase ESM import remains after Appwrite auth transform')
 
 if 'async function restoreStaffProfile()' not in text:
     raise SystemExit('Canonical Appwrite restoreStaffProfile() missing after transform')
