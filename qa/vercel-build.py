@@ -42,6 +42,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/restore-canonical-admin-controller.py"],
     ["python3", "qa/finalize-admin-navigation-ownership.py"],
     ["python3", "qa/finalize-appwrite-admin-auth.py"],
+    ["python3", "qa/finalize-staff-management-appwrite.py"],
     ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
     # Must be the final auth-normalization step: finalize-appwrite-admin-auth.py
     # can replace a nested legacy restore owner in-place. The staff-runtime
@@ -72,6 +73,8 @@ if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-own
     raise SystemExit("Canonical navigation ownership transform must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-appwrite-admin-auth.py") != 1:
     raise SystemExit("Canonical Appwrite Admin auth transform must exist exactly once")
+if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-staff-management-appwrite.py") != 1:
+    raise SystemExit("Canonical staff-management Appwrite transform must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/retire-legacy-admin-staff-runtime.py") != 1:
     raise SystemExit("Final Admin staff-runtime normalization must exist exactly once")
 if [step[1] for step in TRANSFORM_STEPS].count("qa/final-admin-restore-boundary.py") != 1:
