@@ -99,6 +99,19 @@ jobs:
           cat /tmp/azaad-http.log || true
           exit 1
 
+      - name: Verify served canonical staff-management artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          served="$(curl -fsS http://127.0.0.1:4173/staff-management.js?azaad_boundary=1)"
+          printf '%s' "$served" | grep -Fq "fetch('/api/staff-admin'"
+          ! printf '%s' "$served" | grep -Fq "supabase.co/functions/v1/staff-admin"
+          ! printf '%s' "$served" | grep -Fq "createSupabaseClient"
+          ! printf '%s' "$served" | grep -Fq "SUPABASE_PUBLISHABLE_KEY"
+          ! printf '%s' "$served" | grep -Fq "STAFF_ADMIN_FUNCTION"
+          ! printf '%s' "$served" | grep -Fq "waitForSupabase"
+          echo 'Served staff-management artifact boundary: PASS'
+
       - name: Diagnose Appwrite frontdesk identity without exposing credentials
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
