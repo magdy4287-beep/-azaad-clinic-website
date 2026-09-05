@@ -2,11 +2,8 @@ import { neon } from '@neondatabase/serverless';
 
 const COOKIE = 'azaad_admin_appwrite_session';
 
-function json(body, status = 200, headers = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
-  });
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 function cookieValue(request) {
@@ -18,11 +15,8 @@ function cookieValue(request) {
 async function appwriteAccount(secret) {
   const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
-  const apiKey = String(process.env.APPWRITE_API_KEY || '').trim();
-  if (!endpoint || !project || !apiKey || !secret) return null;
-  const response = await fetch(`${endpoint}/account`, {
-    headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'X-Appwrite-Session': secret, accept: 'application/json' },
-  });
+  if (!endpoint || !project || !secret) return null;
+  const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}` } });
   if (!response.ok) return null;
   return response.json();
 }
@@ -53,7 +47,6 @@ export default async function handler(request) {
     const identity = await authorize(request);
     if (!identity) return json({ error: 'authentication_required' }, 401);
     if (!['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'].includes(identity.role)) return json({ error: 'forbidden' }, 403);
-
     const url = new URL(request.url);
     const from = url.searchParams.get('from') || '2000-01-01';
     const to = url.searchParams.get('to') || '2100-12-31';
