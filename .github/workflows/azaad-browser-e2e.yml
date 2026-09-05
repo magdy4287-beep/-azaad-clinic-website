@@ -44,6 +44,12 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
+      - name: Verify universal AZAAD database UUID contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/database-identity-contract.py
+
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -76,6 +82,7 @@ jobs:
           cp -a . /tmp/azaad-build
           cd /tmp/azaad-build
           python3 qa/vercel-build.py
+          npm install --no-save --no-package-lock @neondatabase/serverless
 
       - name: Validate Admin production artifact JavaScript syntax
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
@@ -88,13 +95,22 @@ jobs:
           done
           if [[ -f ./admin-auth-ui-guard.js ]]; then node --check ./admin-auth-ui-guard.js; fi
 
-      - name: Start local canonical production build server for pull requests and branch dispatches
+      - name: Start local canonical production build API runtime for pull requests and branch dispatches
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$APPWRITE_ENDPOINT" || { echo 'FAIL-CLOSED: APPWRITE_ENDPOINT missing'; exit 1; }
+          test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
+          test -n "$DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
           cd /tmp/azaad-build
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/azaad-http.log 2>&1 &
+          node qa/local-vercel-runtime.mjs >/tmp/azaad-http.log 2>&1 &
           echo $! > /tmp/azaad-http.pid
           for attempt in {1..20}; do
             if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
@@ -123,8 +139,8 @@ jobs:
           grep -Fq "await page.reload({waitUntil:'domcontentloaded'})" "$spec"
           grep -Fq "await expect(page.locator('#adminPage')).toBeVisible" "$spec"
           grep -Fq "await expect(page.locator('#loginPage')).toBeHidden" "$spec"
-          grep -Fq "Supabase auth persistence disappeared after refresh" "$spec"
-          grep -Fq "canonical staff role was not restored after refresh" "$spec"
+          grep -Fq "azaad_admin_appwrite_session" "$spec"
+          grep -Fq "provider:'appwrite'" "$spec"
           echo 'Browser refresh persistence certification contract: PASS'
 
       - name: Prove production Admin runtime invariants before browser execution

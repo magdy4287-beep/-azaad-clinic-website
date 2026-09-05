@@ -1,0 +1,165 @@
+name: Azaad Browser E2E Root Fix Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin.js'
+      - 'admin-enterprise-centers.js'
+      - 'qa/**'
+      - '.github/workflows/azaad-browser-e2e-root-fix.yml'
+      - '.github/patch-admin.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e-root-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact commit under test
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Verify exact commit under test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: true
+
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Build immutable canonical artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/azaad-build
+          cp -a . /tmp/azaad-build
+          cd /tmp/azaad-build
+          python3 qa/vercel-build.py
+          npm install --no-save --no-package-lock @neondatabase/serverless
+          node --check admin.js
+          node --check admin-enterprise-centers.js
+
+      - name: Verify final restore boundary is top-level and unique
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          grep -Fq "async function restoreStaffProfile()" admin.js
+          test "$(grep -Fc "async function restoreStaffProfile()" admin.js)" -eq 1
+          grep -Fq "fetch('/api/admin-auth'" admin.js
+          ! grep -Fq "functions/v1/staff-login" admin.js
+          echo 'Final Admin restore boundary: PASS'
+
+      - name: Start immutable artifact API runtime
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$APPWRITE_ENDPOINT" || { echo 'FAIL-CLOSED: APPWRITE_ENDPOINT missing'; exit 1; }
+          test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
+          test -n "$DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
+          cd /tmp/azaad-build
+          node qa/local-vercel-runtime.mjs >/tmp/azaad-http.log 2>&1 &
+          echo $! > /tmp/azaad-http.pid
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/azaad-http.log || true
+          exit 1
+
+      - name: Diagnose Appwrite frontdesk identity without exposing credentials
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const url = new URL(`${endpoint}/users`);
+          url.searchParams.set('limit', '100');
+          const response = await fetch(url, {
+            headers: {
+              'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
+              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+              'Accept': 'application/json'
+            }
+          });
+          const text = await response.text();
+          let body = {};
+          try { body = text ? JSON.parse(text) : {}; } catch (_) {}
+          if (!response.ok) {
+            console.log(JSON.stringify({ stage: 'appwrite_users_list', status: response.status, type: body.type || null, code: body.code || null }));
+            process.exit(1);
+          }
+          const users = Array.isArray(body.users) ? body.users : [];
+          const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
+          console.log(JSON.stringify({
+            stage: 'appwrite_frontdesk_identity',
+            users_returned: users.length,
+            exact_email_matches: matches.length,
+            active_matches: matches.filter((u) => u?.status === true).length,
+            email_verified_matches: matches.filter((u) => u?.emailVerification === true).length
+          }));
+          NODE
+
+      - name: Diagnose Frontdesk E2E secret shape without exposing the secret
+        env:
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const value = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          console.log(JSON.stringify({
+            stage: 'frontdesk_e2e_secret_shape',
+            present: Boolean(value),
+            length: value.length,
+            min_length_8: value.length >= 8,
+            has_leading_whitespace: /^\s/.test(value),
+            has_trailing_whitespace: /\s$/.test(value),
+            contains_line_break: /[\r\n]/.test(value)
+          }));
+          NODE
+
+      - name: Run Browser E2E against repaired canonical artifact
+        env:
+          AZAAD_BASE_URL: http://localhost:4173
+          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
+          AZAAD_TEST_USERNAME: frontdesk_azaad
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
+
+      - name: Capture local API boundary diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== AZAAD local API runtime log ==='
+          if test -f /tmp/azaad-http.log; then
+            cat /tmp/azaad-http.log
+          else
+            echo 'No local runtime log was produced.'
+          fi

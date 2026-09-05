@@ -1,0 +1,7 @@
+{
+  "schema": "azaad.database-identity.v1",
+  "database_uuid": "eb644c1e-c5f0-4c16-8810-2e3a423a6ce0",
+  "identity_scope": "logical-production-database",
+  "authority": "AZAAD",
+  "notes": "Stable logical identity for the AZAAD canonical database. This UUID is not a secret and must never be treated as an authentication credential. Physical connection targets are separately verified by the database-target fingerprint gate."
+}

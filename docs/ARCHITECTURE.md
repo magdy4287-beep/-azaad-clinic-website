@@ -9,28 +9,56 @@ The repository follows one-owner-per-responsibility. A feature may consume anoth
 | Public shell | `index.html` + public shell assets | Patient/public experience only |
 | Admin shell | `admin.html` + `admin-shell.js` | Navigation, basic interaction, shell lifecycle |
 | Admin application | `admin.js` | Authenticated admin state and feature orchestration |
-| Authentication | `admin-auth-ui-guard.js` / Supabase auth contract | Authentication and authorization only |
+| Authentication | Appwrite via `api/admin-auth.js` | Identity, session creation/restore, staff identity mapping |
 | Feature modules | `*-center*.js`, domain modules | One bounded business capability per module |
+| Backend API | `api/*.js` on Vercel | Server-side authorization and business/data boundary |
+| Database | Neon PostgreSQL via Vercel backend | Canonical operational data and server-side contracts |
 | Media editing | media-editor modules | Image/video presentation transforms only |
 | Styling | dedicated CSS files | Visual system; no business logic |
 | Build transformation | `qa/vercel-build.py` + `.github/patch-admin.py` | Deterministic build-time composition only |
 | QA gates | `qa/*gate*.py`, browser E2E | Verification; never production feature ownership |
-| Database | Supabase migrations/functions | Data, RLS, server-side contracts |
+| Legacy migration evidence | `supabase/` | Historical/rollback evidence only; never production runtime |
 
 ## 2. Canonical runtime order
 
 ```text
 HTML shell
   -> Admin Shell
-  -> Authentication
+  -> Appwrite Authentication
   -> Admin application state
   -> Feature modules
-  -> Data/API operations
+  -> Vercel API boundary
+      -> Neon PostgreSQL
 ```
+
+Public booking/data routes may enter through the Vercel API boundary directly when authentication is intentionally not required; validation, privacy, and write authorization remain server-side.
 
 No feature module may be required for the shell to become interactive.
 
-## 3. Repository tree
+## 3. Security and secret boundary
+
+```text
+Provider Secret Store
+  -> Vercel server environment
+      -> Vercel API handler
+          -> Appwrite / Neon
+
+Browser
+  -> receives only public data and HttpOnly session cookies
+  -> never receives database credentials or privileged provider API keys
+```
+
+`DATABASE_URL`, `APPWRITE_API_KEY`, and any privileged provider credential are server-only. Browser bundles must fail certification if they contain privileged credentials or direct database-provider access.
+
+## 4. Supabase retirement boundary
+
+Supabase is retired from the AZAAD production runtime. The repository may retain historical Supabase functions/migrations because they document prior security/data contracts, but they are not deployable production ownership.
+
+No new feature may introduce a Supabase runtime dependency. Existing legacy references are migrated one bounded domain at a time and must be removed from the canonical runtime path before certification.
+
+The previous Supabase environment is not a reason to purchase quota or upgrade a plan. AZAAD's production requirement is free-only operation.
+
+## 5. Repository tree
 
 ```text
 /
@@ -44,9 +72,9 @@ No feature module may be required for the shell to become interactive.
 │   ├── admin.js
 │   ├── admin styles
 │   └── bounded feature modules
-├── backend
-│   ├── Supabase functions
-│   └── database migrations/contracts
+├── api
+│   ├── Appwrite-authenticated backend routes
+│   └── Neon-backed business/data routes
 ├── build
 │   ├── .github/patch-admin.py
 │   └── qa/vercel-build.py
@@ -56,13 +84,11 @@ No feature module may be required for the shell to become interactive.
 │   └── build integrity gates
 ├── docs
 │   └── architecture and operational contracts
-└── configuration
-    ├── package.json
-    ├── vercel.json
-    └── CI workflows
+└── legacy evidence
+    └── supabase/  (historical only)
 ```
 
-## 4. Anti-duplication rules
+## 6. Anti-duplication rules
 
 1. One authoritative Admin Shell. Recovery scripts cannot become a second controller.
 2. One authentication owner. Login/logout/session restoration must not be reimplemented by feature modules.
@@ -70,7 +96,8 @@ No feature module may be required for the shell to become interactive.
 4. One i18n owner per surface.
 5. One media-transform owner. UI stores transforms; original media remains immutable.
 6. QA scripts verify contracts; they do not patch production behavior after the fact.
+7. One production data authority: Neon. Legacy providers cannot silently become fallback data sources.
 
-## 5. Refactoring policy
+## 7. Refactoring policy
 
 Do not perform a mass file move in one change. First establish ownership, prove references, migrate one bounded domain, run build/E2E, then remove the retired implementation. This preserves causal history and prevents a cosmetic tree cleanup from becoming another production outage.

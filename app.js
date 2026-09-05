@@ -30,11 +30,11 @@
    * =========================================================
    */
   const API =
-    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-booking';
+    '/api/public-booking';
   const PUBLIC_API =
-    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data';
+    '/api/public-clinic-data';
   const PUBLIC_SCHEDULING_API =
-    'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-scheduling';
+    '/api/public-scheduling';
   const DEFAULT_WHATSAPP_NUMBER =
     '201140526294';
   const $ = (id) =>
