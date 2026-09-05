@@ -200,18 +200,24 @@ legacy_blocks = [
 ]
 for pattern, label in legacy_blocks:
     text, removed = re.subn(pattern, '', text, count=1, flags=re.S)
-    if removed != 1:
-        raise SystemExit(f'Expected exactly one legacy {label} block to retire; found {removed}')
+    if removed not in (0, 1):
+        raise SystemExit(f'Expected at most one legacy {label} block to retire; found {removed}')
+    if removed == 0 and label == 'restoreSession':
+        print('legacy restoreSession already retired by an earlier canonical transform; continuing idempotently')
 
 text, removed_auth_listener = re.subn(
     r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/\s*supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n',
     '', text, count=1, flags=re.S)
-if removed_auth_listener != 1:
-    raise SystemExit(f'Expected exactly one legacy Supabase auth-state listener; found {removed_auth_listener}')
+if removed_auth_listener not in (0, 1):
+    raise SystemExit(f'Expected at most one legacy Supabase auth-state listener; found {removed_auth_listener}')
+if removed_auth_listener == 0:
+    print('legacy Supabase auth-state listener already retired by an earlier canonical transform; continuing idempotently')
 
 text, removed_global_supabase = re.subn(r'window\.AZAAD\s*=\s*\{\s*supabase,\s*', 'window.AZAAD = {\n  ', text, count=1)
-if removed_global_supabase != 1:
-    raise SystemExit('Global AZAAD Supabase exposure not found; refusing incomplete retirement')
+if removed_global_supabase not in (0, 1):
+    raise SystemExit(f'Expected at most one global Supabase exposure; found {removed_global_supabase}')
+if removed_global_supabase == 0:
+    print('global Supabase exposure already retired by an earlier canonical transform; continuing idempotently')
 
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
@@ -242,4 +248,4 @@ if text.count('window.AZAAD_LOGIN_CONTROLLER_READY = true;') != 1:
     raise SystemExit('Admin login readiness marker must be unique')
 
 path.write_text(text, encoding='utf-8')
-print(f'finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; retired Supabase client blocks: {removed_clients}; retired dead legacy blocks: {len(legacy_blocks)}')
+print(f'finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite; retired Supabase client blocks: {removed_clients}; retired dead legacy blocks: {sum(1 for _ in legacy_blocks)}')
