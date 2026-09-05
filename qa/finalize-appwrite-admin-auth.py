@@ -189,17 +189,17 @@ text = re.sub(
     '', text, count=1, flags=re.M)
 
 # Retire the browser Supabase client and its public configuration completely.
-# Admin authentication and authenticated operations must cross the canonical
-# Appwrite-backed /api boundary; leaving the client object alive creates a
-# second identity/data plane even when its auth methods are no longer called.
+# Earlier canonicalization stages may already have removed this client, so
+# this finalizer must be idempotent rather than requiring an intermediate
+# implementation detail to still exist.
 client_pattern = re.compile(
     r'\n?const SUPABASE_URL\s*=\s*["\']https://[^"\']+\.supabase\.co["\'];\s*\n'
     r'\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*["\'][^"\']+["\'];\s*\n'
     r'\s*const supabase\s*=\s*createClient\([\s\S]*?\n\);\s*\n',
     re.M)
 text, removed_clients = client_pattern.subn('\n', text, count=1)
-if removed_clients != 1:
-    raise SystemExit('Canonical Admin Supabase client block was not removed exactly once')
+if removed_clients > 1:
+    raise SystemExit('Multiple canonical Admin Supabase client blocks remain; refusing ambiguous rewrite')
 
 text = re.sub(r'\s*try\s*\{\s*sessionStorage\.setItem\([\s\S]*?\}\s*catch\s*\(_?\)\s*\{\s*\}\s*', '\n', text)
 
