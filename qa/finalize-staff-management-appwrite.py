@@ -83,7 +83,19 @@ for name in ('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'STAFF_ADMIN_FUNCTION')
     text, removed = re.subn(rf'\bconst\s+{name}\s*=.*?;\s*', '', text, count=1, flags=re.S)
     if removed != 1: print(f'{name} declaration already removed; continuing idempotently')
 
-# The executable runtime, not historical comments, is the security boundary.
+# Mask comments before evaluating executable legacy markers.
+def mask_comments(src):
+    out=[]; i=0
+    while i < len(src):
+        c=src[i]; n=src[i+1] if i+1 < len(src) else ''
+        if c=='/' and n=='*':
+            end=src.find('*/', i+2); i=len(src) if end<0 else end+2; out.append(' '); continue
+        if c=='/' and n=='/':
+            end=src.find('\n', i+2); i=len(src) if end<0 else end; out.append('\n'); continue
+        out.append(c); i += 1
+    return ''.join(out)
+
+executable = mask_comments(text)
 checks = {
     'functions/v1/staff-admin': 'legacy staff-admin endpoint',
     'supabase.auth.': 'legacy Supabase auth runtime',
@@ -92,7 +104,7 @@ checks = {
     'createClient(': 'legacy Supabase client construction',
 }
 for marker, label in checks.items():
-    if marker in text:
+    if marker in executable:
         raise SystemExit(f'Legacy Supabase staff-management marker remains: {label}')
 
 path.write_text(text, encoding='utf-8')
