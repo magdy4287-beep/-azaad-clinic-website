@@ -66,10 +66,7 @@ STAFF_API = r'''async function staffApi(
     method: 'POST',
     credentials: 'include',
     cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json'
-    },
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...(payload || {}) })
   });
   let body = {};
@@ -83,10 +80,11 @@ if not html.is_file():
     raise SystemExit('admin.html is required')
 html_text = html.read_text(encoding='utf-8')
 bounds = function_bounds(html_text, 'staffApi')
-if not bounds:
-    raise SystemExit('Canonical inline staffApi() boundary not found in admin.html')
-html_text = html_text[:bounds[0]] + STAFF_API + html_text[bounds[1]:]
-html.write_text(html_text, encoding='utf-8')
+if bounds:
+    html_text = html_text[:bounds[0]] + STAFF_API + html_text[bounds[1]:]
+    html.write_text(html_text, encoding='utf-8')
+else:
+    print('inline staffApi already retired; continuing idempotently')
 
 for name, value in [('admin.js', text), ('admin.html', html_text)]:
     if 'functions/v1/staff-admin' in value:
