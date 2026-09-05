@@ -18,6 +18,16 @@ function cookieValue(request) {
   return match ? decodeURIComponent(match[1]) : '';
 }
 
+function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
+  // Production is HTTPS and therefore always receives Secure. The local
+  // immutable-artifact E2E runtime is intentionally HTTP on localhost, where
+  // Secure cookies are not sent by the browser. This preserves the production
+  // security boundary without making the local certification harness false.
+  const protocol = new URL(request.url).protocol;
+  const secure = protocol === 'https:';
+  return `${COOKIE}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax`;
+}
+
 async function appwriteRequest(path, options = {}) {
   const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
@@ -91,12 +101,12 @@ export default async function handler(request) {
       const result = await createSession(username, password);
       if (!result) return json({ error: 'invalid_credentials' }, 401, cors);
       const { session, staff } = result;
-      return json({ user: { id: session.userId, email: staff.email }, staff, session: { access_token: session.secret, user: { id: session.userId, email: staff.email } }, provider: 'appwrite' }, 200, { ...cors, 'set-cookie': `${COOKIE}=${encodeURIComponent(session.secret)}; Path=/; Max-Age=${SESSION_MAX_AGE}; HttpOnly; Secure; SameSite=Lax` });
+      return json({ user: { id: session.userId, email: staff.email }, staff, session: { access_token: session.secret, user: { id: session.userId, email: staff.email } }, provider: 'appwrite' }, 200, { ...cors, 'set-cookie': sessionCookie(request, session.secret) });
     }
     if (request.method === 'DELETE') {
       const secret = cookieValue(request);
       if (secret) await appwriteRequest('/account/sessions/current', { method: 'DELETE', headers: { 'X-Appwrite-Session': secret } }).catch(() => {});
-      return json({ ok: true }, 200, { ...cors, 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` });
+      return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
     }
     if (request.method === 'GET') {
       const identity = await verifySession(request);
