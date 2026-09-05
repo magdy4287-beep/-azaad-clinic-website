@@ -63,21 +63,31 @@ LOGOUT = r'''async function logout() {
 }'''
 
 RESTORE_STAFF = r'''async function restoreStaffProfile() {
+  const retryDelays = [0, 150, 350];
+  let lastStatus = null;
   try {
-    const response = await fetch('/api/admin-auth', {
-      method: 'GET',
-      credentials: 'include',
-      cache: 'no-store',
-      headers: { Accept: 'application/json' }
-    });
-    if (!response.ok) return false;
-    const result = await response.json();
-    if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || !result?.session?.access_token) return false;
-    if (result.staff.active === false) return false;
-    state.session = result.session;
-    state.user = result.user || result.session.user || null;
-    state.provider = 'appwrite';
-    return applyStaffRole(result.staff);
+    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+      if (retryDelays[attempt]) await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+      const response = await fetch('/api/admin-auth', {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
+      lastStatus = response.status;
+      if (response.ok) {
+        const result = await response.json();
+        if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || !result?.session?.access_token) return false;
+        if (result.staff.active === false) return false;
+        state.session = result.session;
+        state.user = result.user || result.session.user || null;
+        state.provider = 'appwrite';
+        return applyStaffRole(result.staff);
+      }
+      if (![401, 408, 429, 500, 502, 503, 504].includes(response.status)) return false;
+    }
+    console.warn('Appwrite session restore unavailable after bounded retries:', lastStatus);
+    return false;
   } catch (error) {
     console.warn('Appwrite session restore failed:', error);
     return false;
@@ -194,6 +204,8 @@ for legacy_auth in (
 
 if 'async function restoreStaffProfile()' not in text:
     raise SystemExit('Canonical Appwrite restoreStaffProfile() missing after transform')
+if 'retryDelays = [0, 150, 350]' not in text:
+    raise SystemExit('Bounded Appwrite restore retry contract missing')
 
 path.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite')
+print('finalize-appwrite-admin-auth.py completed Appwrite session boundary rewrite with bounded restore retry')
