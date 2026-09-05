@@ -20,14 +20,12 @@ LOGIN = r'''async function login(username, password) {
   if (redirectDoctorIfNeeded()) return;
   await initializeApplication();
 }'''
-
 LOGOUT = r'''async function logout() {
   try { await Promise.race([fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' }), new Promise(resolve => setTimeout(resolve, 2500))]); }
   catch (error) { console.warn('Appwrite logout request failed:', error); }
   state.session = null; state.user = null; state.staff = null; state.currentRole = null; state.permissions = new Set(); state.initialized = false; state.initializing = false;
   window.location.replace('/admin.html');
 }'''
-
 RESTORE = r'''async function restoreStaffProfile() {
   const retryDelays = [0, 150, 350]; let lastStatus = null;
   try {
@@ -47,7 +45,6 @@ RESTORE = r'''async function restoreStaffProfile() {
     console.warn('Appwrite session restore unavailable after bounded retries:', lastStatus); return false;
   } catch (error) { console.warn('Appwrite session restore failed:', error); return false; }
 }'''
-
 STARTUP = r'''document.addEventListener("DOMContentLoaded", async () => {
   bindLogin(); window.AZAAD_LOGIN_CONTROLLER_READY = true; bindLogout(); bindBookingFilters(); bindPatientPage();
   try { const validStaff = await restoreStaffProfile(); if (validStaff) await initializeApplication(); }
@@ -103,7 +100,6 @@ text = startup.sub(STARTUP, text, count=1)
 text = re.sub(r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];?\s*\n', '', text, count=1, flags=re.M)
 text = re.sub(r'\n?\s*const STAFF_LOGIN_FUNCTION\s*=\s*`[^`]*?/functions/v1/staff-login`;\s*\n?', '\n', text, count=1)
 
-# Remove createClient(...) by balanced parentheses; then remove every legacy SUPABASE_* const statement.
 clients = list(re.finditer(r'\b(?:const|let|var)\s+supabase\s*=\s*createClient\s*\(', text))
 if len(clients) > 1: raise SystemExit(f'Multiple Supabase clients remain: {len(clients)}')
 if clients:
@@ -132,7 +128,7 @@ if clients:
 
 
 def remove_const_statements(src):
-    pattern = re.compile(r'\b(?:const|let|var)\s+SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\s*=')
+    pattern = re.compile(r'\b(?:const|let|var)\s+SUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY|AUTH_STORAGE_KEY)\s*=')
     matches = list(pattern.finditer(src))
     for m in reversed(matches):
         i = m.end(); quote = None; esc = False; line = False; block = False
@@ -192,7 +188,7 @@ while i < len(text):
         masked.append(' '); continue
     masked.append(c); i+=1
 masked_text=''.join(masked)
-for pattern in (r'\bsupabase\s*\.', r'\b(?:const|let|var)\s+supabase\b', r'\bsupabase\s*=', r'[,{]\s*supabase\s*(?:[,}])', r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\b'):
+for pattern in (r'\bsupabase\s*\.', r'\b(?:const|let|var)\s+supabase\b', r'\bsupabase\s*=', r'[,{]\s*supabase\s*(?:[,}])', r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY|AUTH_STORAGE_KEY)\b'):
     if re.search(pattern, masked_text, re.I): raise SystemExit(f'Executable Supabase runtime reference remains in canonical Admin controller: {pattern}')
 
 if 'async function restoreStaffProfile()' not in text: raise SystemExit('Canonical Appwrite restoreStaffProfile() missing')
