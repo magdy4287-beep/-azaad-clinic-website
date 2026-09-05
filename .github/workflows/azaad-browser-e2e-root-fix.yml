@@ -23,12 +23,15 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 2
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Verify exact commit under test
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
       - name: Verify universal AZAAD database UUID contract
         shell: bash
@@ -122,13 +125,7 @@ jobs:
           }
           const users = Array.isArray(body.users) ? body.users : [];
           const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
-          console.log(JSON.stringify({
-            stage: 'appwrite_frontdesk_identity',
-            users_returned: users.length,
-            exact_email_matches: matches.length,
-            active_matches: matches.filter((u) => u?.status === true).length,
-            email_verified_matches: matches.filter((u) => u?.emailVerification === true).length
-          }));
+          console.log(JSON.stringify({ stage: 'appwrite_frontdesk_identity', users_returned: users.length, exact_email_matches: matches.length, active_matches: matches.filter((u) => u?.status === true).length, email_verified_matches: matches.filter((u) => u?.emailVerification === true).length }));
           NODE
 
       - name: Diagnose Frontdesk E2E secret shape without exposing the secret
@@ -139,21 +136,13 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           const value = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
-          console.log(JSON.stringify({
-            stage: 'frontdesk_e2e_secret_shape',
-            present: Boolean(value),
-            length: value.length,
-            min_length_8: value.length >= 8,
-            has_leading_whitespace: /^\s/.test(value),
-            has_trailing_whitespace: /\s$/.test(value),
-            contains_line_break: /[\r\n]/.test(value)
-          }));
+          console.log(JSON.stringify({ stage: 'frontdesk_e2e_secret_shape', present: Boolean(value), length: value.length, min_length_8: value.length >= 8, has_leading_whitespace: /^\s/.test(value), has_trailing_whitespace: /\s$/.test(value), contains_line_break: /[\r\n]/.test(value) }));
           NODE
 
       - name: Run Browser E2E against repaired canonical artifact
         env:
           AZAAD_BASE_URL: http://localhost:4173
-          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
+          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           AZAAD_TEST_USERNAME: frontdesk_azaad
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
@@ -164,8 +153,4 @@ jobs:
         run: |
           set -euo pipefail
           echo '=== AZAAD local API runtime log ==='
-          if test -f /tmp/azaad-http.log; then
-            cat /tmp/azaad-http.log
-          else
-            echo 'No local runtime log was produced.'
-          fi
+          if test -f /tmp/azaad-http.log; then cat /tmp/azaad-http.log; else echo 'No local runtime log was produced.'; fi
