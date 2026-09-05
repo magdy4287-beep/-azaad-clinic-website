@@ -18,10 +18,22 @@
   const displayTime = (value) => { const match = String(value || '').slice(0,5).match(/^(\d{1,2}):(\d{2})$/); if (!match) return escapeHTML(value || '-'); const h = Number(match[1]); return `${h % 12 || 12}:${match[2]} ${h < 12 ? 'ص' : 'م'}`; };
   const bookingDate = (booking) => String(booking?.appointment_date || '').slice(0,10);
   const bookings = () => Array.isArray(window.AZAAD?.state?.bookings) ? window.AZAAD.state.bookings : [];
-  const visible = () => { const p=$('calendar'); if (!p) return false; const s=getComputedStyle(p); return !p.hidden && s.display !== 'none' && s.visibility !== 'hidden'; };
-
+  const panelVisible = () => { const p=$('calendar'); if (!p) return false; const s=getComputedStyle(p); return !p.hidden && s.display !== 'none' && s.visibility !== 'hidden'; };
+  const ensureBody = () => {
+    const panel = $('calendar');
+    if (!panel) return null;
+    let body = $('calendarBody');
+    if (!body) {
+      body = document.createElement('div');
+      body.id = 'calendarBody';
+      body.className = 'empty';
+      body.textContent = '⏳ جاري تجهيز التقويم...';
+      panel.querySelector('.card')?.appendChild(body);
+    }
+    return body;
+  };
   const renderDay = (value) => {
-    const panel=$('calendar'), body=$('calendarBody'); if (!panel || !body) return;
+    const panel=$('calendar'), body=ensureBody(); if (!panel || !body) return;
     panel.dataset.selectedDate=value;
     const rows=bookings().filter(b=>bookingDate(b)===value).sort((a,b)=>String(a.appointment_time||'').localeCompare(String(b.appointment_time||'')));
     body.classList.remove('empty');
@@ -32,25 +44,18 @@
   };
   const render = () => { const p=$('calendar'); if (p) renderDay(p.dataset.selectedDate || iso(new Date())); };
   let timer=null, started=0, refreshQueued=false;
-  const queue=()=>{ if(!visible()||refreshQueued)return; refreshQueued=true; requestAnimationFrame(()=>{refreshQueued=false;render();}); };
-  const poll=()=>{ if(!visible()){if(timer)clearTimeout(timer);timer=null;return;} const s=window.AZAAD?.state; if(!s?.loadingBookings){if(timer)clearTimeout(timer);timer=null;render();return;} if(!started)started=performance.now(); if(performance.now()-started>=10000){if(timer)clearTimeout(timer);timer=null;render();return;} timer=setTimeout(poll,100); };
-
-  // Activation is the authoritative lifecycle signal. Rendering here closes the
-  // race where the registry loaded this module before the calendar panel existed
-  // or before the panel was made visible.
+  const queue=()=>{ if(!panelVisible()||refreshQueued)return; refreshQueued=true; requestAnimationFrame(()=>{refreshQueued=false;render();}); };
+  const poll=()=>{ if(!panelVisible()){if(timer)clearTimeout(timer);timer=null;return;} const s=window.AZAAD?.state; if(!s?.loadingBookings){if(timer)clearTimeout(timer);timer=null;render();return;} if(!started)started=performance.now(); if(performance.now()-started>=10000){if(timer)clearTimeout(timer);timer=null;render();return;} timer=setTimeout(poll,100); };
   window.addEventListener('azaad:admin-panel-activated', event => {
     if (event?.detail?.panel !== 'calendar') return;
     requestAnimationFrame(() => { render(); started=performance.now(); poll(); });
   });
-  window.addEventListener('azaad:admin-panel-ready', event => {
-    if (event?.detail?.panel === 'calendar') render();
-  });
+  window.addEventListener('azaad:admin-panel-ready', event => { if (event?.detail?.panel === 'calendar') render(); });
   window.addEventListener('azaad:admin-bookings-updated', () => { if(timer)clearTimeout(timer); timer=null; render(); });
-
   const observeDocument = new MutationObserver(() => {
-    const body=$('calendarBody');
-    if (!body || !visible()) return;
-    if (body.classList.contains('empty') && /جاري تجهيز التقويم/.test(body.textContent||'')) queue();
+    const body=ensureBody();
+    if (!body || !panelVisible()) return;
+    if (body.classList.contains('empty') || /جاري تجهيز التقويم/.test(body.textContent||'')) queue();
   });
   observeDocument.observe(document.body,{childList:true,subtree:true});
   window.AZAAD_ADMIN_CALENDAR=Object.freeze({render,refresh:render});

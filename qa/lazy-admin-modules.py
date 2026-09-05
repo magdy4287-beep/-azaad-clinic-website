@@ -15,11 +15,7 @@ LAZY = {
         "patient-financial-summary.js",
         "patient-clinical-history.js",
     ],
-    "doctors": [
-        "doctors-center-v2.js",
-        "doctor-staff-binding.js",
-        "doctor-staff-convert.js",
-    ],
+    "doctors": ["doctors-center-v2.js", "doctor-staff-binding.js", "doctor-staff-convert.js"],
     "services": ["services-center-v2.js"],
     "schedules": ["scheduling-v2.js"],
     "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
@@ -36,15 +32,12 @@ LEGACY_OR_CONTRACT = {
 }
 ALL_RUNTIME = {name for values in LAZY.values() for name in values} | set(CORE)
 
-
 def script_tag(name):
     return f'<script src="/{name}" defer data-azaad-admin-core="1"></script>'
 
-
 def main():
     path = Path("admin.html")
-    if not path.exists():
-        return
+    if not path.exists(): return
     text = path.read_text(encoding="utf-8")
     names_to_remove = ALL_RUNTIME | LEGACY_OR_CONTRACT
     for name in sorted(names_to_remove):
@@ -95,7 +88,10 @@ def main():
     loadedForPanel.add(key);
     for (const src of (groups[key] || [])) {{
       if (key !== 'calendar') await yieldToBrowser();
-      try {{ await load(src); }} catch (err) {{
+      try {{
+        await load(src);
+        if (key === 'calendar') window.AZAAD_ADMIN_CALENDAR?.render();
+      }} catch (err) {{
         console.error('[AZAAD_ADMIN_MODULE]', key, src, err);
         window.dispatchEvent(new CustomEvent('azaad:admin-module-error', {{ detail: {{ panel: key, src, error: err }} }}));
       }}
@@ -107,9 +103,7 @@ def main():
     if (key === 'calendar') {{ window.AZAAD_LOAD_ADMIN_PANEL(key); return; }}
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
-  window.addEventListener('azaad:admin-authenticated', () => {{
-    void window.AZAAD_LOAD_ADMIN_PANEL('calendar');
-  }}, {{ once: true }});
+  window.addEventListener('azaad:admin-authenticated', () => {{ void window.AZAAD_LOAD_ADMIN_PANEL('calendar'); }}, {{ once: true }});
   window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
 }})();
 </script>
@@ -118,7 +112,6 @@ def main():
     text = text.replace("</body>", payload + "\n</body>", 1)
     path.write_text(text, encoding="utf-8")
     print("lazy-admin-modules.py completed successfully")
-
 
 if __name__ == "__main__":
     main()
