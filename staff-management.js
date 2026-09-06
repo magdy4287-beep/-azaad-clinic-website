@@ -72,14 +72,16 @@
   }
 
   async function createStaff() {
-    if (!MANAGEMENT_ROLES.has(role())) { show('غير مصرح بإضافة موظف.'); return; }
+    const currentRole = role();
+    if (!MANAGEMENT_ROLES.has(currentRole)) { show('غير مصرح بإضافة موظف.'); return; }
     const full_name=window.prompt('اسم الموظف'); if(!full_name)return; const email=window.prompt('البريد الإلكتروني'); if(!email)return; const password=window.prompt('كلمة المرور المؤقتة'); if(!password)return; const selected=window.prompt(`الوظيفة (${ROLES.join(', ')})`,'RECEPTION'); const staffRole=ROLES.includes(String(selected||'').toUpperCase())?String(selected).toUpperCase():'RECEPTION';
-    try { await api('create',{full_name,email,password,role:staffRole}); await load(); } catch(error) { show(error.message||'تعذر إنشاء الموظف'); }
+    try { await api('create',{full_name,email,password,role:staffRole,staff_id:undefined}); await load(); } catch(error) { show(error.message||'تعذر إنشاء الموظف'); }
   }
 
   async function initialize() {
     if(state.initialized || !panel()) return;
-    const currentRole=role();
+    const currentRole = role();
+    if (!currentRole) return;
     if(!MANAGEMENT_ROLES.has(currentRole)) return;
     state.initialized=true;
     await load();
@@ -87,5 +89,5 @@
 
   window.AZAAD_STAFF_MANAGEMENT_CANONICAL=Object.freeze({provider:'appwrite-neon',initialize,load});
   window.addEventListener('azaad:admin-panel-activated',event=>{if(event.detail?.panel==='staff')void initialize();});
-  window.addEventListener('azaad:admin-role-ready',()=>{void initialize();});
+  window.addEventListener('azaad:admin-role-ready',()=>{if(panel() && document.getElementById('staffManagementCenter'))void initialize();});
 })();
