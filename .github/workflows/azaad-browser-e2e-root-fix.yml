@@ -103,13 +103,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          served="$(curl -fsS http://127.0.0.1:4173/staff-management.js?azaad_boundary=1)"
-          printf '%s' "$served" | grep -Fq "fetch('/api/staff-admin'"
-          ! printf '%s' "$served" | grep -Fq "supabase.co/functions/v1/staff-admin"
-          ! printf '%s' "$served" | grep -Fq "createSupabaseClient"
-          ! printf '%s' "$served" | grep -Fq "SUPABASE_PUBLISHABLE_KEY"
-          ! printf '%s' "$served" | grep -Fq "STAFF_ADMIN_FUNCTION"
-          ! printf '%s' "$served" | grep -Fq "waitForSupabase"
+          curl -fsS 'http://127.0.0.1:4173/staff-management.js?azaad_boundary=1' -o /tmp/served-staff-management.js
+          test -s /tmp/served-staff-management.js
+          grep -Fq "fetch('/api/staff-admin'" /tmp/served-staff-management.js
+          ! grep -Fq "supabase.co/functions/v1/staff-admin" /tmp/served-staff-management.js
+          ! grep -Fq "createSupabaseClient" /tmp/served-staff-management.js
+          ! grep -Fq "SUPABASE_PUBLISHABLE_KEY" /tmp/served-staff-management.js
+          ! grep -Fq "STAFF_ADMIN_FUNCTION" /tmp/served-staff-management.js
+          ! grep -Fq "waitForSupabase" /tmp/served-staff-management.js
           echo 'Served staff-management artifact boundary: PASS'
 
       - name: Diagnose Appwrite frontdesk identity without exposing credentials
