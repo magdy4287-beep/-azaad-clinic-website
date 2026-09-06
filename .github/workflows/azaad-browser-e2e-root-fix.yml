@@ -7,6 +7,7 @@ on:
       - 'admin.js'
       - 'admin-enterprise-centers.js'
       - 'doctor-staff-binding.js'
+      - 'api/**'
       - 'qa/**'
       - '.github/workflows/azaad-browser-e2e-root-fix.yml'
       - '.github/patch-admin.py'
@@ -138,6 +139,42 @@ jobs:
           const users = Array.isArray(body.users) ? body.users : [];
           const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
           console.log(JSON.stringify({ stage: 'appwrite_frontdesk_identity', users_returned: users.length, exact_email_matches: matches.length, active_matches: matches.filter((u) => u?.status === true).length, email_verified_matches: matches.filter((u) => u?.emailVerification === true).length }));
+          NODE
+      - name: Diagnose direct Appwrite session cookie validity without exposing credentials
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const project = process.env.APPWRITE_PROJECT_ID;
+          const apiKey = process.env.APPWRITE_API_KEY;
+          const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          const staffEmail = 'frontdesk@azaad.local';
+          const login = await fetch(`${endpoint}/account/sessions/email`, {
+            method: 'POST',
+            headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ email: staffEmail, password })
+          });
+          const loginText = await login.text();
+          let session = {};
+          try { session = loginText ? JSON.parse(loginText) : {}; } catch (_) {}
+          if (!login.ok || !session?.secret || !session?.userId) {
+            console.log(JSON.stringify({ stage: 'appwrite_direct_session_create', status: login.status, type: session.type || null, code: session.code || null, has_secret: Boolean(session.secret), has_user_id: Boolean(session.userId) }));
+            process.exit(1);
+          }
+          const cookie = `a_session_${project}=${session.secret}; a_session_${project}_legacy=${session.secret}`;
+          const account = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, Accept: 'application/json', Cookie: cookie } });
+          const accountText = await account.text();
+          let accountBody = {};
+          try { accountBody = accountText ? JSON.parse(accountText) : {}; } catch (_) {}
+          console.log(JSON.stringify({ stage: 'appwrite_direct_session_account', create_status: login.status, account_status: account.status, account_type: accountBody.type || null, account_code: accountBody.code || null, session_user_id_present: Boolean(session.userId), account_user_id_present: Boolean(accountBody.$id) }));
+          await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Accept: 'application/json', Cookie: cookie } }).catch(() => {});
+          if (!account.ok) process.exit(1);
           NODE
       - name: Diagnose Frontdesk E2E secret shape without exposing the secret
         env:
