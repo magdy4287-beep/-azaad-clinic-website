@@ -6,6 +6,7 @@ on:
     paths:
       - 'admin.js'
       - 'admin-enterprise-centers.js'
+      - 'doctor-staff-binding.js'
       - 'qa/**'
       - '.github/workflows/azaad-browser-e2e-root-fix.yml'
       - '.github/patch-admin.py'
