@@ -6,6 +6,7 @@ root = Path(__file__).resolve().parents[1]
 auth = (root / 'api/admin-auth.js').read_text(encoding='utf-8')
 appointments = (root / 'api/admin-appointments.js').read_text(encoding='utf-8')
 transform = (root / 'qa/finalize-appwrite-admin-auth.py').read_text(encoding='utf-8')
+final_restore = (root / 'qa/final-admin-restore-boundary.py').read_text(encoding='utf-8')
 build = (root / 'qa/vercel-build.py').read_text(encoding='utf-8')
 
 parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and bool(re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth))
@@ -30,7 +31,7 @@ checks = [
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical build applies Appwrite auth transform', 'finalize-appwrite-admin-auth.py' in build),
     ('Canonical transform contains retired staff-login endpoint assertion', 'functions/v1/staff-login' in transform and 'raise SystemExit' in transform and 'Legacy staff-login' in transform),
-    ('Canonical transform does not require a browser access token', '!result?.session?.access_token' not in transform and 'session.access_token' not in transform),
+    ('Final canonical Admin artifact strips browser access-token requirements', '!result?.session?.access_token' in final_restore and 'session.access_token' in final_restore and 'cookie-only' in final_restore),
     ('Appwrite API key is not embedded in frontend transform', 'APPWRITE_API_KEY' not in transform),
 ]
 
