@@ -20,11 +20,10 @@ for panel in PANELS:
     for match in reversed(matches[1:]):
         text = text[:match.start()] + text[match.end():]
 
-# Backend authorization remains authoritative; non-management roles must not be
-# offered the staff-management surface in the browser. Use CSS against the
-# canonical body[data-role] marker already owned by admin.js, with an unquoted
-# attribute value so the ownership contract still sees exactly one HTML leaf.
-ROLE_GATED_STYLE = '''\n<style id="azaad-role-navigation-gate">\nbody[data-role="SECRETARY"],\nbody[data-role="RECEPTION"],\nbody[data-role="CASHIER"],\nbody[data-role="DOCTOR"],\nbody[data-role="MARKETING"] { }\nbody[data-role="SECRETARY"] :is(.tab[data-panel=staff], #staff),\nbody[data-role="RECEPTION"] :is(.tab[data-panel=staff], #staff),\nbody[data-role="CASHIER"] :is(.tab[data-panel=staff], #staff),\nbody[data-role="DOCTOR"] :is(.tab[data-panel=staff], #staff),\nbody[data-role="MARKETING"] :is(.tab[data-panel=staff], #staff) { display:none !important; }\n</style>\n'''
+# Backend authorization remains authoritative. The staff-management surface is
+# fail-closed until a management role is positively established by admin.js.
+# This prevents pre-auth/runtime races from ever invoking /api/staff-admin.
+ROLE_GATED_STYLE = '''\n<style id="azaad-role-navigation-gate">\nbody:not([data-role="OWNER"]):not([data-role="ADMIN"]):not([data-role="MANAGER"]) :is(.tab[data-panel=staff], #staff) { display:none !important; }\n</style>\n'''
 if 'id="azaad-role-navigation-gate"' in text:
     text = re.sub(r'\n?<style id="azaad-role-navigation-gate">.*?</style>\n?', '\n', text, count=1, flags=re.I | re.S)
 marker = re.search(r'</head>', text, re.I)
@@ -41,4 +40,4 @@ if 'id="azaad-role-navigation-gate"' not in text:
     raise SystemExit("Role navigation gate missing")
 
 path.write_text(text, encoding="utf-8")
-print("[AZAAD navigation ownership] PASS: one canonical navigation leaf per panel + role-gated staff surface")
+print("[AZAAD navigation ownership] PASS: one canonical navigation leaf per panel + fail-closed role-gated staff surface")
