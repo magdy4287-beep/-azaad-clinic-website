@@ -1,10 +1,10 @@
 /* AZAAD Front Desk Check-in Workflow
  * Canonical runtime: Appwrite HttpOnly session -> Vercel API -> Neon.
- * This browser module never talks directly to Supabase or exposes database credentials.
+ * This browser module never talks directly to a retired database provider or exposes database credentials.
  */
 (() => {
   'use strict';
-  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const esc = v => String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
   async function checkIn(bookingId, notes = '') {
     if (!bookingId) throw new Error('Booking ID is required.');
     const r = await fetch('/api/frontdesk-checkin', {
