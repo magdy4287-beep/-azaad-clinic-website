@@ -22,14 +22,14 @@ async function appwriteAccount(secret) {
   const apiKey = String(process.env.APPWRITE_API_KEY || '').trim();
   if (!endpoint || !project || !apiKey || !secret) return null;
   const response = await fetch(`${endpoint}/account`, {
-    headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'X-Appwrite-Session': secret, accept: 'application/json' },
+    headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, accept: 'application/json' },
   });
   if (!response.ok) return null;
   return response.json();
 }
 
 async function authorize(request, sql) {
-  const user = await appwriteAccount(request.headers.get('x-azaad-appwrite-session') || cookieValue(request));
+  const user = await appwriteAccount(cookieValue(request));
   if (!user?.$id) return null;
   const rows = await sql`
     select id, auth_user_id, role, active
