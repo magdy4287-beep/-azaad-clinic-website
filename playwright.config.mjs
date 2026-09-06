@@ -14,6 +14,7 @@ export default defineConfig({
     video: 'off',
     actionTimeout: 15000,
     navigationTimeout: 30000,
+    serviceWorkers: 'block',
   },
   expect: { timeout: 60000 },
 });
