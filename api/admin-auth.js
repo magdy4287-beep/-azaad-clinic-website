@@ -59,32 +59,23 @@ async function resolveStaff(username) {
   return rows[0] || null;
 }
 
-async function diagnoseStaffLookupMiss() {
+async function databaseFingerprint() {
+  const databaseUrl = String(process.env.DATABASE_URL || '').trim();
+  if (!databaseUrl) return { configured: false };
   try {
-    const databaseUrl = String(process.env.DATABASE_URL || '').trim();
-    if (!databaseUrl) return { databaseConfigured: false };
     const sql = neon(databaseUrl);
-    const identity = await sql`select current_database() as database_name, current_schema() as schema_name`;
-    const table = await sql`select to_regclass('public.clinic_staff') as clinic_staff_table`;
-    const count = table[0]?.clinic_staff_table
-      ? await sql`select count(*)::int as active_frontdesk_count from public.clinic_staff where username = 'frontdesk_azaad' and active = true`
-      : [{ active_frontdesk_count: 0 }];
-    return {
-      databaseConfigured: true,
-      databaseName: identity[0]?.database_name || null,
-      schemaName: identity[0]?.schema_name || null,
-      clinicStaffTablePresent: Boolean(table[0]?.clinic_staff_table),
-      activeFrontdeskCount: count[0]?.active_frontdesk_count ?? 0
-    };
-  } catch (error) {
-    return { databaseConfigured: true, diagnosticError: error?.name || 'unknown' };
+    const rows = await sql`select current_database() as db, current_schema() as schema, to_regclass('public.clinic_staff') as clinic_staff_table`;
+    const row = rows[0] || {};
+    return { configured: true, db: row.db || null, schema: row.schema || null, clinicStaffTable: Boolean(row.clinic_staff_table) };
+  } catch (_) {
+    return { configured: true, queryOk: false };
   }
 }
 
 async function createSession(username, password) {
   const staff = await resolveStaff(username);
   if (!staff?.email) {
-    console.warn('admin-auth login rejected before Appwrite session creation', { stage: 'staff_lookup', staffFound: Boolean(staff), emailPresent: Boolean(staff?.email), ...(await diagnoseStaffLookupMiss()) });
+    console.warn('admin-auth login rejected before Appwrite session creation', { stage: 'staff_lookup', staffFound: Boolean(staff), emailPresent: Boolean(staff?.email), database: await databaseFingerprint() });
     return null;
   }
   const response = await appwriteRequest('/account/sessions/email', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: staff.email, password }) });
