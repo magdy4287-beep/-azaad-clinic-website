@@ -25,7 +25,7 @@ function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
 }
 
 async function appwriteRequest(path, options = {}) {
-  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\\/$/, '');
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
   const apiKey = String(process.env.APPWRITE_API_KEY || '').trim();
   if (!endpoint || !project || !apiKey) throw new Error('APPWRITE_RUNTIME_NOT_CONFIGURED');
@@ -33,7 +33,7 @@ async function appwriteRequest(path, options = {}) {
 }
 
 async function appwriteAccount(secret) {
-  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\\/$/, '');
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
   if (!endpoint || !project || !secret) return null;
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
@@ -126,7 +126,7 @@ export default async function handler(request) {
       const secret = cookieValue(request);
       if (secret) {
         const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
-        const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\\/$/, '');
+        const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
         if (project && endpoint) await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}` } }).catch(() => {});
       }
       return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
