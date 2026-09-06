@@ -27,9 +27,9 @@ for pattern, label in legacy_patterns:
     if re.search(pattern, text):
         raise SystemExit(f'FAIL-CLOSED: {label} remains in final staff-management.js')
 
-if "fetch('/api/staff-admin'" not in text:
+if not re.search(r"fetch\(\s*['\"]/api/staff-admin['\"]", text):
     raise SystemExit('FAIL-CLOSED: canonical /api/staff-admin boundary is missing from final staff-management.js')
-if "credentials: 'include'" not in text:
+if not re.search(r"credentials\s*:\s*['\"]include['\"]", text):
     raise SystemExit('FAIL-CLOSED: HttpOnly browser credential forwarding is missing from final staff-management.js')
 
 print('[AZAAD final staff boundary] PASS: staff-management.js is Appwrite/HttpOnly + Neon API only')
