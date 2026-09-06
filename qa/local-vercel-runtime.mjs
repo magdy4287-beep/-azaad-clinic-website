@@ -29,6 +29,7 @@ async function invokeApi(req,res,pathname){
   const request=new Request(`${origin}${req.url}`,{method:req.method,headers,body:req.method==='GET'||req.method==='HEAD'?undefined:body});
   const module=await import(pathToFileURL(file).href+`?t=${Date.now()}`);
   const response=await module.default(request);
+  console.log(JSON.stringify({stage:'local_api_boundary',path:pathname,method:req.method,status:response.status,cookieHeaderPresent:Boolean(req.headers.cookie),cookieHeaderLength:String(req.headers.cookie||'').length}));
   res.statusCode=response.status;
   response.headers.forEach((value,key)=>res.setHeader(key,value));
   const bytes=new Uint8Array(await response.arrayBuffer());
