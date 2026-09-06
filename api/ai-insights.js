@@ -22,7 +22,12 @@ async function appwriteAccount(secret) {
   const apiKey = String(process.env.APPWRITE_API_KEY || '').trim();
   if (!endpoint || !project || !apiKey || !secret) return null;
   const response = await fetch(`${endpoint}/account`, {
-    headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, accept: 'application/json' },
+    headers: {
+      'X-Appwrite-Project': project,
+      'X-Appwrite-Key': apiKey,
+      Cookie: `a_session_${project}=${secret}`,
+      accept: 'application/json',
+    },
   });
   if (!response.ok) return null;
   return response.json();
