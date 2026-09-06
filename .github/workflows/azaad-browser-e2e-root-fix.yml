@@ -65,6 +65,24 @@ jobs:
           node --check admin.js
           node --check admin-enterprise-centers.js
 
+      - name: Root scan executable surfaces for retired staff-admin runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          matches=$(grep -RIl --exclude-dir=.git --exclude-dir=node_modules --include='*.js' --include='*.html' 'supabase.co/functions/v1/staff-admin' . || true)
+          if test -n "$matches"; then
+            echo 'FAIL-CLOSED: legacy staff-admin URL remains in executable build surfaces:'
+            printf '%s\n' "$matches"
+            while IFS= read -r file; do
+              test -n "$file" || continue
+              echo "--- $file ---"
+              grep -nF 'supabase.co/functions/v1/staff-admin' "$file" || true
+            done <<< "$matches"
+            exit 1
+          fi
+          echo 'Root executable staff-admin provenance scan: PASS'
+
       - name: Verify final restore boundary is top-level and unique
         shell: bash
         run: |
