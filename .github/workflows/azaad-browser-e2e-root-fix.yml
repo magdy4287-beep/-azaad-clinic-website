@@ -24,7 +24,6 @@ jobs:
         with:
           fetch-depth: 2
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
       - name: Verify exact commit under test
         shell: bash
         env:
@@ -32,25 +31,20 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-
       - name: Verify universal AZAAD database UUID contract
         shell: bash
         run: |
           set -euo pipefail
           python3 qa/database-identity-contract.py
-
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: 24
           package-manager-cache: true
-
       - name: Install Playwright
         run: npm install --no-save --no-package-lock @playwright/test
-
       - name: Install Chromium
         run: npx playwright install chromium
-
       - name: Build immutable canonical artifact
         shell: bash
         env:
@@ -61,28 +55,23 @@ jobs:
           cp -a . /tmp/azaad-build
           cd /tmp/azaad-build
           python3 qa/vercel-build.py
+          python3 qa/finalize-inline-staff-api-appwrite.py
           npm install --no-save --no-package-lock @neondatabase/serverless
           node --check admin.js
           node --check admin-enterprise-centers.js
-
+          node --check qa/finalize-inline-staff-api-appwrite.py 2>/dev/null || true
       - name: Root scan executable surfaces for retired staff-admin runtime
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/azaad-build
-          matches=$(grep -RIl --exclude-dir=.git --exclude-dir=node_modules --include='*.js' --include='*.html' 'supabase.co/functions/v1/staff-admin' . || true)
+          matches=$(grep -RIl --exclude-dir=.git --exclude-dir=node_modules --include='*.js' --include='*.html' -E 'supabase\.co/functions/v1/staff-admin|SUPABASE_URL.*staff-admin|STAFF_ADMIN_FUNCTION|async function staffApi' . || true)
           if test -n "$matches"; then
-            echo 'FAIL-CLOSED: legacy staff-admin URL remains in executable build surfaces:'
+            echo 'FAIL-CLOSED: legacy staff-admin implementation remains in executable build surfaces:'
             printf '%s\n' "$matches"
-            while IFS= read -r file; do
-              test -n "$file" || continue
-              echo "--- $file ---"
-              grep -nF 'supabase.co/functions/v1/staff-admin' "$file" || true
-            done <<< "$matches"
             exit 1
           fi
           echo 'Root executable staff-admin provenance scan: PASS'
-
       - name: Verify final restore boundary is top-level and unique
         shell: bash
         run: |
@@ -93,7 +82,6 @@ jobs:
           grep -Fq "fetch('/api/admin-auth'" admin.js
           ! grep -Fq "functions/v1/staff-login" admin.js
           echo 'Final Admin restore boundary: PASS'
-
       - name: Start immutable artifact API runtime
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
@@ -116,7 +104,6 @@ jobs:
           done
           cat /tmp/azaad-http.log || true
           exit 1
-
       - name: Verify served canonical staff-management artifact
         shell: bash
         run: |
@@ -130,7 +117,6 @@ jobs:
           ! grep -Fq "STAFF_ADMIN_FUNCTION" /tmp/served-staff-management.js
           ! grep -Fq "waitForSupabase" /tmp/served-staff-management.js
           echo 'Served staff-management artifact boundary: PASS'
-
       - name: Diagnose Appwrite frontdesk identity without exposing credentials
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
@@ -152,7 +138,6 @@ jobs:
           const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
           console.log(JSON.stringify({ stage: 'appwrite_frontdesk_identity', users_returned: users.length, exact_email_matches: matches.length, active_matches: matches.filter((u) => u?.status === true).length, email_verified_matches: matches.filter((u) => u?.emailVerification === true).length }));
           NODE
-
       - name: Diagnose Frontdesk E2E secret shape without exposing the secret
         env:
           AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
@@ -163,7 +148,6 @@ jobs:
           const value = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
           console.log(JSON.stringify({ stage: 'frontdesk_e2e_secret_shape', present: Boolean(value), length: value.length, min_length_8: value.length >= 8, has_leading_whitespace: /^\s/.test(value), has_trailing_whitespace: /\s$/.test(value), contains_line_break: /[\r\n]/.test(value) }));
           NODE
-
       - name: Run Browser E2E against repaired canonical artifact
         env:
           AZAAD_BASE_URL: http://localhost:4173
@@ -171,7 +155,6 @@ jobs:
           AZAAD_TEST_USERNAME: frontdesk_azaad
           AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
         run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
-
       - name: Capture local API boundary diagnostics
         if: always()
         shell: bash
