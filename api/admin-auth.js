@@ -70,7 +70,9 @@ async function createSession(username, password) {
 }
 
 async function verifySession(request) {
-  const secret = request.headers.get('x-azaad-appwrite-session') || cookieValue(request);
+  // The Appwrite session secret is accepted only from the server-managed
+  // HttpOnly cookie. No browser-supplied custom session header is trusted.
+  const secret = cookieValue(request);
   const user = await appwriteAccount(secret);
   if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
@@ -81,12 +83,12 @@ async function verifySession(request) {
     from public.clinic_staff where auth_user_id = ${user.$id} and active = true limit 1
   `;
   const staff = rows[0] || null;
-  return staff ? { user, staff, secret } : null;
+  return staff ? { user, staff } : null;
 }
 
 export default async function handler(request) {
   const cors = corsHeaders(request.headers.get('origin'));
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-azaad-appwrite-session' } });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type' } });
   try {
     if (request.method === 'POST') {
       const body = await request.json().catch(() => ({}));
@@ -96,7 +98,7 @@ export default async function handler(request) {
       const result = await createSession(username, password);
       if (!result) return json({ error: 'invalid_credentials' }, 401, cors);
       const { session, staff } = result;
-      return json({ user: { id: session.userId, email: staff.email }, staff, session: { access_token: session.secret, user: { id: session.userId, email: staff.email } }, provider: 'appwrite' }, 200, { ...cors, 'set-cookie': sessionCookie(request, session.secret) });
+      return json({ authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff }, 200, { ...cors, 'set-cookie': sessionCookie(request, session.secret) });
     }
     if (request.method === 'DELETE') {
       const secret = cookieValue(request);
@@ -110,7 +112,7 @@ export default async function handler(request) {
     if (request.method === 'GET') {
       const identity = await verifySession(request);
       if (!identity) return json({ authenticated: false }, 401, cors);
-      return json({ authenticated: true, provider: 'appwrite', user: { id: identity.user.$id, email: identity.user.email }, staff: identity.staff, session: { access_token: identity.secret, user: { id: identity.user.$id, email: identity.user.email } } }, 200, cors);
+      return json({ authenticated: true, provider: 'appwrite', user: { id: identity.user.$id, email: identity.user.email }, staff: identity.staff }, 200, cors);
     }
     return json({ error: 'method_not_allowed' }, 405, cors);
   } catch (error) {
