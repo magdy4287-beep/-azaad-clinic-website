@@ -140,6 +140,56 @@ jobs:
           const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
           console.log(JSON.stringify({ stage: 'appwrite_frontdesk_identity', users_returned: users.length, exact_email_matches: matches.length, active_matches: matches.filter((u) => u?.status === true).length, email_verified_matches: matches.filter((u) => u?.emailVerification === true).length }));
           NODE
+      - name: Ensure controlled E2E Appwrite identity matches Neon binding
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const project = process.env.APPWRITE_PROJECT_ID;
+          const apiKey = process.env.APPWRITE_API_KEY;
+          const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          const userId = '48447514-6620-4784-9bb3-cca67f529d27';
+          const email = 'frontdesk@azaad.local';
+          if (password.length < 8 || /[\r\n]/.test(password)) {
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'invalid_secret_shape', length: password.length }));
+            process.exit(1);
+          }
+          const headers = { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' };
+          const existing = await fetch(`${endpoint}/users/${encodeURIComponent(userId)}`, { headers });
+          if (existing.ok) {
+            const body = await existing.json();
+            if (body.email !== email) {
+              console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'id_collision', email_matches: false }));
+              process.exit(1);
+            }
+            const update = await fetch(`${endpoint}/users/${encodeURIComponent(userId)}/password`, { method: 'PATCH', headers, body: JSON.stringify({ password }) });
+            if (!update.ok) {
+              console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'password_sync_failed', http_status: update.status }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'existing_identity_synced', id_matches: true, email_matches: true }));
+            process.exit(0);
+          }
+          if (existing.status !== 404) {
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'identity_lookup_failed', http_status: existing.status }));
+            process.exit(1);
+          }
+          const create = await fetch(`${endpoint}/users`, { method: 'POST', headers, body: JSON.stringify({ userId, email, password, name: 'AZAAD Frontdesk E2E' }) });
+          const createText = await create.text();
+          let createBody = {};
+          try { createBody = createText ? JSON.parse(createText) : {}; } catch (_) {}
+          if (!create.ok) {
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'create_failed', http_status: create.status, type: createBody.type || null, code: createBody.code || null }));
+            process.exit(1);
+          }
+          console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'created', id_matches: createBody.$id === userId, email_matches: createBody.email === email }));
+          NODE
       - name: Diagnose direct Appwrite session cookie validity without exposing credentials
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
