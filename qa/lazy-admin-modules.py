@@ -19,7 +19,7 @@ LAZY = {
     "services": ["services-center-v2.js"],
     "schedules": ["scheduling-v2.js"],
     "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
-    "staff": ["staff-management.js", "patient-merge-tool.js", "hr-performance-analytics.js"],
+    "staff": ["staff-management.js"],
     "settings": [],
     "calendar": ["admin-calendar-center.js"],
 }
@@ -29,6 +29,7 @@ LEGACY_OR_CONTRACT = {
     "scheduling-actions-contract.js", "scheduling-v2-waiting.js", "admin-nextgen-fixes.js", "admin-nextgen-v2.js",
     "finance-executive-dashboard.js", "finance-executive-loader.js",
     "finance-executive-annual-monthly.js", "finance-executive-period-loader.js",
+    "patient-merge-tool.js", "hr-performance-analytics.js",
 }
 ALL_RUNTIME = {name for values in LAZY.values() for name in values} | set(CORE)
 
