@@ -18,13 +18,14 @@ async function appwriteAccount(secret) {
   if (!endpoint || !project || !secret) return null;
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
   const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie } });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    console.warn('admin-appointments Appwrite session verification rejected', { status: response.status, cookiePresent: true, cookieLength: secret.length });
+    return null;
+  }
   return response.json();
 }
 
 async function authorize(request) {
-  // Only the server-managed HttpOnly cookie is trusted. Browser-supplied
-  // Appwrite session headers are intentionally rejected.
   const secret = cookieValue(request);
   const user = await appwriteAccount(secret);
   if (!user?.$id) return null;
