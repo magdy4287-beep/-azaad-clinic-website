@@ -24,6 +24,13 @@ function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
   return `${COOKIE}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax`;
 }
 
+function appwriteSessionCookieValue(response, project) {
+  const raw = response.headers.get('set-cookie') || '';
+  const escapedProject = project.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = raw.match(new RegExp(`(?:^|,\\s*)a_session_${escapedProject}=([^;,]+)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
 async function appwriteRequest(path, options = {}) {
   const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
@@ -32,11 +39,11 @@ async function appwriteRequest(path, options = {}) {
   return fetch(`${endpoint}${path}`, { ...options, headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, accept: 'application/json', ...(options.headers || {}) } });
 }
 
-async function appwriteAccount(secret) {
+async function appwriteAccount(cookie) {
   const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
-  if (!endpoint || !project || !secret) return null;
-  const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}` } });
+  if (!endpoint || !project || !cookie) return null;
+  const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${cookie}` } });
   if (!response.ok) return null;
   return response.json();
 }
@@ -62,18 +69,20 @@ async function createSession(username, password) {
   if (!response.ok) return null;
   const session = await response.json();
   const parity = Boolean(session?.userId && staff.auth_user_id && session.userId === staff.auth_user_id);
-  if (!session?.userId || !session?.secret || !parity) {
+  const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
+  const appwriteCookie = appwriteSessionCookieValue(response, project);
+  if (!session?.userId || !session?.secret || !parity || !appwriteCookie) {
     if (session?.secret) await appwriteRequest(`/account/sessions/${encodeURIComponent(session.$id || 'current')}`, { method: 'DELETE' }).catch(() => {});
     return null;
   }
-  return { session, staff };
+  return { appwriteCookie, staff, session };
 }
 
 async function verifySession(request) {
-  // The Appwrite session secret is accepted only from the server-managed
-  // HttpOnly cookie. No browser-supplied custom session header is trusted.
-  const secret = cookieValue(request);
-  const user = await appwriteAccount(secret);
+  // The exact Appwrite account-session cookie is accepted only from the
+  // server-managed HttpOnly cookie. No browser-supplied custom session header is trusted.
+  const cookie = cookieValue(request);
+  const user = await appwriteAccount(cookie);
   if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
   if (!databaseUrl) return null;
@@ -97,15 +106,15 @@ export default async function handler(request) {
       if (!username || !password) return json({ error: 'credentials_required' }, 400, cors);
       const result = await createSession(username, password);
       if (!result) return json({ error: 'invalid_credentials' }, 401, cors);
-      const { session, staff } = result;
-      return json({ authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff }, 200, { ...cors, 'set-cookie': sessionCookie(request, session.secret) });
+      const { appwriteCookie, staff, session } = result;
+      return json({ authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff }, 200, { ...cors, 'set-cookie': sessionCookie(request, appwriteCookie) });
     }
     if (request.method === 'DELETE') {
-      const secret = cookieValue(request);
-      if (secret) {
+      const cookie = cookieValue(request);
+      if (cookie) {
         const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
         const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-        if (project && endpoint) await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Cookie: `a_session_${project}=${secret}` } }).catch(() => {});
+        if (project && endpoint) await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Cookie: `a_session_${project}=${cookie}` } }).catch(() => {});
       }
       return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
     }
