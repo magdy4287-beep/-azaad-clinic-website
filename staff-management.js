@@ -100,12 +100,14 @@
     if (state.initialized) return;
     if (!panel()) return;
     const currentRole = role();
-    if (currentRole && !['OWNER','ADMIN','MANAGER'].includes(currentRole)) return;
+    // Fail closed: an unresolved role is never permission to probe the staff API.
+    if (!currentRole) return;
+    if (!['OWNER','ADMIN','MANAGER'].includes(currentRole)) return;
     state.initialized = true;
     await load();
   }
 
   window.AZAAD_STAFF_MANAGEMENT_CANONICAL = Object.freeze({ provider:'appwrite-neon', initialize, load });
   window.addEventListener('azaad:admin-panel-activated', event => { if (event.detail?.panel === 'staff') void initialize(); });
-  window.addEventListener('azaad:admin-role-ready', () => { if (document.getElementById('staffManagementCenter')) void load(); });
+  window.addEventListener('azaad:admin-role-ready', () => { void initialize(); });
 })();
