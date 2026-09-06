@@ -26,15 +26,22 @@ async function appwriteAccount(secret) {
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
   const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie } });
   if (!response.ok) {
-    console.warn('staff-admin Appwrite session verification rejected', { status: response.status, cookiePresent: true, cookieLength: secret.length });
+    console.warn('staff-admin Appwrite session verification rejected', { stage: 'appwrite_account', status: response.status, cookiePresent: true, cookieLength: secret.length });
     return null;
   }
   return response.json();
 }
 async function authorize(request) {
   const secret = cookieValue(request);
+  if (!secret) {
+    console.warn('staff-admin authorization rejected', { stage: 'cookie', cookiePresent: false });
+    return null;
+  }
   const user = await appwriteAccount(secret);
-  if (!user?.$id) return null;
+  if (!user?.$id) {
+    console.warn('staff-admin authorization rejected', { stage: 'appwrite_identity', userIdPresent: false });
+    return null;
+  }
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
   if (!databaseUrl) throw new Error('DATABASE_RUNTIME_NOT_CONFIGURED');
   const sql = neon(databaseUrl);
@@ -43,9 +50,15 @@ async function authorize(request) {
     from public.clinic_staff where auth_user_id = ${user.$id} and active = true limit 1
   `;
   const staff = rows[0];
-  if (!staff) return null;
+  if (!staff) {
+    console.warn('staff-admin authorization rejected', { stage: 'staff_binding', userIdPresent: true, staffFound: false });
+    return null;
+  }
   const role = String(staff.role || '').toUpperCase();
-  if (!ALLOWED_ROLES.has(role)) return null;
+  if (!ALLOWED_ROLES.has(role)) {
+    console.warn('staff-admin authorization rejected', { stage: 'role', userIdPresent: true, staffFound: true, role });
+    return null;
+  }
   return { user, staff, role, sql };
 }
 function cleanRole(value) {
