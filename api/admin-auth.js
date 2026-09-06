@@ -127,7 +127,7 @@ export default async function handler(request) {
       if (secret) {
         const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
         const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-        if (project && endpoint) await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}` } }).catch(() => {});
+        if (project && endpoint) await fetch(`${endpoint}/account/sessions/current`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}` } }).catch(() => {});
       }
       return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
     }
