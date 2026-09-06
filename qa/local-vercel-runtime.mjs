@@ -50,6 +50,7 @@ const server=http.createServer(async(req,res)=>{
       const ext=path.extname(file).toLowerCase();
       const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'};
       res.setHeader('content-type',types[ext]||'application/octet-stream');
+      if(ext==='.html'||ext==='.js')res.setHeader('cache-control','no-store, max-age=0');
       res.end(data);
     }catch{res.statusCode=404;res.end('Not found');}
   }catch(error){console.error('local-vercel-runtime failure',error);res.statusCode=500;res.end('Runtime failure');}
