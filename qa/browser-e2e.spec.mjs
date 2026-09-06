@@ -52,21 +52,24 @@ test('Patient 360 appointment action bridge resource is available',async({page})
   expect(s).toContain('/functions/v1/azaad-frontdesk-checkin'); expect(s).toContain('function checkIn'); expect(s).toContain('p360-actions');
 });
 
-test('admin-auth API returns a usable Appwrite session before browser login',async({page})=>{
+test('admin-auth API establishes an HttpOnly Appwrite session without exposing the secret',async({page})=>{
   test.skip(!process.env.AZAAD_TEST_USERNAME||!process.env.AZAAD_TEST_PASSWORD,'Authenticated E2E requires dedicated CI test credentials.');
   const r=await page.request.post(`${baseURL}/api/admin-auth`,{data:{username:process.env.AZAAD_TEST_USERNAME,password:process.env.AZAAD_TEST_PASSWORD}}); const t=await r.text(); let b={}; try{b=t?JSON.parse(t):{};}catch(_){ }
-  expect(r.status(),`admin-auth API response bodyBytes=${t.length}`).toBe(200); expect(b).toEqual(expect.objectContaining({provider:'appwrite',session:expect.objectContaining({access_token:expect.any(String)}),staff:expect.objectContaining({id:expect.anything()})}));
+  expect(r.status(),`admin-auth API response bodyBytes=${t.length}`).toBe(200);
+  expect(b).toEqual(expect.objectContaining({authenticated:true,provider:'appwrite',staff:expect.objectContaining({id:expect.anything()})}));
+  expect(JSON.stringify(b)).not.toContain('access_token'); expect(JSON.stringify(b)).not.toContain('refresh_token');
+  expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE&&c.httpOnly)).toBeTruthy();
 });
 
 test('admin authenticated flow is exercised only with dedicated CI credentials',async({page})=>{
-  await authenticate(page); const state=await page.evaluate(()=>({loginHidden:document.getElementById('loginPage')?.classList.contains('hidden')===true,adminVisible:document.getElementById('adminPage')?.classList.contains('hidden')!==true,role:document.body.dataset.role||'',session:Boolean(window.AZAAD?.state?.session?.access_token),provider:window.AZAAD?.state?.provider||''}));
-  expect(state).toMatchObject({loginHidden:true,adminVisible:true,session:true,provider:'appwrite'}); expect(state.role).not.toBe(''); expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE)).toBeTruthy();
+  await authenticate(page); const state=await page.evaluate(()=>({loginHidden:document.getElementById('loginPage')?.classList.contains('hidden')===true,adminVisible:document.getElementById('adminPage')?.classList.contains('hidden')!==true,role:document.body.dataset.role||'',session:Boolean(window.AZAAD?.state?.session),provider:window.AZAAD?.state?.provider||''}));
+  expect(state).toMatchObject({loginHidden:true,adminVisible:true,session:true,provider:'appwrite'}); expect(state.role).not.toBe(''); expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE&&c.httpOnly)).toBeTruthy();
 });
 
 test('admin session survives a real browser refresh without returning to login',async({page})=>{
-  await authenticate(page); const before=await page.evaluate(()=>({role:document.body.dataset.role||'',token:Boolean(window.AZAAD?.state?.session?.access_token)})); expect(before.token).toBeTruthy(); expect(before.role).not.toBe(''); expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE)).toBeTruthy();
+  await authenticate(page); const before=await page.evaluate(()=>({role:document.body.dataset.role||'',session:Boolean(window.AZAAD?.state?.session)})); expect(before.session).toBeTruthy(); expect(before.role).not.toBe(''); expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE&&c.httpOnly)).toBeTruthy();
   const pageErrors=[]; const consoleErrors=[]; page.on('pageerror',e=>pageErrors.push(e.message)); page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('favicon'))consoleErrors.push(m.text());});
   await page.reload({waitUntil:'domcontentloaded'}); await expect(page.locator('#adminPage')).toBeVisible({timeout:AUTH_READY_TIMEOUT}); await expect(page.locator('#loginPage')).toBeHidden({timeout:AUTH_READY_TIMEOUT});
-  const after=await page.evaluate(()=>({role:document.body.dataset.role||'',token:Boolean(window.AZAAD?.state?.session?.access_token),provider:window.AZAAD?.state?.provider||''})); expect(after.token).toBeTruthy(); expect(after.provider).toBe('appwrite'); expect(after.role).not.toBe('');
-  expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE)).toBeTruthy(); expect(pageErrors).toEqual([]); expect(consoleErrors).toEqual([]);
+  const after=await page.evaluate(()=>({role:document.body.dataset.role||'',session:Boolean(window.AZAAD?.state?.session),provider:window.AZAAD?.state?.provider||''})); expect(after.session).toBeTruthy(); expect(after.provider).toBe('appwrite'); expect(after.role).not.toBe('');
+  expect((await page.context().cookies()).some(c=>c.name===AUTH_COOKIE&&c.httpOnly)).toBeTruthy(); expect(pageErrors).toEqual([]); expect(consoleErrors).toEqual([]);
 });
