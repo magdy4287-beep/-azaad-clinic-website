@@ -59,7 +59,7 @@ jobs:
           npm install --no-save --no-package-lock @neondatabase/serverless
           node --check admin.js
           node --check admin-enterprise-centers.js
-          node --check qa/finalize-inline-staff-api-appwrite.py 2>/dev/null || true
+          python3 -m py_compile qa/finalize-inline-staff-api-appwrite.py
       - name: Root scan executable surfaces for retired staff-admin runtime
         shell: bash
         run: |
