@@ -75,7 +75,7 @@
     const currentRole = role();
     if (!MANAGEMENT_ROLES.has(currentRole)) { show('غير مصرح بإضافة موظف.'); return; }
     const full_name=window.prompt('اسم الموظف'); if(!full_name)return; const email=window.prompt('البريد الإلكتروني'); if(!email)return; const password=window.prompt('كلمة المرور المؤقتة'); if(!password)return; const selected=window.prompt(`الوظيفة (${ROLES.join(', ')})`,'RECEPTION'); const staffRole=ROLES.includes(String(selected||'').toUpperCase())?String(selected).toUpperCase():'RECEPTION';
-    try { await api('create',{full_name,email,password,role:staffRole,staff_id:undefined}); await load(); } catch(error) { show(error.message||'تعذر إنشاء الموظف'); }
+    try { await api('create',{full_name,email,password,role:staffRole}); await load(); } catch(error) { show(error.message||'تعذر إنشاء الموظف'); }
   }
 
   async function initialize() {
