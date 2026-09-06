@@ -25,7 +25,7 @@ function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
 }
 
 async function appwriteRequest(path, options = {}) {
-  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
   const apiKey = String(process.env.APPWRITE_API_KEY || '').trim();
   if (!endpoint || !project || !apiKey) throw new Error('APPWRITE_RUNTIME_NOT_CONFIGURED');
@@ -33,7 +33,7 @@ async function appwriteRequest(path, options = {}) {
 }
 
 async function appwriteAccount(secret) {
-  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
   if (!endpoint || !project || !secret) return null;
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
@@ -61,12 +61,19 @@ async function resolveStaff(username) {
 
 async function createSession(username, password) {
   const staff = await resolveStaff(username);
-  if (!staff?.email) return null;
+  if (!staff?.email) {
+    console.warn('admin-auth login rejected before Appwrite session creation', { stage: 'staff_lookup', staffFound: Boolean(staff), emailPresent: Boolean(staff?.email) });
+    return null;
+  }
   const response = await appwriteRequest('/account/sessions/email', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: staff.email, password }) });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    console.warn('admin-auth login rejected by Appwrite session creation', { stage: 'appwrite_session_create', status: response.status });
+    return null;
+  }
   const session = await response.json();
   const parity = Boolean(session?.userId && staff.auth_user_id && session.userId === staff.auth_user_id);
   if (!session?.userId || !session?.secret || !parity) {
+    console.warn('admin-auth login rejected session contract', { stage: 'session_contract', userIdPresent: Boolean(session?.userId), secretPresent: Boolean(session?.secret), parity });
     if (session?.secret) await appwriteRequest(`/account/sessions/${encodeURIComponent(session.$id || 'current')}`, { method: 'DELETE' }).catch(() => {});
     return null;
   }
@@ -106,7 +113,7 @@ export default async function handler(request) {
       const secret = cookieValue(request);
       if (secret) {
         const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
-        const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+        const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\\/$/, '');
         if (project && endpoint) await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}` } }).catch(() => {});
       }
       return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
