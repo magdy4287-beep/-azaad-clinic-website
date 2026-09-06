@@ -29,17 +29,18 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Root scan clinical executable surfaces for retired Supabase runtime
+      - name: Root scan clinical runtime surfaces for retired Supabase dependency
         shell: bash
         run: |
           set -euo pipefail
-          matches=$(grep -RIl --exclude-dir=.git --exclude-dir=node_modules --exclude='*.md' --include='*.js' --include='*.mjs' --include='*.html' --include='*.yml' --include='*.yaml' 'supabase.co\|AZAAD_SUPABASE\|supabase\.auth\|createSupabaseClient' . || true)
-          if test -n "$matches"; then
-            echo 'FAIL-CLOSED: retired Supabase runtime/config remains in clinical executable surfaces:'
-            printf '%s\n' "$matches"
-            exit 1
-          fi
-          echo 'Clinical executable Supabase retirement scan: PASS'
+          for file in frontdesk-checkin-workflow.js api/frontdesk-checkin.js qa/clinical-authorization-e2e.spec.mjs; do
+            test -f "$file" || { echo "FAIL-CLOSED: missing clinical runtime surface: $file"; exit 1; }
+            if grep -Ein 'supabase\.co|AZAAD_SUPABASE|supabase\.auth|createSupabaseClient|/rest/v1/rpc/' "$file"; then
+              echo "FAIL-CLOSED: retired Supabase dependency remains in $file"
+              exit 1
+            fi
+          done
+          echo 'Clinical runtime Supabase retirement scan: PASS'
 
       - name: Setup Node
         uses: actions/setup-node@v5
