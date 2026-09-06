@@ -12,6 +12,31 @@ if "fetch('/api/admin-auth'" not in text:
 if 'functions/v1/staff-login' in text:
     raise SystemExit('Final Admin restore boundary: legacy staff-login endpoint remains')
 
+# Enforce the server-managed HttpOnly cookie as the only browser session carrier.
+# The browser keeps non-secret identity metadata only; the Appwrite session secret
+# must never be serialized into the Admin runtime state or returned by /api/admin-auth.
+text = text.replace(
+    "if (result?.provider !== 'appwrite' || !result?.session?.access_token || !result?.staff)",
+    "if (result?.provider !== 'appwrite' || !result?.staff)"
+)
+text = text.replace(
+    "if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || !result?.session?.access_token)",
+    "if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff)"
+)
+text = text.replace(
+    "state.session = result.session; state.user = result.user || result.session.user || null; state.provider = 'appwrite';",
+    "state.session = { user: result.user || null }; state.user = result.user || null; state.provider = 'appwrite';"
+)
+text = text.replace(
+    "state.session = result.session; state.user = result.user || result.session.user || null; state.provider = 'appwrite';",
+    "state.session = { user: result.user || null }; state.user = result.user || null; state.provider = 'appwrite';"
+)
+
+if 'session.access_token' in text:
+    raise SystemExit('Final Admin restore boundary: Appwrite session secret reference remains in browser Admin controller')
+if 'session: { access_token:' in text:
+    raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
+
 # The Admin certification boundary validates the canonical Admin runtime only.
 # Repository-wide legacy/isolated JS is governed by its own surface-specific gates.
 RUNTIME_JS = {
@@ -44,4 +69,5 @@ if failures:
         print(failure)
     raise SystemExit(1)
 
-print('[AZAAD final restore boundary] PASS: one top-level Appwrite restoreStaffProfile owner; canonical Admin runtime syntax sweep passed')
+admin.write_text(text, encoding='utf-8')
+print('[AZAAD final restore boundary] PASS: one top-level Appwrite restoreStaffProfile owner; cookie-only Admin session boundary; canonical runtime syntax sweep passed')
