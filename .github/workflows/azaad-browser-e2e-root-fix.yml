@@ -223,7 +223,7 @@ jobs:
           let accountBody = {};
           try { accountBody = accountText ? JSON.parse(accountText) : {}; } catch (_) {}
           console.log(JSON.stringify({ stage: 'appwrite_direct_session_account', create_status: login.status, account_status: account.status, account_type: accountBody.type || null, account_code: accountBody.code || null, session_user_id_present: Boolean(session.userId), account_user_id_present: Boolean(accountBody.$id) }));
-          await fetch(`${endpoint}/account`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Accept: 'application/json', Cookie: cookie } }).catch(() => {});
+          await fetch(`${endpoint}/account/sessions/current`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Accept: 'application/json', Cookie: cookie } }).catch(() => {});
           if (!account.ok) process.exit(1);
           NODE
       - name: Diagnose Frontdesk E2E secret shape without exposing the secret
