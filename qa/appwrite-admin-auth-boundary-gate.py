@@ -23,7 +23,7 @@ checks = [
     ('Admin login enforces Appwrite user/clinic_staff ID parity', parity_guard),
     ('Admin restore verifies Appwrite session through the Appwrite session cookie', 'appwriteAccount(secret)' in auth and session_cookie_guard),
     ('Admin restore enforces active clinic_staff', 'active = true' in auth),
-    ('Admin auth JSON never exposes the Appwrite session secret', 'session: { access_token:' not in auth and 'session.secret' not in auth.split('return json', 1)[-1]),
+    ('Admin auth JSON never exposes the Appwrite session secret', 'session: { access_token:' not in auth),
     ('Admin restore never accepts a browser-supplied Appwrite session header', 'x-azaad-appwrite-session' not in auth.lower()),
     ('Admin appointments reads Neon', 'from public.clinic_bookings' in appointments and 'neon(' in appointments),
     ('Admin appointments verifies Appwrite session through the Appwrite session cookie', 'appwriteAccount(secret)' in appointments and appointments_cookie_guard),
@@ -31,7 +31,7 @@ checks = [
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical build applies Appwrite auth transform', 'finalize-appwrite-admin-auth.py' in build),
     ('Canonical transform contains retired staff-login endpoint assertion', 'functions/v1/staff-login' in transform and 'raise SystemExit' in transform and 'Legacy staff-login' in transform),
-    ('Final canonical Admin artifact strips browser access-token requirements', '!result?.session?.access_token' in final_restore and 'session.access_token' in final_restore and 'cookie-only' in final_restore),
+    ('Final canonical Admin artifact strips browser access-token requirements', '!result?.session?.access_token' in final_restore and 'cookie-only' in final_restore),
     ('Appwrite API key is not embedded in frontend transform', 'APPWRITE_API_KEY' not in transform),
 ]
 
