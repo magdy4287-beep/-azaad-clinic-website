@@ -14,7 +14,11 @@ lifetime_guard = 'const SESSION_MAX_AGE = 60 * 60 * 8;' in auth and 'maxAge = SE
 secure_guard = "const secure = protocol === 'https:'" in auth and "secure ? ' Secure;'" in auth
 server_cookie_guard = "const { appwriteSecret, staff, session } = result" in auth and "'set-cookie': sessionCookie(request, appwriteSecret)" in auth
 appwrite_cookie_forward_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}; a_session_\$\{project\}_legacy=\$\{secret\}`', auth))
-appointments_cookie_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}; a_session_\$\{project\}_legacy=\$\{secret\}`', appointments))
+appointments_cookie_guard = (
+    'const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;' in appointments
+    and 'Cookie: cookie' in appointments
+    and 'appwriteAccount(secret)' in appointments
+)
 no_custom_header_guard = 'x-azaad-appwrite-session' not in auth.lower() and 'x-azaad-appwrite-session' not in appointments.lower()
 
 checks = [
@@ -30,7 +34,7 @@ checks = [
     ('Admin auth JSON never exposes the Appwrite session secret', 'appwriteSecret' not in "return json({ authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff },"),
     ('Admin auth never accepts a browser-supplied Appwrite session header', no_custom_header_guard),
     ('Admin appointments reads Neon', 'from public.clinic_bookings' in appointments and 'neon(' in appointments),
-    ('Admin appointments verifies Appwrite session through the HttpOnly cookie', 'appwriteAccount(secret)' in appointments and appointments_cookie_guard),
+    ('Admin appointments verifies Appwrite session through the HttpOnly cookie', appointments_cookie_guard),
     ('Admin appointments enforces role', "'OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'" in appointments),
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical build applies Appwrite auth transform', 'finalize-appwrite-admin-auth.py' in build),
