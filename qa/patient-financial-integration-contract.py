@@ -31,9 +31,10 @@ assert 'patient_id' in finance_api
 assert 'invoice_number' in finance_api
 assert "credentials: 'include'" in finance_ui
 
-# Authorization must be server-side and tied to the Appwrite session + active clinic staff role.
+# Authorization must be server-side and tied to the Appwrite HttpOnly session cookie + active clinic staff role.
 assert "azaad_admin_appwrite_session" in finance_api
-assert 'X-Appwrite-Session' in finance_api
+assert 'Cookie: `a_session_${project}=${secret}`' in finance_api
+assert 'X-Appwrite-Session' not in finance_api
 assert 'public.clinic_staff' in finance_api
 assert 'active = true' in finance_api
 assert 'ALLOWED_ROLES' in finance_api
