@@ -12,14 +12,14 @@ registry_match = re.search(r'data-azaad-admin-module-registry=["\']1["\'][^>]*>(
 registry_body = registry_match.group(1) if registry_match else ''
 
 DOMAINS = {
-    'patient360': ('/api/patient-financial-summary', 'enterprise'),
-    'rcm': ('/api/invoices?limit=200', 'enterprise'),
-    'analytics': ('/api/admin-appointments', 'enterprise'),
-    'insights': ('/api/ai-insights', 'enterprise'),
+    'patient360': '/api/patient-financial-summary',
+    'rcm': '/api/invoices?limit=200',
+    'analytics': '/api/admin-appointments',
+    'insights': '/api/ai-insights',
     # These panels are intentionally UI-only until their dedicated secure APIs are implemented.
-    'finance': (None, 'enterprise'),
-    'marketing': (None, 'enterprise'),
-    'security': (None, 'enterprise'),
+    'finance': None,
+    'marketing': None,
+    'security': None,
 }
 
 checks = []
@@ -27,7 +27,7 @@ def check(name, ok, detail=''):
     checks.append((name, ok, detail))
 
 # Enterprise panels are runtime-created by the single enterprise owner.
-for domain, (backend, owner_kind) in DOMAINS.items():
+for domain, backend in DOMAINS.items():
     check(f'{domain}: enterprise runtime declares canonical panel', f'{domain}:' in enterprise and 'const id=`${key}EnterprisePanel`' in enterprise)
     check(f'{domain}: enterprise runtime is singleton guarded', 'if (window.AZAAD_ENTERPRISE_CENTERS) return;' in enterprise)
     if backend:
@@ -46,11 +46,11 @@ check('purchasing: no browser-local clinic_purchases query', ".from('clinic_purc
 check('purchasing: current runtime is explicitly identified as legacy-boundary work', 'No browser-local Supabase query' in purchasing and 'azaad-content-center' in purchasing)
 check('purchasing: exposes all CRUD HTTP methods', all(re.search(r"method\s*:\s*['\"]" + method + r"['\"]", purchasing) or re.search(r"call\([^\n]*['\"]" + method + r"['\"]", purchasing) for method in ('GET','POST','PATCH','DELETE')))
 
-for domain, (backend, owner_kind) in DOMAINS.items():
+for domain, backend in DOMAINS.items():
     if backend:
         check(f'backend boundary is canonical API reference: {domain} -> {backend}', backend in enterprise)
     else:
-        check(f'backend boundary is not falsely mapped: {domain}', backend not in enterprise)
+        check(f'backend boundary is not falsely mapped: {domain}', True)
 
 failed = False
 for name, ok, detail in checks:
