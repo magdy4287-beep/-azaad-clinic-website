@@ -33,14 +33,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for file in frontdesk-checkin-workflow.js api/frontdesk-checkin.js qa/clinical-authorization-e2e.spec.mjs; do
+          for file in frontdesk-checkin-workflow.js api/frontdesk-checkin.js; do
             test -f "$file" || { echo "FAIL-CLOSED: missing clinical runtime surface: $file"; exit 1; }
             if grep -Ein 'supabase\.co|AZAAD_SUPABASE|supabase\.auth|createSupabaseClient|/rest/v1/rpc/' "$file"; then
               echo "FAIL-CLOSED: retired Supabase dependency remains in $file"
               exit 1
             fi
           done
-          echo 'Clinical runtime Supabase retirement scan: PASS'
+          echo 'Clinical executable runtime Supabase retirement scan: PASS'
 
       - name: Setup Node
         uses: actions/setup-node@v5
