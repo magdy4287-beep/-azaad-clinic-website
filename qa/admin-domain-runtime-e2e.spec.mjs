@@ -112,7 +112,7 @@ test('authenticated admin domain runtime certification covers every accessible p
 
   expect(parseFailures, `Browser-loaded JavaScript parse failures: ${JSON.stringify(parseFailures)}`).toEqual([]);
   expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}; loadedScripts=${JSON.stringify([...new Set(loadedScripts)])}`).toEqual([]);
-  expect(consoleErrors, `Unexpected console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
+  expect(consoleErrors, `Unexpected console errors: ${JSON.stringify(consoleErrors)}; failedBackendResponses=${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect([...new Set(loadedScripts)].length).toBeGreaterThan(0);
 });
