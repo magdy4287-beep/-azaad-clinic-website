@@ -16,13 +16,16 @@ async function appwriteAccount(secret) {
   const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
   if (!endpoint || !project || !secret) return null;
-  const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}` } });
+  const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
+  const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie } });
   if (!response.ok) return null;
   return response.json();
 }
 
 async function authorize(request) {
-  const secret = request.headers.get('x-azaad-appwrite-session') || cookieValue(request);
+  // Only the server-managed HttpOnly cookie is trusted. Browser-supplied
+  // Appwrite session headers are intentionally rejected.
+  const secret = cookieValue(request);
   const user = await appwriteAccount(secret);
   if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
