@@ -63,6 +63,7 @@ def main():
 (function(){{
   'use strict';
   const groups = {groups};
+  const buildSha = document.querySelector('meta[name="azaad-build-sha"]')?.content || 'dev';
   const loaded = new Map();
   const loading = new Map();
   const loadedForPanel = new Set();
@@ -75,7 +76,9 @@ def main():
     if (loading.has(src)) return loading.get(src);
     const p = new Promise((resolve, reject) => {{
       const s = document.createElement('script');
-      s.src = '/' + src; s.defer = true; s.dataset.azaadAdminModule = src;
+      const separator = src.includes('?') ? '&' : '?';
+      s.src = '/' + src + separator + 'azaad_build=' + encodeURIComponent(buildSha);
+      s.defer = true; s.dataset.azaadAdminModule = src; s.dataset.azaadBuildSha = buildSha;
       s.onload = () => {{ loaded.set(src, true); loading.delete(src); resolve(true); }};
       s.onerror = () => {{ loading.delete(src); reject(new Error('Failed to load ' + src)); }};
       document.head.appendChild(s);
@@ -104,7 +107,7 @@ def main():
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
   window.addEventListener('azaad:admin-authenticated', () => {{ void window.AZAAD_LOAD_ADMIN_PANEL('calendar'); }}, {{ once: true }});
-  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
+  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL, buildSha }});
 }})();
 </script>
 """
