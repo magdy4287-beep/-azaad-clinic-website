@@ -12,8 +12,10 @@ build = (root / 'qa/vercel-build.py').read_text(encoding='utf-8')
 parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and bool(re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth))
 lifetime_guard = 'const SESSION_MAX_AGE = 60 * 60 * 8;' in auth and 'maxAge = SESSION_MAX_AGE' in auth and 'Max-Age=${maxAge}' in auth
 secure_guard = "const secure = protocol === 'https:'" in auth and "secure ? ' Secure;'" in auth
-session_cookie_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}`', auth))
+session_cookie_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{cookie\}`', auth))
 appointments_cookie_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}`', appointments))
+exact_cookie_capture_guard = 'function appwriteSessionCookieValue(response, project)' in auth and "response.headers.get('set-cookie')" in auth and 'a_session_' in auth and 'appwriteCookie' in auth
+no_secret_as_cookie_guard = not bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}`', auth))
 
 checks = [
     ('Appwrite Admin auth endpoint exists', 'account/sessions/email' in auth),
@@ -21,7 +23,9 @@ checks = [
     ('Appwrite session is Secure in production', secure_guard),
     ('Appwrite session has bounded lifetime', lifetime_guard),
     ('Admin login enforces Appwrite user/clinic_staff ID parity', parity_guard),
-    ('Admin restore verifies Appwrite session through the Appwrite session cookie', 'appwriteAccount(secret)' in auth and session_cookie_guard),
+    ('Admin login captures the exact Appwrite account-session cookie', exact_cookie_capture_guard),
+    ('Admin auth never stores the session.secret as its own browser cookie', no_secret_as_cookie_guard),
+    ('Admin restore verifies Appwrite session through the Appwrite session cookie', 'appwriteAccount(cookie)' in auth and session_cookie_guard),
     ('Admin restore enforces active clinic_staff', 'active = true' in auth),
     ('Admin auth JSON never exposes the Appwrite session secret', 'session: { access_token:' not in auth),
     ('Admin restore never accepts a browser-supplied Appwrite session header', 'x-azaad-appwrite-session' not in auth.lower()),
