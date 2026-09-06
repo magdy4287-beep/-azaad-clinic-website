@@ -5,7 +5,7 @@
   const ROLES = ['OWNER','ADMIN','MANAGER','SECRETARY','CASHIER','RECEPTION','DOCTOR','MARKETING'];
   const panel = () => document.getElementById('staff') || document.getElementById('staffPanel');
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  const role = () => String(window.AZAAD?.state?.role || window.AZAAD?.state?.staff?.role || state.role || '').toUpperCase();
+  const role = () => String(window.AZAAD?.state?.role || window.AZAAD?.state?.staff?.role || window.AZAAD?.state?.currentRole || state.role || '').toUpperCase();
 
   async function session() {
     const response = await fetch('/api/admin-auth', { method:'GET', credentials:'include', cache:'no-store', headers:{Accept:'application/json'} });
@@ -63,7 +63,7 @@
       return `<tr><td>${esc(s.full_name || s.name || '—')}</td><td>${esc(s.email || '—')}</td><td>${esc(s.role || '—')}</td><td>${active?'🟢 نشط':'🔴 موقوف'}</td><td><button class="btn btn-secondary" data-staff-action="${toggle}" data-staff-id="${id}">${active?'إيقاف':'تفعيل'}</button></td></tr>`;
     }).join('') : '<tr><td colspan="5" class="empty">لا توجد بيانات موظفين.</td></tr>';
     body.querySelectorAll('[data-staff-action]').forEach(button => button.addEventListener('click', async () => {
-      try { await api(button.dataset.staffAction, { id: button.dataset.staffId }); await load(); }
+      try { await api(button.dataset.staffAction, { staff_id: button.dataset.staffId }); await load(); }
       catch (error) { show(error.message || 'تعذر تنفيذ العملية'); }
     }));
   }
@@ -98,13 +98,14 @@
 
   async function initialize() {
     if (state.initialized) return;
+    if (!panel()) return;
+    const currentRole = role();
+    if (currentRole && !['OWNER','ADMIN','MANAGER'].includes(currentRole)) return;
     state.initialized = true;
-    if (!renderShell()) return;
     await load();
   }
 
   window.AZAAD_STAFF_MANAGEMENT_CANONICAL = Object.freeze({ provider:'appwrite-neon', initialize, load });
   window.addEventListener('azaad:admin-panel-activated', event => { if (event.detail?.panel === 'staff') void initialize(); });
   window.addEventListener('azaad:admin-role-ready', () => { if (document.getElementById('staffManagementCenter')) void load(); });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once:true }); else void initialize();
 })();
