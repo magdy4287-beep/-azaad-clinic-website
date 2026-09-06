@@ -31,6 +31,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
 | `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical Supabase JWT/PostgREST probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
 | `azaad-browser-e2e-root-fix.yml` | Controlled Browser E2E root-cause verification | Rebuild exact PR merge artifact, enforce final Admin restore boundary, then run Browser E2E without production mutation | Temporary controlled verification |
+| `azaad-api-module-import-diagnostic.yml` | API module/runtime import isolation | Parse/import every Vercel API module and exercise the local API boundary to isolate module-load failures | Temporary controlled diagnostic |
 
 ## Proven non-duplication decisions
 
@@ -83,6 +84,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 ### Browser E2E root-fix verification
 
 `azaad-browser-e2e-root-fix.yml` is temporary and intentionally separate from the canonical Browser E2E workflow. It exists only to verify a specific P1 root-cause repair on the exact PR merge artifact. It does not replace the canonical Browser E2E gate, alter production, bypass tests, or create a second production trigger. It is eligible for retirement after the repaired boundary passes the canonical Browser E2E evidence path and the root-cause PR is closed or merged.
+
+### API module import diagnostic
+
+`azaad-api-module-import-diagnostic.yml` is a bounded, temporary diagnostic for the current Vercel/local-runtime module-load incident. It is intentionally separate from Browser E2E because its purpose is pre-browser isolation: determine whether a Vercel API module parses/imports cleanly and whether the local runtime can invoke the API boundary at all. It performs no application-data mutation and is eligible for retirement once the module-load root cause is repaired and the canonical Browser E2E evidence path passes on the same exact commit.
 
 ## Retirement rule
 
