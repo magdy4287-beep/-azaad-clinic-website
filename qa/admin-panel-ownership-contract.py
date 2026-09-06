@@ -59,11 +59,11 @@ check("registry remains sole panel-loader definition", adminjs.count("window.AZA
 # Security/readiness contract: staff management must be role-gated and panel-lazy.
 check("staff navigation is fail-closed before role resolution", 'body:not([data-role="OWNER"]):not([data-role="ADMIN"]):not([data-role="MANAGER"])' in admin)
 check("staff runtime has no DOMContentLoaded auto-initializer", "DOMContentLoaded" not in staff_runtime)
-check("staff runtime initializes only from panel activation", "event.detail?.panel === 'staff'" in staff_runtime)
+check("staff runtime initializes from staff panel activation", "azaad:admin-panel-activated" in staff_runtime and "event.detail?.panel==='staff'" in staff_runtime.replace(' ', ''))
 check("staff runtime recognizes canonical currentRole", "window.AZAAD?.state?.currentRole" in staff_runtime)
 check("staff runtime refuses unresolved role", "if (!currentRole) return;" in staff_runtime)
-check("staff runtime retries only after role-ready", "window.addEventListener('azaad:admin-role-ready', () => { void initialize(); });" in staff_runtime)
-check("staff mutations send staff_id", "staff_id: button.dataset.staffId" in staff_runtime)
+check("staff role-ready retry is panel-gated", "azaad:admin-role-ready" in staff_runtime and "if(panel() && document.getElementById('staffManagementCenter'))void initialize();" in staff_runtime.replace(' ', ''))
+check("staff mutations send staff_id", "staff_id:button.dataset.staffId" in staff_runtime.replace(' ', ''))
 
 failed = False
 for name, ok, detail in checks:
