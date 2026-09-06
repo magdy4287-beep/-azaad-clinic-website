@@ -38,7 +38,10 @@ async function appwriteAccount(secret) {
   if (!endpoint || !project || !secret) return null;
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
   const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie } });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    console.warn('admin-auth Appwrite session verification rejected', { status: response.status, cookiePresent: true, cookieLength: secret.length });
+    return null;
+  }
   return response.json();
 }
 
@@ -71,8 +74,6 @@ async function createSession(username, password) {
 }
 
 async function verifySession(request) {
-  // The browser sees only this server-managed HttpOnly cookie. Its value is the
-  // Appwrite session secret, never returned in JSON or exposed to JavaScript.
   const secret = cookieValue(request);
   const user = await appwriteAccount(secret);
   if (!user?.$id) return null;
