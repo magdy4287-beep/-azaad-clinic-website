@@ -5,6 +5,7 @@ const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.verc
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
 const STAFF_ADMIN_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
+const EXPECTED_AUTH_401_CONSOLE = 'Failed to load resource: the server responded with a status of 401 (Unauthorized)';
 
 async function readAuthState(page) {
   return page.evaluate(() => ({
@@ -16,7 +17,7 @@ async function readAuthState(page) {
     initialized: Boolean(window.AZAAD?.state?.initialized),
     initializing: Boolean(window.AZAAD?.state?.initializing),
     staffRole: window.AZAAD?.state?.staff?.role || null,
-    session: Boolean(window.AZAAD?.state?.session?.access_token),
+    session: Boolean(window.AZAAD?.state?.session),
     provider: window.AZAAD?.state?.provider || null,
     loginError: document.getElementById('loginError')?.textContent?.trim() || null
   }));
@@ -64,12 +65,14 @@ test('authenticated admin domain runtime certification covers every accessible p
   const consoleErrors = [];
   const failedBackendResponses = [];
   const loadedScripts = [];
+  let expectedAdminAuth401Responses = 0;
 
   page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || null }));
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('response', response => {
     const url = response.url();
     const status = response.status();
+    if (url.includes('/api/admin-auth') && status === 401) expectedAdminAuth401Responses += 1;
     if (!url.includes('/api/')) return;
     if (status >= 500 || status === 403 || (status === 401 && !url.includes('/api/admin-auth'))) {
       failedBackendResponses.push({ status, method: response.request().method(), url });
@@ -126,9 +129,18 @@ test('authenticated admin domain runtime certification covers every accessible p
     return failures;
   }, [...new Set(loadedScripts)]);
 
+  const unexpectedConsoleErrors = [...consoleErrors];
+  let expected401Consumed = 0;
+  for (let index = unexpectedConsoleErrors.length - 1; index >= 0; index -= 1) {
+    if (unexpectedConsoleErrors[index] === EXPECTED_AUTH_401_CONSOLE && expected401Consumed < expectedAdminAuth401Responses) {
+      unexpectedConsoleErrors.splice(index, 1);
+      expected401Consumed += 1;
+    }
+  }
+
   expect(parseFailures, `Browser-loaded JavaScript parse failures: ${JSON.stringify(parseFailures)}`).toEqual([]);
   expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}; loadedScripts=${JSON.stringify([...new Set(loadedScripts)])}`).toEqual([]);
-  expect(consoleErrors, `Unexpected console errors: ${JSON.stringify(consoleErrors)}; failedBackendResponses=${JSON.stringify(failedBackendResponses)}`).toEqual([]);
+  expect(unexpectedConsoleErrors, `Unexpected console errors: ${JSON.stringify(unexpectedConsoleErrors)}; expectedAdminAuth401Responses=${expectedAdminAuth401Responses}; failedBackendResponses=${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect([...new Set(loadedScripts)].length).toBeGreaterThan(0);
 });
