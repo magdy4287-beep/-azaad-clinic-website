@@ -14,6 +14,13 @@ function safePath(urlPath) {
   return resolved;
 }
 
+async function writeWebResponse(res, response) {
+  res.statusCode = response.status || 200;
+  response.headers?.forEach((value, key) => res.setHeader(key, value));
+  const body = await response.arrayBuffer();
+  res.end(Buffer.from(body));
+}
+
 async function invokeApi(req, res, pathname) {
   const name = pathname.slice('/api/'.length).replace(/\.js$/, '');
   if (!/^[A-Za-z0-9_-]+$/.test(name)) return false;
@@ -31,7 +38,10 @@ async function invokeApi(req, res, pathname) {
 
   const module = await import(pathToFileURL(file).href + `?t=${Date.now()}`);
   if (typeof module.default !== 'function') throw new Error(`API_HANDLER_NOT_FOUND:${name}`);
-  await module.default(req, res);
+  const result = await module.default(req, res);
+  // Support explicit Vercel Edge/Web handlers while retaining the canonical Node
+  // req/res path. This keeps local certification semantically aligned with Vercel.
+  if (result instanceof Response && !res.headersSent) await writeWebResponse(res, result);
   return true;
 }
 
