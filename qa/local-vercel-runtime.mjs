@@ -14,6 +14,30 @@ function safePath(urlPath) {
   return resolved;
 }
 
+async function writeWebResponse(res, response) {
+  res.statusCode = response.status || 200;
+  response.headers?.forEach((value, key) => res.setHeader(key, value));
+  const body = await response.arrayBuffer();
+  res.end(Buffer.from(body));
+}
+
+function decorateNodeResponse(res) {
+  if (typeof res.status !== 'function') {
+    res.status = function status(code) {
+      this.statusCode = Number(code) || 200;
+      return this;
+    };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = function json(body) {
+      if (!this.headersSent) this.setHeader('content-type', 'application/json; charset=utf-8');
+      this.end(JSON.stringify(body));
+      return this;
+    };
+  }
+  return res;
+}
+
 async function invokeApi(req, res, pathname) {
   const name = pathname.slice('/api/'.length).replace(/\.js$/, '');
   if (!/^[A-Za-z0-9_-]+$/.test(name)) return false;
@@ -31,7 +55,8 @@ async function invokeApi(req, res, pathname) {
 
   const module = await import(pathToFileURL(file).href + `?t=${Date.now()}`);
   if (typeof module.default !== 'function') throw new Error(`API_HANDLER_NOT_FOUND:${name}`);
-  await module.default(req, res);
+  const result = await module.default(req, decorateNodeResponse(res));
+  if (result instanceof Response && !res.headersSent) await writeWebResponse(res, result);
   return true;
 }
 

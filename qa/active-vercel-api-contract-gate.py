@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Fail closed on Web Request/Response contracts inside active Vercel api/*.js routes.
+"""Fail closed on incompatible Request/Response contracts in active Vercel api/*.js routes.
 
-Historical Supabase Edge Functions intentionally use the Web runtime and are out of scope.
+The canonical runtime is Vercel Node. Explicit Vercel Edge routes are valid Web
+Request/Response handlers and are checked separately by the edge contract rules.
 """
 from __future__ import annotations
 import re
@@ -12,25 +13,39 @@ ROOT = Path(__file__).resolve().parents[1]
 API = ROOT / 'api'
 FAILURES = []
 
-# These patterns are Web-runtime constructs that are incompatible with the Vercel Node
-# handler contract used by the active API surface.
-PATTERNS = (
-    (r'\bnew\s+Response\s*\(', 'Web Response constructor'),
-    (r'\bnew\s+Request\s*\(', 'Web Request constructor'),
-    (r'function\s+\w*\s*\(\s*request\s*\)', 'request-only handler signature'),
-    (r'export\s+default\s+async\s+function\s+\w*\s*\(\s*request\s*\)', 'Vercel handler missing res parameter'),
-    (r'\brequest\.headers\.get\s*\(', 'Web Headers API on request'),
-    (r'\brequest\.json\s*\(\s*\)', 'Web Request body parser'),
+NODE_HANDLER_PATTERN = re.compile(
+    r'export\s+default\s+async\s+function\s+\w*\s*\(\s*([^,()]+)\s*,\s*([^,()]+)\s*\)'
 )
+EDGE_HANDLER_PATTERN = re.compile(
+    r'export\s+default\s+async\s+function\s+\w*\s*\(\s*request\s*\)'
+)
+EDGE_CONFIG_PATTERN = re.compile(r"runtime\s*:\s*['\"]edge['\"]")
 
 if not API.exists():
     FAILURES.append('api directory is missing')
 else:
     for path in sorted(API.glob('*.js')):
         text = path.read_text(encoding='utf-8', errors='replace')
-        for pattern, label in PATTERNS:
-            if re.search(pattern, text):
-                FAILURES.append(f'{path.relative_to(ROOT).as_posix()}: {label}')
+        relative = path.relative_to(ROOT).as_posix()
+        is_edge = bool(EDGE_CONFIG_PATTERN.search(text))
+
+        # Node handlers must use the Vercel (req, res) contract. Helper functions
+        # may accept request-like objects without being mistaken for handlers.
+        if is_edge:
+            if not EDGE_HANDLER_PATTERN.search(text):
+                FAILURES.append(f'{relative}: Edge route missing Web Request handler signature')
+            if re.search(r'\bnew\s+Request\s*\(', text):
+                FAILURES.append(f'{relative}: unexpected nested Request constructor')
+        else:
+            if re.search(r'\bnew\s+Response\s*\(', text):
+                FAILURES.append(f'{relative}: Web Response constructor in Node route')
+            if re.search(r'\bnew\s+Request\s*\(', text):
+                FAILURES.append(f'{relative}: Web Request constructor in Node route')
+            if EDGE_HANDLER_PATTERN.search(text):
+                FAILURES.append(f'{relative}: Vercel handler missing res parameter')
+            handler_matches = list(NODE_HANDLER_PATTERN.finditer(text))
+            if not handler_matches:
+                FAILURES.append(f'{relative}: missing Vercel (req, res) handler signature')
 
 print('AZAAD active Vercel API contract gate')
 print(f'Active api/*.js routes scanned: {len(list(API.glob("*.js"))) if API.exists() else 0}')
