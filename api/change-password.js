@@ -1,14 +1,11 @@
 const COOKIE = 'azaad_admin_appwrite_session';
 
-function json(body, status = 200, headers = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      ...headers,
-    },
-  });
+function json(res, body, status = 200, headers = {}) {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  for (const [key, value] of Object.entries(headers)) res.setHeader(key, value);
+  res.end(JSON.stringify(body));
 }
 
 function corsHeaders(origin) {
@@ -32,9 +29,7 @@ function headerValue(request, name) {
   const wanted = String(name).toLowerCase();
   if (typeof headers === 'object') {
     for (const [key, value] of Object.entries(headers)) {
-      if (String(key).toLowerCase() === wanted) {
-        return Array.isArray(value) ? String(value[0] || '') : String(value || '');
-      }
+      if (String(key).toLowerCase() === wanted) return Array.isArray(value) ? String(value[0] || '') : String(value || '');
     }
   }
   return '';
@@ -78,11 +73,7 @@ async function appwriteAccount(secret) {
   if (!secret) return null;
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
   const response = await fetch(`${endpoint}/account`, {
-    headers: {
-      'X-Appwrite-Project': project,
-      accept: 'application/json',
-      Cookie: cookie,
-    },
+    headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie },
   });
   if (!response.ok) return null;
   return response.json();
@@ -102,49 +93,36 @@ async function updatePassword(userId, password) {
   });
 }
 
-export default async function handler(request) {
-  const cors = corsHeaders(headerValue(request, 'origin'));
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        ...cors,
-        'access-control-allow-methods': 'POST,OPTIONS',
-        'access-control-allow-headers': 'content-type',
-      },
-    });
+export default async function handler(req, res) {
+  const cors = corsHeaders(headerValue(req, 'origin'));
+  for (const [key, value] of Object.entries(cors)) res.setHeader(key, value);
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.setHeader('access-control-allow-methods', 'POST,OPTIONS');
+    res.setHeader('access-control-allow-headers', 'content-type');
+    return res.end();
   }
 
-  if (request.method !== 'POST') {
-    return json({ error: 'method_not_allowed' }, 405, cors);
-  }
+  if (req.method !== 'POST') return json(res, { error: 'method_not_allowed' }, 405);
 
   try {
-    const secret = cookieValue(request);
+    const secret = cookieValue(req);
     const identity = await appwriteAccount(secret);
-    if (!identity?.$id) return json({ error: 'authentication_required' }, 401, cors);
+    if (!identity?.$id) return json(res, { error: 'authentication_required' }, 401);
 
-    const body = await bodyValue(request);
+    const body = await bodyValue(req);
     const password = String(body.password || '');
-    if (password.length < 12 || password.length > 256) {
-      return json({ error: 'invalid_password' }, 400, cors);
-    }
+    if (password.length < 12 || password.length > 256) return json(res, { error: 'invalid_password' }, 400);
 
     const response = await updatePassword(identity.$id, password);
     if (!response.ok) {
-      console.warn('change-password Appwrite update rejected', {
-        status: response.status,
-        userIdPresent: Boolean(identity.$id),
-      });
-      return json({ error: 'password_update_failed' }, 400, cors);
+      console.warn('change-password Appwrite update rejected', { status: response.status, userIdPresent: Boolean(identity.$id) });
+      return json(res, { error: 'password_update_failed' }, 400);
     }
 
-    return json({ ok: true, provider: 'appwrite' }, 200, cors);
+    return json(res, { ok: true, provider: 'appwrite' }, 200);
   } catch (error) {
-    console.error('change-password boundary failure', {
-      name: error?.name,
-      message: error?.message,
-    });
-    return json({ error: 'password_update_unavailable' }, 503, cors);
+    console.error('change-password boundary failure', { name: error?.name, message: error?.message });
+    return json(res, { error: 'password_update_unavailable' }, 503);
   }
 }
