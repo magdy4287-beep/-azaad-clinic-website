@@ -14,8 +14,8 @@ check(
     "/api/admin-appointments" in admin,
 )
 check(
-    "Admin booking loader sends the authenticated Appwrite session credential",
-    "Authorization: `Bearer ${state.session.access_token}`" in admin,
+    "Admin booking loader relies on the server-managed HttpOnly Appwrite session",
+    'credentials: "include"' in admin and "Authorization: `Bearer ${state.session.access_token}`" not in admin,
 )
 check(
     "Admin booking loader uses browser credentials for the HttpOnly session",
