@@ -4,17 +4,13 @@ import re
 PATH = Path('admin.js')
 if not PATH.is_file():
     raise SystemExit('admin.js is required')
-
 text = PATH.read_text(encoding='utf-8')
 
 
 def bounds(src, name):
     matches = list(re.finditer(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', src))
-    if len(matches) != 1:
-        raise SystemExit(f'{name}: expected exactly one canonical function, found {len(matches)}')
-    m = matches[0]
-    i = src.find('{', m.start())
-    depth = 0; quote = None; escape = False; line = block = False
+    if len(matches) != 1: raise SystemExit(f'{name}: expected exactly one canonical function, found {len(matches)}')
+    m = matches[0]; i = src.find('{', m.start()); depth = 0; quote = None; escape = False; line = block = False
     while i < len(src):
         c = src[i]; n = src[i + 1] if i + 1 < len(src) else ''
         if line:
@@ -57,7 +53,6 @@ LOGIN = r'''async function login(username, password) {
   if (redirectDoctorIfNeeded()) return;
   await initializeApplication();
 }'''
-
 RESTORE = r'''async function restoreStaffProfile() {
   const retryDelays = [0, 150, 350]; let lastStatus = null;
   try {
@@ -80,7 +75,6 @@ RESTORE = r'''async function restoreStaffProfile() {
     return false;
   } catch (error) { console.warn('Appwrite session restore failed:', error); return false; }
 }'''
-
 LOAD = r'''async function loadBookings() {
   if (!requirePermission("bookings.view")) return;
   if (state.loadingBookings) return;
@@ -94,34 +88,23 @@ LOAD = r'''async function loadBookings() {
     renderBookings(); updateStatistics(); refreshCommandCenter();
     window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated"));
   } catch (error) {
-    console.error("Booking loading error:", error);
-    state.bookings = [];
-    renderBookingFallback();
+    console.error("Booking loading error:", error); state.bookings = []; renderBookingFallback();
     window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated"));
   } finally { state.loadingBookings = false; }
 }'''
+for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]: text = replace_fn(text, name, replacement)
 
-for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]:
-    text = replace_fn(text, name, replacement)
+# The legacy controller may call Staff Management during generic initialization/refresh. Gate both call sites by staff.view.
+text, init_count = re.subn(r'(?P<indent>\s*)if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{', r'\g<indent>if (hasPermission("staff.view") && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {', text, count=1, flags=re.S)
+text, load_count = re.subn(r'(?P<indent>\s*)if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{', r'\g<indent>if (hasPermission("staff.view") && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.load === "function") {', text, count=1, flags=re.S)
+if init_count + load_count == 0:
+    raise SystemExit('No legacy Staff Management call sites found to gate; refusing silent no-op')
 
-# Staff management is a privileged module. It must never initialize or load for SECRETARY/RECEPTION/etc.
-legacy_init = '''if (\n    window.AZAAD_STAFF &&\n    typeof window.AZAAD_STAFF.init ===\n      "function"\n  ) {'''
-if legacy_init in text:
-    text = text.replace(legacy_init, '''if (\n    hasPermission("staff.view") &&\n    window.AZAAD_STAFF &&\n    typeof window.AZAAD_STAFF.init ===\n      "function"\n  ) {''', 1)
-else:
-    raise SystemExit('Privileged Staff initialization block not found')
-
-legacy_refresh = '''if (\n      window.AZAAD_STAFF &&\n      typeof window.AZAAD_STAFF.load ===\n        "function"\n    ) {'''
-if legacy_refresh in text:
-    text = text.replace(legacy_refresh, '''if (\n      hasPermission("staff.view") &&\n      window.AZAAD_STAFF &&\n      typeof window.AZAAD_STAFF.load ===\n        "function"\n    ) {''', 1)
-
-# Cookie-only Appwrite browser boundary: no bearer/access-token dependency is allowed.
 text = re.sub(r"if\s*\(\s*!state\.session\?\.access_token\s*\)\s*throw new Error\([^;]+;", "if (!state.session || state.provider !== 'appwrite') throw new Error('جلسة الإدارة غير صالحة.');", text)
 text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token)", "session: Boolean(window.AZAAD?.state?.session)")
 
-for pattern in (r'\bsupabase\.auth\.', r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\b', r'functions/v1/staff-login'):
-    if re.search(pattern, text):
-        raise SystemExit(f'Appwrite browser session boundary regression: {pattern}')
+if re.search(r'\bsupabase\.auth\.', text) or re.search(r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\b', text) or 'functions/v1/staff-login' in text:
+    raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
 
 PATH.write_text(text, encoding='utf-8')
-print('Appwrite browser session contract finalized: HttpOnly cookie is the sole browser credential; privileged staff runtime is permission-gated.')
+print(f'Appwrite browser session contract finalized: cookie-only auth; privileged staff calls gated (init={init_count}, load={load_count}).')
