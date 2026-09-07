@@ -29,6 +29,9 @@ jobs:
       - name: Run active Vercel API Node contract
         run: python qa/active-vercel-api-contract-gate.py
 
+      - name: Run canonical Frontdesk role boundary
+        run: python qa/frontdesk-role-contract-gate.py
+
       - name: Run comprehensive system contract
         run: python qa/comprehensive-system-contract.py
 
