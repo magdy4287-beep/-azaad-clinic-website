@@ -3,8 +3,12 @@ import { neon } from '@neondatabase/serverless';
 const COOKIE = 'azaad_admin_appwrite_session';
 const SESSION_MAX_AGE = 60 * 60 * 8;
 
-function json(body, status = 200, headers = {}) {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
+function json(res, body, status = 200, headers = {}) {
+  res.status(status);
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  for (const [key, value] of Object.entries(headers)) res.setHeader(key, value);
+  return res.json(body);
 }
 
 function corsHeaders(origin) {
@@ -140,37 +144,42 @@ async function verifySession(request) {
   return staff ? { user, staff } : null;
 }
 
-export default async function handler(request) {
-  const cors = corsHeaders(headerValue(request, 'origin'));
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type' } });
+export default async function handler(req, res) {
+  const cors = corsHeaders(headerValue(req, 'origin'));
+  for (const [key, value] of Object.entries(cors)) res.setHeader(key, value);
   try {
-    if (request.method === 'POST') {
-      const body = await bodyValue(request);
+    if (req.method === 'OPTIONS') {
+      res.setHeader('access-control-allow-methods', 'GET,POST,DELETE,OPTIONS');
+      res.setHeader('access-control-allow-headers', 'content-type');
+      return res.status(204).end();
+    }
+    if (req.method === 'POST') {
+      const body = await bodyValue(req);
       const username = String(body.username || '').trim().toLowerCase();
       const password = String(body.password || '');
-      if (!username || !password) return json({ error: 'credentials_required' }, 400, cors);
+      if (!username || !password) return json(res, { error: 'credentials_required' }, 400);
       const result = await createSession(username, password);
-      if (!result) return json({ error: 'invalid_credentials' }, 401, cors);
+      if (!result) return json(res, { error: 'invalid_credentials' }, 401);
       const { appwriteSecret, staff, session } = result;
-      return json({ authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff }, 200, { ...cors, 'set-cookie': sessionCookie(request, appwriteSecret) });
+      return json(res, { authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff }, 200, { 'set-cookie': sessionCookie(req, appwriteSecret) });
     }
-    if (request.method === 'DELETE') {
-      const secret = cookieValue(request);
+    if (req.method === 'DELETE') {
+      const secret = cookieValue(req);
       if (secret) {
         const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
         const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
         if (project && endpoint) await fetch(`${endpoint}/account/sessions/current`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}` } }).catch(() => {});
       }
-      return json({ ok: true }, 200, { ...cors, 'set-cookie': sessionCookie(request, '', 0) });
+      return json(res, { ok: true }, 200, { 'set-cookie': sessionCookie(req, '', 0) });
     }
-    if (request.method === 'GET') {
-      const identity = await verifySession(request);
-      if (!identity) return json({ authenticated: false }, 401, cors);
-      return json({ authenticated: true, provider: 'appwrite', user: { id: identity.user.$id, email: identity.user.email }, staff: identity.staff }, 200, cors);
+    if (req.method === 'GET') {
+      const identity = await verifySession(req);
+      if (!identity) return json(res, { authenticated: false }, 401);
+      return json(res, { authenticated: true, provider: 'appwrite', user: { id: identity.user.$id, email: identity.user.email }, staff: identity.staff });
     }
-    return json({ error: 'method_not_allowed' }, 405, cors);
+    return json(res, { error: 'method_not_allowed' }, 405);
   } catch (error) {
     console.error('admin-auth boundary failure', { name: error?.name, message: error?.message });
-    return json({ error: 'admin_auth_unavailable' }, 503, cors);
+    return json(res, { error: 'admin_auth_unavailable' }, 503);
   }
 }
