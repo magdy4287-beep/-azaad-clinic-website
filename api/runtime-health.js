@@ -71,7 +71,8 @@ async function verifyAppwrite() {
   }
 }
 
-export default async function handler() {
+export default async function handler(request) {
+  void request;
   const contract = runtimeContract();
   let databaseReachable = false;
   let databaseTables = { reachable: false, requiredTablesPresent: false, missingTables: REQUIRED_TABLES };
