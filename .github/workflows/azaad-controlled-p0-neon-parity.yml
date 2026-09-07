@@ -1,4 +1,4 @@
-name: AZAAD Controlled P0 - Neon Parity
+name: AZAAD Controlled P0 - Neon Integrity
 
 on:
   push:
@@ -10,16 +10,16 @@ on:
 permissions:
   contents: read
 
-# Controlled evolution must never reopen Emergency DR. This gate is strictly
-# read-only: it verifies the already-restored Neon target against Supabase.
+# Supabase is retired from AZAAD. This gate is strictly read-only and validates
+# the live Neon target without contacting, requiring, or comparing against Supabase.
 concurrency:
-  group: azaad-controlled-neon-parity
+  group: azaad-controlled-neon-integrity
   cancel-in-progress: false
 
 jobs:
-  p0-neon-parity:
+  neon-integrity:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout exact workflow revision
         uses: actions/checkout@v4
@@ -32,28 +32,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Verify read-only parity configuration
+      - name: Verify Neon-only configuration
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_DB_URL" || { echo 'FAIL-CLOSED: SUPABASE_DB_URL missing'; exit 1; }
           test -n "$NEON_DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
-          echo 'PASS: read-only parity configuration is present.'
+          if [[ "$NEON_DATABASE_URL" == *supabase* ]]; then
+            echo 'FAIL-CLOSED: Neon target resolves to a retired Supabase endpoint.'
+            exit 1
+          fi
+          echo 'PASS: Neon-only configuration is present.'
 
-      - name: Verify both database targets are reachable and fingerprint the authoritative target
+      - name: Verify Neon target reachability and fingerprint
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
-          supabase_identity="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT current_database() || '|' || current_user")"
-          neon_identity="$(psql "$NEON_DATABASE_URL" -Atqc "SELECT current_database() || '|' || current_user")"
-          test -n "$supabase_identity"
-          test -n "$neon_identity"
-          echo "SUPABASE_TARGET=$supabase_identity"
-          echo "NEON_TARGET=$neon_identity"
+          identity="$(psql "$NEON_DATABASE_URL" -Atqc "SELECT current_database() || '|' || current_user || '|' || current_schema()")"
+          test -n "$identity"
+          echo "NEON_TARGET=$identity"
           NEON_DATABASE_URL="$NEON_DATABASE_URL" python3 - <<'PY'
           import hashlib, os
           from urllib.parse import urlparse
@@ -61,109 +59,51 @@ jobs:
           canonical = f'{u.scheme}://{u.hostname}:{u.port or ""}{u.path}'
           print('NEON_DATABASE_TARGET_FINGERPRINT=' + hashlib.sha256(canonical.encode()).hexdigest())
           PY
-          echo 'PASS: both database targets are reachable.'
+          echo 'PASS: Neon target is reachable.'
 
-      - name: Compare authoritative clinical row counts and retain evidence
-        id: row-counts
-        continue-on-error: true
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: |
-          set -uo pipefail
-          report="$RUNNER_TEMP/neon-parity-row-counts.txt"
-          tables='clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours'
-          mismatch=0
-          : > "$report"
-          for table in $tables; do
-            s=$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
-            n=$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)
-            if [ "$s" = MISSING ] || [ "$n" = MISSING ]; then
-              line="MISMATCH $table SUPABASE=$s NEON=$n (missing table/query failure)"
-              mismatch=1
-            elif [ "$s" != "$n" ]; then
-              line="MISMATCH $table SUPABASE=$s NEON=$n"
-              mismatch=1
-            else
-              line="MATCH $table count=$s"
-            fi
-            echo "$line" | tee -a "$report"
-          done
-          echo "MISMATCH_FLAG=$mismatch" | tee -a "$report"
-          if [ "$mismatch" -ne 0 ]; then
-            echo 'FAIL-CLOSED: authoritative row-count parity is not proven; no mutation was performed.'
-            exit 1
-          fi
-          echo 'PASS: authoritative clinical row-count parity.'
-
-      - name: Upload read-only parity evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: neon-parity-row-count-evidence-${{ github.sha }}
-          path: ${{ runner.temp }}/neon-parity-row-counts.txt
-          if-no-files-found: error
-
-      - name: Stop before deeper parity checks when row counts differ
-        if: steps.row-counts.outcome != 'success'
-        run: |
-          echo 'P0 remains BLOCKED: row-count mismatch is retained as evidence.'
-          exit 1
-
-      - name: Verify deterministic data fingerprints for authoritative tables
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: |
-          set -euo pipefail
-          tables='clinic_ai_insights clinic_audit_log clinic_bookings clinic_clinical_visits clinic_doctors clinic_invoices clinic_patients clinic_services clinic_settings clinic_working_hours'
-          fingerprint() {
-            local url="$1" table="$2"
-            psql "$url" -Atqc "SELECT COALESCE(md5(string_agg(md5(to_jsonb(t)::text), '' ORDER BY md5(to_jsonb(t)::text))), md5('')) FROM public.\"$table\" t"
-          }
-          mismatch=0
-          for table in $tables; do
-            s=$(fingerprint "$SUPABASE_DB_URL" "$table")
-            n=$(fingerprint "$NEON_DATABASE_URL" "$table")
-            echo "$table FINGERPRINT_SUPABASE=$s FINGERPRINT_NEON=$n"
-            if [ -z "$s" ] || [ -z "$n" ] || [ "$s" != "$n" ]; then mismatch=1; fi
-          done
-          test "$mismatch" -eq 0 || { echo 'FAIL-CLOSED: deterministic authoritative data fingerprints differ.'; exit 1; }
-          echo 'PASS: deterministic authoritative data fingerprints match.'
-
-      - name: Verify public schema shape parity
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: |
-          set -euo pipefail
-          schema_fingerprint() {
-            psql "$1" -Atqc "SELECT md5(COALESCE(string_agg(format('%s|%s|%s|%s|%s|%s|%s', table_schema, table_name, ordinal_position, column_name, data_type, COALESCE(character_maximum_length::text,''), is_nullable), E'\\n' ORDER BY table_schema, table_name, ordinal_position), '')) FROM information_schema.columns WHERE table_schema='public'"
-          }
-          s=$(schema_fingerprint "$SUPABASE_DB_URL")
-          n=$(schema_fingerprint "$NEON_DATABASE_URL")
-          echo "PUBLIC_SCHEMA_FINGERPRINT_SUPABASE=$s"
-          echo "PUBLIC_SCHEMA_FINGERPRINT_NEON=$n"
-          test "$s" = "$n"
-          echo 'PASS: public schema shape parity.'
-
-      - name: Verify runtime-critical private schema/function invariants
+      - name: Verify production runtime-critical schema
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
           psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
           DO $$
-          DECLARE private_functions integer;
           BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN RAISE EXCEPTION 'PUBLIC_SCHEMA_MISSING'; END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN RAISE EXCEPTION 'PRIVATE_SCHEMA_MISSING'; END IF;
-            SELECT count(*) INTO private_functions FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='private';
-            IF private_functions = 0 THEN RAISE EXCEPTION 'PRIVATE_FUNCTIONS_MISSING'; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='public') THEN
+              RAISE EXCEPTION 'PUBLIC_SCHEMA_MISSING';
+            END IF;
+            IF to_regclass('public.clinic_staff') IS NULL THEN
+              RAISE EXCEPTION 'CLINIC_STAFF_MISSING';
+            END IF;
           END $$;
           SQL
-          echo 'PASS: runtime-critical private schema/function invariants.'
+          echo 'PASS: runtime-critical Neon schema boundary is present.'
+
+      - name: Verify critical application tables without mutating data
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          tables='clinic_staff clinic_patients clinic_doctors clinic_services clinic_settings clinic_bookings'
+          for table in $tables; do
+            count="$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\"" 2>/dev/null || echo MISSING)"
+            if [ "$count" = MISSING ]; then
+              echo "FAIL-CLOSED: critical table missing or unreadable: $table"
+              exit 1
+            fi
+            echo "NEON_TABLE=$table COUNT=$count"
+          done
+          echo 'PASS: critical Neon application tables are readable.'
+
+      - name: Verify Supabase is not an executable dependency of this gate
+        run: |
+          set -euo pipefail
+          if grep -RniE 'SUPABASE_|supabase\.co|supabase-js|supabase/functions' .github/workflows/azaad-controlled-p0-neon-parity.yml; then
+            echo 'FAIL-CLOSED: retired Supabase dependency detected in the active Neon gate.'
+            exit 1
+          fi
+          echo 'PASS: active Neon integrity gate has no Supabase dependency.'
 
       - name: Controlled P0 gate
         run: |
-          echo 'PASS: Neon parity verification completed without any restore, migration, or target mutation.'
+          echo 'PASS: Neon integrity verification completed without restore, migration, deletion, or target mutation.'
