@@ -65,7 +65,12 @@ LOAD = r'''async function loadBookings() {
 }'''
 for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]: text = replace_fn(text, name, replacement)
 
-# Gate every legacy Staff Management call site, including the global refresh path.
+# Final least-privilege invariant: SECRETARY has no Staff Management permission.
+role_pattern = re.compile(r'SECRETARY\s*:\s*\[.*?\]', re.S)
+text, role_count = role_pattern.subn('SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view"\n  ]', text, count=1)
+if role_count != 1: raise SystemExit('SECRETARY role permission block not found')
+
+# Gate every privileged Staff Management call site, including global refresh.
 init_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
 load_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
 text, init_count = re.subn(init_pattern, 'if (hasPermission("staff.view") && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {', text, flags=re.S)
@@ -77,4 +82,4 @@ text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token
 if re.search(r'\bsupabase\.auth\.', text) or re.search(r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\b', text) or 'functions/v1/staff-login' in text:
     raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
 PATH.write_text(text, encoding='utf-8')
-print(f'Appwrite browser session contract finalized: cookie-only auth; privileged staff calls gated (init={init_count}, load={load_count}).')
+print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY staff permission removed; privileged staff calls gated (init={init_count}, load={load_count}).')
