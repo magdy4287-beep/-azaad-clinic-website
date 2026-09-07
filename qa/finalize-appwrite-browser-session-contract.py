@@ -9,17 +9,14 @@ text = PATH.read_text(encoding='utf-8')
 
 
 def bounds(src, name):
-    m = re.search(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', src)
-    if not m:
-        raise SystemExit(f'{name}: canonical function missing')
+    matches = list(re.finditer(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', src))
+    if len(matches) != 1:
+        raise SystemExit(f'{name}: expected exactly one canonical function, found {len(matches)}')
+    m = matches[0]
     i = src.find('{', m.start())
-    depth = 0
-    quote = None
-    escape = False
-    line = block = False
+    depth = 0; quote = None; escape = False; line = block = False
     while i < len(src):
-        c = src[i]
-        n = src[i + 1] if i + 1 < len(src) else ''
+        c = src[i]; n = src[i + 1] if i + 1 < len(src) else ''
         if line:
             if c == '\n': line = False
         elif block:
@@ -40,7 +37,8 @@ def bounds(src, name):
 
 
 def replace_fn(src, name, replacement):
-    return src[:bounds(src, name)[0]] + replacement + src[bounds(src, name)[1]:]
+    start, end = bounds(src, name)
+    return src[:start] + replacement + src[end:]
 
 LOGIN = r'''async function login(username, password) {
   const cleanUsername = String(username || '').trim().toLowerCase();
@@ -104,18 +102,26 @@ LOAD = r'''async function loadBookings() {
 }'''
 
 for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]:
-    if len(re.findall(rf'async function {re.escape(name)}\s*\(', text)) != 1:
-        raise SystemExit(f'{name}: duplicate or missing canonical function')
     text = replace_fn(text, name, replacement)
 
-# The Appwrite browser boundary is cookie-only. Any access-token requirement here is a regression.
+# Staff management is a privileged module. It must never initialize or load for SECRETARY/RECEPTION/etc.
+legacy_init = '''if (\n    window.AZAAD_STAFF &&\n    typeof window.AZAAD_STAFF.init ===\n      "function"\n  ) {'''
+if legacy_init in text:
+    text = text.replace(legacy_init, '''if (\n    hasPermission("staff.view") &&\n    window.AZAAD_STAFF &&\n    typeof window.AZAAD_STAFF.init ===\n      "function"\n  ) {''', 1)
+else:
+    raise SystemExit('Privileged Staff initialization block not found')
+
+legacy_refresh = '''if (\n      window.AZAAD_STAFF &&\n      typeof window.AZAAD_STAFF.load ===\n        "function"\n    ) {'''
+if legacy_refresh in text:
+    text = text.replace(legacy_refresh, '''if (\n      hasPermission("staff.view") &&\n      window.AZAAD_STAFF &&\n      typeof window.AZAAD_STAFF.load ===\n        "function"\n    ) {''', 1)
+
+# Cookie-only Appwrite browser boundary: no bearer/access-token dependency is allowed.
 text = re.sub(r"if\s*\(\s*!state\.session\?\.access_token\s*\)\s*throw new Error\([^;]+;", "if (!state.session || state.provider !== 'appwrite') throw new Error('جلسة الإدارة غير صالحة.');", text)
 text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token)", "session: Boolean(window.AZAAD?.state?.session)")
 
-# Remove browser-level Supabase auth calls if a later transform reintroduced them.
 for pattern in (r'\bsupabase\.auth\.', r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\b', r'functions/v1/staff-login'):
     if re.search(pattern, text):
         raise SystemExit(f'Appwrite browser session boundary regression: {pattern}')
 
 PATH.write_text(text, encoding='utf-8')
-print('Appwrite browser session contract finalized: HttpOnly cookie is the sole browser credential; no access token is required or sent.')
+print('Appwrite browser session contract finalized: HttpOnly cookie is the sole browser credential; privileged staff runtime is permission-gated.')
