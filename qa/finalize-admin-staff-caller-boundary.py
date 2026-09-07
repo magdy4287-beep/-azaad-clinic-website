@@ -12,14 +12,12 @@ def remove_if_block(src, needle):
     target = src.find(needle)
     if target < 0:
         return src, False
-    start = src.rfind('\n', 0, target) + 1
-    while start < target and src[start].isspace() and src[start] != '\n':
+    line_start = src.rfind('\n', 0, target) + 1
+    start = line_start
+    while start < target and src[start] in ' \t':
         start += 1
-    if src[start:start + 2] != 'if':
-        line_start = src.rfind('\n', 0, target) + 1
-        start = line_start
-        while start < target and src[start].isspace() and src[start] != '\n':
-            start += 1
+    if not src[start:start + 2] == 'if':
+        raise SystemExit(f'FAIL-CLOSED: {needle} is not owned by an if block')
     brace = src.find('{', target)
     if brace < 0:
         raise SystemExit(f'FAIL-CLOSED: caller block brace missing for {needle}')
@@ -48,25 +46,28 @@ def remove_if_block(src, needle):
             depth -= 1
             if depth == 0:
                 end = i + 1
-                if end < len(src) and src[end] == '\n': end += 1
+                while end < len(src) and src[end] == '\n': end += 1
                 return src[:start] + '\n' + src[end:], True
         i += 1
     raise SystemExit(f'FAIL-CLOSED: unterminated caller block for {needle}')
 
-
-removed_init = False
-removed_load = False
-
-if 'window.AZAAD_STAFF' in text:
-    text, removed_init = remove_if_block(text, 'window.AZAAD_STAFF.init')
-    if 'window.AZAAD_STAFF' in text:
-        text, removed_load = remove_if_block(text, 'window.AZAAD_STAFF.load')
+removed_init = 0
+removed_load = 0
+while 'window.AZAAD_STAFF.init' in text:
+    text, changed = remove_if_block(text, 'window.AZAAD_STAFF.init')
+    if not changed:
+        raise SystemExit('FAIL-CLOSED: unable to remove legacy staff init caller')
+    removed_init += 1
+while 'window.AZAAD_STAFF.load' in text:
+    text, changed = remove_if_block(text, 'window.AZAAD_STAFF.load')
+    if not changed:
+        raise SystemExit('FAIL-CLOSED: unable to remove legacy staff load caller')
+    removed_load += 1
 
 executable = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
-if re.search(r'window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.(?:init|load)', executable):
-    raise SystemExit('FAIL-CLOSED: legacy AZAAD_STAFF init/load caller remains in admin.js')
+executable = re.sub(r'(^|\s)//[^\n]*', r'\1', executable)
 if re.search(r'window\.AZAAD_STAFF\.(?:init|load)\s*\(', executable):
-    raise SystemExit('FAIL-CLOSED: direct legacy AZAAD_STAFF init/load call remains')
+    raise SystemExit('FAIL-CLOSED: direct legacy AZAAD_STAFF init/load call remains in admin.js')
 
 PATH.write_text(text, encoding='utf-8')
-print(f'[AZAAD staff caller boundary] PASS: removed init={int(removed_init)}, load={int(removed_load)}; staff runtime is panel-activation only')
+print(f'[AZAAD staff caller boundary] PASS: removed init={removed_init}, load={removed_load}; staff runtime is panel-activation only')
