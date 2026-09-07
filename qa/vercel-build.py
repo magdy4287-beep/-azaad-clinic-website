@@ -33,7 +33,6 @@ TRANSFORM_STEPS = [
     ["python3", "qa/normalize-admin-login-form.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
-    ["python3", "qa/finalize-admin-staff-caller-boundary.py"],
     ["python3", "qa/harden-admin-refresh-session.py"],
     ["python3", "qa/harden-admin-inline-refresh-session.py"],
     ["python3", "qa/finalize-admin-operational-data.py"],
@@ -46,6 +45,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-staff-management-appwrite.py"],
     ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
     ["python3", "qa/finalize-appwrite-browser-session-contract.py"],
+    ["python3", "qa/finalize-admin-staff-caller-boundary.py"],
     ["python3", "qa/final-admin-restore-boundary.py"],
     ["python3", "qa/finalize-staff-management-runtime-boundary.py"],
 ]
@@ -67,6 +67,7 @@ VERIFY_STEPS = [
     ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
 
+transform_paths = [step[1] for step in TRANSFORM_STEPS]
 for required in (
     "qa/finalize-admin-operational-data.py",
     "qa/finalize-admin-navigation-ownership.py",
@@ -74,12 +75,25 @@ for required in (
     "qa/finalize-staff-management-appwrite.py",
     "qa/retire-legacy-admin-staff-runtime.py",
     "qa/finalize-appwrite-browser-session-contract.py",
+    "qa/finalize-admin-staff-caller-boundary.py",
     "qa/final-admin-restore-boundary.py",
     "qa/finalize-staff-management-runtime-boundary.py",
-    "qa/finalize-admin-staff-caller-boundary.py",
 ):
-    if [step[1] for step in TRANSFORM_STEPS].count(required) != 1:
+    if transform_paths.count(required) != 1:
         raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
+
+order_constraints = (
+    ("qa/finalize-appwrite-admin-auth.py", "qa/finalize-staff-management-appwrite.py"),
+    ("qa/finalize-staff-management-appwrite.py", "qa/retire-legacy-admin-staff-runtime.py"),
+    ("qa/retire-legacy-admin-staff-runtime.py", "qa/finalize-appwrite-browser-session-contract.py"),
+    ("qa/finalize-appwrite-browser-session-contract.py", "qa/finalize-admin-staff-caller-boundary.py"),
+    ("qa/finalize-admin-staff-caller-boundary.py", "qa/final-admin-restore-boundary.py"),
+    ("qa/final-admin-restore-boundary.py", "qa/finalize-staff-management-runtime-boundary.py"),
+)
+for before, after in order_constraints:
+    if transform_paths.index(before) >= transform_paths.index(after):
+        raise SystemExit(f"Invalid production transform dependency order: {before} must precede {after}")
+
 if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
     raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
 if [step[1] for step in VERIFY_STEPS].count("qa/verify-admin-staff-caller-boundary.py") != 1:
