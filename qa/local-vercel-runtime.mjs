@@ -62,7 +62,12 @@ async function invokeApi(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    const pathname = new URL(req.url || '/', `http://${req.headers.host || `127.0.0.1:${port}`}`).pathname;
+    const requestUrl = new URL(req.url || '/', `http://${req.headers.host || `127.0.0.1:${port}`}`);
+    const pathname = requestUrl.pathname;
+    // Vercel's Node request contract exposes req.url as a URL-like request target.
+    // The local harness must provide the same absolute URL because API handlers
+    // use it for protocol-sensitive cookie construction.
+    req.url = requestUrl.toString();
     if (pathname.startsWith('/api/')) {
       if (await invokeApi(req, res, pathname)) return;
     }
