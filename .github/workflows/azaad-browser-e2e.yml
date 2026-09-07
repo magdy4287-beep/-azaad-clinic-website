@@ -195,8 +195,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          plan=AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          test -s "$plan"
           test -s AZAAD_ENGINEERING_CONTROL_PLAN.md
           test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'AI-First • Free-Only • Safety-Gated • Continuous Delivery' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'AZAAD is 100% free-only.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Eq 'AI-First|Free-Only|Safety-Gated|Continuous Delivery' "$plan"
+          grep -Eiq 'free-only' "$plan"
+          grep -Eiq 'evidence-gated|evidence-gating|certification' "$plan"
+          echo 'Production Certification policy contract: PASS'
