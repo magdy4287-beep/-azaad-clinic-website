@@ -25,6 +25,25 @@ function headerValue(request, name) {
   return '';
 }
 
+async function bodyValue(request) {
+  const parser = request?.json;
+  if (typeof parser === 'function') {
+    const value = await parser.call(request);
+    return value && typeof value === 'object' ? value : {};
+  }
+  const body = request?.body;
+  if (body && typeof body === 'object' && !Array.isArray(body)) return body;
+  if (typeof body === 'string') {
+    try {
+      const value = JSON.parse(body);
+      return value && typeof value === 'object' ? value : {};
+    } catch (_) {
+      return {};
+    }
+  }
+  return {};
+}
+
 function cookieValue(request) {
   const raw = headerValue(request, 'cookie');
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
@@ -126,7 +145,7 @@ export default async function handler(request) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type' } });
   try {
     if (request.method === 'POST') {
-      const body = await request.json().catch(() => ({}));
+      const body = await bodyValue(request);
       const username = String(body.username || '').trim().toLowerCase();
       const password = String(body.password || '');
       if (!username || !password) return json({ error: 'credentials_required' }, 400, cors);
