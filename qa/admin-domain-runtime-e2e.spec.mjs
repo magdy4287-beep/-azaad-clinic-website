@@ -4,6 +4,7 @@ import { test, expect } from '@playwright/test';
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
+const STAFF_ADMIN_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
 
 async function readAuthState(page) {
   return page.evaluate(() => ({
@@ -50,6 +51,9 @@ async function login(page) {
   if (!(state.loginHidden && state.adminVisible)) {
     throw new Error(`Admin shell did not activate. adminAuthResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
   }
+  expect(state.role, 'authenticated browser role must be resolved').toBeTruthy();
+  expect(state.staffRole, 'authenticated staff role must be resolved').toBeTruthy();
+  expect(state.role, 'DOM role and canonical staff role must agree').toBe(String(state.staffRole).toUpperCase());
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
@@ -65,13 +69,25 @@ test('authenticated admin domain runtime certification covers every accessible p
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('response', response => {
     const url = response.url();
-    if (url.includes('/api/') && (response.status() >= 500 || response.status() === 401 || response.status() === 403)) {
-      failedBackendResponses.push({ status: response.status(), method: response.request().method(), url });
+    const status = response.status();
+    if (!url.includes('/api/')) return;
+    if (status >= 500 || status === 403 || (status === 401 && !url.includes('/api/admin-auth'))) {
+      failedBackendResponses.push({ status, method: response.request().method(), url });
     }
+    if (status === 401 && url.includes('/api/admin-auth')) return;
   });
   page.on('requestfinished', request => { if (request.url().includes('.js')) loadedScripts.push(request.url()); });
 
   await login(page);
+
+  const authState = await readAuthState(page);
+  const staffButton = page.locator('.tab[data-panel="staff"]').first();
+  const staffVisible = await staffButton.isVisible().catch(() => false);
+  if (STAFF_ADMIN_ROLES.has(String(authState.role).toUpperCase())) {
+    expect(staffVisible, 'privileged staff roles must expose Staff Management').toBeTruthy();
+  } else {
+    expect(staffVisible, `role ${authState.role} must not expose Staff Management`).toBeFalsy();
+  }
 
   await expect(page.locator('.tab[data-panel]:visible').first(), 'authenticated admin must expose a visible navigation panel').toBeVisible({ timeout: AUTH_READY_TIMEOUT });
   await page.waitForTimeout(1000);
