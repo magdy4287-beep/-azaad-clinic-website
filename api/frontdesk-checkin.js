@@ -38,7 +38,7 @@ async function authorize(req, sql) {
   const staff = rows[0];
   if (!staff) return null;
   const role = String(staff.role || '').toUpperCase();
-  if (!['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'FRONTDESK'].includes(role)) return null;
+  if (!['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'CASHIER', 'DOCTOR', 'MARKETING'].includes(role)) return null;
   return { user, staff, role };
 }
 
