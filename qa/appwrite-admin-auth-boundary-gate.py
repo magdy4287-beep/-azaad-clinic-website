@@ -12,7 +12,7 @@ build = (root / 'qa/vercel-build.py').read_text(encoding='utf-8')
 parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and bool(re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth))
 lifetime_guard = 'const SESSION_MAX_AGE = 60 * 60 * 8;' in auth and 'maxAge = SESSION_MAX_AGE' in auth and 'Max-Age=${maxAge}' in auth
 secure_guard = "const secure = protocol === 'https:'" in auth and "secure ? ' Secure;'" in auth
-server_cookie_guard = "const { appwriteSecret, staff, session } = result" in auth and "'set-cookie': sessionCookie(request, appwriteSecret)" in auth
+server_cookie_guard = "const { appwriteSecret, staff, session } = result" in auth and "'set-cookie': sessionCookie(req, appwriteSecret)" in auth
 appwrite_cookie_forward_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}; a_session_\$\{project\}_legacy=\$\{secret\}`', auth))
 appointments_cookie_guard = (
     'const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;' in appointments
