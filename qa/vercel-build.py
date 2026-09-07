@@ -33,6 +33,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/normalize-admin-login-form.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
+    ["python3", "qa/finalize-admin-staff-caller-boundary.py"],
     ["python3", "qa/harden-admin-refresh-session.py"],
     ["python3", "qa/harden-admin-inline-refresh-session.py"],
     ["python3", "qa/finalize-admin-operational-data.py"],
@@ -74,6 +75,7 @@ for required in (
     "qa/finalize-appwrite-browser-session-contract.py",
     "qa/final-admin-restore-boundary.py",
     "qa/finalize-staff-management-runtime-boundary.py",
+    "qa/finalize-admin-staff-caller-boundary.py",
 ):
     if [step[1] for step in TRANSFORM_STEPS].count(required) != 1:
         raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
