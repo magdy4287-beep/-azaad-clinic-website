@@ -44,10 +44,8 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-appwrite-admin-auth.py"],
     ["python3", "qa/finalize-staff-management-appwrite.py"],
     ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
+    ["python3", "qa/finalize-appwrite-browser-session-contract.py"],
     ["python3", "qa/final-admin-restore-boundary.py"],
-    # Final defense-in-depth pass: repair only if a later transform reintroduced
-    # the legacy staff runtime, then fail closed if the canonical boundary is
-    # still not the only executable staff-management runtime.
     ["python3", "qa/finalize-staff-management-runtime-boundary.py"],
 ]
 
@@ -67,20 +65,18 @@ VERIFY_STEPS = [
     ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
 
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-operational-data.py") != 1:
-    raise SystemExit("Canonical operational-data boundary transform must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-ownership.py") != 1:
-    raise SystemExit("Canonical navigation ownership transform must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-appwrite-admin-auth.py") != 1:
-    raise SystemExit("Canonical Appwrite Admin auth transform must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-staff-management-appwrite.py") != 1:
-    raise SystemExit("Canonical staff-management Appwrite transform must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/retire-legacy-admin-staff-runtime.py") != 1:
-    raise SystemExit("Final Admin staff-runtime normalization must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/final-admin-restore-boundary.py") != 1:
-    raise SystemExit("Canonical Admin restore boundary transform must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-staff-management-runtime-boundary.py") != 1:
-    raise SystemExit("Final staff-management runtime boundary transform must exist exactly once")
+for required in (
+    "qa/finalize-admin-operational-data.py",
+    "qa/finalize-admin-navigation-ownership.py",
+    "qa/finalize-appwrite-admin-auth.py",
+    "qa/finalize-staff-management-appwrite.py",
+    "qa/retire-legacy-admin-staff-runtime.py",
+    "qa/finalize-appwrite-browser-session-contract.py",
+    "qa/final-admin-restore-boundary.py",
+    "qa/finalize-staff-management-runtime-boundary.py",
+):
+    if [step[1] for step in TRANSFORM_STEPS].count(required) != 1:
+        raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
 if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
     raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
 
