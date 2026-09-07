@@ -1,12 +1,12 @@
 from pathlib import Path
 import re
 
-PATH = Path('admin.js')
-if not PATH.is_file(): raise SystemExit('admin.js is required')
-text = PATH.read_text(encoding='utf-8')
 
-def bounds(src, name):
+def bounds(src, name, required=True):
     matches = list(re.finditer(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', src))
+    if not matches:
+        if required: raise SystemExit(f'{name}: canonical function missing')
+        return None
     if len(matches) != 1: raise SystemExit(f'{name}: expected exactly one canonical function, found {len(matches)}')
     m = matches[0]; i = src.find('{', m.start()); depth = 0; quote = None; escape = False; line = block = False
     while i < len(src):
@@ -29,8 +29,10 @@ def bounds(src, name):
         i += 1
     raise SystemExit(f'{name}: unterminated function')
 
-def replace_fn(src, name, replacement):
-    start, end = bounds(src, name); return src[:start] + replacement + src[end:]
+def replace_fn(src, name, replacement, required=True):
+    b = bounds(src, name, required)
+    if not b: return src
+    return src[:b[0]] + replacement + src[b[1]:]
 
 LOGIN = r'''async function login(username, password) {
   const cleanUsername = String(username || '').trim().toLowerCase(); const cleanPassword = String(password || '');
@@ -71,13 +73,16 @@ STAFF_API = r'''async function staffApi(action, payload = {}) {
   if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
   return body;
 }'''
-for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD), ('staffApi', STAFF_API)]: text = replace_fn(text, name, replacement)
+
+admin = Path('admin.js')
+if not admin.is_file(): raise SystemExit('admin.js is required')
+text = admin.read_text(encoding='utf-8')
+for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]: text = replace_fn(text, name, replacement)
 
 role_pattern = re.compile(r'SECRETARY\s*:\s*\[.*?\]', re.S)
 text, role_count = role_pattern.subn('SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view"\n  ]', text, count=1)
 if role_count != 1: raise SystemExit('SECRETARY role permission block not found')
 
-# Direct role boundary protects against any stale permission-set mutation upstream.
 role_gate = '["OWNER", "ADMIN", "MANAGER"].includes(String(state.currentRole || state.staff?.role || "").toUpperCase().trim())'
 init_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
 load_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
@@ -89,5 +94,14 @@ text = re.sub(r"if\s*\(\s*!state\.session\?\.access_token\s*\)\s*throw new Error
 text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token)", "session: Boolean(window.AZAAD?.state?.session)")
 if re.search(r'\bsupabase\.auth\.', text) or 'functions/v1/staff-login' in text:
     raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
-PATH.write_text(text, encoding='utf-8')
-print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY least privilege; staffApi role-gated (init={init_count}, load={load_count}).')
+admin.write_text(text, encoding='utf-8')
+
+# retire-legacy-admin-staff-runtime.py owns the inline staffApi replacement in admin.html; patch its final artifact here too.
+html = Path('admin.html')
+if html.is_file():
+    html_text = html.read_text(encoding='utf-8')
+    if bounds(html_text, 'staffApi', required=False):
+        html_text = replace_fn(html_text, 'staffApi', STAFF_API, required=True)
+        html.write_text(html_text, encoding='utf-8')
+
+print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY least privilege; privileged staff calls role-gated (init={init_count}, load={load_count}); inline staffApi patched when present.')
