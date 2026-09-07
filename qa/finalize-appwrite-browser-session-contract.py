@@ -63,14 +63,22 @@ LOAD = r'''async function loadBookings() {
   } catch (error) { console.error("Booking loading error:", error); state.bookings = []; renderBookingFallback(); window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated")); }
   finally { state.loadingBookings = false; }
 }'''
-for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]: text = replace_fn(text, name, replacement)
+STAFF_API = r'''async function staffApi(action, payload = {}) {
+  const role = String(state.currentRole || state.staff?.role || '').toUpperCase().trim();
+  if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) throw new Error("ليس لديك صلاحية.");
+  const response = await fetch('/api/staff-admin', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(payload || {}) }) });
+  let body = {}; try { body = await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
+  return body;
+}'''
+for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD), ('staffApi', STAFF_API)]: text = replace_fn(text, name, replacement)
 
 role_pattern = re.compile(r'SECRETARY\s*:\s*\[.*?\]', re.S)
 text, role_count = role_pattern.subn('SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view"\n  ]', text, count=1)
 if role_count != 1: raise SystemExit('SECRETARY role permission block not found')
 
-# Backend authorization is the source of truth. Do not rely solely on a mutable permission set for privileged Staff calls.
-role_gate = "[\"OWNER\", \"ADMIN\", \"MANAGER\"].includes(String(state.currentRole || state.staff?.role || '').toUpperCase().trim())"
+# Direct role boundary protects against any stale permission-set mutation upstream.
+role_gate = '["OWNER", "ADMIN", "MANAGER"].includes(String(state.currentRole || state.staff?.role || "").toUpperCase().trim())'
 init_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
 load_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
 text, init_count = re.subn(init_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {{', text, flags=re.S)
@@ -82,4 +90,4 @@ text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token
 if re.search(r'\bsupabase\.auth\.', text) or 'functions/v1/staff-login' in text:
     raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
 PATH.write_text(text, encoding='utf-8')
-print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY least privilege; privileged staff calls role-gated (init={init_count}, load={load_count}).')
+print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY least privilege; staffApi role-gated (init={init_count}, load={load_count}).')
