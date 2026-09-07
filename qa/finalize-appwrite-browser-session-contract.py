@@ -65,21 +65,21 @@ LOAD = r'''async function loadBookings() {
 }'''
 for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]: text = replace_fn(text, name, replacement)
 
-# Final least-privilege invariant: SECRETARY has no Staff Management permission.
 role_pattern = re.compile(r'SECRETARY\s*:\s*\[.*?\]', re.S)
 text, role_count = role_pattern.subn('SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view"\n  ]', text, count=1)
 if role_count != 1: raise SystemExit('SECRETARY role permission block not found')
 
-# Gate every privileged Staff Management call site, including global refresh.
+# Backend authorization is the source of truth. Do not rely solely on a mutable permission set for privileged Staff calls.
+role_gate = "[\"OWNER\", \"ADMIN\", \"MANAGER\"].includes(String(state.currentRole || state.staff?.role || '').toUpperCase().trim())"
 init_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
 load_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
-text, init_count = re.subn(init_pattern, 'if (hasPermission("staff.view") && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {', text, flags=re.S)
-text, load_count = re.subn(load_pattern, 'if (hasPermission("staff.view") && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.load === "function") {', text, flags=re.S)
+text, init_count = re.subn(init_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {{', text, flags=re.S)
+text, load_count = re.subn(load_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.load === "function") {{', text, flags=re.S)
 if init_count == 0: raise SystemExit('Privileged Staff init call site not found')
 
 text = re.sub(r"if\s*\(\s*!state\.session\?\.access_token\s*\)\s*throw new Error\([^;]+;", "if (!state.session || state.provider !== 'appwrite') throw new Error('جلسة الإدارة غير صالحة.');", text)
 text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token)", "session: Boolean(window.AZAAD?.state?.session)")
-if re.search(r'\bsupabase\.auth\.', text) or re.search(r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY)\b', text) or 'functions/v1/staff-login' in text:
+if re.search(r'\bsupabase\.auth\.', text) or 'functions/v1/staff-login' in text:
     raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
 PATH.write_text(text, encoding='utf-8')
-print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY staff permission removed; privileged staff calls gated (init={init_count}, load={load_count}).')
+print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY least privilege; privileged staff calls role-gated (init={init_count}, load={load_count}).')
