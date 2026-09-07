@@ -12,8 +12,21 @@ function corsHeaders(origin) {
   return origin && allowed.has(origin) ? { 'access-control-allow-origin': origin, 'access-control-allow-credentials': 'true', vary: 'Origin' } : {};
 }
 
+function headerValue(request, name) {
+  const headers = request?.headers;
+  if (!headers) return '';
+  if (typeof headers.get === 'function') return String(headers.get(name) || '');
+  const wanted = String(name).toLowerCase();
+  if (typeof headers === 'object') {
+    for (const [key, value] of Object.entries(headers)) {
+      if (String(key).toLowerCase() === wanted) return Array.isArray(value) ? String(value[0] || '') : String(value || '');
+    }
+  }
+  return '';
+}
+
 function cookieValue(request) {
-  const raw = request.headers.get('cookie') || '';
+  const raw = headerValue(request, 'cookie');
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
@@ -109,7 +122,7 @@ async function verifySession(request) {
 }
 
 export default async function handler(request) {
-  const cors = corsHeaders(request.headers.get('origin'));
+  const cors = corsHeaders(headerValue(request, 'origin'));
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type' } });
   try {
     if (request.method === 'POST') {
