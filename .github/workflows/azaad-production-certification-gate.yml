@@ -1,7 +1,7 @@
 name: AZAAD Production Certification Gate
 
 # Certification is downstream of the canonical Production Browser E2E for runtime-affecting changes.
-# Main uses workflow_run to avoid push-time races; PRs can consume the already-completed exact-SHA E2E run.
+# Main uses workflow_run to avoid push-time races; PRs consume the already-completed exact PR-head-SHA E2E run.
 # Governance/documentation-only changes retain the existing ancestor-inheritance path.
 
 on:
@@ -44,14 +44,14 @@ jobs:
       - name: Checkout exact commit under evaluation
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Verify certification evidence for the exact commit
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           EVENT_NAME: ${{ github.event_name }}
           E2E_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || '' }}
         shell: bash
@@ -65,7 +65,7 @@ jobs:
           grep -Fq 'github.sha' "$workflow_file"
 
           # workflow_run is authoritative for main and is already completed before this gate starts.
-          # PR certification may safely consume the completed exact-SHA Browser E2E run directly.
+          # PR certification uses pull_request.head.sha, which is the exact commit tested by Browser E2E.
           if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
             [[ "$E2E_CONCLUSION" == 'success' ]] || {
               echo "Production Browser E2E did not succeed for exact commit $SHA"
@@ -82,7 +82,7 @@ jobs:
             exit 0
           fi
 
-          # PR runtime changes: require a completed successful Browser E2E run for this exact SHA.
+          # PR runtime changes: require a completed successful Browser E2E run for this exact PR head SHA.
           if [[ "$EVENT_NAME" == 'pull_request' ]]; then
             runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
             if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
