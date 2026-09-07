@@ -4,15 +4,15 @@ const COOKIE = 'azaad_admin_appwrite_session';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'CASHIER', 'DOCTOR']);
 
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
-  });
+function json(res, body, status = 200) {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(body));
 }
 
-function cookieValue(request) {
-  const raw = request.headers.get('cookie') || '';
+function cookieValue(req) {
+  const raw = req.headers.cookie || '';
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
@@ -34,8 +34,8 @@ async function appwriteAccount(secret) {
   return response.json();
 }
 
-async function authorize(request) {
-  const secret = cookieValue(request);
+async function authorize(req) {
+  const secret = cookieValue(req);
   const user = await appwriteAccount(secret);
   if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
@@ -54,18 +54,18 @@ async function authorize(request) {
   return { staff, role };
 }
 
-export default async function handler(request) {
-  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+export default async function handler(req, res) {
+  if (req.method !== 'GET') return json(res, { error: 'method_not_allowed' }, 405);
 
   try {
-    const identity = await authorize(request);
-    if (!identity) return json({ error: 'authentication_required' }, 401);
+    const identity = await authorize(req);
+    if (!identity) return json(res, { error: 'authentication_required' }, 401);
 
-    const patientId = String(new URL(request.url).searchParams.get('patient_id') || '').trim();
-    if (!UUID.test(patientId)) return json({ error: 'invalid_patient_id' }, 400);
+    const patientId = String(new URL(req.url, `https://${req.headers.host || 'localhost'}`).searchParams.get('patient_id') || '').trim();
+    if (!UUID.test(patientId)) return json(res, { error: 'invalid_patient_id' }, 400);
 
     const databaseUrl = String(process.env.DATABASE_URL || '').trim();
-    if (!databaseUrl) return json({ error: 'database_not_configured' }, 503);
+    if (!databaseUrl) return json(res, { error: 'database_not_configured' }, 503);
     const sql = neon(databaseUrl);
 
     const invoices = await sql`
@@ -88,9 +88,9 @@ export default async function handler(request) {
       `;
     }
 
-    return json({ provider: 'appwrite-neon', invoices, payments });
+    return json(res, { provider: 'appwrite-neon', invoices, payments });
   } catch (error) {
     console.error('patient-financial-summary boundary failure', { name: error?.name, message: error?.message });
-    return json({ error: 'financial_summary_unavailable' }, 503);
+    return json(res, { error: 'financial_summary_unavailable' }, 503);
   }
 }
