@@ -2,12 +2,15 @@ import { neon } from '@neondatabase/serverless';
 
 const COOKIE = 'azaad_admin_appwrite_session';
 
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+function json(res, body, status = 200) {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(body));
 }
 
-function cookieValue(request) {
-  const raw = request.headers.get('cookie') || '';
+function cookieValue(req) {
+  const raw = req.headers.cookie || '';
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
@@ -18,15 +21,12 @@ async function appwriteAccount(secret) {
   if (!endpoint || !project || !secret) return null;
   const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
   const response = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie } });
-  if (!response.ok) {
-    console.warn('admin-appointments Appwrite session verification rejected', { status: response.status, cookiePresent: true, cookieLength: secret.length });
-    return null;
-  }
+  if (!response.ok) return null;
   return response.json();
 }
 
-async function authorize(request) {
-  const secret = cookieValue(request);
+async function authorize(req) {
+  const secret = cookieValue(req);
   const user = await appwriteAccount(secret);
   if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
@@ -45,13 +45,13 @@ async function authorize(request) {
   return { user, staff, role };
 }
 
-export default async function handler(request) {
-  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+export default async function handler(req, res) {
+  if (req.method !== 'GET') return json(res, { error: 'method_not_allowed' }, 405);
   try {
-    const identity = await authorize(request);
-    if (!identity) return json({ error: 'authentication_required' }, 401);
-    if (!['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'].includes(identity.role)) return json({ error: 'forbidden' }, 403);
-    const url = new URL(request.url);
+    const identity = await authorize(req);
+    if (!identity) return json(res, { error: 'authentication_required' }, 401);
+    if (!['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'].includes(identity.role)) return json(res, { error: 'forbidden' }, 403);
+    const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
     const from = url.searchParams.get('from') || '2000-01-01';
     const to = url.searchParams.get('to') || '2100-12-31';
     const requestedLimit = Number(url.searchParams.get('limit') || '500');
@@ -65,9 +65,9 @@ export default async function handler(request) {
       order by appointment_date desc, appointment_time asc
       limit ${limit}
     `;
-    return json({ appointments: rows, count: rows.length, provider: 'appwrite-neon' });
+    return json(res, { appointments: rows, count: rows.length, provider: 'appwrite-neon' });
   } catch (error) {
     console.error('admin-appointments boundary failure', { name: error?.name, message: error?.message });
-    return json({ error: 'appointments_unavailable' }, 503);
+    return json(res, { error: 'appointments_unavailable' }, 503);
   }
 }
