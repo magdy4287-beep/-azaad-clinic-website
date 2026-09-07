@@ -4,13 +4,11 @@
  * without changing booking, scheduling, auth, or i18n behavior.
  *
  * Canonical public-data boundary: same-origin /api/public-clinic-data.
- * Legacy Supabase public-data callers are intercepted and routed to the
- * canonical boundary so no public surface bypasses the production artifact.
+ * This module is the single browser-side owner for request coalescing.
  */
 (() => {
   'use strict';
   const API = '/api/public-clinic-data';
-  const LEGACY_API = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data';
   const originalFetch = window.fetch.bind(window);
   const state = window.__AZAAD_PUBLIC_CLINIC_DATA_COORDINATOR__ = window.__AZAAD_PUBLIC_CLINIC_DATA_COORDINATOR__ || {};
   if (state.installed) return;
@@ -22,11 +20,9 @@
       if (!raw) return false;
       const url = new URL(raw, window.location.href);
       const canonical = new URL(API, window.location.href);
-      const legacy = new URL(LEGACY_API);
-      const matchesEndpoint =
-        (url.origin === canonical.origin && url.pathname === canonical.pathname) ||
-        (url.origin === legacy.origin && url.pathname === legacy.pathname);
-      return matchesEndpoint && (url.searchParams.get('api') === 'data' || url.searchParams.has('_') || url.searchParams.toString() === '');
+      return url.origin === canonical.origin &&
+        url.pathname === canonical.pathname &&
+        (url.searchParams.get('api') === 'data' || url.searchParams.has('_') || url.searchParams.toString() === '');
     } catch (_) {
       return false;
     }

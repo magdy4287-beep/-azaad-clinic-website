@@ -65,6 +65,7 @@ VERIFY_STEPS = [
     ["python3", "qa/verify-admin-staff-caller-boundary.py"],
     ["python3", "qa/appwrite-admin-auth-boundary-gate.py"],
     ["python3", "qa/public-booking-central-i18n-gate.py"],
+    ["python3", "qa/public-runtime-ownership-gate.py"],
 ]
 
 transform_paths = [step[1] for step in TRANSFORM_STEPS]
@@ -98,6 +99,8 @@ if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gat
     raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
 if [step[1] for step in VERIFY_STEPS].count("qa/verify-admin-staff-caller-boundary.py") != 1:
     raise SystemExit("Admin staff caller verification gate must exist exactly once")
+if [step[1] for step in VERIFY_STEPS].count("qa/public-runtime-ownership-gate.py") != 1:
+    raise SystemExit("Public runtime ownership gate must exist exactly once")
 
 
 def run_steps(steps, phase):
