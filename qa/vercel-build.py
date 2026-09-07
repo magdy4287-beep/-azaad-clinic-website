@@ -62,6 +62,7 @@ VERIFY_STEPS = [
     ["python3", "qa/verify-production-contracts.py"],
     ["python3", "qa/verify-admin-post-auth-interactivity.py"],
     ["python3", "qa/verify-admin-auth-critical-path.py"],
+    ["python3", "qa/verify-admin-staff-caller-boundary.py"],
     ["python3", "qa/appwrite-admin-auth-boundary-gate.py"],
     ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
@@ -81,6 +82,8 @@ for required in (
         raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
 if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
     raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
+if [step[1] for step in VERIFY_STEPS].count("qa/verify-admin-staff-caller-boundary.py") != 1:
+    raise SystemExit("Admin staff caller verification gate must exist exactly once")
 
 
 def run_steps(steps, phase):
