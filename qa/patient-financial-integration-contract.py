@@ -24,7 +24,7 @@ assert 'Patient 360' in patient_center or 'Patient 360' in finance_ui
 
 # The server boundary is authoritative for financial data and uses Neon directly.
 assert "import { neon } from '@neondatabase/serverless'" in finance_api
-assert "request.method !== 'GET'" in finance_api
+assert "req.method !== 'GET'" in finance_api
 assert 'public.clinic_invoices' in finance_api
 assert 'public.clinic_payments' in finance_api
 assert 'patient_id' in finance_api
