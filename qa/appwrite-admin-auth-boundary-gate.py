@@ -29,7 +29,7 @@ checks = [
     ('Admin login enforces Appwrite user/clinic_staff ID parity', parity_guard),
     ('Admin login stores the Appwrite session secret only in the server-managed HttpOnly cookie', server_cookie_guard),
     ('Admin server boundary forwards both Appwrite session cookie variants', appwrite_cookie_forward_guard),
-    ('Admin restore verifies Appwrite session through the server-managed cookie', 'appwriteAccount(secret)' in auth and 'const secret = cookieValue(request)' in auth),
+    ('Admin restore verifies Appwrite session through the server-managed cookie', 'appwriteAccount(secret)' in auth and 'const secret = cookieValue(req)' in auth),
     ('Admin restore enforces active clinic_staff', 'active = true' in auth),
     ('Admin auth JSON never exposes the Appwrite session secret', 'appwriteSecret' not in "return json({ authenticated: true, provider: 'appwrite', user: { id: session.userId, email: staff.email }, staff },"),
     ('Admin auth never accepts a browser-supplied Appwrite session header', no_custom_header_guard),
