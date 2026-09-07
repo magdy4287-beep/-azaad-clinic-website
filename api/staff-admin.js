@@ -15,6 +15,17 @@ function cookieValue(req) {
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
+async function readJson(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on('data', (chunk) => { raw += chunk; });
+    req.on('end', () => {
+      try { resolve(raw ? JSON.parse(raw) : {}); } catch { resolve({}); }
+    });
+    req.on('error', () => resolve({}));
+  });
+}
 async function appwriteRequest(path, options = {}) {
   const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
   const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
@@ -93,7 +104,7 @@ export default async function handler(req, res) {
   try {
     const identity = await authorize(req);
     if (!identity) return json(res, { error: 'authentication_required' }, 401);
-    const body = await req.json().catch(() => ({}));
+    const body = await readJson(req);
     const action = String(body.action || '').trim();
     const sql = identity.sql;
     if (action === 'list') {
