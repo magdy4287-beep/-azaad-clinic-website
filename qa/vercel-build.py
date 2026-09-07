@@ -33,6 +33,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/normalize-admin-login-form.py"],
     ["python3", "qa/final-admin-login-isolation.py"],
     ["python3", "qa/canonicalize-admin-interactivity-v2.py"],
+    ["python3", "qa/finalize-appwrite-browser-session-contract.py"],
     ["python3", "qa/finalize-admin-staff-caller-boundary.py"],
     ["python3", "qa/harden-admin-refresh-session.py"],
     ["python3", "qa/harden-admin-inline-refresh-session.py"],
@@ -45,7 +46,6 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-appwrite-admin-auth.py"],
     ["python3", "qa/finalize-staff-management-appwrite.py"],
     ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
-    ["python3", "qa/finalize-appwrite-browser-session-contract.py"],
     ["python3", "qa/final-admin-restore-boundary.py"],
     ["python3", "qa/finalize-staff-management-runtime-boundary.py"],
 ]
