@@ -49,14 +49,14 @@
     const current = role();
     if (!current || current === 'DOCTOR') return;
     const allowed = new Set(ROLE_PANELS[current] || []);
-    document.querySelectorAll('.tabs .tab[data-panel]').forEach(tab => {
+    document.querySelectorAll('.tab[data-panel]').forEach(tab => {
       const visible = allowed.has(tab.dataset.panel);
       tab.hidden = !visible;
       tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
     });
-    const active = document.querySelector('.tabs .tab.active:not([hidden])');
+    const active = document.querySelector('.tab.active:not([hidden])');
     if (!active) {
-      const firstAllowed = document.querySelector('.tabs .tab[data-panel]:not([hidden])');
+      const firstAllowed = document.querySelector('.tab[data-panel]:not([hidden])');
       if (firstAllowed) {
         if (typeof window.AZAAD_ADMIN_ACTIVATE_PANEL === 'function') window.AZAAD_ADMIN_ACTIVATE_PANEL(firstAllowed.dataset.panel, firstAllowed);
         else firstAllowed.click();

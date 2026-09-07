@@ -4,6 +4,7 @@
   const TIME_ZONE = 'Africa/Cairo';
   const LOCALES = Object.freeze({ ar: 'ar-EG', en: 'en-EG' });
   const HOURS = Object.freeze({ hour: 'numeric', minute: '2-digit', hour12: true });
+  const DATABASE_UUID = 'eb644c1e-c5f0-4c16-8810-2e3a423a6ce0';
 
   function language() {
     const lang = window.AZAAD_I18N?.language?.();
@@ -73,8 +74,9 @@
   }
 
   window.AZAAD_CORE_CONTEXT = Object.freeze({
-    version: '1.1.0',
+    version: '1.2.0',
     timeZone: TIME_ZONE,
+    databaseUuid: DATABASE_UUID,
     language,
     todayISO,
     formatTime,

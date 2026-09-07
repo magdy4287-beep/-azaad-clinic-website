@@ -4,13 +4,14 @@
    ONE scheduling truth for Patient + Admin.
 
    Source of truth:
-     PostgreSQL clinic_bookings + doctor_weekly_schedules
+     PostgreSQL clinic_bookings + doctor_weekly_schedules on Neon.
 
-   Realtime design:
-     - Public Broadcast carries ONLY an invalidation signal.
-     - No patient/booking row data is exposed to public clients.
-     - Every signal causes a fresh canonical read/render.
-     - Polling is only a recovery path if WebSocket delivery fails.
+   Runtime design:
+     - No Supabase dependency.
+     - Public/admin reads go through the canonical Neon-backed APIs.
+     - BroadcastChannel carries ONLY an invalidation signal between
+       same-origin browser contexts; no patient/booking row data is sent.
+     - Polling is the recovery path and also the cross-device refresh path.
      - No booking truth is stored in localStorage/sessionStorage.
 
    Ownership:
@@ -24,17 +25,13 @@
   if (window.__AZAAD_CENTRAL_SCHEDULING_SYNC__) return;
   window.__AZAAD_CENTRAL_SCHEDULING_SYNC__ = true;
 
-  const SUPABASE_URL = 'https://derofsthjivlkcdnojww.supabase.co';
-  const PUBLIC_SCHEDULING_API = `${SUPABASE_URL}/functions/v1/azaad-public-scheduling`;
-  const SUPABASE_KEY = 'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa';
   const BROADCAST_TOPIC = 'azaad:scheduling';
   const BROADCAST_EVENT = 'availability_invalidated';
   const FALLBACK_POLL_MS = 15000;
   const EVENT_DEBOUNCE_MS = 150;
   const SLOT_RESTORE_TIMEOUT_MS = 6000;
 
-  let supabase = null;
-  let channel = null;
+  let broadcast = null;
   let refreshTimer = null;
   let pollTimer = null;
   let refreshInFlight = false;
@@ -105,8 +102,6 @@
     if (document.getElementById('whatsappBookingStep')) return;
 
     // Preserve a patient-selected slot across a canonical availability refresh.
-    // The previous implementation dispatched a synthetic change event, which
-    // caused app.js to clear selectedSlot before the user could submit.
     const selected = document.querySelector('#slots .slot.selected')?.dataset.slot || '';
 
     const date = document.getElementById('date');
@@ -180,40 +175,30 @@
     }, FALLBACK_POLL_MS);
   }
 
-  async function startRealtimeBroadcast() {
-    try {
-      const mod = await import('https://esm.sh/@supabase/supabase-js@2');
-      supabase = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      });
+  function startSameOriginBroadcast() {
+    if (typeof BroadcastChannel === 'undefined') return;
 
-      channel = supabase
-        .channel(BROADCAST_TOPIC)
-        .on('broadcast', { event: BROADCAST_EVENT }, payload => {
-          console.info('[AZAAD scheduling] availability invalidated');
-          scheduleRefresh('broadcast-invalidation');
-        })
-        .subscribe(status => {
-          if (status === 'SUBSCRIBED') {
-            console.info('[AZAAD scheduling] central broadcast connected');
-          }
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.warn('[AZAAD scheduling] broadcast unavailable; fallback polling remains active');
-          }
-        });
+    try {
+      broadcast = new BroadcastChannel(BROADCAST_TOPIC);
+      broadcast.addEventListener('message', event => {
+        if (event?.data?.type !== BROADCAST_EVENT) return;
+        scheduleRefresh('broadcast-invalidation');
+      });
     } catch (error) {
-      console.warn('[AZAAD scheduling] broadcast setup failed; fallback polling remains active:', error);
+      console.warn('[AZAAD scheduling] same-origin broadcast unavailable; polling remains active:', error);
+      broadcast = null;
     }
   }
 
   window.AZAAD_SCHEDULING = Object.freeze({
-    refresh: () => scheduleRefresh('manual'),
+    refresh: () => {
+      scheduleRefresh('manual');
+      try {
+        broadcast?.postMessage({ type: BROADCAST_EVENT });
+      } catch (_) {}
+    },
     context: currentBookingContext,
-    schedulingApi: PUBLIC_SCHEDULING_API
+    schedulingApi: '/api/public-scheduling'
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -221,14 +206,12 @@
   });
 
   window.addEventListener('beforeunload', () => {
-    try {
-      if (channel && supabase) supabase.removeChannel(channel);
-    } catch (_) {}
+    try { broadcast?.close(); } catch (_) {}
     if (pollTimer) clearInterval(pollTimer);
     if (refreshTimer) clearTimeout(refreshTimer);
   });
 
   lastFingerprint = fingerprint();
   startFallbackPolling();
-  startRealtimeBroadcast();
+  startSameOriginBroadcast();
 })();

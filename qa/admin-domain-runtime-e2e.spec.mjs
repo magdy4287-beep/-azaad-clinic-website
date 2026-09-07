@@ -1,8 +1,11 @@
+// Diagnostic trigger: execute the browser-loaded JavaScript parse sweep in CI on the current PR head.
 import { test, expect } from '@playwright/test';
 
 const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.vercel.app';
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
+const STAFF_ADMIN_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
+const EXPECTED_AUTH_401_CONSOLE = 'Failed to load resource: the server responded with a status of 401 (Unauthorized)';
 
 async function readAuthState(page) {
   return page.evaluate(() => ({
@@ -14,7 +17,8 @@ async function readAuthState(page) {
     initialized: Boolean(window.AZAAD?.state?.initialized),
     initializing: Boolean(window.AZAAD?.state?.initializing),
     staffRole: window.AZAAD?.state?.staff?.role || null,
-    session: Boolean(window.AZAAD?.state?.session?.access_token),
+    session: Boolean(window.AZAAD?.state?.session),
+    provider: window.AZAAD?.state?.provider || null,
     loginError: document.getElementById('loginError')?.textContent?.trim() || null
   }));
 }
@@ -26,11 +30,11 @@ async function login(page) {
   const authResponses = [];
   const runtimeErrors = [];
   page.on('response', response => {
-    if (response.url().includes('/functions/v1/staff-login') && response.request().method() === 'POST') {
+    if (response.url().includes('/api/admin-auth') && response.request().method() === 'POST') {
       authResponses.push({ status: response.status(), url: response.url() });
     }
   });
-  page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}`));
+  page.on('pageerror', error => runtimeErrors.push(`pageerror:${error.message}\n${error.stack || ''}`));
   page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(`console:${message.text()}`); });
 
   await page.goto(`${baseURL}/admin.html`, navigation);
@@ -42,16 +46,15 @@ async function login(page) {
   await page.locator('#password').fill(process.env.AZAAD_TEST_PASSWORD);
   await page.locator('#loginForm button[type="submit"]').click();
 
-  const deadline = Date.now() + AUTH_READY_TIMEOUT;
-  let state = await readAuthState(page);
-  while (Date.now() < deadline && !(state.loginHidden && state.adminVisible)) {
-    await page.waitForTimeout(250);
-    state = await readAuthState(page);
-  }
-
+  await expect.poll(() => authResponses.length, { timeout: AUTH_READY_TIMEOUT }).toBeGreaterThan(0);
+  expect(authResponses.at(-1).status).toBe(200);
+  const state = await readAuthState(page);
   if (!(state.loginHidden && state.adminVisible)) {
-    throw new Error(`Admin shell did not activate. staffLoginResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
+    throw new Error(`Admin shell did not activate. adminAuthResponses=${JSON.stringify(authResponses)} state=${JSON.stringify(state)} runtimeErrors=${JSON.stringify(runtimeErrors)}`);
   }
+  expect(state.role, 'authenticated browser role must be resolved').toBeTruthy();
+  expect(state.staffRole, 'authenticated staff role must be resolved').toBeTruthy();
+  expect(state.role, 'DOM role and canonical staff role must agree').toBe(String(state.staffRole).toUpperCase());
 
   await expect(page.locator('#loginPage')).toBeHidden({ timeout: AUTH_READY_TIMEOUT });
   await expect(page.locator('#adminPage')).toBeVisible({ timeout: AUTH_READY_TIMEOUT });
@@ -62,18 +65,32 @@ test('authenticated admin domain runtime certification covers every accessible p
   const consoleErrors = [];
   const failedBackendResponses = [];
   const loadedScripts = [];
+  let expectedAdminAuth401Responses = 0;
 
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', error => pageErrors.push({ message: error.message, stack: error.stack || null }));
   page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('response', response => {
     const url = response.url();
-    if (url.includes('/functions/v1/') && (response.status() >= 500 || response.status() === 401 || response.status() === 403)) {
-      failedBackendResponses.push({ status: response.status(), method: response.request().method(), url });
+    const status = response.status();
+    if (url.includes('/api/admin-auth') && status === 401) expectedAdminAuth401Responses += 1;
+    if (!url.includes('/api/')) return;
+    if (status >= 500 || status === 403 || (status === 401 && !url.includes('/api/admin-auth'))) {
+      failedBackendResponses.push({ status, method: response.request().method(), url });
     }
+    if (status === 401 && url.includes('/api/admin-auth')) return;
   });
   page.on('requestfinished', request => { if (request.url().includes('.js')) loadedScripts.push(request.url()); });
 
   await login(page);
+
+  const authState = await readAuthState(page);
+  const staffButton = page.locator('.tab[data-panel="staff"]').first();
+  const staffVisible = await staffButton.isVisible().catch(() => false);
+  if (STAFF_ADMIN_ROLES.has(String(authState.role).toUpperCase())) {
+    expect(staffVisible, 'privileged staff roles must expose Staff Management').toBeTruthy();
+  } else {
+    expect(staffVisible, `role ${authState.role} must not expose Staff Management`).toBeFalsy();
+  }
 
   await expect(page.locator('.tab[data-panel]:visible').first(), 'authenticated admin must expose a visible navigation panel').toBeVisible({ timeout: AUTH_READY_TIMEOUT });
   await page.waitForTimeout(1000);
@@ -92,15 +109,38 @@ test('authenticated admin domain runtime certification covers every accessible p
     const state = await section.evaluate(node => ({
       text: (node.textContent || '').replace(/\s+/g, ' ').trim(),
       htmlBytes: node.innerHTML.length,
-      hasLoadingOnly: node.querySelectorAll('.empty').length > 0 && !node.querySelector('table, input, select, textarea, button[data-enterprise-refresh], .item, .stat, .error'),
+      hasLoadingOnly: node.querySelectorAll('.empty').length > 0 && !node.querySelector('table, input, select, textarea, button, .item, .stat, .error, a[href]'),
       hasInteractiveContent: Boolean(node.querySelector('input, select, textarea, button, table, .item, .stat, .error, a[href]'))
     }));
     expect(state.hasLoadingOnly, `${panel.id} must not remain a loading-only shell`).toBeFalsy();
     expect(state.hasInteractiveContent || state.htmlBytes > 80, `${panel.id} must render a real control surface or substantive content`).toBeTruthy();
   }
 
-  expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}`).toEqual([]);
-  expect(consoleErrors, `Unexpected console errors: ${JSON.stringify(consoleErrors)}`).toEqual([]);
+  const parseFailures = await page.evaluate(async (urls) => {
+    const failures = [];
+    for (const url of [...new Set(urls)]) {
+      try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) { failures.push({ url, error: `HTTP ${response.status}` }); continue; }
+        const source = await response.text();
+        try { new Function(source); } catch (error) { failures.push({ url, error: error?.message || String(error) }); }
+      } catch (error) { failures.push({ url, error: error?.message || String(error) }); }
+    }
+    return failures;
+  }, [...new Set(loadedScripts)]);
+
+  const unexpectedConsoleErrors = [...consoleErrors];
+  let expected401Consumed = 0;
+  for (let index = unexpectedConsoleErrors.length - 1; index >= 0; index -= 1) {
+    if (unexpectedConsoleErrors[index] === EXPECTED_AUTH_401_CONSOLE && expected401Consumed < expectedAdminAuth401Responses) {
+      unexpectedConsoleErrors.splice(index, 1);
+      expected401Consumed += 1;
+    }
+  }
+
+  expect(parseFailures, `Browser-loaded JavaScript parse failures: ${JSON.stringify(parseFailures)}`).toEqual([]);
+  expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}; loadedScripts=${JSON.stringify([...new Set(loadedScripts)])}`).toEqual([]);
+  expect(unexpectedConsoleErrors, `Unexpected console errors: ${JSON.stringify(unexpectedConsoleErrors)}; expectedAdminAuth401Responses=${expectedAdminAuth401Responses}; failedBackendResponses=${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([]);
   expect([...new Set(loadedScripts)].length).toBeGreaterThan(0);
 });

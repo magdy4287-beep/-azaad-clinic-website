@@ -1,95 +1,71 @@
-/* AZAAD CLINIC — DOCTOR ROUTE GUARD v5 */
+/* AZAAD CLINIC — DOCTOR ROUTE GUARD v6 */
 (() => {
   'use strict';
   if (!/\/admin\.html$/i.test(location.pathname)) return;
 
-  const SUPABASE_URL='https://derofsthjivlkcdnojww.supabase.co';
-  const SUPABASE_KEY='sb_publishable_GC253fvQbNBsDOaKjWGRw_tPYJrgLa';
-  let clientPromise=null;
-  let redirectInProgress=false;
+  let redirectInProgress = false;
 
-  function setAdminVisibility(show){
-    const admin=document.getElementById('adminPage');
-    const login=document.getElementById('loginPage');
-    if(admin) admin.classList.toggle('hidden',!show);
-    if(login) login.classList.toggle('hidden',!!show);
+  function setAdminVisibility(show) {
+    const admin = document.getElementById('adminPage');
+    const login = document.getElementById('loginPage');
+    if (admin) admin.classList.toggle('hidden', !show);
+    if (login) login.classList.toggle('hidden', !!show);
   }
 
-  function loadOperationsCenter(){
-    if(document.getElementById('azaadOperationsScript')) return;
-    const script=document.createElement('script');
-    script.id='azaadOperationsScript';
-    script.src='./azaad-operations-control-center.js?v=20260819-01';
-    script.defer=true;
+  function loadOperationsCenter() {
+    if (document.getElementById('azaadOperationsScript')) return;
+    const script = document.createElement('script');
+    script.id = 'azaadOperationsScript';
+    script.src = './azaad-operations-control-center.js?v=20260905-01';
+    script.defer = true;
     document.head.appendChild(script);
 
-    const guard=document.createElement('script');
-    guard.id='azaadOperationsRoleGuard';
-    guard.src='./azaad-operations-role-guard.js?v=20260819-01';
-    guard.defer=true;
+    const guard = document.createElement('script');
+    guard.id = 'azaadOperationsRoleGuard';
+    guard.src = './azaad-operations-role-guard.js?v=20260905-01';
+    guard.defer = true;
     document.head.appendChild(guard);
   }
 
-  async function getClient(){
-    if(window.AZAAD?.supabase) return window.AZAAD.supabase;
-    if(!clientPromise){
-      clientPromise=import('https://esm.sh/@supabase/supabase-js@2').then(({createClient}) =>
-        createClient(SUPABASE_URL,SUPABASE_KEY,{
-          auth:{
-            persistSession:true,
-            autoRefreshToken:true,
-            detectSessionInUrl:false
-          }
-        })
-      );
-    }
-    return clientPromise;
-  }
-
-  async function isDoctorSession(session){
-    const token=session?.access_token;
-    if(!token) return false;
-    try{
-      const response=await fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth?_=${Date.now()}`,{
-        headers:{
-          Accept:'application/json',
-          Authorization:`Bearer ${token}`,
-          apikey:SUPABASE_KEY
-        },
-        cache:'no-store'
+  async function currentStaff() {
+    try {
+      const response = await fetch(`/api/admin-auth?_=${Date.now()}`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
       });
-      const body=await response.json().catch(() => ({}));
-      const staff=body?.admin || body?.staff || {};
-      return response.ok && staff.active !== false && String(staff.role || '').trim().toUpperCase() === 'DOCTOR';
-    }catch(_){
-      return false;
+      if (!response.ok) return null;
+      const body = await response.json().catch(() => ({}));
+      const staff = body?.staff || null;
+      if (!body?.authenticated || !staff || staff.active === false) return null;
+      return staff;
+    } catch (_) {
+      return null;
     }
   }
 
-  async function handleAuthEvent(event,session){
-    if(event!=='SIGNED_IN' || redirectInProgress) return;
-    try{
-      if(await isDoctorSession(session)){
-        redirectInProgress=true;
-        location.replace('./doctor-dashboard.html?from=login');
+  async function boot() {
+    try {
+      const staff = await currentStaff();
+      if (String(staff?.role || '').trim().toUpperCase() === 'DOCTOR') {
+        if (!redirectInProgress) {
+          redirectInProgress = true;
+          location.replace('./doctor-dashboard.html?from=login');
+        }
         return;
       }
       setAdminVisibility(true);
       loadOperationsCenter();
-    }catch(e){
-      console.warn('Azaad doctor route guard v5:',e);
+    } catch (error) {
+      console.warn('Azaad doctor route guard v6 init:', error);
       setAdminVisibility(true);
     }
   }
 
-  (async()=>{
-    try{
-      const supabase=await getClient();
-      supabase.auth.onAuthStateChange((event,session)=>setTimeout(()=>handleAuthEvent(event,session),0));
-      setTimeout(loadOperationsCenter,1200);
-    }catch(e){
-      console.warn('Azaad doctor route guard v5 init:',e);
-      setAdminVisibility(true);
-    }
-  })();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
 })();

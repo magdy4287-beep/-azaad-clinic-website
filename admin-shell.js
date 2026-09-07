@@ -8,6 +8,26 @@
   if (window.__AZAAD_ADMIN_SHELL_V4__) return;
   window.__AZAAD_ADMIN_SHELL_V4__ = true;
 
+  var STAFF_MANAGEMENT_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
+
+  function currentRole() {
+    return String(window.AZAAD?.state?.currentRole || window.AZAAD?.state?.staff?.role || document.body?.dataset?.role || '').toUpperCase().trim();
+  }
+
+  function enforceRoleNavigation() {
+    var role = currentRole();
+    var allowed = STAFF_MANAGEMENT_ROLES.has(role);
+    document.querySelectorAll('.tab[data-panel="staff"], #staff').forEach(function (node) {
+      node.style.display = allowed ? '' : 'none';
+      node.setAttribute('aria-hidden', allowed ? 'false' : 'true');
+    });
+    if (!allowed && document.querySelector('.panel.active#staff')) {
+      var fallback = document.querySelector('.tab[data-panel="bookings"]');
+      if (fallback) activate('bookings', fallback);
+    }
+    return allowed;
+  }
+
   function loadCentralSchedulingSync() {
     if (document.querySelector('script[data-azaad-central-scheduling-sync]')) return;
     var script = document.createElement('script');
@@ -30,12 +50,14 @@
     document.querySelectorAll('.panel').forEach(function (item) {
       item.classList.toggle('active', item.id === target);
     });
+    enforceRoleNavigation();
   }
 
   function activate(panel, button) {
     if (!panel) return;
 
     var panelId = String(panel);
+    if (panelId === 'staff' && !enforceRoleNavigation()) return;
     var targetButton = button || document.querySelector('.tab[data-panel="' + CSS.escape(panelId) + '"]');
 
     syncActiveState(panelId, targetButton);
@@ -46,18 +68,11 @@
       }));
     } catch (_) {}
 
-    // Enterprise panels are canonical lazy mounts. A module may synchronously
-    // materialize/replace its panel while handling the activation event. Reassert
-    // the single requested state on the next frame; this is one bounded activation
-    // transaction, not an observer or navigation loop.
     window.requestAnimationFrame(function () {
       syncActiveState(panelId, targetButton);
     });
   }
 
-  // One delegated navigation owner handles both static and post-auth dynamically
-  // mounted enterprise tabs. Capture phase guarantees the canonical owner receives
-  // navigation even if a feature listener stops propagation during bubbling.
   function bindNavigation() {
     if (window.__AZAAD_ADMIN_SHELL_NAV_DELEGATED__) return;
     window.__AZAAD_ADMIN_SHELL_NAV_DELEGATED__ = true;
@@ -79,9 +94,9 @@
     activate(String(panel), button || null);
   });
 
-  // A lazy module can materialize or replace a panel after the activation event.
-  // The registry remains the sole module-loader owner; the shell only restores
-  // the already-requested visual state after that bounded transaction completes.
+  window.addEventListener('azaad:admin-role-ready', enforceRoleNavigation);
+  window.addEventListener('azaad:admin-authenticated', enforceRoleNavigation);
+
   window.addEventListener('azaad:admin-panel-ready', function (event) {
     var panel = event && event.detail ? event.detail.panel : null;
     if (!panel) return;
@@ -92,6 +107,7 @@
 
   function ready() {
     bindNavigation();
+    enforceRoleNavigation();
     loadCentralSchedulingSync();
     window.AZAAD_ADMIN_SHELL_READY = true;
     try {

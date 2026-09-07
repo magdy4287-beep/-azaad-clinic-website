@@ -9,9 +9,9 @@ def read(p):
     except OSError as e:FAILURES.append(f'cannot read {p}: {e}');return ''
 def require(c,m):
     if not c:FAILURES.append(m)
-central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; enterprise=ROOT/'admin-enterprise-centers.js'
-for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py'),(enterprise,'admin-enterprise-centers.js')):require(p.exists(),f'{l} is missing')
-ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); et=read(enterprise)
+central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; enterprise=ROOT/'admin-enterprise-centers.js'; invoice_api=ROOT/'api/invoices.js'
+for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py'),(enterprise,'admin-enterprise-centers.js'),(invoice_api,'api/invoices.js')):require(p.exists(),f'{l} is missing')
+ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); et=read(enterprise); it=read(invoice_api)
 for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObserver','central I18N dynamic observer'),('azaadLanguageChanged','central language-change event')]:require(token in ct,f'{msg} missing')
 require('location.reload()' not in ct,'central I18N reloads pages')
 require('qa/vercel-build.py' in vt,'Vercel does not use the bounded production build runner')
@@ -26,7 +26,9 @@ role_projection_patterns=(r'document\.body\.dataset\.role\s*=\s*current',r'docum
 state_source=any(re.search(p,normalized) for p in state_assignment_patterns); role_source=any(re.search(p,normalized) for p in role_assignment_patterns); role_projection=all(re.search(p,normalized) for p in role_projection_patterns)
 require('getAuthenticatedRole' in normalized and state_source and role_source and role_projection,'admin role shell does not expose the authenticated role')
 require(all(x in et for x in ('OWNER','ADMIN','MANAGER','CASHIER')),'RCM finance role scope missing')
-require("azaad-invoice-center?api=invoices" in et,'RCM owner is not wired to the canonical invoice backend')
+require("'/api/invoices?limit=200'" in et,'RCM owner is not wired to the canonical invoice backend')
+require("provider: 'appwrite-neon'" in it and 'public.clinic_invoices' in it and 'public.clinic_payments' in it,'canonical invoice API is not Appwrite-Neon backed')
+require('credentials: \'include\'' in et and 'cache: \'no-store\'' in et,'RCM owner does not use the protected session boundary')
 require(not (ROOT/'rcm-finance-loader.js').exists(),'retired global RCM loader still exists')
 require(not (ROOT/'rcm-finance-center.js').exists(),'retired duplicate RCM renderer still exists')
 htmls=sorted(ROOT.rglob('*.html'))

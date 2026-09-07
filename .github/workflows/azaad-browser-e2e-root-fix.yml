@@ -1,0 +1,252 @@
+name: Azaad Browser E2E Root Fix Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin.js'
+      - 'admin-enterprise-centers.js'
+      - 'doctor-staff-binding.js'
+      - 'api/**'
+      - 'qa/**'
+      - '.github/workflows/azaad-browser-e2e-root-fix.yml'
+      - '.github/patch-admin.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e-root-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact commit under test
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact commit under test
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Verify universal AZAAD database UUID contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/database-identity-contract.py
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: true
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test
+      - name: Install Chromium
+        run: npx playwright install chromium
+      - name: Build immutable canonical artifact
+        shell: bash
+        env:
+          VERCEL_GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/azaad-build
+          cp -a . /tmp/azaad-build
+          cd /tmp/azaad-build
+          python3 qa/vercel-build.py
+          python3 qa/finalize-inline-staff-api-appwrite.py
+          npm install --no-save --no-package-lock @neondatabase/serverless
+          node --check admin.js
+          node --check admin-enterprise-centers.js
+          python3 -m py_compile qa/finalize-inline-staff-api-appwrite.py
+      - name: Root scan executable surfaces for retired staff-admin runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          matches=$(grep -RIl --exclude-dir=.git --exclude-dir=node_modules --include='*.js' --include='*.html' -E 'supabase\.co/functions/v1/staff-admin|SUPABASE_URL.*staff-admin|STAFF_ADMIN_FUNCTION|async function staffApi' . || true)
+          if test -n "$matches"; then
+            echo 'FAIL-CLOSED: legacy staff-admin implementation remains in executable build surfaces:'
+            printf '%s\n' "$matches"
+            exit 1
+          fi
+          echo 'Root executable staff-admin provenance scan: PASS'
+      - name: Verify final restore boundary is top-level and unique
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/azaad-build
+          grep -Fq "async function restoreStaffProfile()" admin.js
+          test "$(grep -Fc "async function restoreStaffProfile()" admin.js)" -eq 1
+          grep -Fq "fetch('/api/admin-auth'" admin.js
+          ! grep -Fq "functions/v1/staff-login" admin.js
+          echo 'Final Admin restore boundary: PASS'
+      - name: Start immutable artifact API runtime
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$APPWRITE_ENDPOINT" || { echo 'FAIL-CLOSED: APPWRITE_ENDPOINT missing'; exit 1; }
+          test -n "$APPWRITE_PROJECT_ID" || { echo 'FAIL-CLOSED: APPWRITE_PROJECT_ID missing'; exit 1; }
+          test -n "$APPWRITE_API_KEY" || { echo 'FAIL-CLOSED: APPWRITE_API_KEY missing'; exit 1; }
+          test -n "$DATABASE_URL" || { echo 'FAIL-CLOSED: NEON_DATABASE_URL missing'; exit 1; }
+          cd /tmp/azaad-build
+          node qa/local-vercel-runtime.mjs >/tmp/azaad-http.log 2>&1 &
+          echo $! > /tmp/azaad-http.pid
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/azaad-http.log || true
+          exit 1
+      - name: Verify served canonical staff-management artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS 'http://127.0.0.1:4173/staff-management.js?azaad_boundary=1' -o /tmp/served-staff-management.js
+          test -s /tmp/served-staff-management.js
+          grep -Fq "fetch('/api/staff-admin'" /tmp/served-staff-management.js
+          ! grep -Fq "supabase.co/functions/v1/staff-admin" /tmp/served-staff-management.js
+          ! grep -Fq "createSupabaseClient" /tmp/served-staff-management.js
+          ! grep -Fq "SUPABASE_PUBLISHABLE_KEY" /tmp/served-staff-management.js
+          ! grep -Fq "STAFF_ADMIN_FUNCTION" /tmp/served-staff-management.js
+          ! grep -Fq "waitForSupabase" /tmp/served-staff-management.js
+          echo 'Served staff-management artifact boundary: PASS'
+      - name: Diagnose Appwrite frontdesk identity without exposing credentials
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const url = new URL(`${endpoint}/users`);
+          url.searchParams.set('limit', '100');
+          const response = await fetch(url, { headers: { 'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID, 'X-Appwrite-Key': process.env.APPWRITE_API_KEY, Accept: 'application/json' } });
+          const text = await response.text();
+          let body = {};
+          try { body = text ? JSON.parse(text) : {}; } catch (_) {}
+          if (!response.ok) { console.log(JSON.stringify({ stage: 'appwrite_users_list', status: response.status, type: body.type || null, code: body.code || null })); process.exit(1); }
+          const users = Array.isArray(body.users) ? body.users : [];
+          const matches = users.filter((u) => u?.email === 'frontdesk@azaad.local');
+          console.log(JSON.stringify({ stage: 'appwrite_frontdesk_identity', users_returned: users.length, exact_email_matches: matches.length, active_matches: matches.filter((u) => u?.status === true).length, email_verified_matches: matches.filter((u) => u?.emailVerification === true).length }));
+          NODE
+      - name: Ensure controlled E2E Appwrite identity matches Neon binding
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const project = process.env.APPWRITE_PROJECT_ID;
+          const apiKey = process.env.APPWRITE_API_KEY;
+          const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          const userId = '48447514-6620-4784-9bb3-cca67f529d27';
+          const email = 'frontdesk@azaad.local';
+          if (password.length < 8 || /[\r\n]/.test(password)) {
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'invalid_secret_shape', length: password.length }));
+            process.exit(1);
+          }
+          const headers = { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' };
+          const existing = await fetch(`${endpoint}/users/${encodeURIComponent(userId)}`, { headers });
+          if (existing.ok) {
+            const body = await existing.json();
+            if (body.email !== email) {
+              console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'id_collision', email_matches: false }));
+              process.exit(1);
+            }
+            const update = await fetch(`${endpoint}/users/${encodeURIComponent(userId)}/password`, { method: 'PATCH', headers, body: JSON.stringify({ password }) });
+            if (!update.ok) {
+              console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'password_sync_failed', http_status: update.status }));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'existing_identity_synced', id_matches: true, email_matches: true }));
+            process.exit(0);
+          }
+          if (existing.status !== 404) {
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'identity_lookup_failed', http_status: existing.status }));
+            process.exit(1);
+          }
+          const create = await fetch(`${endpoint}/users`, { method: 'POST', headers, body: JSON.stringify({ userId, email, password, name: 'AZAAD Frontdesk E2E' }) });
+          const createText = await create.text();
+          let createBody = {};
+          try { createBody = createText ? JSON.parse(createText) : {}; } catch (_) {}
+          if (!create.ok) {
+            console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'create_failed', http_status: create.status, type: createBody.type || null, code: createBody.code || null }));
+            process.exit(1);
+          }
+          console.log(JSON.stringify({ stage: 'e2e_identity_provisioning', status: 'created', id_matches: createBody.$id === userId, email_matches: createBody.email === email }));
+          NODE
+      - name: Diagnose direct Appwrite session cookie validity without exposing credentials
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const endpoint = process.env.APPWRITE_ENDPOINT.replace(/\/$/, '');
+          const project = process.env.APPWRITE_PROJECT_ID;
+          const apiKey = process.env.APPWRITE_API_KEY;
+          const password = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          const staffEmail = 'frontdesk@azaad.local';
+          const login = await fetch(`${endpoint}/account/sessions/email`, {
+            method: 'POST',
+            headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ email: staffEmail, password })
+          });
+          const loginText = await login.text();
+          let session = {};
+          try { session = loginText ? JSON.parse(loginText) : {}; } catch (_) {}
+          if (!login.ok || !session?.secret || !session?.userId) {
+            console.log(JSON.stringify({ stage: 'appwrite_direct_session_create', status: login.status, type: session.type || null, code: session.code || null, has_secret: Boolean(session.secret), has_user_id: Boolean(session.userId) }));
+            process.exit(1);
+          }
+          const cookie = `a_session_${project}=${session.secret}; a_session_${project}_legacy=${session.secret}`;
+          const account = await fetch(`${endpoint}/account`, { headers: { 'X-Appwrite-Project': project, Accept: 'application/json', Cookie: cookie } });
+          const accountText = await account.text();
+          let accountBody = {};
+          try { accountBody = accountText ? JSON.parse(accountText) : {}; } catch (_) {}
+          console.log(JSON.stringify({ stage: 'appwrite_direct_session_account', create_status: login.status, account_status: account.status, account_type: accountBody.type || null, account_code: accountBody.code || null, session_user_id_present: Boolean(session.userId), account_user_id_present: Boolean(accountBody.$id) }));
+          await fetch(`${endpoint}/account/sessions/current`, { method: 'DELETE', headers: { 'X-Appwrite-Project': project, Accept: 'application/json', Cookie: cookie } }).catch(() => {});
+          if (!account.ok) process.exit(1);
+          NODE
+      - name: Diagnose Frontdesk E2E secret shape without exposing the secret
+        env:
+          AZAAD_E2E_FRONTDESK_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const value = process.env.AZAAD_E2E_FRONTDESK_PASSWORD || '';
+          console.log(JSON.stringify({ stage: 'frontdesk_e2e_secret_shape', present: Boolean(value), length: value.length, min_length_8: value.length >= 8, has_leading_whitespace: /^\s/.test(value), has_trailing_whitespace: /\s$/.test(value), contains_line_break: /[\r\n]/.test(value) }));
+          NODE
+      - name: Run Browser E2E against repaired canonical artifact
+        env:
+          AZAAD_BASE_URL: http://localhost:4173
+          AZAAD_EXPECTED_PRODUCTION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          AZAAD_TEST_USERNAME: frontdesk_azaad
+          AZAAD_TEST_PASSWORD: ${{ secrets.AZAAD_E2E_FRONTDESK_PASSWORD }}
+        run: npx playwright test --workers=1 qa/browser-e2e.spec.mjs qa/admin-domain-runtime-e2e.spec.mjs qa/admin-domain-certification-matrix.spec.mjs qa/platform-control-plane.spec.mjs qa/responsive-ui.spec.mjs qa/public-language-media-e2e.spec.mjs qa/patient-portal-e2e.spec.mjs
+      - name: Capture local API boundary diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== AZAAD local API runtime log ==='
+          if test -f /tmp/azaad-http.log; then cat /tmp/azaad-http.log; else echo 'No local runtime log was produced.'; fi

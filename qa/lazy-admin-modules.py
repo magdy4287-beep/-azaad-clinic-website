@@ -15,15 +15,11 @@ LAZY = {
         "patient-financial-summary.js",
         "patient-clinical-history.js",
     ],
-    "doctors": [
-        "doctors-center-v2.js",
-        "doctor-staff-binding.js",
-        "doctor-staff-convert.js",
-    ],
+    "doctors": ["doctors-center-v2.js", "doctor-staff-binding.js", "doctor-staff-convert.js"],
     "services": ["services-center-v2.js"],
     "schedules": ["scheduling-v2.js"],
     "posts": ["marketing-studio-v3.js", "marketing-intelligence-loader.js"],
-    "staff": ["staff-management.js", "patient-merge-tool.js", "hr-performance-analytics.js"],
+    "staff": ["staff-management.js"],
     "settings": [],
     "calendar": ["admin-calendar-center.js"],
 }
@@ -33,18 +29,16 @@ LEGACY_OR_CONTRACT = {
     "scheduling-actions-contract.js", "scheduling-v2-waiting.js", "admin-nextgen-fixes.js", "admin-nextgen-v2.js",
     "finance-executive-dashboard.js", "finance-executive-loader.js",
     "finance-executive-annual-monthly.js", "finance-executive-period-loader.js",
+    "patient-merge-tool.js", "hr-performance-analytics.js",
 }
 ALL_RUNTIME = {name for values in LAZY.values() for name in values} | set(CORE)
-
 
 def script_tag(name):
     return f'<script src="/{name}" defer data-azaad-admin-core="1"></script>'
 
-
 def main():
     path = Path("admin.html")
-    if not path.exists():
-        return
+    if not path.exists(): return
     text = path.read_text(encoding="utf-8")
     names_to_remove = ALL_RUNTIME | LEGACY_OR_CONTRACT
     for name in sorted(names_to_remove):
@@ -70,6 +64,7 @@ def main():
 (function(){{
   'use strict';
   const groups = {groups};
+  const buildSha = document.querySelector('meta[name="azaad-build-sha"]')?.content || 'dev';
   const loaded = new Map();
   const loading = new Map();
   const loadedForPanel = new Set();
@@ -82,7 +77,9 @@ def main():
     if (loading.has(src)) return loading.get(src);
     const p = new Promise((resolve, reject) => {{
       const s = document.createElement('script');
-      s.src = '/' + src; s.defer = true; s.dataset.azaadAdminModule = src;
+      const separator = src.includes('?') ? '&' : '?';
+      s.src = '/' + src + separator + 'azaad_build=' + encodeURIComponent(buildSha);
+      s.defer = true; s.dataset.azaadAdminModule = src; s.dataset.azaadBuildSha = buildSha;
       s.onload = () => {{ loaded.set(src, true); loading.delete(src); resolve(true); }};
       s.onerror = () => {{ loading.delete(src); reject(new Error('Failed to load ' + src)); }};
       document.head.appendChild(s);
@@ -95,7 +92,10 @@ def main():
     loadedForPanel.add(key);
     for (const src of (groups[key] || [])) {{
       if (key !== 'calendar') await yieldToBrowser();
-      try {{ await load(src); }} catch (err) {{
+      try {{
+        await load(src);
+        if (key === 'calendar') window.AZAAD_ADMIN_CALENDAR?.render();
+      }} catch (err) {{
         console.error('[AZAAD_ADMIN_MODULE]', key, src, err);
         window.dispatchEvent(new CustomEvent('azaad:admin-module-error', {{ detail: {{ panel: key, src, error: err }} }}));
       }}
@@ -104,13 +104,11 @@ def main():
   }};
   window.addEventListener('azaad:admin-panel-activated', event => {{
     const key = event.detail?.panel; if (!key) return;
-    // Calendar is a primary navigation surface. Its owner must be requested
-    // in the same task as activation so first paint cannot be stranded behind
-    // requestIdleCallback under a busy browser/main thread.
     if (key === 'calendar') {{ window.AZAAD_LOAD_ADMIN_PANEL(key); return; }}
     yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
   }});
-  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL }});
+  window.addEventListener('azaad:admin-authenticated', () => {{ void window.AZAAD_LOAD_ADMIN_PANEL('calendar'); }}, {{ once: true }});
+  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({{ core: {CORE!r}, groups, load: window.AZAAD_LOAD_ADMIN_PANEL, buildSha }});
 }})();
 </script>
 """
@@ -118,7 +116,6 @@ def main():
     text = text.replace("</body>", payload + "\n</body>", 1)
     path.write_text(text, encoding="utf-8")
     print("lazy-admin-modules.py completed successfully")
-
 
 if __name__ == "__main__":
     main()

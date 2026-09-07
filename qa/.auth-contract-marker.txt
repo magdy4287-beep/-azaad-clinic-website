@@ -1,0 +1,1 @@
+Canonical Browser E2E authentication contract: /api/admin-auth is the authoritative Admin login boundary; legacy /functions/v1/staff-login must not be used by Browser E2E.

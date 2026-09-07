@@ -41,6 +41,13 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-admin-runtime-manifest.py"],
     ["python3", "qa/restore-canonical-admin-controller.py"],
     ["python3", "qa/finalize-admin-navigation-ownership.py"],
+    ["python3", "qa/finalize-appwrite-admin-auth.py"],
+    ["python3", "qa/finalize-staff-management-appwrite.py"],
+    ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
+    ["python3", "qa/finalize-appwrite-browser-session-contract.py"],
+    ["python3", "qa/finalize-admin-staff-caller-boundary.py"],
+    ["python3", "qa/final-admin-restore-boundary.py"],
+    ["python3", "qa/finalize-staff-management-runtime-boundary.py"],
 ]
 
 VERIFY_STEPS = [
@@ -55,13 +62,42 @@ VERIFY_STEPS = [
     ["python3", "qa/verify-production-contracts.py"],
     ["python3", "qa/verify-admin-post-auth-interactivity.py"],
     ["python3", "qa/verify-admin-auth-critical-path.py"],
+    ["python3", "qa/verify-admin-staff-caller-boundary.py"],
+    ["python3", "qa/appwrite-admin-auth-boundary-gate.py"],
     ["python3", "qa/public-booking-central-i18n-gate.py"],
 ]
 
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-operational-data.py") != 1:
-    raise SystemExit("Canonical operational-data boundary transform must exist exactly once")
-if [step[1] for step in TRANSFORM_STEPS].count("qa/finalize-admin-navigation-ownership.py") != 1:
-    raise SystemExit("Canonical navigation ownership transform must exist exactly once")
+transform_paths = [step[1] for step in TRANSFORM_STEPS]
+for required in (
+    "qa/finalize-admin-operational-data.py",
+    "qa/finalize-admin-navigation-ownership.py",
+    "qa/finalize-appwrite-admin-auth.py",
+    "qa/finalize-staff-management-appwrite.py",
+    "qa/retire-legacy-admin-staff-runtime.py",
+    "qa/finalize-appwrite-browser-session-contract.py",
+    "qa/finalize-admin-staff-caller-boundary.py",
+    "qa/final-admin-restore-boundary.py",
+    "qa/finalize-staff-management-runtime-boundary.py",
+):
+    if transform_paths.count(required) != 1:
+        raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
+
+order_constraints = (
+    ("qa/finalize-appwrite-admin-auth.py", "qa/finalize-staff-management-appwrite.py"),
+    ("qa/finalize-staff-management-appwrite.py", "qa/retire-legacy-admin-staff-runtime.py"),
+    ("qa/retire-legacy-admin-staff-runtime.py", "qa/finalize-appwrite-browser-session-contract.py"),
+    ("qa/finalize-appwrite-browser-session-contract.py", "qa/finalize-admin-staff-caller-boundary.py"),
+    ("qa/finalize-admin-staff-caller-boundary.py", "qa/final-admin-restore-boundary.py"),
+    ("qa/final-admin-restore-boundary.py", "qa/finalize-staff-management-runtime-boundary.py"),
+)
+for before, after in order_constraints:
+    if transform_paths.index(before) >= transform_paths.index(after):
+        raise SystemExit(f"Invalid production transform dependency order: {before} must precede {after}")
+
+if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
+    raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
+if [step[1] for step in VERIFY_STEPS].count("qa/verify-admin-staff-caller-boundary.py") != 1:
+    raise SystemExit("Admin staff caller verification gate must exist exactly once")
 
 
 def run_steps(steps, phase):
@@ -75,14 +111,7 @@ def run_steps(steps, phase):
 run_steps(TRANSFORM_STEPS, "transform")
 run_steps(VERIFY_STEPS, "verify")
 
-# Production provenance: bind the generated Admin artifact to the exact Git
-# commit that Vercel/GitHub is building. Browser certification can then fail
-# closed if it ever tests a different deployment than the certified SHA.
-commit_sha = (
-    os.environ.get("VERCEL_GIT_COMMIT_SHA")
-    or os.environ.get("GITHUB_SHA")
-    or ""
-).strip()
+commit_sha = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("GITHUB_SHA") or "").strip()
 if not commit_sha:
     raise SystemExit("Missing canonical build commit SHA")
 

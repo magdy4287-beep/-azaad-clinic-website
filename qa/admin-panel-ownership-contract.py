@@ -8,6 +8,7 @@ adminjs = (ROOT / "admin.js").read_text(encoding="utf-8")
 enterprise = (ROOT / "admin-enterprise-centers.js").read_text(encoding="utf-8")
 loader = (ROOT / "qa" / "lazy-admin-modules.py").read_text(encoding="utf-8")
 shell = (ROOT / "admin-shell.js").read_text(encoding="utf-8")
+staff_runtime = (ROOT / "staff-management.js").read_text(encoding="utf-8")
 
 EXPECTED = {
     "bookings": ["patient-appointment-actions.js"],
@@ -27,6 +28,9 @@ checks = []
 def check(name, ok, detail=""):
     checks.append((name, ok, detail))
 
+def compact(value):
+    return re.sub(r"\s+", "", value)
+
 for panel, owners in EXPECTED.items():
     tabs = len(re.findall(r'data-panel=["\']' + re.escape(panel) + r'["\']', admin))
     if panel == "calendar" and tabs == 0 and 'data-panel="calendar"' in loader:
@@ -43,8 +47,6 @@ for group in re.findall(r'\n\s*"([a-z]+)"\s*:\s*\[', loader):
 for obsolete in ["marketing-workspace-v2.js", "marketing-platform-expansion.js", "scheduling-v2-waiting.js"]:
     check(f"superseded module excluded: {obsolete}", obsolete in loader and "LEGACY_OR_CONTRACT" in loader)
 
-# Exactly one navigation owner: admin-shell.js. Core and enterprise runtimes only issue/render
-# through lifecycle events; they never activate panels through their own tab listeners.
 check("navigation owner is admin-shell", ".addEventListener('click'" in shell)
 check("shell emits panel activation", "azaad:admin-panel-activated" in shell)
 check("shell accepts internal panel requests", "azaad:admin-panel-requested" in shell)
@@ -56,6 +58,14 @@ check("admin core uses request bridge", "azaad:admin-panel-requested" in adminjs
 check("enterprise has no tab click owner", "tab.addEventListener('click'" not in enterprise)
 check("enterprise consumes panel activation", "azaad:admin-panel-activated" in enterprise)
 check("registry remains sole panel-loader definition", adminjs.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 0 and loader.count("window.AZAAD_LOAD_ADMIN_PANEL =") == 1)
+
+check("staff navigation is fail-closed before role resolution", 'body:not([data-role="OWNER"]):not([data-role="ADMIN"]):not([data-role="MANAGER"])' in admin)
+check("staff runtime has no DOMContentLoaded auto-initializer", "DOMContentLoaded" not in staff_runtime)
+check("staff runtime initializes from staff panel activation", "azaad:admin-panel-activated" in staff_runtime and "event.detail?.panel==='staff'" in compact(staff_runtime))
+check("staff runtime recognizes canonical currentRole", "window.AZAAD?.state?.currentRole" in staff_runtime)
+check("staff runtime refuses unresolved role", "if (!currentRole) return;" in staff_runtime)
+check("staff role-ready retry is panel-gated", "azaad:admin-role-ready" in staff_runtime and "if(panel()&&document.getElementById('staffManagementCenter'))voidinitialize();" in compact(staff_runtime))
+check("staff mutations send staff_id", "staff_id:button.dataset.staffId" in compact(staff_runtime))
 
 failed = False
 for name, ok, detail in checks:
