@@ -1,8 +1,7 @@
 name: AZAAD Production Certification Gate
 
-# Certification is intentionally downstream of the canonical Production Browser E2E
-# for runtime-affecting changes. This removes the push-time race where both workflows
-# start from the same commit and the gate queries GitHub before E2E has completed.
+# Certification is downstream of the canonical Production Browser E2E for runtime-affecting changes.
+# Main uses workflow_run to avoid push-time races; PRs can consume the already-completed exact-SHA E2E run.
 # Governance/documentation-only changes retain the existing ancestor-inheritance path.
 
 on:
@@ -35,8 +34,6 @@ permissions:
 
 jobs:
   certification:
-    # Push/PR runs are reserved for governance-only changes. Runtime changes are
-    # certified by the workflow_run event after Browser E2E completes successfully.
     if: >-
       github.event_name == 'workflow_run' ||
       github.event_name == 'workflow_dispatch' ||
@@ -67,10 +64,8 @@ jobs:
           grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA:' "$workflow_file"
           grep -Fq 'github.sha' "$workflow_file"
 
-          # When invoked by workflow_run, GitHub has already completed the canonical
-          # Browser E2E workflow. Require that exact run to be successful and that its
-          # head SHA is the commit being certified. This is the authoritative evidence
-          # path and eliminates the old push/E2E race.
+          # workflow_run is authoritative for main and is already completed before this gate starts.
+          # PR certification may safely consume the completed exact-SHA Browser E2E run directly.
           if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
             [[ "$E2E_CONCLUSION" == 'success' ]] || {
               echo "Production Browser E2E did not succeed for exact commit $SHA"
@@ -85,6 +80,19 @@ jobs:
 
             echo "Exact-SHA Production Browser E2E certification: PASS ($SHA)"
             exit 0
+          fi
+
+          # PR runtime changes: require a completed successful Browser E2E run for this exact SHA.
+          if [[ "$EVENT_NAME" == 'pull_request' ]]; then
+            runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
+            if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
+              echo "Exact-SHA PR Production Browser E2E certification: PASS ($SHA)"
+              exit 0
+            fi
+
+            echo "Exact-SHA Production Browser E2E evidence is missing for PR commit $SHA"
+            echo "Certification refuses to bypass or substitute another commit."
+            exit 1
           fi
 
           # Manual invocation is allowed only as an explicit evidence check; it never
@@ -113,8 +121,7 @@ jobs:
           done
 
           if [[ "$evidence_only_change" -ne 1 ]]; then
-            echo "Runtime-affecting change detected. Certification must arrive through the completed Browser E2E workflow_run."
-            echo "This push/PR gate intentionally refuses to race or bypass the canonical E2E evidence."
+            echo "Runtime-affecting change detected. Certification must arrive through completed exact-SHA Browser E2E evidence."
             exit 1
           fi
 
