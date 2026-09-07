@@ -35,6 +35,9 @@ jobs:
       - name: Apply canonical Admin operational-data transformation before backend boundary verification
         run: python3 qa/finalize-admin-operational-data.py
 
+      - name: Apply canonical Appwrite browser session boundary before backend verification
+        run: python3 qa/finalize-appwrite-browser-session-contract.py
+
       - name: Run canonical Admin backend boundary gate
         run: python3 qa/admin-backend-boundary-gate.py
 
