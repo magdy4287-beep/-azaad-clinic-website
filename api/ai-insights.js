@@ -3,15 +3,15 @@ import { neon } from '@neondatabase/serverless';
 const COOKIE = 'azaad_admin_appwrite_session';
 const ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'CASHIER', 'DOCTOR', 'MARKETING']);
 
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
-  });
+function json(res, body, status = 200) {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(body));
 }
 
-function cookieValue(request) {
-  const raw = request.headers.get('cookie') || '';
+function cookieValue(req) {
+  const raw = req.headers.cookie || '';
   const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
@@ -33,8 +33,8 @@ async function appwriteAccount(secret) {
   return response.json();
 }
 
-async function authorize(request, sql) {
-  const user = await appwriteAccount(cookieValue(request));
+async function authorize(req, sql) {
+  const user = await appwriteAccount(cookieValue(req));
   if (!user?.$id) return null;
   const rows = await sql`
     select id, auth_user_id, role, active
@@ -47,14 +47,14 @@ async function authorize(request, sql) {
   return staff && ROLES.has(role) ? { staff, role } : null;
 }
 
-export default async function handler(request) {
-  if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+export default async function handler(req, res) {
+  if (req.method !== 'GET') return json(res, { error: 'method_not_allowed' }, 405);
   try {
     const databaseUrl = String(process.env.DATABASE_URL || '').trim();
-    if (!databaseUrl) return json({ error: 'database_not_configured' }, 503);
+    if (!databaseUrl) return json(res, { error: 'database_not_configured' }, 503);
     const sql = neon(databaseUrl);
-    const identity = await authorize(request, sql);
-    if (!identity) return json({ error: 'authentication_required' }, 401);
+    const identity = await authorize(req, sql);
+    if (!identity) return json(res, { error: 'authentication_required' }, 401);
 
     const rows = await sql`
       select status, count(*)::int as count
@@ -104,9 +104,9 @@ export default async function handler(request) {
       });
     }
 
-    return json({ provider: 'local-rules-neon', human_approval_required: true, insights: insights.slice(0, 20), metrics: { total, byStatus } });
+    return json(res, { provider: 'local-rules-neon', human_approval_required: true, insights: insights.slice(0, 20), metrics: { total, byStatus } });
   } catch (error) {
     console.error('ai-insights boundary failure', { name: error?.name, message: error?.message });
-    return json({ error: 'ai_insights_unavailable' }, 503);
+    return json(res, { error: 'ai_insights_unavailable' }, 503);
   }
 }
