@@ -16,8 +16,8 @@ def remove_if_block(src, needle):
     start = line_start
     while start < target and src[start] in ' \t':
         start += 1
-    if not src[start:start + 2] == 'if':
-        raise SystemExit(f'FAIL-CLOSED: {needle} is not owned by an if block')
+    if src[start:start + 2] != 'if':
+        return src, False
     brace = src.find('{', target)
     if brace < 0:
         raise SystemExit(f'FAIL-CLOSED: caller block brace missing for {needle}')
@@ -53,15 +53,25 @@ def remove_if_block(src, needle):
 
 removed_init = 0
 removed_load = 0
+
 while 'window.AZAAD_STAFF.init' in text:
     text, changed = remove_if_block(text, 'window.AZAAD_STAFF.init')
     if not changed:
-        raise SystemExit('FAIL-CLOSED: unable to remove legacy staff init caller')
+        raise SystemExit('FAIL-CLOSED: legacy staff init caller is not inside an owned conditional block')
     removed_init += 1
+
 while 'window.AZAAD_STAFF.load' in text:
     text, changed = remove_if_block(text, 'window.AZAAD_STAFF.load')
-    if not changed:
-        raise SystemExit('FAIL-CLOSED: unable to remove legacy staff load caller')
+    if changed:
+        removed_load += 1
+        continue
+    # A direct load call can exist inside an already role-gated quick action.
+    # Remove only the call statement; panel activation remains the lazy-loader trigger.
+    line_start = text.rfind('\n', 0, text.find('window.AZAAD_STAFF.load')) + 1
+    line_end = text.find('\n', text.find('window.AZAAD_STAFF.load'))
+    if line_end < 0:
+        line_end = len(text)
+    text = text[:line_start] + text[line_end + 1:]
     removed_load += 1
 
 executable = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
