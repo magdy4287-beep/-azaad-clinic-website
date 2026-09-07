@@ -6,9 +6,10 @@
 (() => {
   'use strict';
 
-  const CLINIC_API = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-clinic-data';
+  const CLINIC_API = '/api/public-clinic-data';
   const STATE = '__AZAAD_PUBLIC_EXPERIENCE_HARDENING_V2__';
   if (window[STATE]) return;
+
   window[STATE] = true;
 
   const esc = (v) => String(v ?? '').replace(/[&<>\"']/g, c => ({
@@ -222,35 +223,39 @@
       section = document.createElement('section');
       section.id = 'clinicPosts';
       section.className = 'section section-light';
-      section.innerHTML = '<div class="container"><div class="eyebrow">AZAAD</div><h2 data-i18n="postsTitle">Posts</h2><p class="section-intro" data-i18n="postsIntro"></p><div id="clinicPostsGrid" class="cards"></div></div>';
-      if (booking?.parentNode) booking.parentNode.insertBefore(section, booking);
+      section.innerHTML = '<div class="container"><div class="eyebrow">CLINIC POSTS</div><h2 data-i18n="clinicPostsTitle">منشورات العيادة</h2><div id="clinicPostsGrid" class="cards"></div></div>';
+      if (booking) main.insertBefore(section, booking);
       else main.appendChild(section);
     }
-    const grid = section.querySelector('#clinicPostsGrid');
+    const grid = document.getElementById('clinicPostsGrid');
     if (!grid) return;
-    grid.innerHTML = clean.map(p => {
-      const title = localText(p, 'title', 'title_en') || 'Azaad';
-      const content = localText(p, 'content', 'content_en');
-      const media = safeUrl(p?.media_url);
-      const image = media && p?.media_type === 'image'
-        ? `<div class="clinic-post-media"><img src="${esc(media)}" alt="${esc(title)}" loading="lazy" decoding="async"></div>` : '';
-      return `<article class="card clinic-post-card">${image}<div><h3>${esc(title)}</h3>${content ? `<p>${esc(content)}</p>` : ''}</div></article>`;
+    grid.innerHTML = clean.map(post => {
+      const title = localText(post, 'title', 'title_en') || 'Azaad';
+      const body = localText(post, 'body', 'body_en');
+      const image = safeUrl(post.image_url || post.media_url);
+      const media = image ? `<div class="clinic-post-media"><img src="${esc(image)}" alt="${esc(title)}" loading="lazy" decoding="async"></div>` : '';
+      return `<article class="card azaad-post-card">${media}<h3>${esc(title)}</h3>${body ? `<p>${esc(body)}</p>` : ''}</article>`;
     }).join('');
-    section.style.display = '';
     dedupeCards('clinicPostsGrid', 'post-card');
   }
 
-  function schedulePass() {
-    injectStyles();
-    loadAndRenderClinicSurface();
+  injectStyles();
+  window.addEventListener('azaadPublicClinicDataReady', (event) => {
+    const data = event?.detail || {};
+    renderServices(data.services || []);
+    renderDoctors(data.doctors || []);
+    if (Array.isArray(data.posts)) renderRecoveredPosts(data.posts);
     dedupePublicData();
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedulePass, {once:true});
-  else schedulePass();
-  [500, 1500, 3500].forEach(ms => setTimeout(schedulePass, ms));
-  window.addEventListener('azaadLanguageChanged', () => {
-    const data = window.AZAAD_PUBLIC_CLINIC_DATA;
-    if (data) { renderServices(data.services || []); renderDoctors(data.doctors || []); renderRecoveredPosts(data.posts || []); }
   });
+  window.addEventListener('azaadLanguageChanged', () => {
+    dedupePublicData();
+    const data = window.AZAAD_PUBLIC_CLINIC_DATA;
+    if (data) {
+      renderServices(data.services || []);
+      renderDoctors(data.doctors || []);
+      if (Array.isArray(data.posts)) renderRecoveredPosts(data.posts);
+    }
+  });
+  window.addEventListener('load', loadAndRenderClinicSurface, {once:true});
+  if (document.readyState === 'interactive' || document.readyState === 'complete') loadAndRenderClinicSurface();
 })();
