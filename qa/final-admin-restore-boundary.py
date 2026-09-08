@@ -44,6 +44,15 @@ if not owners:
 if len(owners) != 1:
     raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
 
+# Canonicalize compatibility restoreSession callers too. finalize-appwrite-admin-auth.py
+# may intentionally reduce restoreSession to a thin wrapper; that wrapper must still
+# invoke the same global owner rather than bypassing the final readiness boundary.
+text = re.sub(
+    r'(?<=return\s)restoreStaffProfile\s*\(\s*\)',
+    'window.AZAAD_RESTORE_STAFF_PROFILE()',
+    text,
+)
+
 startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match:
     raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
@@ -102,7 +111,7 @@ if not startup_match:
 if owners[0].start() > startup_match.start():
     raise SystemExit('FAIL-CLOSED: Appwrite restore owner is published after DOMContentLoaded startup')
 if not re.search(r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*\(\s*\)', text):
-    raise SystemExit('Final Admin restore boundary: startup must call the canonical global Appwrite restore owner')
+    raise SystemExit('Final Admin restore boundary: startup/restoreSession must call the canonical global Appwrite restore owner')
 
 RUNTIME_JS = {
     'admin.js',
