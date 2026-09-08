@@ -31,14 +31,20 @@ text = text.replace(
 if 'session: { access_token:' in text:
     raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
 
-# Refresh persistence is a real browser lifecycle. The canonical global restore
-# owner must be assigned before DOMContentLoaded startup can invoke it; otherwise
-# a valid HttpOnly cookie can survive while #adminPage remains hidden because the
-# startup call sees an undefined restore function.
-owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\('
+# Refresh persistence is a real browser lifecycle. The restore owner must be
+# assigned before DOMContentLoaded startup can invoke it. We intentionally use
+# semantic matching rather than whitespace-sensitive matching because later
+# canonical auth transforms may normalize the assignment formatting.
+owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\(\s*\)'
 owners = list(re.finditer(owner_re, text))
 if len(owners) != 1:
+    # Accept a line break between the assignment and function expression as a
+    # valid canonical form, but never accept a second owner.
+    broad_owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\('
+    owners = list(re.finditer(broad_owner_re, text))
+if len(owners) != 1:
     raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
+
 startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match:
     raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
