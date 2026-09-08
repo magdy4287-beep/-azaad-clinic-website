@@ -37,8 +37,9 @@ LOGIN = r'''async function login(username, password) {
   await initializeApplication()
 }'''
 LOGOUT = r'''async function logout() {
-  try { await fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' }) } catch (error) { console.warn('Appwrite logout request failed:', error) }
   state.session = null; state.user = null; state.staff = null; state.currentRole = null; state.permissions = new Set(); state.initialized = false; state.initializing = false; state.provider = null
+  const request = fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } }).catch(error => { console.warn('Appwrite logout request failed:', error); return null })
+  try { await Promise.race([request, new Promise(resolve => setTimeout(resolve, 2500))]) } catch (error) { console.warn('Appwrite logout boundary failed:', error) }
   window.location.replace('/admin.html')
 }'''
 
@@ -90,15 +91,12 @@ for pattern in (
     r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/[\s\S]*?supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n?',
 ): text = re.sub(pattern, '\n', text, count=1, flags=re.M)
 
-# Neutralize auth calls left only in retired helpers; dedicated later transforms remove those helpers.
 text = re.sub(r'\bsupabase\.auth\.getSession\s*\(\s*\)', '({ data: { session: state.session } })', text)
 text = re.sub(r'\bsupabase\.auth\.refreshSession\s*\(\s*\)', '({ data: { session: state.session }, error: null })', text)
 text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', text, flags=re.S)
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
-# This gate is specifically the Appwrite browser-auth owner gate. Generic legacy data
-# identifiers are intentionally left for the repository-wide runtime sweep later.
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
 for pattern in (
