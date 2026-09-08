@@ -30,6 +30,27 @@ text = text.replace(
 if 'session: { access_token:' in text:
     raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
 
+# Refresh persistence is a real browser lifecycle, so the restore owner must be
+# published before DOMContentLoaded startup can execute. A late assignment at
+# end-of-file creates a race where the startup call sees undefined and leaves
+# #adminPage hidden even though the HttpOnly Appwrite cookie is valid.
+restore_owner = 'window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {'
+startup_marker = 'document.addEventListener("DOMContentLoaded"'
+startup_call = 'window.AZAAD_RESTORE_STAFF_PROFILE()'
+if text.count(restore_owner) != 1:
+    raise SystemExit('Final Admin restore boundary: canonical global restore owner must exist exactly once')
+owner_index = text.index(restore_owner)
+startup_index = text.find(startup_marker)
+if startup_index < 0:
+    startup_marker = "document.addEventListener('DOMContentLoaded'"
+    startup_index = text.find(startup_marker)
+if startup_index < 0:
+    raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
+if owner_index > startup_index:
+    raise SystemExit('FAIL-CLOSED: Appwrite restore owner is published after DOMContentLoaded startup')
+if startup_call not in text:
+    raise SystemExit('Final Admin restore boundary: startup must call the canonical global Appwrite restore owner')
+
 RUNTIME_JS = {
     'admin.js',
     'admin-enhancements-v1.js', 'admin-english-hardening.js',
@@ -61,4 +82,4 @@ if failures:
     raise SystemExit(1)
 
 admin.write_text(text, encoding='utf-8')
-print('[AZAAD final restore boundary] PASS: one top-level Appwrite restoreStaffProfile owner; cookie-only Admin auth response boundary; canonical runtime syntax sweep passed')
+print('[AZAAD final restore boundary] PASS: one pre-startup Appwrite restore owner; cookie-only Admin auth response boundary; canonical runtime syntax sweep passed')
