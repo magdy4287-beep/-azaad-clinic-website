@@ -1,12 +1,13 @@
 from pathlib import Path
 import subprocess
+import re
 
 admin = Path('admin.js')
 text = admin.read_text(encoding='utf-8') if admin.is_file() else ''
 if not admin.is_file():
     raise SystemExit('admin.js is required')
 if text.count('async function restoreStaffProfile()') != 1:
-    raise SystemExit('Final Admin restore boundary: expected exactly one top-level restoreStaffProfile owner')
+    raise SystemExit('Final Admin restore boundary: expected exactly one restoreStaffProfile implementation')
 if "fetch('/api/admin-auth'" not in text:
     raise SystemExit('Final Admin restore boundary: canonical Appwrite auth boundary missing')
 if 'functions/v1/staff-login' in text:
@@ -30,25 +31,20 @@ text = text.replace(
 if 'session: { access_token:' in text:
     raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
 
-# Refresh persistence is a real browser lifecycle, so the restore owner must be
-# published before DOMContentLoaded startup can execute. A late assignment at
-# end-of-file creates a race where the startup call sees undefined and leaves
-# #adminPage hidden even though the HttpOnly Appwrite cookie is valid.
-restore_owner = 'window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {'
-startup_marker = 'document.addEventListener("DOMContentLoaded"'
-startup_call = 'window.AZAAD_RESTORE_STAFF_PROFILE()'
-if text.count(restore_owner) != 1:
-    raise SystemExit('Final Admin restore boundary: canonical global restore owner must exist exactly once')
-owner_index = text.index(restore_owner)
-startup_index = text.find(startup_marker)
-if startup_index < 0:
-    startup_marker = "document.addEventListener('DOMContentLoaded'"
-    startup_index = text.find(startup_marker)
-if startup_index < 0:
+# Refresh persistence is a real browser lifecycle. The canonical global restore
+# owner must be assigned before DOMContentLoaded startup can invoke it; otherwise
+# a valid HttpOnly cookie can survive while #adminPage remains hidden because the
+# startup call sees an undefined restore function.
+owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\('
+owners = list(re.finditer(owner_re, text))
+if len(owners) != 1:
+    raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
+startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
+if not startup_match:
     raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
-if owner_index > startup_index:
+if owners[0].start() > startup_match.start():
     raise SystemExit('FAIL-CLOSED: Appwrite restore owner is published after DOMContentLoaded startup')
-if startup_call not in text:
+if not re.search(r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*\(\s*\)', text):
     raise SystemExit('Final Admin restore boundary: startup must call the canonical global Appwrite restore owner')
 
 RUNTIME_JS = {
