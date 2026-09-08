@@ -2,6 +2,8 @@
 (()=>{
 'use strict';
 const API='/api/marketing'; const MEDIA='/api/marketing-media';
+const SUPPORTED_PLATFORMS=['facebook','instagram','linkedin','tiktok','website'];
+// clinic_marketing_publications is persisted by the server boundary; addchannel is server-authorized.
 const t=(ar,en)=>String(document.documentElement.lang||'ar').startsWith('en')?en:ar;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const state={channels:[],campaigns:[],posts:[]};
