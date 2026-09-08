@@ -40,6 +40,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/restore-canonical-admin-controller.py"],
     ["python3", "qa/finalize-admin-navigation-ownership.py"],
     ["python3", "qa/finalize-appwrite-admin-auth.py"],
+    ["python3", "qa/finalize-admin-browser-runtime-reference-boundary.py"],
     ["python3", "qa/finalize-staff-management-appwrite.py"],
     ["python3", "qa/retire-legacy-admin-staff-runtime.py"],
     ["python3", "qa/finalize-appwrite-browser-session-contract.py"],
@@ -73,6 +74,7 @@ for required in (
     "qa/finalize-admin-operational-data.py",
     "qa/finalize-admin-navigation-ownership.py",
     "qa/finalize-appwrite-admin-auth.py",
+    "qa/finalize-admin-browser-runtime-reference-boundary.py",
     "qa/finalize-staff-management-appwrite.py",
     "qa/retire-legacy-admin-staff-runtime.py",
     "qa/finalize-appwrite-browser-session-contract.py",
@@ -85,7 +87,8 @@ for required in (
         raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
 
 order_constraints = (
-    ("qa/finalize-appwrite-admin-auth.py", "qa/finalize-staff-management-appwrite.py"),
+    ("qa/finalize-appwrite-admin-auth.py", "qa/finalize-admin-browser-runtime-reference-boundary.py"),
+    ("qa/finalize-admin-browser-runtime-reference-boundary.py", "qa/finalize-staff-management-appwrite.py"),
     ("qa/finalize-staff-management-appwrite.py", "qa/retire-legacy-admin-staff-runtime.py"),
     ("qa/retire-legacy-admin-staff-runtime.py", "qa/finalize-appwrite-browser-session-contract.py"),
     ("qa/finalize-appwrite-browser-session-contract.py", "qa/finalize-admin-staff-caller-boundary.py"),
