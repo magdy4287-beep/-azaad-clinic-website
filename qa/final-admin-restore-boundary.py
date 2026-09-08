@@ -22,8 +22,7 @@ text = text.replace(
 )
 text = text.replace(
     "if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || !result?.session?.access_token)",
-    "if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff)"
-)
+    "if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff)")
 text = text.replace(
     "state.session = result.session; state.user = result.user || result.session.user || null; state.provider = 'appwrite';",
     "state.session = { user: result.user || null }; state.user = result.user || null; state.provider = 'appwrite';"
@@ -31,9 +30,9 @@ text = text.replace(
 if 'session: { access_token:' in text:
     raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
 
-# Final canonicalization: some earlier transforms operate on the named function
-# and can legitimately leave it as a top-level declaration. The final boundary is
-# the single owner allowed to publish that function to the startup-facing global.
+# Final canonicalization: publish exactly one restore owner. If an earlier transform
+# left the owner below startup, physically relocate the complete function so the
+# JavaScript execution order is deterministic rather than merely asserting it.
 owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\(\s*\)'
 owners = list(re.finditer(owner_re, text))
 if not owners:
@@ -45,6 +44,58 @@ if not owners:
 if len(owners) != 1:
     raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
 
+startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
+if not startup_match:
+    raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
+
+if owners[0].start() > startup_match.start():
+    owner_start = owners[0].start()
+    brace_start = text.find('{', owner_start)
+    if brace_start < 0:
+        raise SystemExit('FAIL-CLOSED: canonical restore owner body is missing')
+    depth = 0
+    quote = None
+    escape = False
+    line_comment = False
+    block_comment = False
+    i = brace_start
+    end = None
+    while i < len(text):
+        c = text[i]
+        n = text[i + 1] if i + 1 < len(text) else ''
+        if line_comment:
+            if c == '\n': line_comment = False
+        elif block_comment:
+            if c == '*' and n == '/': block_comment = False; i += 1
+        elif quote:
+            if escape: escape = False
+            elif c == '\\': escape = True
+            elif c == quote: quote = None
+        elif c in "'\"`": quote = c
+        elif c == '/' and n == '/': line_comment = True; i += 1
+        elif c == '/' and n == '*': block_comment = True; i += 1
+        elif c == '{': depth += 1
+        elif c == '}':
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+        i += 1
+    if end is None:
+        raise SystemExit('FAIL-CLOSED: canonical restore owner body is unterminated')
+    if end < len(text) and text[end] == ';':
+        end += 1
+    owner_source = text[owner_start:end]
+    text = text[:owner_start] + text[end:]
+    startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
+    if not startup_match:
+        raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner disappeared during relocation')
+    insertion = startup_match.start()
+    text = text[:insertion] + owner_source + '\n\n' + text[insertion:]
+
+owners = list(re.finditer(owner_re, text))
+if len(owners) != 1:
+    raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once after relocation (found {len(owners)})')
 startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match:
     raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
