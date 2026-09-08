@@ -6,8 +6,7 @@ if not PATH.is_file(): raise SystemExit('admin.js is required')
 text = PATH.read_text(encoding='utf-8')
 
 RESTORE = r'''async function restoreStaffProfile() {
-  const retryDelays = [0, 150, 350]
-  let lastStatus = null
+  const retryDelays = [0, 150, 350]; let lastStatus = null
   try {
     for (const delay of retryDelays) {
       if (delay) await new Promise(resolve => setTimeout(resolve, delay))
@@ -70,11 +69,9 @@ def bounds(src, name):
 def replace_fn(src, name, replacement):
     start, end = bounds(src, name); return src[:start] + replacement + src[end:]
 
-# The old transform can still emit legacy helpers. Canonicalize the three live owners,
-# and neutralize retired helpers before the final Appwrite boundary check.
+# Canonicalize the live browser auth owners after all earlier legacy transforms have run.
 text = re.sub(r'\n?let azaadRefreshPromise\s*=\s*null;\s*\n\s*async function azaadEnsureFreshSession\s*\([^)]*\)\s*\{.*?\n\}\s*\n?', '\n', text, count=1, flags=re.S)
 text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*\n?', '\n', text, count=1)
-
 if 'async function restoreStaffProfile(' in text: text = replace_fn(text, 'restoreStaffProfile', RESTORE)
 elif 'async function restoreStaff(' in text: text = replace_fn(text, 'restoreStaff', RESTORE)
 else:
@@ -83,11 +80,9 @@ else:
     text = text[:marker.start()] + RESTORE + '\n\n' + text[marker.start():]
 if re.search(r'async function login\s*\(', text): text = replace_fn(text, 'login', LOGIN)
 if re.search(r'async function logout\s*\(', text): text = replace_fn(text, 'logout', LOGOUT)
+if re.search(r'async function restoreSession\s*\(', text): text = replace_fn(text, 'restoreSession', 'async function restoreSession() { return restoreStaffProfile(); }')
 
-# restoreSession is a retired legacy owner; make it a harmless compatibility shim.
-if re.search(r'async function restoreSession\s*\(', text):
-    text = replace_fn(text, 'restoreSession', "async function restoreSession() { return restoreStaffProfile(); }")
-
+# Strip the browser client declarations and legacy auth-state listener.
 for pattern in (
     r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];?\s*\n',
     r'\n?\s*const STAFF_LOGIN_FUNCTION\s*=\s*`[^`]*?/functions/v1/staff-login`;\s*\n?',
@@ -97,20 +92,24 @@ for pattern in (
     r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/[\s\S]*?supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n?',
 ): text = re.sub(pattern, '\n', text, count=1, flags=re.M)
 
-# Remove residual legacy auth calls from retired helpers without leaving an executable Supabase auth path.
+# Retired helpers may still be present until their dedicated later transforms; neutralize auth calls.
 text = re.sub(r'\bsupabase\.auth\.getSession\s*\(\s*\)', '({ data: { session: state.session } })', text)
 text = re.sub(r'\bsupabase\.auth\.refreshSession\s*\(\s*\)', '({ data: { session: state.session }, error: null })', text)
 text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', text, flags=re.S)
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
+# Boundary assertions inspect executable text, excluding comments so historical documentation
+# in the generated source cannot masquerade as a live dependency.
+executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
+executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
 for pattern in (
     r'\bsupabase\.auth\.(?:getSession|refreshSession|signOut|setSession)\s*\(',
     r'functions/v1/(?:staff-login|azaad-admin-auth|staff-admin)',
     r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY|AUTH_STORAGE_KEY)\b',
     r'azaadEnsureFreshSession', r'azaadRefreshPromise',
 ):
-    if re.search(pattern, text, flags=re.I): raise SystemExit(f'Legacy browser auth marker remains: {pattern}')
+    if re.search(pattern, executable, flags=re.I): raise SystemExit(f'Legacy executable browser auth marker remains: {pattern}')
 if text.count('async function restoreStaffProfile(') != 1: raise SystemExit('Canonical Appwrite restoreStaffProfile owner must exist exactly once')
 PATH.write_text(text, encoding='utf-8')
 print('finalize-appwrite-admin-auth.py: sole cookie-only Appwrite browser auth owner established')
