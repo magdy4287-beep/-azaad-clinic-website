@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const API='/api/public-team-data';
+  const API='/api/public-clinic-data?scope=team';
   const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
   const en=()=>String(document.documentElement.lang||'ar').startsWith('en');
   const text=(ar,enText)=>en()?enText:ar;
