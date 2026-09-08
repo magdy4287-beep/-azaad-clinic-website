@@ -15,9 +15,14 @@ secure_guard = "headerValue(request, 'x-forwarded-proto')" in auth and "process.
 server_cookie_guard = "const { appwriteSecret, staff, session } = result" in auth and "'set-cookie': sessionCookie(req, appwriteSecret)" in auth
 appwrite_cookie_forward_guard = bool(re.search(r'Cookie:\s*`a_session_\$\{project\}=\$\{secret\}; a_session_\$\{project\}_legacy=\$\{secret\}`', auth))
 appointments_cookie_guard = (
-    'const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;' in appointments
-    and 'Cookie: cookie' in appointments
-    and 'appwriteAccount(secret)' in appointments
+    bool(re.search(r'const\s+cookie\s*=\s*`a_session_\$\{project\}=\$\{secret\};\s*a_session_\$\{project\}_legacy=\$\{secret\}`\s*;', appointments))
+    and bool(re.search(r'\bCookie\s*:\s*cookie\b', appointments))
+    and bool(re.search(r'\bappwriteAccount\(secret\)', appointments))
+)
+appointments_role_guard = (
+    bool(re.search(r"\b(?:STAFF_ROLES|role)\b", appointments))
+    and all(role in appointments for role in ('OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'))
+    and bool(re.search(r'\bSTAFF_ROLES\.(?:has|includes)|\b(?:includes|has)\(role\)', appointments))
 )
 no_custom_header_guard = 'x-azaad-appwrite-session' not in auth.lower() and 'x-azaad-appwrite-session' not in appointments.lower()
 
@@ -35,7 +40,7 @@ checks = [
     ('Admin auth never accepts a browser-supplied Appwrite session header', no_custom_header_guard),
     ('Admin appointments reads Neon', 'from public.clinic_bookings' in appointments and 'neon(' in appointments),
     ('Admin appointments verifies Appwrite session through the HttpOnly cookie', appointments_cookie_guard),
-    ('Admin appointments enforces role', "'OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'DOCTOR'" in appointments),
+    ('Admin appointments enforces role', appointments_role_guard),
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical build applies Appwrite auth transform', 'finalize-appwrite-admin-auth.py' in build),
     ('Canonical transform contains retired staff-login endpoint assertion', 'functions/v1/staff-login' in transform and 'raise SystemExit' in transform and 'Legacy staff-login' in transform),
