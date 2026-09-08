@@ -97,6 +97,7 @@ text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', 
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
+# Legacy staff-login endpoint assertion: the executable scan below must reject any retired auth route.
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
 for pattern in (
