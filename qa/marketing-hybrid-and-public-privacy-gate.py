@@ -14,5 +14,5 @@ assert 'select("id,active")' in lookup
 response_contract=lookup.split('select("id,active")',1)[1]
 for secret in ('upcoming_bookings','patient_name','mrn'):
     assert secret not in response_contract, secret
-assert 'clinic_public_team_profiles' in team or 'azaad-public-team-data' in team
+assert "api/public-team-data" in team
 print('marketing hybrid + public privacy gate: PASS')

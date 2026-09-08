@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const API='https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-public-team-data';
+  const API='/api/public-team-data';
   const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
   const en=()=>String(document.documentElement.lang||'ar').startsWith('en');
   const text=(ar,enText)=>en()?enText:ar;
@@ -11,7 +11,7 @@
     if(loading){await loading;render(teamData||[]);return;}
     loading=(async()=>{
       try{
-        const r=await fetch(API,{cache:'no-store',headers:{Accept:'application/json'}});
+        const r=await fetch(API,{cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'}});
         const d=await r.json();
         if(!r.ok)throw new Error(d.error||'team_unavailable');
         teamData={doctors:d.doctors||[],team:d.team||[]};
