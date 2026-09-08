@@ -48,6 +48,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/finalize-admin-staff-caller-boundary.py"],
     ["python3", "qa/final-admin-restore-boundary.py"],
     ["python3", "qa/finalize-staff-management-runtime-boundary.py"],
+    ["python3", "qa/finalize-clinical-assessment-appwrite.py"],
 ]
 
 VERIFY_STEPS = [
@@ -66,6 +67,7 @@ VERIFY_STEPS = [
     ["python3", "qa/appwrite-admin-auth-boundary-gate.py"],
     ["python3", "qa/public-booking-central-i18n-gate.py"],
     ["python3", "qa/public-runtime-ownership-gate.py"],
+    ["python3", "qa/clinical-assessment-runtime-boundary-gate.py"],
 ]
 
 transform_paths = [step[1] for step in TRANSFORM_STEPS]
@@ -79,6 +81,7 @@ for required in (
     "qa/finalize-admin-staff-caller-boundary.py",
     "qa/final-admin-restore-boundary.py",
     "qa/finalize-staff-management-runtime-boundary.py",
+    "qa/finalize-clinical-assessment-appwrite.py",
 ):
     if transform_paths.count(required) != 1:
         raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
@@ -90,17 +93,21 @@ order_constraints = (
     ("qa/finalize-appwrite-browser-session-contract.py", "qa/finalize-admin-staff-caller-boundary.py"),
     ("qa/finalize-admin-staff-caller-boundary.py", "qa/final-admin-restore-boundary.py"),
     ("qa/final-admin-restore-boundary.py", "qa/finalize-staff-management-runtime-boundary.py"),
+    ("qa/finalize-staff-management-runtime-boundary.py", "qa/finalize-clinical-assessment-appwrite.py"),
 )
 for before, after in order_constraints:
     if transform_paths.index(before) >= transform_paths.index(after):
         raise SystemExit(f"Invalid production transform dependency order: {before} must precede {after}")
 
-if [step[1] for step in VERIFY_STEPS].count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
+verify_paths = [step[1] for step in VERIFY_STEPS]
+if verify_paths.count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
     raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
-if [step[1] for step in VERIFY_STEPS].count("qa/verify-admin-staff-caller-boundary.py") != 1:
+if verify_paths.count("qa/verify-admin-staff-caller-boundary.py") != 1:
     raise SystemExit("Admin staff caller verification gate must exist exactly once")
-if [step[1] for step in VERIFY_STEPS].count("qa/public-runtime-ownership-gate.py") != 1:
+if verify_paths.count("qa/public-runtime-ownership-gate.py") != 1:
     raise SystemExit("Public runtime ownership gate must exist exactly once")
+if verify_paths.count("qa/clinical-assessment-runtime-boundary-gate.py") != 1:
+    raise SystemExit("Clinical assessment runtime boundary gate must exist exactly once")
 
 
 def run_steps(steps, phase):

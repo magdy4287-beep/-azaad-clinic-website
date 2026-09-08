@@ -57,7 +57,7 @@ function cookieValue(request) {
 function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
   const forwardedProtocol = headerValue(request, 'x-forwarded-proto').split(',')[0].trim().toLowerCase();
   const host = headerValue(request, 'host').split(',')[0].trim().toLowerCase();
-  const localHost = /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::\d+)?$/.test(host);
+  const localHost = /^(localhost|127(?:\\.\\d{1,3}){3}|\\[::1\\])(?::\\d+)?$/.test(host);
   const secure = forwardedProtocol === 'https' || (!localHost && process.env.NODE_ENV === 'production');
   return `${COOKIE}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax`;
 }
@@ -146,14 +146,41 @@ async function verifySession(request) {
   return staff ? { user, staff } : null;
 }
 
+async function updatePassword(userId, password) {
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+  const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
+  const apiKey = String(process.env.APPWRITE_API_KEY || '').trim();
+  if (!endpoint || !project || !apiKey) throw new Error('APPWRITE_RUNTIME_NOT_CONFIGURED');
+  return fetch(`${endpoint}/users/${encodeURIComponent(userId)}/password`, {
+    method: 'PATCH',
+    headers: { 'X-Appwrite-Project': project, 'X-Appwrite-Key': apiKey, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+}
+
 export default async function handler(req, res) {
   const cors = corsHeaders(headerValue(req, 'origin'));
   for (const [key, value] of Object.entries(cors)) res.setHeader(key, value);
   try {
+    const url = new URL(req.url, `https://${headerValue(req, 'host') || 'localhost'}`);
+    const action = url.searchParams.get('action') || '';
     if (req.method === 'OPTIONS') {
       res.setHeader('access-control-allow-methods', 'GET,POST,DELETE,OPTIONS');
       res.setHeader('access-control-allow-headers', 'content-type');
       return res.status(204).end();
+    }
+    if (req.method === 'POST' && action === 'change-password') {
+      const identity = await verifySession(req);
+      if (!identity) return json(res, { error: 'authentication_required' }, 401);
+      const body = await bodyValue(req);
+      const password = String(body.password || '');
+      if (password.length < 12 || password.length > 256) return json(res, { error: 'invalid_password' }, 400);
+      const response = await updatePassword(identity.user.$id, password);
+      if (!response.ok) {
+        console.warn('admin-auth password update rejected', { status: response.status, userIdPresent: Boolean(identity.user.$id) });
+        return json(res, { error: 'password_update_failed' }, 400);
+      }
+      return json(res, { ok: true, provider: 'appwrite' });
     }
     if (req.method === 'POST') {
       const body = await bodyValue(req);
