@@ -55,8 +55,10 @@ function cookieValue(request) {
 }
 
 function sessionCookie(request, value, maxAge = SESSION_MAX_AGE) {
-  const protocol = new URL(request.url).protocol;
-  const secure = protocol === 'https:';
+  const forwardedProtocol = headerValue(request, 'x-forwarded-proto').split(',')[0].trim().toLowerCase();
+  const host = headerValue(request, 'host').split(',')[0].trim().toLowerCase();
+  const localHost = /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::\d+)?$/.test(host);
+  const secure = forwardedProtocol === 'https' || (!localHost && process.env.NODE_ENV === 'production');
   return `${COOKIE}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Lax`;
 }
 
