@@ -6,6 +6,13 @@ if not PATH.is_file():
     raise SystemExit("admin.js is required")
 text = PATH.read_text(encoding="utf-8")
 
+# Older build patching temporarily renamed the restore owner to restoreStaff.
+# Normalize that alias here so auth has one canonical owner instead of competing
+# restore implementations. This is intentionally a compatibility bridge, not a
+# second runtime owner.
+if "async function restoreStaffProfile(" not in text and "async function restoreStaff(" in text:
+    text = text.replace("async function restoreStaff(", "async function restoreStaffProfile(", 1)
+
 
 def bounds(src, name):
     matches = list(re.finditer(rf"(?:async )?function {re.escape(name)}\s*\([^)]*\)\s*\{{", src))
@@ -36,7 +43,6 @@ def bounds(src, name):
 def replace_fn(src, name, replacement):
     start, end = bounds(src, name)
     return src[:start] + replacement + src[end:]
-
 
 LOGIN = r'''async function login(username, password) {
   const cleanUsername = String(username || '').trim().toLowerCase();
@@ -94,11 +100,12 @@ text = re.sub(r'/\* ============================================================
 text = re.sub(r'\bwindow\.AZAAD\s*=\s*\{\s*supabase,\s*', 'window.AZAAD = {\n  ', text, count=1)
 text = re.sub(r'/\* ============================================================\n\s*RESTORE SESSION\n\s*============================================================ \*/[\s\S]*?(?=/\* ============================================================\n\s*RESTORE STAFF)', '\n', text, count=1)
 
-# Fail closed if the retired Supabase staff-login browser boundary is ever reintroduced.
 for pattern in (r'\bsupabase\.auth\.(?:getSession|refreshSession|signOut|setSession)\s*\(', r'functions/v1/staff-login', r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY|AUTH_STORAGE_KEY)\b'):
     if re.search(pattern, text, flags=re.I):
         raise SystemExit(f"Legacy staff-login / Supabase browser auth marker remains: {pattern}")
 
+if "async function restoreStaffProfile(" not in text:
+    raise SystemExit("Canonical Appwrite restoreStaffProfile() missing")
 if text.count("window.AZAAD_LOGIN_CONTROLLER_READY = true;") > 1:
     raise SystemExit("Admin login readiness marker must be unique")
 PATH.write_text(text, encoding="utf-8")
