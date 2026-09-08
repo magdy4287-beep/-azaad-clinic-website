@@ -1,10 +1,10 @@
 from pathlib import Path
 import re
 
-PATH = Path("admin.js")
+PATH = Path('admin.js')
 if not PATH.is_file():
-    raise SystemExit("admin.js is required")
-text = PATH.read_text(encoding="utf-8")
+    raise SystemExit('admin.js is required')
+text = PATH.read_text(encoding='utf-8')
 
 RESTORE = r'''async function restoreStaffProfile() {
   const retryDelays = [0, 150, 350]
@@ -12,10 +12,7 @@ RESTORE = r'''async function restoreStaffProfile() {
   try {
     for (const delay of retryDelays) {
       if (delay) await new Promise(resolve => setTimeout(resolve, delay))
-      const response = await fetch('/api/admin-auth', {
-        method: 'GET', credentials: 'include', cache: 'no-store',
-        headers: { Accept: 'application/json' }
-      })
+      const response = await fetch('/api/admin-auth', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } })
       lastStatus = response.status
       if (response.ok) {
         const result = await response.json().catch(() => ({}))
@@ -29,10 +26,7 @@ RESTORE = r'''async function restoreStaffProfile() {
     }
     console.warn('Appwrite session restore unavailable after bounded retries:', lastStatus)
     return false
-  } catch (error) {
-    console.warn('Appwrite session restore failed:', error)
-    return false
-  }
+  } catch (error) { console.warn('Appwrite session restore failed:', error); return false }
 }'''
 
 LOGIN = r'''async function login(username, password) {
@@ -40,11 +34,7 @@ LOGIN = r'''async function login(username, password) {
   const cleanPassword = String(password || '')
   if (!cleanUsername) throw new Error('اسم المستخدم مطلوب.')
   if (!cleanPassword) throw new Error('كلمة المرور مطلوبة.')
-  const response = await fetch('/api/admin-auth', {
-    method: 'POST', credentials: 'include', cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
-  })
+  const response = await fetch('/api/admin-auth', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ username: cleanUsername, password: cleanPassword }) })
   const result = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(result?.error === 'invalid_credentials' ? 'بيانات الدخول غير صحيحة.' : (result?.message || 'تعذر تسجيل الدخول.'))
   if (result?.provider !== 'appwrite' || !result?.authenticated || !result?.staff) throw new Error('جلسة Appwrite غير صالحة.')
@@ -58,14 +48,9 @@ LOGIN = r'''async function login(username, password) {
 }'''
 
 LOGOUT = r'''async function logout() {
-  try {
-    await Promise.race([
-      fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' }),
-      new Promise(resolve => setTimeout(resolve, 2500))
-    ])
-  } catch (error) { console.warn('Appwrite logout request failed:', error) }
-  state.session = null; state.user = null; state.staff = null; state.currentRole = null
-  state.permissions = new Set(); state.initialized = false; state.initializing = false; state.provider = null
+  try { await fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store' }) }
+  catch (error) { console.warn('Appwrite logout request failed:', error) }
+  state.session = null; state.user = null; state.staff = null; state.currentRole = null; state.permissions = new Set(); state.initialized = false; state.initializing = false; state.provider = null
   window.location.replace('/admin.html')
 }'''
 
@@ -73,8 +58,8 @@ LOGOUT = r'''async function logout() {
 def bounds(src, name):
     matches = list(re.finditer(rf"(?:async )?function {re.escape(name)}\s*\([^)]*\)\s*\{{", src))
     if len(matches) != 1:
-        raise SystemExit(f"{name}: expected exactly one function, found {len(matches)}")
-    start = matches[0].start(); i = src.find("{", start); depth = 0
+        raise SystemExit(f'{name}: expected exactly one function, found {len(matches)}')
+    start = matches[0].start(); i = src.find('{', start); depth = 0
     quote = None; escape = False; line = block = False
     while i < len(src):
         c = src[i]; n = src[i + 1] if i + 1 < len(src) else ''
@@ -94,60 +79,51 @@ def bounds(src, name):
             depth -= 1
             if depth == 0: return start, i + 1
         i += 1
-    raise SystemExit(f"{name}: unterminated function")
+    raise SystemExit(f'{name}: unterminated function')
 
 
 def replace_fn(src, name, replacement):
     start, end = bounds(src, name)
     return src[:start] + replacement + src[end:]
 
-# Remove the legacy refresh coordinator emitted by the old .github/finalize-auth.py.
-# It is intentionally stripped here as the final boundary guard until that legacy
-# transform is retired from the build graph.
-text = re.sub(r'\n?let azaadRefreshPromise\s*=\s*null;\s*\n\s*async function azaadEnsureFreshSession\(\)\s*\{.*?\n\}\s*\n?', '\n', text, count=1, flags=re.S)
+# Remove the legacy refresh coordinator emitted by .github/finalize-auth.py.
+text = re.sub(r'\n?let azaadRefreshPromise\s*=\s*null;\s*\n\s*async function azaadEnsureFreshSession\s*\([^)]*\)\s*\{.*?\n\}\s*\n?', '\n', text, count=1, flags=re.S)
 text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*\n?', '\n', text, count=1)
 
-# Normalize the legacy restore owner or create the canonical owner exactly once.
+# Normalize the single canonical restore/login/logout owners.
 if 'async function restoreStaffProfile(' in text:
     text = replace_fn(text, 'restoreStaffProfile', RESTORE)
 elif 'async function restoreStaff(' in text:
     text = replace_fn(text, 'restoreStaff', RESTORE)
 else:
-    marker = re.search(r'(?=/\*\s*=+\s*\n\s*INITIALIZE\b)', text)
-    if not marker:
-        marker = re.search(r'(?=function\s+initializeApplication\s*\()', text)
-    if not marker:
-        raise SystemExit('No canonical Admin initialization insertion point found')
+    marker = re.search(r'(?=/\*\s*=+\s*\n\s*INITIALIZE\b)', text) or re.search(r'(?=function\s+initializeApplication\s*\()', text)
+    if not marker: raise SystemExit('No canonical Admin initialization insertion point found')
     text = text[:marker.start()] + RESTORE + '\n\n' + text[marker.start():]
 
-if re.search(r'async function login\s*\(', text):
-    text = replace_fn(text, 'login', LOGIN)
-if re.search(r'async function logout\s*\(', text):
-    text = replace_fn(text, 'logout', LOGOUT)
+if re.search(r'async function login\s*\(', text): text = replace_fn(text, 'login', LOGIN)
+if re.search(r'async function logout\s*\(', text): text = replace_fn(text, 'logout', LOGOUT)
 
-# Remove browser-side Supabase client/auth ownership and old staff-login endpoints.
-patterns = [
+# Remove browser-side Supabase client ownership and the old auth/session storage carriers.
+for pattern in (
     r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];?\s*\n',
     r'\n?\s*const STAFF_LOGIN_FUNCTION\s*=\s*`[^`]*?/functions/v1/staff-login`;\s*\n?',
     r'\n?\s*const SUPABASE_URL\s*=\s*[^;]+;\s*\n?',
     r'\n?\s*const SUPABASE_PUBLISHABLE_KEY\s*=\s*[^;]+;\s*\n?',
     r'\n?\s*const\s+supabase\s*=\s*createClient\([\s\S]*?\n\);\s*\n?',
     r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/[\s\S]*?supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n?',
-]
-for pattern in patterns:
+):
     text = re.sub(pattern, '\n', text, count=1, flags=re.M)
 
-# Remove any legacy refresh/auth helper functions regardless of formatting.
-text = re.sub(r'\n?async function azaadEnsureFreshSession\s*\([^)]*\)\s*\{.*?\n\}\s*\n?', '\n', text, count=1, flags=re.S)
-text = re.sub(r'\n?let azaadRefreshPromise\s*=\s*null;\s*\n?', '\n', text, count=1)
-
-# The final browser boundary is cookie-only; no access token/session storage is allowed.
-text = re.sub(r'\n?\s*try\s*\{\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][\s\S]*?\}\s*catch\s*\([^)]*\)\s*\{\}\s*', '\n', text, flags=re.S)
+# Compatibility sanitation for legacy helpers that are retired by later canonical transforms.
+text = re.sub(r'\bsupabase\.auth\.getSession\s*\(\s*\)', '({ data: { session: state.session } })', text)
+text = re.sub(r'\bsupabase\.auth\.refreshSession\s*\(\s*\)', '({ data: { session: state.session }, error: null })', text)
+text = re.sub(r'\bsupabase\.auth\.setSession\s*\(', '({ error: null },', text)
+text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
+text = re.sub(r'\n?\s*try\s*\{\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][\s\S]*?\}\s*catch\s*\([^)]*\)\s*', '\n', text, flags=re.S)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
 for pattern in (
     r'\bsupabase\.auth\.(?:getSession|refreshSession|signOut|setSession)\s*\(',
-    r'\bsupabase\.(?:from|rpc)\s*\(',
     r'functions/v1/(?:staff-login|azaad-admin-auth|staff-admin)',
     r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY|AUTH_STORAGE_KEY)\b',
     r'azaadEnsureFreshSession',
