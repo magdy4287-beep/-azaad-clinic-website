@@ -107,5 +107,12 @@ for pattern in (
 ):
     if re.search(pattern, executable, flags=re.I): raise SystemExit(f'Legacy executable browser auth marker remains: {pattern}')
 if text.count('async function restoreStaffProfile(') != 1: raise SystemExit('Canonical Appwrite restoreStaffProfile owner must exist exactly once')
+
+# This is the sole readiness publication point. It is emitted only after the
+# canonical Appwrite auth functions have been installed, so Browser E2E never
+# has to guess whether the login controller exists yet.
+text = re.sub(r'\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?', '\n', text)
+text = text.rstrip() + '\n\nwindow.AZAAD_LOGIN_CONTROLLER_READY = true;\n'
+
 PATH.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py: sole cookie-only Appwrite browser auth owner established')
+print('finalize-appwrite-admin-auth.py: sole cookie-only Appwrite browser auth owner established; login controller readiness published')
