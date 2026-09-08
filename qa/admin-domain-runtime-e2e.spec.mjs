@@ -5,7 +5,7 @@ const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.verc
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
 const STAFF_ADMIN_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
-const EXPECTED_AUTH_401_CONSOLE = 'Failed to load resource: the server responded with a status of 401 (Unauthorized)';
+const EXPECTED_AUTH_401_CONSOLE = /^Failed to load resource: the server responded with a status of 401(?: \(Unauthorized\))?$/;
 
 async function readAuthState(page) {
   return page.evaluate(() => ({
@@ -132,7 +132,7 @@ test('authenticated admin domain runtime certification covers every accessible p
   const unexpectedConsoleErrors = [...consoleErrors];
   let expected401Consumed = 0;
   for (let index = unexpectedConsoleErrors.length - 1; index >= 0; index -= 1) {
-    if (unexpectedConsoleErrors[index] === EXPECTED_AUTH_401_CONSOLE && expected401Consumed < expectedAdminAuth401Responses) {
+    if (EXPECTED_AUTH_401_CONSOLE.test(unexpectedConsoleErrors[index]) && expected401Consumed < expectedAdminAuth401Responses) {
       unexpectedConsoleErrors.splice(index, 1);
       expected401Consumed += 1;
     }
