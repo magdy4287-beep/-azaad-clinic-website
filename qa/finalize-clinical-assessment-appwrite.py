@@ -21,7 +21,11 @@ text, token_count = legacy_token.subn(" const tr=", text, count=1)
 if token_count != 1:
     raise SystemExit(f'Expected exactly one legacy clinical token owner, found {token_count}')
 
-request_pattern = re.compile(r"  async function request\(method,params=\{\},body\)\{.*?\n  \}\n  function renderMeta", re.S)
+start = text.find('  async function request(method,params={},body){')
+end = text.find('  function renderMeta', start)
+if start < 0 or end < 0 or end <= start:
+    raise SystemExit('Expected exactly one canonical clinical assessment request region')
+
 request_replacement = """  async function request(method,params={},body){
     const u=new URL(API,location.origin);
     Object.entries(params).forEach(([k,v])=>v!==''&&v!=null&&u.searchParams.set(k,v));
@@ -30,10 +34,8 @@ request_replacement = """  async function request(method,params={},body){
     if(!r.ok)throw Error(b?.error||b?.message||`HTTP ${r.status}`);
     return b;
   }
-  function renderMeta"""
-text, request_count = request_pattern.subn(request_replacement, text, count=1)
-if request_count != 1:
-    raise SystemExit(f'Expected exactly one clinical assessment request owner, found {request_count}')
+"""
+text = text[:start] + request_replacement + text[end:]
 
 path.write_text(text, encoding='utf-8')
 print('[AZAAD build] clinical assessment browser boundary canonicalized to /api/clinical-assessments', flush=True)
