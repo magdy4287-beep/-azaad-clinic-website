@@ -1,6 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 
 function json(res, body, status = 200) {
+  res.setHeader('Cache-Control', 'no-store');
   return res.status(status).json(body);
 }
 
@@ -10,6 +11,22 @@ export default async function handler(req, res) {
 
   try {
     const sql = neon(process.env.DATABASE_URL);
+    const scope = new URL(req.url, `http://${req.headers.host || 'localhost'}`).searchParams.get('scope');
+    if (scope === 'team') {
+      const [doctors, team] = await Promise.all([
+        sql`SELECT id, name, name_en, title, title_en, bio, bio_en, image_url
+            FROM public.clinic_doctors
+            WHERE active = true
+            ORDER BY sort_order, name`,
+        sql`SELECT id, display_name, display_name_en, title, title_en,
+                   department, department_en, bio, bio_en, image_url
+            FROM public.clinic_public_team_profiles
+            WHERE active = true AND show_on_patient_portal = true
+            ORDER BY sort_order, display_name`
+      ]);
+      return json(res, { doctors, team });
+    }
+
     const [settings, doctors, services, posts] = await Promise.all([
       sql`SELECT clinic_name, tagline, tagline_en, phone, landline, email, address, whatsapp, facebook_url, linkedin_url, instagram_url, tiktok_url, logo_url, hero_image_url, slot_minutes, booking_notice, booking_notice_en FROM public.clinic_settings ORDER BY id LIMIT 1`,
       sql`SELECT id, name, name_en, title, title_en, bio, bio_en, image_url, services FROM public.clinic_doctors WHERE active = true ORDER BY sort_order, name`,
