@@ -31,17 +31,17 @@ text = text.replace(
 if 'session: { access_token:' in text:
     raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
 
-# Refresh persistence is a real browser lifecycle. The restore owner must be
-# assigned before DOMContentLoaded startup can invoke it. We intentionally use
-# semantic matching rather than whitespace-sensitive matching because later
-# canonical auth transforms may normalize the assignment formatting.
+# Final canonicalization: some earlier transforms operate on the named function
+# and can legitimately leave it as a top-level declaration. The final boundary is
+# the single owner allowed to publish that function to the startup-facing global.
 owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\(\s*\)'
 owners = list(re.finditer(owner_re, text))
-if len(owners) != 1:
-    # Accept a line break between the assignment and function expression as a
-    # valid canonical form, but never accept a second owner.
-    broad_owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\('
-    owners = list(re.finditer(broad_owner_re, text))
+if not owners:
+    fn = re.search(r'async function restoreStaffProfile\s*\(\s*\)\s*\{', text)
+    if not fn:
+        raise SystemExit('Final Admin restore boundary: restoreStaffProfile implementation is missing')
+    text = text[:fn.start()] + 'window.AZAAD_RESTORE_STAFF_PROFILE = ' + text[fn.start():]
+    owners = list(re.finditer(owner_re, text))
 if len(owners) != 1:
     raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
 
