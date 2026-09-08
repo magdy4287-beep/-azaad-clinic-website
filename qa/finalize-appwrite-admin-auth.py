@@ -69,7 +69,6 @@ def bounds(src, name):
 def replace_fn(src, name, replacement):
     start, end = bounds(src, name); return src[:start] + replacement + src[end:]
 
-# Canonicalize the live browser auth owners after all earlier legacy transforms have run.
 text = re.sub(r'\n?let azaadRefreshPromise\s*=\s*null;\s*\n\s*async function azaadEnsureFreshSession\s*\([^)]*\)\s*\{.*?\n\}\s*\n?', '\n', text, count=1, flags=re.S)
 text = re.sub(r'\n?window\.AZAAD_REFRESH\s*=\s*azaadEnsureFreshSession;\s*\n?', '\n', text, count=1)
 if 'async function restoreStaffProfile(' in text: text = replace_fn(text, 'restoreStaffProfile', RESTORE)
@@ -82,7 +81,6 @@ if re.search(r'async function login\s*\(', text): text = replace_fn(text, 'login
 if re.search(r'async function logout\s*\(', text): text = replace_fn(text, 'logout', LOGOUT)
 if re.search(r'async function restoreSession\s*\(', text): text = replace_fn(text, 'restoreSession', 'async function restoreSession() { return restoreStaffProfile(); }')
 
-# Strip the browser client declarations and legacy auth-state listener.
 for pattern in (
     r'^\s*import\s*\{\s*createClient\s*\}\s*from\s*["\']https://esm\.sh/@supabase/supabase-js@2["\'];?\s*\n',
     r'\n?\s*const STAFF_LOGIN_FUNCTION\s*=\s*`[^`]*?/functions/v1/staff-login`;\s*\n?',
@@ -92,21 +90,20 @@ for pattern in (
     r'/\* ============================================================\n\s*AUTH STATE\n\s*============================================================ \*/[\s\S]*?supabase\.auth\.onAuthStateChange\([\s\S]*?\n\);\s*\n?',
 ): text = re.sub(pattern, '\n', text, count=1, flags=re.M)
 
-# Retired helpers may still be present until their dedicated later transforms; neutralize auth calls.
+# Neutralize auth calls left only in retired helpers; dedicated later transforms remove those helpers.
 text = re.sub(r'\bsupabase\.auth\.getSession\s*\(\s*\)', '({ data: { session: state.session } })', text)
 text = re.sub(r'\bsupabase\.auth\.refreshSession\s*\(\s*\)', '({ data: { session: state.session }, error: null })', text)
 text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', text, flags=re.S)
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
-# Boundary assertions inspect executable text, excluding comments so historical documentation
-# in the generated source cannot masquerade as a live dependency.
+# This gate is specifically the Appwrite browser-auth owner gate. Generic legacy data
+# identifiers are intentionally left for the repository-wide runtime sweep later.
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
 for pattern in (
     r'\bsupabase\.auth\.(?:getSession|refreshSession|signOut|setSession)\s*\(',
     r'functions/v1/(?:staff-login|azaad-admin-auth|staff-admin)',
-    r'\bSUPABASE_(?:URL|PUBLISHABLE_KEY|ANON_KEY|SERVICE_ROLE_KEY|AUTH_STORAGE_KEY)\b',
     r'azaadEnsureFreshSession', r'azaadRefreshPromise',
 ):
     if re.search(pattern, executable, flags=re.I): raise SystemExit(f'Legacy executable browser auth marker remains: {pattern}')
