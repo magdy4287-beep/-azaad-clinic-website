@@ -54,13 +54,17 @@ restore = function_bounds(text, 'restoreStaffProfile')
 if not restore or len(re.findall(r'async function restoreStaffProfile\s*\(', text)) != 1:
     raise SystemExit('Expected exactly one restoreStaffProfile implementation before staff-runtime normalization')
 restore_source = text[restore[0]:restore[1]]
-text = text[:restore[0]] + text[restore[1]:]
+# The restore owner must exist before the DOMContentLoaded startup path can invoke it.
+# Appending it to the end of admin.js created a race on a real browser refresh:
+# startup could call the global before its assignment had executed. Keep the
+# canonical function in the original pre-startup position, but expose it through
+# the global boundary used by the startup code.
+canonical_restore = 'window.AZAAD_RESTORE_STAFF_PROFILE = ' + restore_source + ';'
+text = text[:restore[0]] + canonical_restore + text[restore[1]:]
 text = text.replace('const validStaff = await restoreStaffProfile();', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', 1)
 if 'await restoreStaffProfile()' in text: raise SystemExit('Legacy unqualified restoreStaffProfile startup call remains')
-text = text.rstrip() + '\n\n/* Canonical global Appwrite restore owner: deliberately appended after all legacy scopes. */\nwindow.AZAAD_RESTORE_STAFF_PROFILE = ' + restore_source + ';\n'
 if text.count('window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {') != 1:
     raise SystemExit('Global Appwrite restore owner was not established exactly once')
-admin.write_text(text, encoding='utf-8')
 
 STAFF_API = r'''async function staffApi(
   action,
@@ -104,4 +108,4 @@ for name, value in [('admin.js', text), ('admin.html', html_text)]:
     if 'supabase.auth.' in value: raise SystemExit(f'Legacy Supabase auth runtime remains in {name}')
     if 'SUPABASE_PUBLISHABLE_KEY' in value: raise SystemExit(f'Legacy Supabase publishable key remains in executable {name}')
 
-print('retire-legacy-admin-staff-runtime.py completed: global Appwrite restore owner + Neon staff API boundary enforced')
+print('retire-legacy-admin-staff-runtime.py completed: global Appwrite restore owner established before startup + Neon staff API boundary enforced')
