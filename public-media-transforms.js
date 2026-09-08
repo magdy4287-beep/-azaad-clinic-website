@@ -1,6 +1,6 @@
 /* Public media transform renderer. Default scale=1 preserves the complete uploaded image. */
 (()=>{
-  const API='/api/public-media-transforms';
+  const API='/api/public-clinic-data?scope=media-transforms';
   let map=new Map();
   const key=(t,s)=>{try{return `${t}:${new URL(s,location.href).pathname}`}catch{return `${t}:${s}`}};
   const type=i=>i.closest('#doctors,.doctor-card,.team-media')?'doctor':i.closest('#posts,.post-card,.post-media,.feed-media')?'post':'other';
