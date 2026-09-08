@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     if (scope === 'team') {
       const [doctors, team] = await Promise.all([
         sql`SELECT id, name, name_en, title, title_en, bio, bio_en, image_url FROM public.clinic_doctors WHERE active = true ORDER BY sort_order, name`,
-        sql`SELECT id, display_name, display_name_en, title, title_en, department, department_en, bio, bio_en, image_url FROM public.clinic_public_team_profiles WHERE active = true AND show_on_patient_portal = true ORDER BY sort_order, display_name`
+        sql`SELECT p.id, p.staff_id, s.doctor_id, p.display_name, p.display_name_en, p.title, p.title_en, p.department, p.department_en, p.bio, p.bio_en, p.image_url FROM public.clinic_public_team_profiles p LEFT JOIN public.clinic_staff s ON s.id=p.staff_id WHERE p.active = true AND p.show_on_patient_portal = true ORDER BY p.sort_order, p.display_name`
       ]);
       return json(res, { doctors, team });
     }
