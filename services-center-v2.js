@@ -1,66 +1,85 @@
 /* AZAAD CLINIC — Services Center V2
-   Free-first admin layer. Reads the existing clinic_services table and keeps
-   service history safe by using the existing admin archive endpoint.
+   Canonical admin services boundary: Appwrite identity + Neon data.
+   All READ/CREATE/UPDATE/ARCHIVE operations use /api/admin-services.
 */
 (()=>{
-  const wait=setInterval(()=>{if(window.AZAAD?.supabase){clearInterval(wait);boot()}},250);
-  setTimeout(()=>clearInterval(wait),12000);
-  const D=()=>window.AZAAD.supabase;
+  'use strict';
+  if(window.__AZAAD_SERVICES_V2__) return;
+  window.__AZAAD_SERVICES_V2__=true;
   const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  const toast=(m)=>{const x=document.getElementById('toast');if(!x)return;x.textContent=m;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2800)};
+  const $=id=>document.getElementById(id);
+  const toast=m=>{const x=$('toast');if(!x)return;x.textContent=m;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2800)};
+  const api=async(options={})=>{
+    const response=await fetch('/api/admin-services',{credentials:'include',cache:'no-store',headers:{Accept:'application/json','Content-Type':'application/json',...(options.headers||{})},...options});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok){const error=new Error(body.error||`HTTP_${response.status}`);error.status=response.status;throw error}
+    return body;
+  };
   let services=[];
+  let editingId='';
+  const name=s=>s.name||'Unnamed service';
+  const en=s=>s.name_en||'';
+  const desc=s=>s.description||'';
+  const descEn=s=>s.description_en||'';
+  const price=s=>s.price??0;
+  const active=s=>s.active!==false;
   function boot(){
-    const panel=document.getElementById('services')||document.getElementById('serviceList')?.closest('.panel,section');
+    const panel=$('services')||$('serviceList')?.closest('.panel,section');
     if(!panel)return;
-    renderShell(panel);
-    load();
+    renderShell(panel);load();
   }
   function renderShell(panel){
-    if(document.getElementById('azServicesV2'))return;
+    if($('azServicesV2'))return;
     const host=document.createElement('div');host.id='azServicesV2';host.className='card';
-    host.innerHTML=`<div class="panel-head"><div><h2>🩺 Services Center</h2><div class="muted">All clinic services • active/inactive • booking & billing ready</div></div><button id="azServicesRefresh" class="btn btn-secondary" type="button">🔄 Refresh</button></div><div class="filters"><input id="azServicesSearch" type="search" placeholder="🔎 Search service / description"><select id="azServicesStatus"><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div><div id="azServicesSummary" class="stats"></div><div id="azServicesRows" class="items"></div>`;
+    host.innerHTML=`<div class="panel-head"><div><h2>🩺 Services Center</h2><div class="muted">Canonical service catalog • Appwrite identity • Neon data</div></div><div class="top-actions"><button id="azServicesAdd" class="btn btn-primary" type="button">➕ Add service</button><button id="azServicesRefresh" class="btn btn-secondary" type="button">🔄 Refresh</button></div></div><div class="filters"><input id="azServicesSearch" type="search" placeholder="🔎 Search service / description"><select id="azServicesStatus"><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div><div id="azServicesSummary" class="stats"></div><div id="azServicesRows" class="items"></div>`;
     panel.appendChild(host);
-    document.getElementById('azServicesRefresh').onclick=load;
-    document.getElementById('azServicesSearch').oninput=renderRows;
-    document.getElementById('azServicesStatus').onchange=renderRows;
+    $('azServicesAdd').onclick=()=>openEditor();
+    $('azServicesRefresh').onclick=load;
+    $('azServicesSearch').oninput=renderRows;
+    $('azServicesStatus').onchange=renderRows;
   }
   async function load(){
-    const out=document.getElementById('azServicesRows');if(!out)return;out.innerHTML='<div class="muted">Loading services…</div>';
-    const q=await D().from('clinic_services').select('*').order('created_at',{ascending:false}).limit(500);
-    if(q.error){out.innerHTML=`<div class="error">${E(q.error.message)}</div>`;return}
-    services=q.data||[];renderRows();
+    const out=$('azServicesRows');if(!out)return;out.innerHTML='<div class="muted">Loading services…</div>';
+    try{const body=await api({method:'GET'});services=Array.isArray(body.services)?body.services:[];renderRows()}
+    catch(error){out.innerHTML=`<div class="error">${error.status===401?'Please sign in again.':E(error.message||'Services unavailable')}</div>`}
   }
-  const name=s=>s.name||s.service_name||s.title||s.ar_name||s.name_ar||'Unnamed service';
-  const en=s=>s.name_en||s.service_name_en||s.title_en||s.english_name||'';
-  const desc=s=>s.description||s.description_ar||'';
-  const price=s=>s.price??s.default_price??s.amount??0;
-  const active=s=>s.active??s.is_active??true;
   function renderRows(){
-    const out=document.getElementById('azServicesRows');if(!out)return;
-    const term=(document.getElementById('azServicesSearch')?.value||'').toLowerCase();
-    const status=document.getElementById('azServicesStatus')?.value||'all';
-    const list=services.filter(s=>{const a=!!active(s);const hay=[name(s),en(s),desc(s),s.category,s.specialty].join(' ').toLowerCase();return(!term||hay.includes(term))&&(status==='all'||(status==='active'?a:!a))});
-    const a=services.filter(s=>!!active(s)).length;
-    document.getElementById('azServicesSummary').innerHTML=`<div class="stat"><div class="stat-number">${services.length}</div>🩺 Services</div><div class="stat"><div class="stat-number">${a}</div>🟢 Active</div><div class="stat"><div class="stat-number">${services.length-a}</div>🔴 Inactive</div>`;
-    out.innerHTML=list.map(s=>{
-      const id=s.id||s.service_id;const isA=!!active(s);
-      return `<div class="item"><div><b>${E(name(s))}</b>${en(s)?`<div class="muted">🇬🇧 ${E(en(s))}</div>`:''}<div class="muted">${E(desc(s))}</div><div class="muted">💰 ${Number(price(s)||0).toFixed(2)} EGP${s.duration_minutes?` • ⏱️ ${E(s.duration_minutes)} min`:''}${s.category?` • ${E(s.category)}`:''}</div></div><div class="actions"><span class="badge">${isA?'🟢 Active':'🔴 Inactive'}</span>${id?`<button class="btn btn-secondary" type="button" data-service-edit="${E(id)}">✏️ Edit</button><button class="btn btn-danger" type="button" data-service-archive="${E(id)}">📦 Archive</button>`:''}</div></div>`;
-    }).join('')||'<div class="empty">No services found</div>';
-    out.querySelectorAll('[data-service-edit]').forEach(b=>b.onclick=()=>editInfo(b.dataset.serviceEdit));
+    const out=$('azServicesRows');if(!out)return;
+    const term=($('azServicesSearch')?.value||'').toLowerCase().trim();
+    const status=$('azServicesStatus')?.value||'all';
+    const list=services.filter(s=>{const a=active(s);const hay=[name(s),en(s),desc(s),descEn(s),s.category].join(' ').toLowerCase();return(!term||hay.includes(term))&&(status==='all'||(status==='active'?a:!a))});
+    const a=services.filter(active).length;
+    $('azServicesSummary').innerHTML=`<div class="stat"><div class="stat-number">${services.length}</div>🩺 Services</div><div class="stat"><div class="stat-number">${a}</div>🟢 Active</div><div class="stat"><div class="stat-number">${services.length-a}</div>🔴 Inactive</div>`;
+    out.innerHTML=list.map(s=>{const id=s.id;const isA=active(s);return `<div class="item"><div><b>${E(name(s))}</b>${en(s)?`<div class="muted">🇬🇧 ${E(en(s))}</div>`:''}${desc(s)?`<div class="muted">${E(desc(s))}</div>`:''}<div class="muted">💰 ${Number(price(s)||0).toFixed(2)} EGP${s.duration_minutes?` • ⏱️ ${E(s.duration_minutes)} min`:''}${s.category?` • ${E(s.category)}`:''}</div></div><div class="top-actions"><span class="badge">${isA?'🟢 Active':'🔴 Inactive'}</span><button class="btn btn-secondary" type="button" data-service-edit="${E(id)}">✏️ Edit</button>${isA?`<button class="btn btn-danger" type="button" data-service-archive="${E(id)}">📦 Archive</button>`:`<button class="btn btn-success" type="button" data-service-reactivate="${E(id)}">♻️ Reactivate</button>`}</div></div>`}).join('')||'<div class="empty">No services found</div>';
+    out.querySelectorAll('[data-service-edit]').forEach(b=>b.onclick=()=>openEditor(b.dataset.serviceEdit));
     out.querySelectorAll('[data-service-archive]').forEach(b=>b.onclick=()=>archive(b.dataset.serviceArchive));
+    out.querySelectorAll('[data-service-reactivate]').forEach(b=>b.onclick=()=>reactivate(b.dataset.serviceReactivate));
   }
-  function editInfo(id){
-    const s=services.find(x=>String(x.id||x.service_id)===String(id));if(!s)return;
-    const n=name(s),p=price(s);toast(`✏️ ${n} — use the existing service editor to update price/details.`);
-    document.querySelector('[data-edit-service="'+CSS.escape(String(id))+'"]')?.click();
+  function openEditor(id=''){
+    editingId=id;
+    const s=services.find(x=>String(x.id)===String(id))||{};
+    let modal=$('azServiceEditor');
+    if(!modal){modal=document.createElement('div');modal.id='azServiceEditor';modal.className='modal';document.body.appendChild(modal)}
+    modal.innerHTML=`<div class="modal-box"><div class="panel-head"><h2>${id?'✏️ Edit service':'➕ Add service'}</h2><button id="azServiceClose" class="btn btn-secondary" type="button">✕</button></div><form id="azServiceForm"><div class="grid"><label>Arabic name<input name="name" required value="${E(s.name||'')}"></label><label>English name<input name="name_en" value="${E(s.name_en||'')}"></label><label>Description<textarea name="description">${E(s.description||'')}</textarea></label><label>English description<textarea name="description_en">${E(s.description_en||'')}</textarea></label><label>Price (EGP)<input name="price" type="number" min="0" step="0.01" required value="${E(s.price??0)}"></label><label>Duration (minutes)<input name="duration_minutes" type="number" min="1" max="1440" step="1" required value="${E(s.duration_minutes??60)}"></label><label>Category<input name="category" value="${E(s.category||'')}"></label><label>Sort order<input name="sort_order" type="number" step="1" value="${E(s.sort_order??0)}"></label><label class="switch"><input name="active" type="checkbox" ${s.active!==false?'checked':''}> Active</label></div><div id="azServiceFormError" class="error hidden"></div><div class="modal-actions"><button class="btn btn-primary" type="submit">💾 Save</button><button id="azServiceCancel" class="btn btn-secondary" type="button">Cancel</button></div></form></div>`;
+    modal.classList.add('show');
+    $('azServiceClose').onclick=closeEditor;$('azServiceCancel').onclick=closeEditor;$('azServiceForm').onsubmit=save;
+  }
+  function closeEditor(){const m=$('azServiceEditor');if(m)m.classList.remove('show');editingId=''}
+  async function save(event){
+    event.preventDefault();const form=event.currentTarget;const error=$('azServiceFormError');error.classList.add('hidden');
+    const fd=new FormData(form);const body={name:String(fd.get('name')||'').trim(),name_en:String(fd.get('name_en')||'').trim(),description:String(fd.get('description')||'').trim(),description_en:String(fd.get('description_en')||'').trim(),price:Number(fd.get('price')),duration_minutes:Number(fd.get('duration_minutes')),category:String(fd.get('category')||'').trim(),sort_order:Number(fd.get('sort_order')||0),active:form.elements.active.checked};
+    try{await api({method:editingId?'PATCH':'POST',body:JSON.stringify(editingId?{id:editingId,...body}:body)});toast(editingId?'✅ Service updated':'✅ Service created');closeEditor();await load();window.AZAAD?.refresh?.()}
+    catch(e){error.textContent=e.status===403?'You do not have permission to change services.':E(e.message||'Unable to save service');error.classList.remove('hidden')}
   }
   async function archive(id){
-    const s=services.find(x=>String(x.id||x.service_id)===String(id));
-    if(!s||!confirm(`Archive ${name(s)}? Historical bookings and invoices will be preserved.`))return;
-    const staff=window.AZAAD.state?.staff, token=window.AZAAD.state?.session?.access_token;
-    if(!token){toast('Please sign in again.');return}
-    const r=await fetch(`https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-admin?api=service&id=${encodeURIComponent(id)}`,{method:'DELETE',headers:{Accept:'application/json',Authorization:`Bearer ${token}`,apikey:'sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa'}});
-    if(!r.ok){toast('Unable to archive service');return}
-    toast('✅ Service archived');await load();window.AZAAD.refresh?.();
+    const s=services.find(x=>String(x.id)===String(id));if(!s||!confirm(`Archive ${name(s)}? Historical bookings and invoices will be preserved.`))return;
+    try{await api({method:'DELETE',url:`/api/admin-services?id=${encodeURIComponent(id)}`});toast('✅ Service archived');await load();window.AZAAD?.refresh?.()}
+    catch(e){toast(e.status===403?'Permission denied.':'Unable to archive service')}
   }
+  async function reactivate(id){
+    const s=services.find(x=>String(x.id)===String(id));if(!s)return;
+    try{await api({method:'PATCH',body:JSON.stringify({id,name:s.name,name_en:s.name_en,description:s.description,description_en:s.description_en,price:s.price,duration_minutes:s.duration_minutes,category:s.category,sort_order:s.sort_order,active:true})});toast('✅ Service reactivated');await load();window.AZAAD?.refresh?.()}
+    catch(e){toast(e.status===403?'Permission denied.':'Unable to reactivate service')}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
