@@ -54,13 +54,17 @@ restore = function_bounds(text, 'restoreStaffProfile')
 if not restore or len(re.findall(r'async function restoreStaffProfile\s*\(', text)) != 1:
     raise SystemExit('Expected exactly one restoreStaffProfile implementation before staff-runtime normalization')
 restore_source = text[restore[0]:restore[1]]
-# The restore owner must exist before the DOMContentLoaded startup path can invoke it.
-# Appending it to the end of admin.js created a race on a real browser refresh:
-# startup could call the global before its assignment had executed. Keep the
-# canonical function in the original pre-startup position, but expose it through
-# the global boundary used by the startup code.
-canonical_restore = 'window.AZAAD_RESTORE_STAFF_PROFILE = ' + restore_source + ';'
-text = text[:restore[0]] + canonical_restore + text[restore[1]:]
+
+# The restore owner must be defined before DOMContentLoaded startup. The prior
+# implementation preserved the function's original location, which could itself
+# be after the startup listener. Remove the implementation from its old location
+# and place the single global owner immediately before the first startup listener.
+text_without_restore = text[:restore[0]] + text[restore[1]:]
+startup = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text_without_restore)
+if not startup:
+    raise SystemExit('DOMContentLoaded startup path is required for restore owner placement')
+canonical_restore = 'window.AZAAD_RESTORE_STAFF_PROFILE = ' + restore_source + ';\n\n'
+text = text_without_restore[:startup.start()] + canonical_restore + text_without_restore[startup.start():]
 text = text.replace('const validStaff = await restoreStaffProfile();', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', 1)
 if 'await restoreStaffProfile()' in text: raise SystemExit('Legacy unqualified restoreStaffProfile startup call remains')
 if text.count('window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {') != 1:
@@ -88,7 +92,6 @@ if bounds:
     html_text = html_text[:bounds[0]] + STAFF_API + html_text[bounds[1]:]
     html.write_text(html_text, encoding='utf-8')
 
-# Canonicalize the retired staff-admin route across every executable surface.
 legacy_url = 'https://derofsthjivlkcdnojww.supabase.co/functions/v1/staff-admin'
 changed = 0
 for candidate in [*Path('.').glob('*.js'), *Path('.').glob('*.html')]:
@@ -108,4 +111,4 @@ for name, value in [('admin.js', text), ('admin.html', html_text)]:
     if 'supabase.auth.' in value: raise SystemExit(f'Legacy Supabase auth runtime remains in {name}')
     if 'SUPABASE_PUBLISHABLE_KEY' in value: raise SystemExit(f'Legacy Supabase publishable key remains in executable {name}')
 
-print('retire-legacy-admin-staff-runtime.py completed: global Appwrite restore owner established before startup + Neon staff API boundary enforced')
+print('retire-legacy-admin-staff-runtime.py completed: global Appwrite restore owner relocated before DOM startup + Neon staff API boundary enforced')
