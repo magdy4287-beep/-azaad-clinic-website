@@ -1,0 +1,132 @@
+import { neon } from '@neondatabase/serverless';
+
+const COOKIE = 'azaad_admin_appwrite_session';
+const STAFF_ROLES = new Set(['OWNER','ADMIN','MANAGER','SECRETARY','RECEPTION','CASHIER','DOCTOR','MARKETING']);
+const WRITE_ROLES = new Set(['OWNER','ADMIN','MANAGER']);
+
+function json(res, body, status = 200) {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(body));
+}
+
+function cookieValue(req) {
+  const raw = req.headers.cookie || '';
+  const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+async function appwriteAccount(secret) {
+  const endpoint = String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+  const project = String(process.env.APPWRITE_PROJECT_ID || '').trim();
+  if (!endpoint || !project || !secret) return null;
+  const cookie = `a_session_${project}=${secret}; a_session_${project}_legacy=${secret}`;
+  const response = await fetch(`${endpoint}/account`, {
+    headers: { 'X-Appwrite-Project': project, accept: 'application/json', Cookie: cookie },
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+async function authorize(req) {
+  const secret = cookieValue(req);
+  const user = await appwriteAccount(secret);
+  if (!user?.$id) return null;
+  const databaseUrl = String(process.env.DATABASE_URL || '').trim();
+  if (!databaseUrl) return null;
+  const sql = neon(databaseUrl);
+  const rows = await sql`
+    select id, auth_user_id, full_name, username, email, phone, role, active
+    from public.clinic_staff
+    where auth_user_id = ${user.$id} and active = true
+    limit 1
+  `;
+  const staff = rows[0];
+  if (!staff) return null;
+  const role = String(staff.role || '').toUpperCase();
+  if (!STAFF_ROLES.has(role)) return null;
+  return { user, staff, role, sql };
+}
+
+function payload(body = {}) {
+  const name = String(body.name ?? body.service_name ?? '').trim();
+  const nameEn = String(body.name_en ?? body.service_name_en ?? '').trim();
+  const description = String(body.description ?? body.description_ar ?? '').trim();
+  const descriptionEn = String(body.description_en ?? '').trim();
+  const price = Number(body.price ?? body.default_price ?? body.amount ?? 0);
+  const duration = Number(body.duration_minutes ?? 60);
+  const category = String(body.category ?? '').trim();
+  const sortOrder = Number(body.sort_order ?? 0);
+  const active = body.active === undefined ? true : Boolean(body.active);
+  if (!name) return { error: 'name_required' };
+  if (!Number.isFinite(price) || price < 0) return { error: 'invalid_price' };
+  if (!Number.isInteger(duration) || duration < 1 || duration > 1440) return { error: 'invalid_duration' };
+  if (!Number.isInteger(sortOrder)) return { error: 'invalid_sort_order' };
+  return { name, nameEn, description, descriptionEn, price, duration, category, sortOrder, active };
+}
+
+export default async function handler(req, res) {
+  try {
+    const identity = await authorize(req);
+    if (!identity) return json(res, { error: 'authentication_required' }, 401);
+    const { sql, role } = identity;
+    const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
+    const id = String(url.searchParams.get('id') || '').trim();
+
+    if (req.method === 'GET') {
+      const rows = await sql`
+        select id, name, name_en, description, description_en, price, duration_minutes, category, active, sort_order, created_at, updated_at
+        from public.clinic_services
+        order by sort_order asc nulls last, created_at desc
+        limit 500
+      `;
+      return json(res, { services: rows, count: rows.length, provider: 'appwrite-neon' });
+    }
+
+    if (!WRITE_ROLES.has(role)) return json(res, { error: 'forbidden' }, 403);
+
+    if (req.method === 'DELETE') {
+      if (!id) return json(res, { error: 'service_id_required' }, 400);
+      const rows = await sql`
+        update public.clinic_services
+        set active = false, updated_at = now()
+        where id = ${id}::uuid
+        returning id, name, active
+      `;
+      if (!rows[0]) return json(res, { error: 'service_not_found' }, 404);
+      return json(res, { service: rows[0], archived: true, provider: 'appwrite-neon' });
+    }
+
+    if (!['POST','PATCH','PUT'].includes(req.method)) return json(res, { error: 'method_not_allowed' }, 405);
+    let body = {};
+    try { body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); } catch { return json(res, { error: 'invalid_json' }, 400); }
+    const p = payload(body);
+    if (p.error) return json(res, { error: p.error }, 400);
+
+    if (req.method === 'POST') {
+      const rows = await sql`
+        insert into public.clinic_services
+          (name, name_en, description, description_en, price, duration_minutes, category, active, sort_order, created_at, updated_at)
+        values
+          (${p.name}, ${p.nameEn}, ${p.description}, ${p.descriptionEn}, ${p.price}, ${p.duration}, ${p.category}, ${p.active}, ${p.sortOrder}, now(), now())
+        returning id, name, name_en, description, description_en, price, duration_minutes, category, active, sort_order, created_at, updated_at
+      `;
+      return json(res, { service: rows[0], provider: 'appwrite-neon' }, 201);
+    }
+
+    if (!id) return json(res, { error: 'service_id_required' }, 400);
+    const rows = await sql`
+      update public.clinic_services
+      set name=${p.name}, name_en=${p.nameEn}, description=${p.description}, description_en=${p.descriptionEn},
+          price=${p.price}, duration_minutes=${p.duration}, category=${p.category}, active=${p.active}, sort_order=${p.sortOrder}, updated_at=now()
+      where id=${id}::uuid
+      returning id, name, name_en, description, description_en, price, duration_minutes, category, active, sort_order, created_at, updated_at
+    `;
+    if (!rows[0]) return json(res, { error: 'service_not_found' }, 404);
+    return json(res, { service: rows[0], provider: 'appwrite-neon' });
+  } catch (error) {
+    console.error('admin-services boundary failure', { name: error?.name, message: error?.message });
+    return json(res, { error: 'services_unavailable' }, 503);
+  }
+}
