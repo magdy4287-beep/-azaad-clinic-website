@@ -97,6 +97,15 @@ text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', 
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
+# Canonical refresh hydration: browser memory is empty after a real reload. The
+# server-managed HttpOnly Appwrite cookie is the only session source of truth.
+# Never gate restore on state.session because that state is intentionally reset
+# on every new document load.
+startup_pattern = re.compile(r'''const result = await \(\{ data: \{ session: state\.session \} \}\);\s*const session = result\?\.data\?\.session \|\| null;\s*if \(!session\) return;\s*state\.session = session;\s*state\.user = session\.user \|\| null;\s*const validStaff = await window\.AZAAD_RESTORE_STAFF_PROFILE\(\);''')
+text, startup_count = startup_pattern.subn('const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', text, count=1)
+if startup_count != 1:
+    raise SystemExit('Canonical startup restore boundary was not normalized exactly once')
+
 # Legacy staff-login endpoint assertion: the executable scan below must reject any retired auth route.
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
@@ -107,6 +116,9 @@ for pattern in (
 ):
     if re.search(pattern, executable, flags=re.I): raise SystemExit(f'Legacy executable browser auth marker remains: {pattern}')
 if text.count('async function restoreStaffProfile(') != 1: raise SystemExit('Canonical Appwrite restoreStaffProfile owner must exist exactly once')
+if 'const result = await ({ data: { session: state.session } });' in text: raise SystemExit('Refresh restore must not depend on in-memory session state')
+if 'if (!session) return;' in text: raise SystemExit('Refresh restore must not short-circuit before HttpOnly cookie hydration')
+if text.count('window.AZAAD_RESTORE_STAFF_PROFILE();') != 1: raise SystemExit('Canonical startup must invoke exactly one Appwrite restore owner')
 
 # This is the sole readiness publication point. It is emitted only after the
 # canonical Appwrite auth functions have been installed, so Browser E2E never
@@ -115,4 +127,4 @@ text = re.sub(r'\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?', '\n'
 text = text.rstrip() + '\n\nwindow.AZAAD_LOGIN_CONTROLLER_READY = true;\n'
 
 PATH.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py: sole cookie-only Appwrite browser auth owner established; login controller readiness published')
+print('finalize-appwrite-admin-auth.py: cookie-only Appwrite startup hydration is unconditional; refresh restore no longer depends on in-memory session state')
