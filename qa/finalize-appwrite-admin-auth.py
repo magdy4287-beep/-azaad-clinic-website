@@ -99,17 +99,16 @@ text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_t
 
 # Canonical refresh hydration: browser memory is empty after a real reload. The
 # server-managed HttpOnly Appwrite cookie is the only session source of truth.
-# Never gate restore on state.session because that state is intentionally reset
-# on every new document load.
+# Normalize every legacy startup shape (restoreSession or restoreStaffProfile)
+# into one unconditional global Appwrite restore call.
 startup_replacements = 0
 startup_pattern = re.compile(r'''const result = await \(\{ data: \{ session: state\.session \} \}\);\s*const session = result\?\.data\?\.session \|\| null;\s*if \(!session\) return;\s*state\.session = session;\s*state\.user = session\.user \|\| null;\s*const validStaff = await window\.AZAAD_RESTORE_STAFF_PROFILE\(\);''')
 text, startup_replacements = startup_pattern.subn('const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', text, count=1)
 if startup_replacements == 0:
-    text, startup_replacements = re.subn(r'await\s+restoreSession\s*\(\s*\)\s*;', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();\n      if (validStaff) { await initializeApplication(); }', text, count=1)
+    text, startup_replacements = re.subn(r'await\s+(?:restoreSession|restoreStaffProfile)\s*\(\s*\)\s*;', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();\n      if (validStaff) { await initializeApplication(); }', text, count=1)
 if startup_replacements != 1:
     raise SystemExit('Canonical startup restore boundary was not normalized exactly once')
 
-# Legacy staff-login endpoint assertion: the executable scan below must reject any retired auth route.
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
 for pattern in (
@@ -125,6 +124,5 @@ if text.count('window.AZAAD_RESTORE_STAFF_PROFILE();') != 1: raise SystemExit('C
 
 text = re.sub(r'\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?', '\n', text)
 text = text.rstrip() + '\n\nwindow.AZAAD_LOGIN_CONTROLLER_READY = true;\n'
-
 PATH.write_text(text, encoding='utf-8')
 print('finalize-appwrite-admin-auth.py: cookie-only Appwrite startup hydration is unconditional; refresh restore no longer depends on in-memory session state')
