@@ -97,10 +97,6 @@ text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', 
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
-# Canonical refresh hydration: browser memory is empty after a real reload. The
-# server-managed HttpOnly Appwrite cookie is the only session source of truth.
-# Normalize every legacy startup shape (restoreSession or restoreStaffProfile)
-# into one unconditional global Appwrite restore call.
 startup_replacements = 0
 startup_pattern = re.compile(r'''const result = await \(\{ data: \{ session: state\.session \} \}\);\s*const session = result\?\.data\?\.session \|\| null;\s*if \(!session\) return;\s*state\.session = session;\s*state\.user = session\.user \|\| null;\s*const validStaff = await window\.AZAAD_RESTORE_STAFF_PROFILE\(\);''')
 text, startup_replacements = startup_pattern.subn('const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', text, count=1)
@@ -118,9 +114,14 @@ for pattern in (
 ):
     if re.search(pattern, executable, flags=re.I): raise SystemExit(f'Legacy executable browser auth marker remains: {pattern}')
 if text.count('async function restoreStaffProfile(') != 1: raise SystemExit('Canonical Appwrite restoreStaffProfile owner must exist exactly once')
-if 'const result = await ({ data: { session: state.session } });' in text: raise SystemExit('Refresh restore must not depend on in-memory session state')
-if 'if (!session) return;' in text: raise SystemExit('Refresh restore must not short-circuit before HttpOnly cookie hydration')
-if text.count('window.AZAAD_RESTORE_STAFF_PROFILE();') != 1: raise SystemExit('Canonical startup must invoke exactly one Appwrite restore owner')
+
+startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{', text)
+if not startup_match: raise SystemExit('Canonical Admin DOMContentLoaded startup boundary missing')
+startup_tail = text[startup_match.start():]
+startup_tail = startup_tail.split('\n});', 1)[0]
+if 'window.AZAAD_RESTORE_STAFF_PROFILE();' not in startup_tail: raise SystemExit('Refresh startup does not call the canonical HttpOnly Appwrite restore owner')
+if re.search(r'const result = await \(\{ data: \{ session: state\.session \} \}\)', startup_tail): raise SystemExit('Refresh startup still depends on in-memory session state')
+if re.search(r'if\s*\(!session\)\s*return', startup_tail): raise SystemExit('Refresh startup still short-circuits before HttpOnly cookie hydration')
 
 text = re.sub(r'\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?', '\n', text)
 text = text.rstrip() + '\n\nwindow.AZAAD_LOGIN_CONTROLLER_READY = true;\n'
