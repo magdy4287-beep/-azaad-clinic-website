@@ -23,8 +23,6 @@ if not owners:
     owners = list(re.finditer(owner_re, text))
 if len(owners) != 1: raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
 
-# All compatibility paths must converge on the same global owner. This catches
-# wrappers emitted by earlier auth transforms without depending on their spacing.
 text = re.sub(r'(\breturn\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
 text = re.sub(r'(\bawait\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
 text = re.sub(r'(=\s*await\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
@@ -32,7 +30,11 @@ text = re.sub(r'(=\s*await\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_R
 startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match: raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
 
-if owners[0].start() > startup_match.start():
+# A module can execute after parsing, when document.readyState is already
+# "interactive". Therefore the restore owner may never be nested under an
+# `if (document.readyState === "loading")` branch. Publish it unconditionally.
+ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
+if ready_guard and owners[0].start() > ready_guard.start():
     owner_start = owners[0].start(); brace_start = text.find('{', owner_start)
     if brace_start < 0: raise SystemExit('FAIL-CLOSED: canonical restore owner body is missing')
     depth = 0; quote = None; escape = False; line_comment = False; block_comment = False; i = brace_start; end = None
@@ -58,15 +60,18 @@ if owners[0].start() > startup_match.start():
     if end < len(text) and text[end] == ';': end += 1
     owner_source = text[owner_start:end]
     text = text[:owner_start] + text[end:]
-    startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
-    if not startup_match: raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner disappeared during relocation')
-    insertion = startup_match.start(); text = text[:insertion] + owner_source + '\n\n' + text[insertion:]
+    # Re-find the ready guard after removing the owner and publish immediately before it.
+    ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
+    if not ready_guard: raise SystemExit('FAIL-CLOSED: ready-state guard disappeared during restore-owner relocation')
+    text = text[:ready_guard.start()] + owner_source + '\n\n' + text[ready_guard.start():]
 
 owners = list(re.finditer(owner_re, text))
 if len(owners) != 1: raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once after relocation (found {len(owners)})')
 startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match: raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
 if owners[0].start() > startup_match.start(): raise SystemExit('FAIL-CLOSED: Appwrite restore owner is published after DOMContentLoaded startup')
+ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
+if ready_guard and owners[0].start() > ready_guard.start(): raise SystemExit('FAIL-CLOSED: Appwrite restore owner remains nested after ready-state guard')
 if not re.search(r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*\(\s*\)', text): raise SystemExit('Final Admin restore boundary: startup/restoreSession must call the canonical global Appwrite restore owner')
 
 RUNTIME_JS = {'admin.js','admin-enhancements-v1.js','admin-english-hardening.js','admin-patient-icon-guard.js','azaad-role-experience.js','patient-appointment-actions.js','appointment-cancellation-ui.js','patient-financial-summary.js','patient-clinical-history.js','doctors-center-v2.js','doctor-staff-binding.js','doctor-staff-convert.js','services-center-v2.js','scheduling-v2.js','marketing-studio-v3.js','marketing-intelligence-loader.js','staff-management.js','patient-merge-tool.js','hr-performance-analytics.js','admin-calendar-center.js'}
@@ -82,4 +87,4 @@ if failures:
     for failure in failures: print(failure)
     raise SystemExit(1)
 admin.write_text(text,encoding='utf-8')
-print('[AZAAD final restore boundary] PASS: one pre-startup Appwrite restore owner; cookie-only Admin auth response boundary; canonical runtime syntax sweep passed')
+print('[AZAAD final restore boundary] PASS: one pre-startup Appwrite restore owner; owner executes outside ready-state guard; cookie-only Admin auth response boundary; canonical runtime syntax sweep passed')
