@@ -7,6 +7,8 @@ def inject(path_name, tag, pattern):
     text = p.read_text(encoding='utf-8')
     text = re.sub(pattern, '', text, flags=re.IGNORECASE)
     text = text.replace('</body>', tag + '\n</body>', 1)
+    if text.count(tag) != 1:
+        raise SystemExit(f'FAIL-CLOSED: expected exactly one canonical media owner in {path_name}')
     p.write_text(text, encoding='utf-8')
 
 
