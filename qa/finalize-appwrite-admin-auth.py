@@ -97,9 +97,6 @@ text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', 
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
-# The canonical interactivity transform intentionally leaves the final startup
-# listener as the last executable block. Replace that entire boundary here so
-# no legacy in-memory session bootstrap can survive into the production artifact.
 startup_matches = list(re.finditer(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{', text))
 if not startup_matches:
     raise SystemExit('Canonical Admin DOMContentLoaded startup boundary missing')
@@ -123,6 +120,7 @@ canonical_startup = '''document.addEventListener("DOMContentLoaded", async () =>
 '''
 text = text[:startup_start] + canonical_startup
 
+# Legacy staff-login endpoint assertion: the executable scan below must reject any retired auth route.
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
 for pattern in (
