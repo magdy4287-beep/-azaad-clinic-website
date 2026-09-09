@@ -5,7 +5,9 @@ const baseURL = process.env.AZAAD_BASE_URL || 'https://azaad-clinic-website.verc
 const navigation = { waitUntil: 'commit' };
 const AUTH_READY_TIMEOUT = 15000;
 const STAFF_ADMIN_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER']);
-const EXPECTED_AUTH_401_CONSOLE = /^Failed to load resource: the server responded with a status of 401(?: \(Unauthorized\))?$/;
+// Chromium may serialize an HTTP 401 console message as `()` or `(Unauthorized)`.
+// Both are the same expected server-managed Appwrite auth boundary response.
+const EXPECTED_AUTH_401_CONSOLE = /^Failed to load resource: the server responded with a status of 401(?: \([^)]*\))?$/;
 
 async function readAuthState(page) {
   return page.evaluate(() => ({
@@ -141,6 +143,6 @@ test('authenticated admin domain runtime certification covers every accessible p
   expect(parseFailures, `Browser-loaded JavaScript parse failures: ${JSON.stringify(parseFailures)}`).toEqual([]);
   expect(pageErrors, `Unexpected page errors: ${JSON.stringify(pageErrors)}; loadedScripts=${JSON.stringify([...new Set(loadedScripts)])}`).toEqual([]);
   expect(unexpectedConsoleErrors, `Unexpected console errors: ${JSON.stringify(unexpectedConsoleErrors)}; expectedAdminAuth401Responses=${expectedAdminAuth401Responses}; failedBackendResponses=${JSON.stringify(failedBackendResponses)}`).toEqual([]);
-  expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([]);
+  expect(failedBackendResponses, `Critical backend responses failed: ${JSON.stringify(failedBackendResponses)}`).toEqual([];
   expect([...new Set(loadedScripts)].length).toBeGreaterThan(0);
 });
