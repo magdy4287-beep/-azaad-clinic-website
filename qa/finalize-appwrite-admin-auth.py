@@ -97,13 +97,31 @@ text = re.sub(r'\bsupabase\.auth\.setSession\s*\([^;]*\)', '({ error: null })', 
 text = re.sub(r'\bsupabase\.auth\.signOut\s*\(\s*\)', 'Promise.resolve({})', text)
 text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_token["\'][^;]*;?\s*', '\n', text)
 
-startup_replacements = 0
-startup_pattern = re.compile(r'''const result = await \(\{ data: \{ session: state\.session \} \}\);\s*const session = result\?\.data\?\.session \|\| null;\s*if \(!session\) return;\s*state\.session = session;\s*state\.user = session\.user \|\| null;\s*const validStaff = await window\.AZAAD_RESTORE_STAFF_PROFILE\(\);''')
-text, startup_replacements = startup_pattern.subn('const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', text, count=1)
-if startup_replacements == 0:
-    text, startup_replacements = re.subn(r'await\s+(?:restoreSession|restoreStaffProfile)\s*\(\s*\)\s*;', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();\n      if (validStaff) { await initializeApplication(); }', text, count=1)
-if startup_replacements != 1:
-    raise SystemExit('Canonical startup restore boundary was not normalized exactly once')
+# The canonical interactivity transform intentionally leaves the final startup
+# listener as the last executable block. Replace that entire boundary here so
+# no legacy in-memory session bootstrap can survive into the production artifact.
+startup_matches = list(re.finditer(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{', text))
+if not startup_matches:
+    raise SystemExit('Canonical Admin DOMContentLoaded startup boundary missing')
+startup_start = startup_matches[-1].start()
+canonical_startup = '''document.addEventListener("DOMContentLoaded", async () => {
+  bindLogin();
+  bindLogout();
+  bindBookingFilters();
+  bindPatientPage();
+
+  try {
+    const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();
+    if (validStaff) {
+      await initializeApplication();
+    }
+  } catch (error) {
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
+  }
+});
+'''
+text = text[:startup_start] + canonical_startup
 
 executable = re.sub(r'/\*[\s\S]*?\*/', '', text)
 executable = re.sub(r'(^|\n)\s*//.*?(?=\n|$)', '\\1', executable)
@@ -114,16 +132,11 @@ for pattern in (
 ):
     if re.search(pattern, executable, flags=re.I): raise SystemExit(f'Legacy executable browser auth marker remains: {pattern}')
 if text.count('async function restoreStaffProfile(') != 1: raise SystemExit('Canonical Appwrite restoreStaffProfile owner must exist exactly once')
-
-startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']\s*,\s*async\s*\(\)\s*=>\s*\{', text)
-if not startup_match: raise SystemExit('Canonical Admin DOMContentLoaded startup boundary missing')
-startup_tail = text[startup_match.start():]
-startup_tail = startup_tail.split('\n});', 1)[0]
-if 'window.AZAAD_RESTORE_STAFF_PROFILE();' not in startup_tail: raise SystemExit('Refresh startup does not call the canonical HttpOnly Appwrite restore owner')
-if re.search(r'const result = await \(\{ data: \{ session: state\.session \} \}\)', startup_tail): raise SystemExit('Refresh startup still depends on in-memory session state')
-if re.search(r'if\s*\(!session\)\s*return', startup_tail): raise SystemExit('Refresh startup still short-circuits before HttpOnly cookie hydration')
+startup_tail = text[startup_start:]
+if startup_tail.count('window.AZAAD_RESTORE_STAFF_PROFILE();') != 1: raise SystemExit('Refresh startup must invoke exactly one canonical Appwrite restore owner')
+if 'state.session' in startup_tail: raise SystemExit('Refresh startup must not depend on in-memory session state')
 
 text = re.sub(r'\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?', '\n', text)
 text = text.rstrip() + '\n\nwindow.AZAAD_LOGIN_CONTROLLER_READY = true;\n'
 PATH.write_text(text, encoding='utf-8')
-print('finalize-appwrite-admin-auth.py: cookie-only Appwrite startup hydration is unconditional; refresh restore no longer depends on in-memory session state')
+print('finalize-appwrite-admin-auth.py: final startup boundary replaced with unconditional HttpOnly Appwrite hydration')
