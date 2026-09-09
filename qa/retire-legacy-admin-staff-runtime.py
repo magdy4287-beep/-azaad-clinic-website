@@ -55,20 +55,27 @@ if not restore or len(re.findall(r'async function restoreStaffProfile\s*\(', tex
     raise SystemExit('Expected exactly one restoreStaffProfile implementation before staff-runtime normalization')
 restore_source = text[restore[0]:restore[1]]
 
-# The restore owner must be defined before DOMContentLoaded startup. The prior
-# implementation preserved the function's original location, which could itself
-# be after the startup listener. Remove the implementation from its old location
-# and place the single global owner immediately before the first startup listener.
+# The restore owner must execute during module evaluation regardless of whether
+# the document is still loading. A module can run at document.readyState
+# === "interactive", which would skip an owner nested under the loading branch.
+# Remove the implementation from its old location and publish the single global
+# owner immediately before that ready-state conditional.
 text_without_restore = text[:restore[0]] + text[restore[1]:]
+ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text_without_restore)
 startup = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text_without_restore)
-if not startup:
-    raise SystemExit('DOMContentLoaded startup path is required for restore owner placement')
+insert_at = ready_guard.start() if ready_guard else (startup.start() if startup else -1)
+if insert_at < 0:
+    raise SystemExit('Admin startup/ready-state path is required for restore owner placement')
 canonical_restore = 'window.AZAAD_RESTORE_STAFF_PROFILE = ' + restore_source + ';\n\n'
-text = text_without_restore[:startup.start()] + canonical_restore + text_without_restore[startup.start():]
+text = text_without_restore[:insert_at] + canonical_restore + text_without_restore[insert_at:]
 text = text.replace('const validStaff = await restoreStaffProfile();', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', 1)
 if 'await restoreStaffProfile()' in text: raise SystemExit('Legacy unqualified restoreStaffProfile startup call remains')
 if text.count('window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {') != 1:
     raise SystemExit('Global Appwrite restore owner was not established exactly once')
+owner_pos = text.find('window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {')
+if ready_guard:
+    ready_pos = text.find('if (document.readyState === "loading") {')
+    if ready_pos >= 0 and owner_pos > ready_pos: raise SystemExit('FAIL-CLOSED: restore owner is still nested after ready-state guard')
 
 STAFF_API = r'''async function staffApi(
   action,
@@ -111,4 +118,4 @@ for name, value in [('admin.js', text), ('admin.html', html_text)]:
     if 'supabase.auth.' in value: raise SystemExit(f'Legacy Supabase auth runtime remains in {name}')
     if 'SUPABASE_PUBLISHABLE_KEY' in value: raise SystemExit(f'Legacy Supabase publishable key remains in executable {name}')
 
-print('retire-legacy-admin-staff-runtime.py completed: global Appwrite restore owner relocated before DOM startup + Neon staff API boundary enforced')
+print('retire-legacy-admin-staff-runtime.py completed: global Appwrite restore owner is published before the ready-state conditional + Neon staff API boundary enforced')
