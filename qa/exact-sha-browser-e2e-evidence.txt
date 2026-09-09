@@ -1,0 +1,3 @@
+AZAAD exact-SHA Browser E2E evidence marker
+Production artifact SHA: 21d22b04bd6daeb3c869a7613f84291accabaeb0
+This marker intentionally contains no runtime, test, or production behavior changes.
