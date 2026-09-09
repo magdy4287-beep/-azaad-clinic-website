@@ -27,6 +27,11 @@ js = re.sub(r"(?m)^\s*switchPanel\([^;]+;\s*\n?", "", js)
 ADMIN_JS.write_text(js, encoding="utf-8")
 
 text = ADMIN.read_text(encoding="utf-8")
+# Keep user-facing authentication copy aligned with the actual Appwrite-backed
+# server session. This is presentation cleanup only; credential handling remains
+# exclusively inside the Appwrite auth boundary.
+text = text.replace("🔐 تسجيل الدخول بحساب الموظف عبر Supabase Auth", "🔐 تسجيل الدخول بحساب الموظف عبر Appwrite")
+
 script_re = re.compile(r'<script\b([^>]*)>(?:\s*</script>)?\s*', re.I | re.S)
 attr_re = re.compile(r'\bdata-azaad-after-auth-src\s*=\s*(["\'])(.*?)\1', re.I | re.S)
 src_re = re.compile(r'(?<![-\w])src\s*=\s*(?:(["\'])(.*?)\1|([^\s>]+))', re.I | re.S)
@@ -90,5 +95,5 @@ if core_executable != 1 or core_after_auth != 0:
 
 ADMIN.write_text(text, encoding="utf-8")
 print(
-    f"[AZAAD runtime manifest] PASS: structural manifest only; auth ownership delegated to Appwrite canonical auth; removed {removed} duplicate post-auth references"
+    f"[AZAAD runtime manifest] PASS: structural manifest only; Appwrite auth ownership preserved; login copy aligned; removed {removed} duplicate post-auth references"
 )
