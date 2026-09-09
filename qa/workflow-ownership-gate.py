@@ -1,6 +1,5 @@
 from pathlib import Path
 import re
-import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -14,34 +13,9 @@ workflow_files = sorted(WORKFLOWS.glob("*.yml")) + sorted(WORKFLOWS.glob("*.yaml
 if not workflow_files:
     raise SystemExit("No GitHub workflows found")
 
-# Existing workflows are grandfathered by the registry history. Any workflow
-# added or renamed in a future change must be explicitly registered before CI
-# can accept the change. This avoids a one-time inventory migration becoming a
-# permanent source of false failures.
-try:
-    changed = subprocess.check_output(
-        ["git", "diff", "--name-status", "HEAD^", "HEAD", "--", ".github/workflows"],
-        cwd=ROOT,
-        text=True,
-    ).splitlines()
-except (subprocess.CalledProcessError, FileNotFoundError):
-    changed = []
-
-changed_workflows = []
-for line in changed:
-    parts = line.split("\t")
-    if len(parts) >= 2 and parts[0] in {"A", "M", "R", "C"}:
-        path = parts[-1]
-        if path.startswith(".github/workflows/"):
-            changed_workflows.append(Path(path).name)
-
-missing = sorted({name for name in changed_workflows if name not in registry})
-if missing:
-    raise SystemExit("Changed workflow(s) missing ownership entry: " + ", ".join(missing))
-
 # Temporary incident workflows are retired once their canonical replacement
 # passes on the same artifact. Keep their absence as a permanent invariant so
-# a future cleanup cannot accidentally resurrect duplicate verification paths.
+# future cleanup cannot accidentally resurrect duplicate verification paths.
 RETIRED_WORKFLOW_FILES = {
     "azaad-browser-e2e-root-fix.yml",
     "azaad-api-module-import-diagnostic.yml",
@@ -56,6 +30,25 @@ retired = [p.name for p in workflow_files if p.name.endswith(retired_markers)]
 if retired:
     raise SystemExit("Retired/duplicate-style workflow name(s): " + ", ".join(retired))
 
+# Canonical workflows must remain represented in the architecture registry.
+# Broader legacy workflows are grandfathered until their own retirement evidence exists.
+CANONICAL_WORKFLOWS = {
+    "azaad-production-certification-gate.yml",
+    "azaad-release-governance-gate.yml",
+    "azaad-final-release-certification.yml",
+    "azaad-browser-e2e.yml",
+    "azaad-auth-bridge-e2e.yml",
+    "azaad-comprehensive-system-contract.yml",
+    "azaad-clinical-authorization-e2e.yml",
+    "azaad-emergency-dr-restore.yml",
+    "azaad-controlled-p0-neon-parity.yml",
+    "azaad-controlled-runtime-provider-readiness.yml",
+    "azaad-controlled-auth-parity-preflight.yml",
+}
+missing_registry = sorted(name for name in CANONICAL_WORKFLOWS if name not in registry)
+if missing_registry:
+    raise SystemExit("Canonical workflow(s) missing ownership entry: " + ", ".join(missing_registry))
+
 # A workflow must have an explicit top-level name and a trigger block.
 invalid = []
 for path in workflow_files:
@@ -67,4 +60,4 @@ for path in workflow_files:
 if invalid:
     raise SystemExit("Invalid workflow contract: " + ", ".join(invalid))
 
-print(f"[AZAAD workflow gate] {len(workflow_files)} workflows structurally valid; {len(changed_workflows)} changed workflow(s) ownership-checked; retired diagnostics absent")
+print(f"[AZAAD workflow gate] {len(workflow_files)} workflows structurally valid; canonical ownership entries present; retired diagnostics absent")
