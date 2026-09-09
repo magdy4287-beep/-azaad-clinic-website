@@ -29,9 +29,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
 | `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
-| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical Supabase JWT/PostgREST probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
-| `azaad-browser-e2e-root-fix.yml` | Controlled Browser E2E root-cause verification | Rebuild exact PR merge artifact, enforce final Admin restore boundary, then run Browser E2E without production mutation | Temporary controlled verification |
-| `azaad-api-module-import-diagnostic.yml` | API module/runtime import isolation | Parse/import every Vercel API module and exercise the local API boundary to isolate module-load failures | Temporary controlled diagnostic |
+| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
 
 ## Proven non-duplication decisions
 
@@ -41,11 +39,11 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 ### Scheduling
 
-`central-scheduling-gate.yml` and `scheduling-actions-gate.yml` are intentionally separate. The first owns the central scheduling domain model/contract; the second owns action semantics. They must not be merged merely because both contain the word scheduling.
+`central-scheduling-gate.yml` and `scheduling-actions-gate.yml` are intentionally separate. The first owns the central scheduling domain model/contract; the second owns action semantics.
 
 ### Booking
 
-`azaad-patient-booking-gate.yml` and `azaad-booking-ui-final-fix.yml` are intentionally separate. The first owns patient identity/booking safety; the second owns presentation-level booking behavior. They protect different invariants.
+`azaad-patient-booking-gate.yml` and `azaad-booking-ui-final-fix.yml` are intentionally separate. The first owns patient identity/booking safety; the second owns presentation-level booking behavior.
 
 ### AI
 
@@ -53,41 +51,40 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 ### Clinical authorization
 
-`azaad-clinical-authorization-e2e.yml` is intentionally separate from `azaad-browser-e2e.yml`. Browser E2E owns production UI/runtime behavior; clinical authorization E2E owns authenticated multi-role authorization semantics and controlled clinical fixture creation. The clinical workflow is the single execution owner for that authorization contract and must not be duplicated by a second `workflow_run` trigger.
+`azaad-clinical-authorization-e2e.yml` is intentionally separate from `azaad-browser-e2e.yml`. Browser E2E owns production UI/runtime behavior; clinical authorization E2E owns authenticated multi-role authorization semantics and controlled clinical fixture creation. It must not be duplicated by a second `workflow_run` trigger.
 
 ### Emergency DR
 
-`azaad-emergency-dr-restore.yml` is intentionally separate from production certification and browser E2E. It owns only the emergency data-plane transport/restore boundary from Supabase public schema to Neon DR, with encryption, integrity, compatibility handling, and reconciliation. It does not certify identity equivalence, application authorization, RLS/RPC behavioral equivalence, or production cutover.
+`azaad-emergency-dr-restore.yml` is intentionally separate from production certification and browser E2E. It owns only emergency data-plane transport/restore from the retained Supabase public schema to Neon DR. It does not certify identity equivalence, application authorization, RLS/RPC behavioral equivalence, or production cutover.
 
 ### Controlled Neon parity
 
-`azaad-controlled-p0-neon-parity.yml` is intentionally separate from the emergency DR workflow. Emergency DR is closed and owns disaster-recovery transport/restore evidence; this controlled workflow owns only post-DR runtime parity repair and verification required by the provider-neutral runtime boundary. It does not reopen the emergency gate, perform production cutover, or replace final certification.
-
-**Implementation invariant:** the controlled Neon parity workflow is a repair/verification gate only. It must never become a hidden source mutator, a production cutover mechanism, or an Emergency DR re-entry path. Its restore step must remain fail-closed and must be followed by independent clinical-count and runtime-schema reconciliation.
+`azaad-controlled-p0-neon-parity.yml` is a repair/verification gate only. It must never become a hidden source mutator, production cutover mechanism, or Emergency DR re-entry path. Its restore remains fail-closed and is followed by independent clinical-count and runtime-schema reconciliation.
 
 ### Controlled provider readiness
 
-`azaad-controlled-runtime-provider-readiness.yml` is intentionally read-only and separate from both Emergency DR and the P0 Neon parity repair. It verifies that the already-selected free provider surfaces (Appwrite identity/storage and Neon database) are reachable with controlled credentials before wiring them into the production runtime contract. It performs no data migration and no production mutation.
+`azaad-controlled-runtime-provider-readiness.yml` is read-only and separate from Emergency DR and P0 Neon parity. It verifies the selected free provider surfaces (Appwrite identity/storage and Neon database) before production wiring and performs no data migration or production mutation.
 
 ### Controlled auth parity preflight
 
-`azaad-controlled-auth-parity-preflight.yml` is intentionally read-only. It verifies identity UUID parity between the retained Supabase Auth source and the selected Appwrite identity provider before any credential import or session cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials, and performs no user mutation.
+`azaad-controlled-auth-parity-preflight.yml` is read-only. It reconciles identity UUIDs between retained Supabase Auth and Appwrite before credential import/cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials and performs no user mutation.
 
 ### Legacy PGRST303 diagnostic
 
-`pgrst303-rest-root-diagnostic.yml` previously authenticated through the retired Supabase `staff-login` path. Once Admin identity became Appwrite-backed, that probe could no longer be treated as a current PR health gate; a provider-limit response there does not diagnose the canonical runtime. The workflow therefore retains the historical probe only for explicit manual incident investigation and uses a static retirement contract on pull requests. It does not suppress or replace any current Browser, Clinical, Security, or Certification evidence.
+`pgrst303-rest-root-diagnostic.yml` is retained only for branch-protection continuity and explicit historical incident investigation. It is not a current authentication/runtime gate because Admin identity is Appwrite-backed.
 
 ### Final release
 
-`azaad-final-release-certification.yml` is not a duplicate of the automatic production certification gate. It is a manually invoked, candidate-SHA-locked go-live decision that consumes fresh evidence from multiple required workflows.
+`azaad-final-release-certification.yml` is not a duplicate of the automatic production certification gate. It is a manually invoked, candidate-SHA-locked go-live decision consuming fresh evidence from required workflows.
 
-### Browser E2E root-fix verification
+## Retired temporary diagnostics
 
-`azaad-browser-e2e-root-fix.yml` is temporary and intentionally separate from the canonical Browser E2E workflow. It exists only to verify a specific P1 root-cause repair on the exact PR merge artifact. It does not replace the canonical Browser E2E gate, alter production, bypass tests, or create a second production trigger. It is eligible for retirement after the repaired boundary passes the canonical Browser E2E evidence path and the root-cause PR is closed or merged.
+The following temporary workflows have been retired after their root-cause evidence was established on the canonical artifact:
 
-### API module import diagnostic
+- `azaad-browser-e2e-root-fix.yml`
+- `azaad-api-module-import-diagnostic.yml`
 
-`azaad-api-module-import-diagnostic.yml` is a bounded, temporary diagnostic for the current Vercel/local-runtime module-load incident. It is intentionally separate from Browser E2E because its purpose is pre-browser isolation: determine whether a Vercel API module parses/imports cleanly and whether the local runtime can invoke the API boundary at all. It performs no application-data mutation and is eligible for retirement once the module-load root cause is repaired and the canonical Browser E2E evidence path passes on the same exact commit.
+Their responsibilities are now covered by the canonical Browser E2E, production certification, runtime-boundary gates, and the canonical build verification chain. They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility.
 
 ## Retirement rule
 
@@ -100,7 +97,7 @@ A workflow is eligible for deletion only when all of the following are proven:
 5. No documentation or automation depends on its path.
 6. The replacement gate passes on the same exact commit.
 
-A name containing `v2`, `final`, `fix`, `hardening`, or `nextgen` is **not** evidence that a workflow is obsolete.
+A name containing `v2`, `final`, `fix`, `hardening`, or `nextgen` is not evidence that a workflow is obsolete.
 
 ## Anti-recursion rule
 
