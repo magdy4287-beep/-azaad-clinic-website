@@ -155,6 +155,7 @@ jobs:
           ! grep -Eq '\bbindTabs\s*\(' /tmp/azaad-production-admin.js
           ! grep -Eq '\bswitchPanel\s*\(' /tmp/azaad-production-admin.js
           ! grep -Eq '\brestoreSession\s*\(' /tmp/azaad-production-admin.js
+          ! grep -Eq '\bdocument\.cookie\b' /tmp/azaad-production-admin.js
           echo 'Production Admin runtime invariants: PASS'
 
       - name: Wait for Vercel production to expose the exact commit under test
