@@ -39,6 +39,17 @@ missing = sorted({name for name in changed_workflows if name not in registry})
 if missing:
     raise SystemExit("Changed workflow(s) missing ownership entry: " + ", ".join(missing))
 
+# Temporary incident workflows are retired once their canonical replacement
+# passes on the same artifact. Keep their absence as a permanent invariant so
+# a future cleanup cannot accidentally resurrect duplicate verification paths.
+RETIRED_WORKFLOW_FILES = {
+    "azaad-browser-e2e-root-fix.yml",
+    "azaad-api-module-import-diagnostic.yml",
+}
+resurrected = sorted(name for name in RETIRED_WORKFLOW_FILES if (WORKFLOWS / name).exists())
+if resurrected:
+    raise SystemExit("Retired workflow(s) must not be resurrected: " + ", ".join(resurrected))
+
 # Prevent known retired/duplicate naming patterns from silently returning.
 retired_markers = ("-v2.yml", "-v2.yaml", "-backup.yml", "-copy.yml", "-old.yml")
 retired = [p.name for p in workflow_files if p.name.endswith(retired_markers)]
@@ -56,4 +67,4 @@ for path in workflow_files:
 if invalid:
     raise SystemExit("Invalid workflow contract: " + ", ".join(invalid))
 
-print(f"[AZAAD workflow gate] {len(workflow_files)} workflows structurally valid; {len(changed_workflows)} changed workflow(s) ownership-checked")
+print(f"[AZAAD workflow gate] {len(workflow_files)} workflows structurally valid; {len(changed_workflows)} changed workflow(s) ownership-checked; retired diagnostics absent")
