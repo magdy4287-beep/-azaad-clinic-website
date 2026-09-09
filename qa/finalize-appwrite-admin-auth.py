@@ -101,9 +101,12 @@ text = re.sub(r'\n?\s*sessionStorage\.(?:setItem|removeItem)\(["\']azaad_admin_t
 # server-managed HttpOnly Appwrite cookie is the only session source of truth.
 # Never gate restore on state.session because that state is intentionally reset
 # on every new document load.
+startup_replacements = 0
 startup_pattern = re.compile(r'''const result = await \(\{ data: \{ session: state\.session \} \}\);\s*const session = result\?\.data\?\.session \|\| null;\s*if \(!session\) return;\s*state\.session = session;\s*state\.user = session\.user \|\| null;\s*const validStaff = await window\.AZAAD_RESTORE_STAFF_PROFILE\(\);''')
-text, startup_count = startup_pattern.subn('const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', text, count=1)
-if startup_count != 1:
+text, startup_replacements = startup_pattern.subn('const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();', text, count=1)
+if startup_replacements == 0:
+    text, startup_replacements = re.subn(r'await\s+restoreSession\s*\(\s*\)\s*;', 'const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();\n      if (validStaff) { await initializeApplication(); }', text, count=1)
+if startup_replacements != 1:
     raise SystemExit('Canonical startup restore boundary was not normalized exactly once')
 
 # Legacy staff-login endpoint assertion: the executable scan below must reject any retired auth route.
@@ -120,9 +123,6 @@ if 'const result = await ({ data: { session: state.session } });' in text: raise
 if 'if (!session) return;' in text: raise SystemExit('Refresh restore must not short-circuit before HttpOnly cookie hydration')
 if text.count('window.AZAAD_RESTORE_STAFF_PROFILE();') != 1: raise SystemExit('Canonical startup must invoke exactly one Appwrite restore owner')
 
-# This is the sole readiness publication point. It is emitted only after the
-# canonical Appwrite auth functions have been installed, so Browser E2E never
-# has to guess whether the login controller exists yet.
 text = re.sub(r'\n?window\.AZAAD_LOGIN_CONTROLLER_READY\s*=\s*true;\s*\n?', '\n', text)
 text = text.rstrip() + '\n\nwindow.AZAAD_LOGIN_CONTROLLER_READY = true;\n'
 
