@@ -1,26 +1,23 @@
 /* AZAAD CLINIC — Clinician Longitudinal Dashboard
    Read-only trend layer for the active patient.
    Clinical decisions remain with the clinician.
+   Runtime data boundary: Appwrite-authenticated Neon API.
 */
 (() => {
   'use strict';
-  const SUPABASE_URL='https://derofsthjivlkcdnojww.supabase.co';
-  const KEY=window.SUPABASE_PUBLISHABLE_KEY || '';
-  const token=()=>window.AZAAD?.state?.session?.access_token || '';
   const patientId=()=>window.CURRENT_PATIENT_ID || window.patientId || document.body.dataset.patientId || '';
   const en=()=>String(document.documentElement.lang||'').toLowerCase().startsWith('en');
   const t=(ar,english)=>en()?english:ar;
-  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
 
-  async function query(table, select='*', filters={}) {
-    const pid=patientId(); if(!pid || !token()) return [];
-    const qs=new URLSearchParams({select,...filters});
-    const response=await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs}`,{
-      headers:{apikey:KEY,Authorization:`Bearer ${token()}`,Accept:'application/json'},cache:'no-store'
-    });
+  async function history() {
+    const pid=patientId();
+    if(!pid) return [];
+    const qs=new URLSearchParams({action:'history',patient_id:pid});
+    const response=await fetch(`/api/clinical-assessments?${qs.toString()}`,{credentials:'include',cache:'no-store',headers:{Accept:'application/json'}});
     if(!response.ok) return [];
-    const body=await response.json().catch(()=>[]);
-    return Array.isArray(body)?body:[];
+    const body=await response.json().catch(()=>({}));
+    return Array.isArray(body.sessions)?body.sessions:[];
   }
 
   function trend(points){
@@ -49,7 +46,7 @@
 
   async function load(){
     const host=document.getElementById('azaadLongitudinalDashboard'); if(!host)return;
-    const sessions=await query('clinical_assessment_sessions','id,created_at,score_percent,baseline_score_percent,previous_score_percent,safety_review_required,status,template_id',{patient_id:`eq.${patientId()}`,order:'created_at.asc'});
+    const sessions=await history();
     const points=sessions.filter(x=>x.score_percent!==null && x.score_percent!==undefined).map(x=>({date:String(x.created_at||'').slice(0,10),score_percent:Number(x.score_percent)||0}));
     const current=points.at(-1)?.score_percent ?? null;
     const previous=points.at(-2)?.score_percent ?? null;
