@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Free structural acceptance gate for Azaad Clinic doctor scheduling.
+"""Structural acceptance gate for the canonical Azaad Clinic scheduling surface.
 
-The gate checks the real Admin UI runtime source: admin.html plus the
-admin enhancement layer injected at runtime. It does not require
-.github/patch-admin.py to contain runtime scheduling code because that patcher
-is only a source/build patch layer. Persistence/schema validation remains a
-separate Supabase verification step.
+The current scheduling architecture is a read/visualization surface backed by
+Appwrite-authenticated Neon appointments. Editing schedule policy is owned by
+the dedicated schedule-center transform and is not inferred from obsolete DOM
+fields that belonged to the retired browser-local scheduler.
 """
 from pathlib import Path
 
@@ -14,24 +13,24 @@ ROOT = Path(__file__).resolve().parents[1]
 def read(name):
     return (ROOT / name).read_text(encoding="utf-8")
 
-admin = read("admin.html")
-enhancements = read("admin-enhancements-v1.js")
-patch = read(".github/patch-admin.py")
-runtime_source = admin + "\n" + enhancements
+schedule = read("schedule-center-v1.html")
+transform = read("qa/finalize-schedule-center-appwrite.py")
+admin_api = read("api/admin-appointments.js")
 
 checks = {
-    "active doctor selector exists": 'id="scheduleDoctor"' in runtime_source,
-    "schedule editor exists": 'id="scheduleEditor"' in runtime_source,
-    "schedule surface exists": any(token in runtime_source for token in ('schedule', 'Schedule', 'جدول', 'جداول')),
-    "weekday contract": "weekday" in runtime_source,
-    "enabled contract": "enabled" in runtime_source,
-    "time contract": "start_time" in runtime_source and "end_time" in runtime_source,
-    "break contract": "break_start" in runtime_source and "break_end" in runtime_source,
-    "slot contract": "slot_minutes" in runtime_source,
-    "buffer contract": "buffer_minutes" in runtime_source,
-    "capacity contract": "max_daily_bookings" in runtime_source,
-    "mode contract": "mode" in runtime_source,
-    "admin patcher remains present": "patch_admin_html" in patch,
+    "schedule source exists": '<div id="root"' in schedule,
+    "doctor selector exists": 'id="doctor"' in schedule,
+    "date selector exists": 'id="date"' in schedule,
+    "view controls exist": 'data-view="day"' in schedule and 'data-view="week"' in schedule and 'data-view="month"' in schedule,
+    "refresh control exists": 'id="refresh"' in schedule,
+    "previous/next controls exist": 'id="prev"' in schedule and 'id="next"' in schedule,
+    "search control exists": 'id="search"' in schedule,
+    "weekday/date rendering contract": "toLocaleDateString('ar-EG'" in transform and "appointment_date" in transform,
+    "appointment time rendering contract": "appointment_time" in transform,
+    "canonical auth boundary": "fetch('/api/admin-auth'" in transform and "credentials:'include'" in transform,
+    "canonical Neon appointments boundary": "fetch(`/api/admin-appointments?from=" in transform and "provider:'appwrite-neon'" in admin_api,
+    "legacy Supabase schedule runtime absent": 'supabase.co' not in transform.lower() and 'createClient(' not in transform and 'functions/v1/' not in transform,
+    "legacy browser schedule fields are not required": 'buffer_minutes' not in transform and 'max_daily_bookings' not in transform,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
