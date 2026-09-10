@@ -67,6 +67,7 @@ VERIFY_STEPS = [
     ["python3", "qa/public-booking-central-i18n-gate.py"],
     ["python3", "qa/public-runtime-ownership-gate.py"],
     ["python3", "qa/clinical-assessment-runtime-boundary-gate.py"],
+    ["python3", "qa/clinical-browser-runtime-boundary-gate.py"],
     ["python3", "qa/canonical-runtime-drift-gate.py"],
 ]
 
@@ -107,6 +108,7 @@ for gate in (
     "qa/verify-admin-staff-caller-boundary.py",
     "qa/public-runtime-ownership-gate.py",
     "qa/clinical-assessment-runtime-boundary-gate.py",
+    "qa/clinical-browser-runtime-boundary-gate.py",
     "qa/canonical-runtime-drift-gate.py",
 ):
     if verify_paths.count(gate) != 1:
