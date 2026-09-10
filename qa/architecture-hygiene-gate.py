@@ -4,6 +4,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / '.github' / 'workflows'
+SELF = Path(__file__).resolve()
 
 failures = []
 
@@ -16,12 +17,15 @@ for path in sorted(WORKFLOWS.glob('*.yml')) + sorted(WORKFLOWS.glob('*.yaml')):
     if re.search(r'gh\s+pr\s+(merge|close)\b', text, re.I):
         failures.append(f'{path}: workflow must not merge/close PRs')
 
-# A single production owner is required. Netlify deploy configuration in the
-# repository is legacy and would create a second production path.
+# Detect an actual repository deployment path, not the gate's own policy text.
+# Documentation and this diagnostic are excluded because they necessarily name
+# the retired provider while explaining the rule.
 for path in ROOT.rglob('*'):
-    if not path.is_file() or '.git' in path.parts:
+    if not path.is_file() or '.git' in path.parts or path.resolve() == SELF:
         continue
-    if path.suffix.lower() not in {'.yml', '.yaml', '.json', '.js', '.ts', '.py', '.html', '.md'}:
+    if 'docs' in path.parts:
+        continue
+    if path.suffix.lower() not in {'.yml', '.yaml', '.json', '.js', '.ts', '.py', '.html'}:
         continue
     text = path.read_text(encoding='utf-8', errors='ignore')
     if re.search(r'netlify\s+deploy|netlify\.toml|netlify-cli|netlify_app', text, re.I):
