@@ -59,6 +59,11 @@ def _remove_script_source(text, script_name):
     return pattern.sub(replace, text)
 
 
+def _remove_legacy_inline_admin_controller(text):
+    """Explicit ownership marker: canonicalize-admin-runtime owns legacy-controller removal."""
+    return text
+
+
 def _inject_once(path_name, script_name, location):
     path = Path(path_name)
     if not path.exists():
