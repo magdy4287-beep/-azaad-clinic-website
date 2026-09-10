@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_RUNTIME_MARKERS = (
     r"\bSUPABASE_URL\b", r"\bSUPABASE_PUBLISHABLE_KEY\b", r"\bSUPABASE_ANON_KEY\b",
     r"\bSUPABASE_SERVICE_ROLE_KEY\b", r"\bcreateClient\s*\(", r"functions/v1/",
-    r"https?://[^\s\"']*supabase\.co", r"\bsupabase\.auth\.\", r"\bwindow\.supabase\b",
+    r"https?://[^\s\"']*supabase\.co", r"\bsupabase\.auth\.", r"\bwindow\.supabase\b",
     r"\bdocument\.cookie\b", r"\bbindTabs\s*\(", r"\bswitchPanel\s*\(", r"\brestoreSession\s*\(",
 )
 
