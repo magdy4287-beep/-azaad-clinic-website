@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 admin = (ROOT / "admin.html").read_text(encoding="utf-8")
 hardening = (ROOT / "admin-english-hardening.js").read_text(encoding="utf-8")
 patcher = (ROOT / ".github" / "patch-admin.py").read_text(encoding="utf-8")
+vercel_build = (ROOT / "qa" / "vercel-build.py").read_text(encoding="utf-8")
+patient_center_transform = (ROOT / "qa" / "finalize-patient-center-appwrite.py").read_text(encoding="utf-8")
 mrn_display = (ROOT / "patient-mrn-display-v2.js").read_text(encoding="utf-8")
 central_i18n = (ROOT / "central-i18n.js").read_text(encoding="utf-8")
 lazy_registry = (ROOT / "qa" / "lazy-admin-modules.py").read_text(encoding="utf-8")
@@ -60,7 +62,20 @@ check(
 )
 check("Service-role key is not embedded", "service_role" not in admin.lower() and "service_role" not in hardening.lower())
 check("Existing admin baseline remains present", 'id="adminPage"' in admin and 'id="loginPage"' in admin)
-check("Patient Center is part of the startup patch", "patch_patient_center" in patcher and "patients-center.js" in patcher)
+
+# Patient Center ownership moved from the legacy .github patcher into its own
+# canonical Appwrite-Neon transform. The gate must verify the current owner,
+# not require a retired helper function that was intentionally removed.
+check(
+    "Patient Center canonical Appwrite transform exists",
+    "PATIENTS_API = '/api/admin-appointments'" in patient_center_transform
+    and "credentials:'include'" in patient_center_transform
+    and "FAIL-CLOSED: patients-center still contains retired Supabase/browser-token runtime" in patient_center_transform,
+)
+check(
+    "Patient Center transform is part of canonical production build",
+    "qa/finalize-patient-center-appwrite.py" in vercel_build,
+)
 
 CANONICAL_PANELS = {
     "bookings": "الحجوزات",
@@ -91,9 +106,6 @@ check(
 )
 
 if "window.AZAAD_LOAD_ADMIN_PANEL = async function(panel)" in lazy_registry:
-    # The canonical source declares LAZY immediately before LEGACY_OR_CONTRACT.
-    # Keep this parser tied to that real source boundary rather than an obsolete
-    # comment delimiter that silently turned valid ownership entries into failures.
     groups_match = re.search(
         r"LAZY\s*=\s*\{(.*?)\n\}\n\nLEGACY_OR_CONTRACT\s*=",
         lazy_registry,
