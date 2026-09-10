@@ -9,9 +9,9 @@ def read(p):
     except OSError as e:FAILURES.append(f'cannot read {p}: {e}');return ''
 def require(c,m):
     if not c:FAILURES.append(m)
-central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; enterprise=ROOT/'admin-enterprise-centers.js'; invoice_api=ROOT/'api/invoices.js'
-for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py'),(enterprise,'admin-enterprise-centers.js'),(invoice_api,'api/invoices.js')):require(p.exists(),f'{l} is missing')
-ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); et=read(enterprise); it=read(invoice_api)
+central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; enterprise=ROOT/'admin-enterprise-centers.js'; invoice_api=ROOT/'api/invoices.js'; staff_api=ROOT/'api/staff-admin.js'
+for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py'),(enterprise,'admin-enterprise-centers.js'),(invoice_api,'api/invoices.js'),(staff_api,'api/staff-admin.js')):require(p.exists(),f'{l} is missing')
+ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); et=read(enterprise); it=read(invoice_api); sat=read(staff_api)
 for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObserver','central I18N dynamic observer'),('azaadLanguageChanged','central language-change event')]:require(token in ct,f'{msg} missing')
 require('location.reload()' not in ct,'central I18N reloads pages')
 require('qa/vercel-build.py' in vt,'Vercel does not use the bounded production build runner')
@@ -44,8 +44,8 @@ for x in ('approve_refund_doctor','approve_refund_management','process_refund','
 require('Every refund: Request -> Doctor Approval -> Management/Owner Approval -> Processing' in rf,'refund hierarchy missing')
 sec=[p for p in ROOT.rglob('*') if p.is_file() and p.suffix.lower() in {'.js','.ts','.sql','.html','.md'} and '.git' not in p.parts]; st='\n'.join(read(p) for p in sec)
 require((ROOT/'change-password.html').exists(),'password page missing')
-for x,m in [('owner_set_staff_account_status','owner staff status RPC'),('azaad-account-security','account security function'),('CANNOT_DISABLE_SELF','self-disable protection'),('LAST_OWNER_PROTECTED','last-owner protection'),('PASSWORD_UPDATE_FAILED','password recovery')]:require(x in st,f'{m} missing')
-for x in ('suspend','disable','reactivate'):require(x in st.lower(),f'staff {x} capability missing')
+for x,m in [('authorizeOwner','owner account-security authorization'),('updateAppwriteUserStatus','Appwrite staff account status control'),('cannot_disable_self','self-disable protection'),('last_owner_protected','last-owner protection'),('password_reset_failed','password reset failure handling')]:require(x in sat,f'{m} missing')
+for x in ('suspend','disable','reactivate'):require(x in sat.lower(),f'staff {x} capability missing')
 mai=ROOT/'supabase/functions/azaad-marketing-ai/index.ts'; mt=read(mai) if mai.exists() else '';require(mai.exists(),'marketing AI source missing');require('allowedRoles' in mt and 'MARKETING' in mt,'marketing AI role scope missing');require('local-free-fallback' in mt,'marketing AI free fallback missing')
 require(bool(list(ROOT.rglob('*ai*'))+list(ROOT.rglob('*AI*'))),'no AI surface found');require(bool(list(ROOT.rglob('*report*'))+list(ROOT.rglob('*Report*'))),'no reporting surface found')
 wd=ROOT/'.github/workflows'; names={p.name for p in wd.glob('*.yml')} if wd.exists() else set()
