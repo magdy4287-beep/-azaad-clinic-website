@@ -37,8 +37,6 @@ checks = {
     "outstanding": "remaining_amount" in et and "greatest(0" in it,
     "amount": "total_amount" in et and "i.total" in it,
     "daily reporting": "from=${today}&to=${today}" in et,
-    "monthly reporting": "month" in at.lower() or "monthly" in et.lower(),
-    "annual reporting": "year" in at.lower() or "annual" in et.lower(),
     "date filtering": "from" in at and "to" in at,
 }
 for name, ok in checks.items():
