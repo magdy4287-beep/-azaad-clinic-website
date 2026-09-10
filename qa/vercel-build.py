@@ -9,6 +9,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/inject-canonical-cairo-date.py"],
     ["python3", ".github/patch-admin.py"],
     ["python3", "qa/retire-legacy-patient-session-bridge.py"],
+    ["python3", "qa/finalize-patient-center-appwrite.py"],
     ["python3", "qa/inject-media-editor.py"],
     ["python3", "qa/remove-legacy-admin-i18n-runtime.py"],
     ["python3", ".github/inject-patient-actions.py"],
@@ -75,6 +76,7 @@ VERIFY_STEPS = [
 transform_paths = [step[1] for step in TRANSFORM_STEPS]
 for required in (
     "qa/retire-legacy-patient-session-bridge.py",
+    "qa/finalize-patient-center-appwrite.py",
     "qa/finalize-admin-operational-data.py",
     "qa/finalize-admin-navigation-ownership.py",
     "qa/finalize-appwrite-admin-auth.py",
@@ -92,6 +94,7 @@ for required in (
 
 order_constraints = (
     (".github/patch-admin.py", "qa/retire-legacy-patient-session-bridge.py"),
+    ("qa/retire-legacy-patient-session-bridge.py", "qa/finalize-patient-center-appwrite.py"),
     ("qa/finalize-appwrite-admin-auth.py", "qa/finalize-admin-browser-runtime-reference-boundary.py"),
     ("qa/finalize-admin-browser-runtime-reference-boundary.py", "qa/finalize-staff-management-appwrite.py"),
     ("qa/finalize-staff-management-appwrite.py", "qa/retire-legacy-admin-staff-runtime.py"),
