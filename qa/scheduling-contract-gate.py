@@ -28,7 +28,10 @@ checks = {
     "appointment time rendering contract": "appointment_time" in transform,
     "canonical auth boundary": "api('/api/admin-auth')" in transform and "credentials:'include'" in transform,
     "canonical Neon appointments boundary": "api(`/api/admin-appointments?from=" in transform and "provider:'appwrite-neon'" in admin_api,
-    "legacy Supabase schedule runtime absent": all(x not in schedule.lower() for x in ('supabase.co','createClient(','functions/v1/')) and all(x not in transform.lower() for x in ('supabase.co','createclient(','functions/v1/'))),
+    "legacy Supabase schedule runtime absent": (
+        all(x not in schedule.lower() for x in ('supabase.co', 'createClient(', 'functions/v1/'))
+        and all(x not in transform.lower() for x in ('supabase.co', 'createclient(', 'functions/v1/'))
+    ),
     "legacy browser schedule fields are not required": 'buffer_minutes' not in transform and 'max_daily_bookings' not in transform,
     "transform is explicit production owner": "expected exactly one legacy schedule runtime module" in transform and "path.write_text" in transform,
 }
