@@ -26,6 +26,9 @@ jobs:
       - name: Verify workflow ownership
         run: python qa/workflow-ownership-gate.py
 
+      - name: Verify architecture hygiene and canonical ownership
+        run: python qa/architecture-hygiene-gate.py
+
       - name: Run active Vercel API Node contract
         run: python qa/active-vercel-api-contract-gate.py
 
