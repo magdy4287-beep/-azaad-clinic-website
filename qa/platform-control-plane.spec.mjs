@@ -7,12 +7,11 @@ test('AZAAD operating control plane contract is deployed', async ({ page }) => {
   const response = await page.request.get(`${baseURL}/azaad-platform-control-plane.js`);
   expect(response.ok()).toBeTruthy();
   const source = await response.text();
-  expect(source).toContain('clinic_ai_recommendations');
-  expect(source).toContain('human review');
-  expect(source).toContain('No automatic decision');
-  expect(source).toContain('azaad-finance?api=dashboard');
-  expect(source).toContain('clinic_security_events');
-  expect(source).toContain('clinic_feature_flags');
+  expect(source).toContain('AZAAD AI Copilot');
+  expect(source).toContain('AI provides signals and suggestions only');
+  expect(source).toContain('/api/admin-appointments?resource=operations');
+  expect(source).toContain('/api/admin-appointments?resource=platform');
+  expect(source).not.toContain('AI_APPROVES_REFUND');
 });
 
 test('admin shell remains reachable after control-plane injection', async ({ page }) => {
@@ -22,9 +21,12 @@ test('admin shell remains reachable after control-plane injection', async ({ pag
 });
 
 test('refund workflow policy is fail-closed for AI', async ({ page }) => {
-  const response = await page.request.get(`${baseURL}/azaad-platform-control-plane.js`);
+  const response = await page.request.get(`${baseURL}/refund-workflow-ui.js`);
   expect(response.ok()).toBeTruthy();
   const source = await response.text();
   expect(source).toContain('Refund = human approvals');
   expect(source).not.toContain('AI_APPROVES_REFUND');
+  expect(source).toContain('approve_refund_doctor');
+  expect(source).toContain('approve_refund_management');
+  expect(source).toContain('process_refund');
 });
