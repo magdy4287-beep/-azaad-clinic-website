@@ -7,12 +7,12 @@ test('AZAAD operating control plane contract is deployed', async ({ page }) => {
   const response = await page.request.get(`${baseURL}/azaad-platform-control-plane.js`);
   expect(response.ok()).toBeTruthy();
   const source = await response.text();
-  expect(source).toContain('clinic_ai_recommendations');
-  expect(source).toContain('human review');
-  expect(source).toContain('No automatic decision');
-  expect(source).toContain('azaad-finance?api=dashboard');
-  expect(source).toContain('clinic_security_events');
+  expect(source).toContain("resource=platform");
+  expect(source).toContain("resource=operations");
   expect(source).toContain('clinic_feature_flags');
+  expect(source).toContain("credentials:'include'");
+  expect(source).toContain('AI provides signals and suggestions only');
+  expect(source).toContain('never executes clinical, financial, or security decisions automatically');
 });
 
 test('admin shell remains reachable after control-plane injection', async ({ page }) => {
