@@ -1,13 +1,13 @@
 /* AZAAD Admin — Purchasing Domain Runtime
    Single owner for the Purchasing panel.
-   UI -> /api/admin-appointments?resource=purchases -> Neon clinic_purchases.
+   UI -> /api/purchases -> Neon clinic_purchases.
    Browser has no Supabase client, token, or provider URL.
 */
 (() => {
   'use strict';
   if (window.AZAAD_PURCHASING_CENTER) return;
 
-  const ENDPOINT = '/api/admin-appointments?resource=purchases';
+  const ENDPOINT = '/api/purchases';
   const PANEL = 'purchasingEnterprisePanel';
   const $ = id => document.getElementById(id);
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -32,6 +32,8 @@
   }
 
   function host() { return $(`${PANEL}`); }
+  function role() { return String(window.AZAAD?.state?.staff?.role || window.AZAAD?.state?.currentRole || '').toUpperCase().trim(); }
+  function canWrite() { return ['OWNER','ADMIN','MANAGER'].includes(role()); }
 
   function shell() {
     const h = host();
@@ -47,9 +49,6 @@
     renderForm();
     return h;
   }
-
-  function role() { return String(window.AZAAD?.state?.staff?.role || window.AZAAD?.state?.currentRole || '').toUpperCase().trim(); }
-  function canWrite() { return ['OWNER','ADMIN','MANAGER'].includes(role()); }
 
   function renderForm(row = null) {
     const f = $('purchasingForm');
@@ -91,14 +90,14 @@
       purchased_at: $('purchaseDate')?.value ? new Date($('purchaseDate').value).toISOString() : new Date().toISOString(),
       notes: $('purchaseNotes')?.value.trim() || null
     };
-    try { await call(id ? 'PATCH' : 'POST', id ? `&id=${encodeURIComponent(id)}` : '', payload); renderForm(); await load(); }
+    try { await call(id ? 'PATCH' : 'POST', id ? `?id=${encodeURIComponent(id)}` : '', payload); renderForm(); await load(); }
     catch (e) { alert(e.status === 403 ? 'ليس لديك صلاحية تعديل المشتريات.' : e.message); }
   }
 
   async function remove(id) {
     if (!canWrite()) return;
     if (!confirm('حذف عملية الشراء؟')) return;
-    try { await call('DELETE', `&id=${encodeURIComponent(id)}`); await load(); }
+    try { await call('DELETE', `?id=${encodeURIComponent(id)}`); await load(); }
     catch (e) { alert(e.status === 403 ? 'ليس لديك صلاحية حذف المشتريات.' : e.message); }
   }
 
