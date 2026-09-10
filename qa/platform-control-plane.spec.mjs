@@ -9,9 +9,8 @@ test('AZAAD operating control plane contract is deployed', async ({ page }) => {
   const source = await response.text();
   expect(source).toContain("resource=platform");
   expect(source).toContain("resource=operations");
-  expect(source).toContain("feature=platform.ai");
-  expect(source).toContain("feature=platform.workflow");
-  expect(source).toContain("feature=platform.audit");
+  expect(source).toContain("['platform.ai','platform.workflow','platform.audit']");
+  expect(source).toContain("feature=${encodeURIComponent(key)}");
   expect(source).toContain("credentials:'include'");
   expect(source).toContain('AI provides signals and suggestions only');
   expect(source).toContain('never executes clinical, financial, or security decisions automatically');
