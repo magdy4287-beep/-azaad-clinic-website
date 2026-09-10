@@ -44,6 +44,9 @@ jobs:
       - name: Run canonical Admin backend boundary gate
         run: python3 qa/admin-backend-boundary-gate.py
 
+      - name: Apply canonical scheduling runtime transformation before scheduling verification
+        run: python3 qa/finalize-schedule-center-appwrite.py
+
       - name: Run scheduling contract gate
         run: python3 qa/scheduling-contract-gate.py
 
