@@ -8,13 +8,6 @@ on:
       - 'booking-ui-final-fix.js'
       - 'qa/booking-ui-final-fix.py'
       - '.github/workflows/azaad-booking-ui-final-fix.yml'
-  push:
-    branches: [feat/ai-operating-system-20260815]
-    paths:
-      - 'index.html'
-      - 'booking-ui-final-fix.js'
-      - 'qa/booking-ui-final-fix.py'
-      - '.github/workflows/azaad-booking-ui-final-fix.yml'
 
 permissions:
   contents: read
