@@ -67,6 +67,7 @@ VERIFY_STEPS = [
     ["python3", "qa/public-booking-central-i18n-gate.py"],
     ["python3", "qa/public-runtime-ownership-gate.py"],
     ["python3", "qa/clinical-assessment-runtime-boundary-gate.py"],
+    ["python3", "qa/canonical-runtime-drift-gate.py"],
 ]
 
 transform_paths = [step[1] for step in TRANSFORM_STEPS]
@@ -101,14 +102,15 @@ for before, after in order_constraints:
         raise SystemExit(f"Invalid production transform dependency order: {before} must precede {after}")
 
 verify_paths = [step[1] for step in VERIFY_STEPS]
-if verify_paths.count("qa/appwrite-admin-auth-boundary-gate.py") != 1:
-    raise SystemExit("Appwrite Admin auth boundary gate must exist exactly once")
-if verify_paths.count("qa/verify-admin-staff-caller-boundary.py") != 1:
-    raise SystemExit("Admin staff caller verification gate must exist exactly once")
-if verify_paths.count("qa/public-runtime-ownership-gate.py") != 1:
-    raise SystemExit("Public runtime ownership gate must exist exactly once")
-if verify_paths.count("qa/clinical-assessment-runtime-boundary-gate.py") != 1:
-    raise SystemExit("Clinical assessment runtime boundary gate must exist exactly once")
+for gate in (
+    "qa/appwrite-admin-auth-boundary-gate.py",
+    "qa/verify-admin-staff-caller-boundary.py",
+    "qa/public-runtime-ownership-gate.py",
+    "qa/clinical-assessment-runtime-boundary-gate.py",
+    "qa/canonical-runtime-drift-gate.py",
+):
+    if verify_paths.count(gate) != 1:
+        raise SystemExit(f"{gate} must exist exactly once")
 
 
 def run_steps(steps, phase):
