@@ -59,23 +59,6 @@ def _remove_script_source(text, script_name):
     return pattern.sub(replace, text)
 
 
-def _remove_legacy_inline_admin_controller(text):
-    """Detection helper retained for tests; canonicalizer owns the mutation."""
-    pattern = re.compile(
-        r'\s*<script\b[^>]*\btype=["\']module["\'][^>]*>.*?</script>\s*',
-        flags=re.I | re.S,
-    )
-    for block in pattern.findall(text):
-        if (
-            "createClient" in block
-            and "STAFF_LOGIN_FUNCTION" in block
-            and "function login" in block
-            and "clinic_staff" in block
-        ):
-            return text.replace(block, "\n", 1)
-    return text
-
-
 def _inject_once(path_name, script_name, location):
     path = Path(path_name)
     if not path.exists():
@@ -84,9 +67,12 @@ def _inject_once(path_name, script_name, location):
     text = _remove_script_source(text, script_name)
     tag = f'<script src="{script_name}" defer></script>'
     marker = f"</{location}>"
-    if marker in text:
-        text = text.replace(marker, tag + "\n" + marker, 1)
-        path.write_text(text, encoding="utf-8")
+    if marker not in text:
+        raise SystemExit(f"FAIL-CLOSED: missing </{location}> in {path_name}")
+    text = text.replace(marker, tag + "\n" + marker, 1)
+    if text.count(tag) != 1:
+        raise SystemExit(f"FAIL-CLOSED: expected one {script_name} owner in {path_name}")
+    path.write_text(text, encoding="utf-8")
 
 
 def inject_script(path_name, script_name):
@@ -97,97 +83,16 @@ def inject_head_script(path_name, script_name):
     _inject_once(path_name, script_name, "head")
 
 
-def patch_admin_html():
-    path = Path("admin.html")
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    # Legacy inline controller removal is intentionally owned by
-    # qa/canonicalize-admin-runtime.py, which runs after all Admin transforms.
-    legacy = re.compile(r'async function restoreStaff\(\).*?\n\}\n\nasync function logout\(\)', re.S)
-    modern = '''async function restoreStaff(){
-  if(!state.user?.id || !state.session?.access_token) return false;
-  const request=async()=>fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth`,{method:"GET",headers:{Accept:"application/json",Authorization:`Bearer ${state.session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},cache:"no-store"});
-  try{let response=await request();if(response.status===401){try{const refreshed=await supabase.auth.refreshSession();if(refreshed?.data?.session?.access_token){state.session=refreshed.data.session;state.user=refreshed.data.session.user;response=await request();}}catch(error){console.warn("Admin auth refresh failed:",error);}}let body={};try{body=await response.json();}catch(_){ }if(!response.ok||!body?.admin||body.admin.active===false)return false;return applyStaff(body.admin);}catch(error){console.error("Admin restore request failed:",error);return false;}
-}
-
-async function logout()'''
-    if legacy.search(text):
-        text = legacy.sub(modern, text, count=1)
-    duplicate = re.compile(r'\s*const valid =\s*await restoreStaff\(\);\s*if\(\s*valid\s*\)\{\s*await load\(\);\s*\}', re.S)
-    text = duplicate.sub('\n      // Startup restoration is owned by restore().', text, count=1)
-    text = text.replace('patient-session-bridge-v3.js?v=4.1.0', 'patient-session-bridge-v3.js?v=4.3.1')
-    path.write_text(text, encoding="utf-8")
-
-
-def patch_admin_js():
-    path = Path("admin.js")
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    legacy = re.compile(r'async function restoreStaffProfile\(\)\s*\{.*?\n\}\n\n/\* ============================================================\n   INITIALIZE\n', re.S)
-    modern = '''async function restoreStaffProfile() {
-  if (!state.user?.id || !state.session?.access_token) return false;
-  const request=async()=>fetch(`${SUPABASE_URL}/functions/v1/azaad-admin-auth`,{method:"GET",headers:{Accept:"application/json",Authorization:`Bearer ${state.session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY},cache:"no-store"});
-  try{let response=await request();if(response.status===401){try{const refreshed=await supabase.auth.refreshSession();if(refreshed?.data?.session?.access_token){state.session=refreshed.data.session;state.user=refreshed.data.session.user;response=await request();}}catch(error){console.warn("Admin staff restore failed:",error);}}let body={};try{body=await response.json();}catch(_){ }if(!response.ok||!body?.admin||body.admin.active===false)return false;return applyStaffRole(body.admin);}catch(error){console.error("Admin staff restore request failed:",error);return false;}
-}
-
-/* ============================================================
-   INITIALIZE
-'''
-    if legacy.search(text):
-        text = legacy.sub(modern, text, count=1)
-    role_pattern = re.compile(r'(SECRETARY\s*:\s*\[)(.*?)(\])', re.S)
-    match = role_pattern.search(text)
-    if match and 'finance.view' not in match.group(2):
-        body = match.group(2)
-        if body and not body.endswith('\n'):
-            body += '\n'
-        body += '    "finance.view",\n'
-        text = text[:match.start(2)] + body + text[match.end(2):]
-    path.write_text(text, encoding="utf-8")
-
-
-def patch_startup_restore():
-    path = Path("admin.html")
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    if 'window.AZAAD_READY' in text:
-        return
-    marker = '''window.AZAAD = {
-  supabase,
-  state,
-  hasPermission,
-  refresh:load,
-  logout
-};'''
-    if marker not in text:
-        return
-    replacement = marker + '''\n\nwindow.AZAAD_READY=(async()=>{try{const restored=await restore();if(restored!==false&&state.session?.access_token&&state.staff){document.getElementById("loginPage")?.classList.add("hidden");document.getElementById("adminPage")?.classList.remove("hidden");return true;}}catch(error){console.error("Admin startup restore failed:",error);}return false;})();'''
-    path.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
-
-
-def patch_patient_center():
-    path = Path("patients-center.js")
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    if 'Patient Center waiting for admin restore:' in text:
-        return
-    marker = '  async function init() {\n    if (state.initialized) {'
-    if marker not in text:
-        return
-    replacement = '''  async function init() {\n    try {\n      if (window.AZAAD_READY) await window.AZAAD_READY;\n    } catch (error) {\n      console.warn('Patient Center waiting for admin restore:', error);\n    }\n\n    if (state.initialized) {'''
-    path.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
-
-
 def patch_admin_injected_compatibility():
     path = Path("admin.html")
     if not path.exists():
         return
     text = path.read_text(encoding="utf-8")
-    text = re.sub(r"const key\s*=\s*`azaadSrc\$\{a\}`;", "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;", text)
+    text = re.sub(
+        r"const key\s*=\s*`azaadSrc\$\{a\}`;",
+        "const key = a === 'aria-label' ? 'azaadSrcAriaLabel' : `azaadSrc${a}`;",
+        text,
+    )
     text = re.sub(r"\bconst\s+queued\s*=\s*false\b", "let queued=false", text)
     bridge = '<script>window.$=window.$||function(id){return document.getElementById(id)};</script>'
     if bridge not in text:
@@ -206,25 +111,28 @@ def patch_nextgen_scripts():
         if not path.exists() or path.suffix != '.js':
             continue
         text = path.read_text(encoding='utf-8', errors='replace')
-        updated = text.replace("const key=`azaadSrc${a}`;", "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
-        updated = updated.replace("const key = `azaadSrc${a}`;", "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;")
+        updated = text.replace(
+            "const key=`azaadSrc${a}`;",
+            "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;",
+        )
+        updated = updated.replace(
+            "const key = `azaadSrc${a}`;",
+            "const key=a==='aria-label'?'azaadSrcAriaLabel':`azaadSrc${a}`;",
+        )
         if relative == "admin-english-hardening.js":
             updated = updated.replace("'معاد':'Rescheduled'},\nexact:", "'معاد':'Rescheduled',\nexact:")
         if updated != text:
             path.write_text(updated, encoding='utf-8')
 
 
-patch_admin_html()
-patch_admin_js()
-patch_startup_restore()
-patch_patient_center()
-
+# Runtime authentication, startup restoration, and session ownership are deliberately
+# absent here. They belong exclusively to the canonical Appwrite/admin-boundary transforms.
 for script in ADMIN_FEATURE_SCRIPTS:
     inject_script("admin.html", script)
 
 inject_head_script("admin.html", ADMIN_SHELL_SRC)
 
-for target, script in [
+for target, script in (
     ("clinical-assessment.html", "azaad-platform-kernel.js"),
     ("clinical-assessment.html", "clinical-followup-widget.js"),
     ("clinical-assessment.html", "clinician-transfer-widget.js"),
@@ -233,7 +141,7 @@ for target, script in [
     ("clinical-assessment.html", "patient-demographics-editor.js"),
     ("invoice-center.html", "azaad-platform-kernel.js"),
     ("invoice-center.html", "invoice-print-email.js"),
-]:
+):
     inject_script(target, script)
 
 patch_nextgen_scripts()
