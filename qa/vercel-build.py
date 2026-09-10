@@ -8,6 +8,7 @@ TRANSFORM_STEPS = [
     ["python3", "qa/inject-responsive-shell.py"],
     ["python3", "qa/inject-canonical-cairo-date.py"],
     ["python3", ".github/patch-admin.py"],
+    ["python3", "qa/retire-legacy-clinician-transfer-runtime.py"],
     ["python3", "qa/retire-legacy-patient-session-bridge.py"],
     ["python3", "qa/finalize-patient-center-appwrite.py"],
     ["python3", "qa/finalize-platform-control-boundary.py"],
@@ -73,24 +74,77 @@ VERIFY_STEPS = [
     ["python3", "qa/clinical-browser-runtime-boundary-gate.py"],
     ["python3", "qa/canonical-runtime-drift-gate.py"],
 ]
-transform_paths=[s[1] for s in TRANSFORM_STEPS]
-for required in ("qa/retire-legacy-patient-session-bridge.py","qa/finalize-patient-center-appwrite.py","qa/finalize-platform-control-boundary.py","qa/finalize-platform-kernel-appwrite.py","qa/finalize-admin-operational-data.py","qa/finalize-admin-navigation-ownership.py","qa/finalize-appwrite-admin-auth.py","qa/finalize-admin-browser-runtime-reference-boundary.py","qa/finalize-staff-management-appwrite.py","qa/retire-legacy-admin-staff-runtime.py","qa/finalize-appwrite-browser-session-contract.py","qa/finalize-admin-staff-caller-boundary.py","qa/final-admin-restore-boundary.py","qa/finalize-staff-management-runtime-boundary.py","qa/finalize-clinical-assessment-appwrite.py"):
-    if transform_paths.count(required)!=1: raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
-for before,after in ((".github/patch-admin.py","qa/retire-legacy-patient-session-bridge.py"),("qa/retire-legacy-patient-session-bridge.py","qa/finalize-patient-center-appwrite.py"),("qa/finalize-patient-center-appwrite.py","qa/finalize-platform-control-boundary.py"),("qa/finalize-platform-control-boundary.py","qa/finalize-platform-kernel-appwrite.py"),("qa/finalize-appwrite-admin-auth.py","qa/finalize-admin-browser-runtime-reference-boundary.py"),("qa/finalize-admin-browser-runtime-reference-boundary.py","qa/finalize-staff-management-appwrite.py"),("qa/finalize-staff-management-appwrite.py","qa/retire-legacy-admin-staff-runtime.py"),("qa/retire-legacy-admin-staff-runtime.py","qa/finalize-appwrite-browser-session-contract.py"),("qa/finalize-appwrite-browser-session-contract.py","qa/finalize-admin-staff-caller-boundary.py"),("qa/finalize-admin-staff-caller-boundary.py","qa/final-admin-restore-boundary.py"),("qa/final-admin-restore-boundary.py","qa/finalize-staff-management-runtime-boundary.py"),("qa/finalize-staff-management-runtime-boundary.py","qa/finalize-clinical-assessment-appwrite.py")):
-    if transform_paths.index(before)>=transform_paths.index(after): raise SystemExit(f"Invalid production transform dependency order: {before} must precede {after}")
-verify_paths=[s[1] for s in VERIFY_STEPS]
-for gate in ("qa/appwrite-admin-auth-boundary-gate.py","qa/verify-admin-staff-caller-boundary.py","qa/public-runtime-ownership-gate.py","qa/clinical-assessment-runtime-boundary-gate.py","qa/clinical-browser-runtime-boundary-gate.py","qa/canonical-runtime-drift-gate.py"):
-    if verify_paths.count(gate)!=1: raise SystemExit(f"{gate} must exist exactly once")
-def run_steps(steps,phase):
+transform_paths = [s[1] for s in TRANSFORM_STEPS]
+for required in (
+    "qa/retire-legacy-clinician-transfer-runtime.py",
+    "qa/retire-legacy-patient-session-bridge.py",
+    "qa/finalize-patient-center-appwrite.py",
+    "qa/finalize-platform-control-boundary.py",
+    "qa/finalize-platform-kernel-appwrite.py",
+    "qa/finalize-admin-operational-data.py",
+    "qa/finalize-admin-navigation-ownership.py",
+    "qa/finalize-appwrite-admin-auth.py",
+    "qa/finalize-admin-browser-runtime-reference-boundary.py",
+    "qa/finalize-staff-management-appwrite.py",
+    "qa/retire-legacy-admin-staff-runtime.py",
+    "qa/finalize-appwrite-browser-session-contract.py",
+    "qa/finalize-admin-staff-caller-boundary.py",
+    "qa/final-admin-restore-boundary.py",
+    "qa/finalize-staff-management-runtime-boundary.py",
+    "qa/finalize-clinical-assessment-appwrite.py",
+):
+    if transform_paths.count(required) != 1:
+        raise SystemExit(f"Canonical production transform must exist exactly once: {required}")
+for before, after in (
+    (".github/patch-admin.py", "qa/retire-legacy-clinician-transfer-runtime.py"),
+    ("qa/retire-legacy-clinician-transfer-runtime.py", "qa/retire-legacy-patient-session-bridge.py"),
+    ("qa/retire-legacy-patient-session-bridge.py", "qa/finalize-patient-center-appwrite.py"),
+    ("qa/finalize-patient-center-appwrite.py", "qa/finalize-platform-control-boundary.py"),
+    ("qa/finalize-platform-control-boundary.py", "qa/finalize-platform-kernel-appwrite.py"),
+    ("qa/finalize-appwrite-admin-auth.py", "qa/finalize-admin-browser-runtime-reference-boundary.py"),
+    ("qa/finalize-admin-browser-runtime-reference-boundary.py", "qa/finalize-staff-management-appwrite.py"),
+    ("qa/finalize-staff-management-appwrite.py", "qa/retire-legacy-admin-staff-runtime.py"),
+    ("qa/retire-legacy-admin-staff-runtime.py", "qa/finalize-appwrite-browser-session-contract.py"),
+    ("qa/finalize-appwrite-browser-session-contract.py", "qa/finalize-admin-staff-caller-boundary.py"),
+    ("qa/finalize-admin-staff-caller-boundary.py", "qa/final-admin-restore-boundary.py"),
+    ("qa/final-admin-restore-boundary.py", "qa/finalize-staff-management-runtime-boundary.py"),
+    ("qa/finalize-staff-management-runtime-boundary.py", "qa/finalize-clinical-assessment-appwrite.py"),
+):
+    if transform_paths.index(before) >= transform_paths.index(after):
+        raise SystemExit(f"Invalid production transform dependency order: {before} must precede {after}")
+verify_paths = [s[1] for s in VERIFY_STEPS]
+for gate in (
+    "qa/appwrite-admin-auth-boundary-gate.py",
+    "qa/verify-admin-staff-caller-boundary.py",
+    "qa/public-runtime-ownership-gate.py",
+    "qa/clinical-assessment-runtime-boundary-gate.py",
+    "qa/clinical-browser-runtime-boundary-gate.py",
+    "qa/canonical-runtime-drift-gate.py",
+):
+    if verify_paths.count(gate) != 1:
+        raise SystemExit(f"{gate} must exist exactly once")
+
+def run_steps(steps, phase):
     for command in steps:
-        path=Path(command[1])
-        if not path.is_file(): raise SystemExit(f"Missing required production {phase} step: {path}")
-        print(f"[AZAAD build:{phase}] {' '.join(command)}",flush=True);subprocess.run(command,check=True)
-run_steps(TRANSFORM_STEPS,"transform");run_steps(VERIFY_STEPS,"verify")
-commit_sha=(os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("GITHUB_SHA") or "").strip()
-if not commit_sha: raise SystemExit("Missing canonical build commit SHA")
-admin=Path("admin.html");text=admin.read_text(encoding="utf-8");import re
-text=re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?','',text,flags=re.I);head=text.find("</head>")
-if head<0: raise SystemExit("admin.html has no </head> for build provenance marker")
-text=text[:head]+f'<meta name="azaad-build-sha" content="{commit_sha}">\n'+text[head:];admin.write_text(text,encoding="utf-8")
-print(f"[AZAAD build] production artifact provenance SHA = {commit_sha}",flush=True);print("[AZAAD build] canonical production transformation + fail-closed verification completed",flush=True)
+        path = Path(command[1])
+        if not path.is_file():
+            raise SystemExit(f"Missing required production {phase} step: {path}")
+        print(f"[AZAAD build:{phase}] {' '.join(command)}", flush=True)
+        subprocess.run(command, check=True)
+
+run_steps(TRANSFORM_STEPS, "transform")
+run_steps(VERIFY_STEPS, "verify")
+commit_sha = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("GITHUB_SHA") or "").strip()
+if not commit_sha:
+    raise SystemExit("Missing canonical build commit SHA")
+admin = Path("admin.html")
+text = admin.read_text(encoding="utf-8")
+import re
+text = re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?', '', text, flags=re.I)
+head = text.find("</head>")
+if head < 0:
+    raise SystemExit("admin.html has no </head> for build provenance marker")
+text = text[:head] + f'<meta name="azaad-build-sha" content="{commit_sha}">\n' + text[head:]
+admin.write_text(text, encoding="utf-8")
+print(f"[AZAAD build] production artifact provenance SHA = {commit_sha}", flush=True)
+print("[AZAAD build] canonical production transformation + fail-closed verification completed", flush=True)
