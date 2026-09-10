@@ -1,6 +1,7 @@
 /* AZAAD CLINIC — ADMIN BUSINESS HARDENING
  * Canonical i18n owns all language, translation, and RTL/LTR work.
  * This module keeps only non-i18n patient/MRN/search hardening.
+ * Patient data transport is owned by the canonical Appwrite-authenticated API runtime.
  */
 (() => {
   'use strict';
@@ -51,33 +52,6 @@
       }
     },
 
-    patchPatientFetch() {
-      if (window.__AZAAD_PATIENT_MRN_FETCH_PATCHED__) return;
-      const original = window.fetch.bind(window);
-      window.fetch = (input, init) => {
-        try {
-          const originalUrl = typeof input === 'string' ? input : input?.url;
-          if (originalUrl && originalUrl.includes('/functions/v1/azaad-patients')) {
-            const url = new URL(originalUrl, location.href);
-            if (url.searchParams.get('api') === 'patients') {
-              const search = url.searchParams.get('search');
-              if (search && /^(?:AZA-?)?\d+$/i.test(search)) {
-                const canonical = M.toCanonical(search);
-                if (/^AZA-\d{6}$/i.test(canonical)) {
-                  url.searchParams.set('search', canonical);
-                  input = typeof input === 'string'
-                    ? url.toString()
-                    : new Request(url.toString(), input);
-                }
-              }
-            }
-          }
-        } catch (_) {}
-        return original(input, init);
-      };
-      window.__AZAAD_PATIENT_MRN_FETCH_PATCHED__ = true;
-    },
-
     patchMainSearch() {
       const input = document.getElementById('search');
       if (!input) return;
@@ -92,7 +66,6 @@
   };
 
   function start() {
-    M.patchPatientFetch();
     document.addEventListener('input', M.normalizePatientSearch, true);
     document.addEventListener('change', M.normalizePatientSearch, true);
     M.run();
