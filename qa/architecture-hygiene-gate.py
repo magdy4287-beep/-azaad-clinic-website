@@ -17,6 +17,16 @@ for path in sorted(WORKFLOWS.glob('*.yml')) + sorted(WORKFLOWS.glob('*.yaml')):
     if re.search(r'gh\s+pr\s+(merge|close)\b', text, re.I):
         failures.append(f'{path}: workflow must not merge/close PRs')
 
+# Historical feature branches are not valid CI deployment triggers. Keep this
+# fail-closed because an accidental reintroduction would silently resurrect
+# retired automation outside the canonical PR -> main path.
+RETIRED_PUSH_BRANCHES = {'feat/ai-operating-system-20260815'}
+for path in sorted(WORKFLOWS.glob('*.yml')) + sorted(WORKFLOWS.glob('*.yaml')):
+    text = path.read_text(encoding='utf-8', errors='replace')
+    for branch in RETIRED_PUSH_BRANCHES:
+        if re.search(rf'(^|[\'"\s-]){re.escape(branch)}($|[\'"\s])', text):
+            failures.append(f'{path}: retired feature branch must not be a workflow trigger: {branch}')
+
 # Detect an actual repository deployment path, not the gate's own policy text.
 # Documentation and this diagnostic are excluded because they necessarily name
 # the retired provider while explaining the rule.
@@ -53,5 +63,6 @@ if failures:
 
 print('ARCHITECTURE HYGIENE: PASS')
 print(' - no source-mutating workflow')
+print(' - no retired feature-branch workflow trigger')
 print(' - no repository Netlify deployment path')
 print(' - canonical API ownership is singular')
