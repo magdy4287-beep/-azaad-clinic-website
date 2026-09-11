@@ -108,7 +108,42 @@ async function refundBoundary(req, res, identity) {
     const reference = String(body.refund_reference || '').trim();
     if (!['cash', 'bank', 'card', 'wallet', 'gateway'].includes(method)) return json(res, { error: 'invalid_refund_method' }, 400);
     if (method !== 'cash' && !reference) return json(res, { error: 'refund_reference_required' }, 400);
-    const rows = await sql`update public.clinic_refund_requests set status='processed', processed_by=${identity.staff.id}, processed_at=now(), refund_method=${method}, refund_reference=${reference || null} where id=${id} and status='approved' and doctor_approval_status='approved' and management_approval_status='approved' returning *`;
+    const rows = await sql`
+      with target as (
+        select r.id, r.invoice_id, r.amount
+        from public.clinic_refund_requests r
+        where r.id=${id}
+          and r.status='approved'
+          and r.doctor_approval_status='approved'
+          and r.management_approval_status='approved'
+        for update
+      ),
+      eligible_invoice as (
+        select i.id
+        from public.clinic_invoices i
+        join target t on t.invoice_id=i.id
+        where t.amount <= (
+          coalesce((select sum(coalesce(p.amount,0)) from public.clinic_payments p where p.invoice_id=i.id and p.verification_status='verified'),0)
+          - coalesce(i.refunded_amount,0)
+        ) + 0.00001
+        for update
+      ),
+      updated_invoice as (
+        update public.clinic_invoices i
+        set refunded_amount=coalesce(i.refunded_amount,0)+(select amount from target where invoice_id=i.id)
+        from eligible_invoice e
+        where i.id=e.id
+        returning i.id
+      ),
+      processed as (
+        update public.clinic_refund_requests r
+        set status='processed', processed_by=${identity.staff.id}, processed_at=now(), refund_method=${method}, refund_reference=${reference || null}
+        from target t join updated_invoice ui on ui.id=t.invoice_id
+        where r.id=t.id
+        returning r.*
+      )
+      select * from processed
+    `;
     return rows[0] ? json(res, { provider: 'appwrite-neon', refund: rows[0] }) : json(res, { error: 'invalid_refund_state' }, 409);
   }
   return json(res, { error: 'unknown_action' }, 400);
