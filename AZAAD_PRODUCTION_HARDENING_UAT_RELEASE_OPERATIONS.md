@@ -138,7 +138,7 @@ Protect evidence first. Do not perform destructive emergency edits that erase th
 
 ## 9. Backup / recovery / DR
 
-Recovery evidence must use free/native capabilities where possible. A paid-only restore drill is not a production dependency.
+Recovery evidence must use free/native capabilities where possible. **Paid-only recovery resources are prohibited.**
 
 Supabase may be retained as migration or historical DR evidence, but recovery must not assume Supabase is the active AZAAD runtime. Portable export/restore procedures must be independently verifiable against the canonical Appwrite + Neon + Vercel architecture.
 
