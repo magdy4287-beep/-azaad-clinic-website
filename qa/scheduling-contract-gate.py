@@ -6,6 +6,7 @@ transform. CI must remain read-only: this gate validates both contracts
 without rewriting the checked-out repository. The immutable production build
 owns application of the transform.
 """
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +28,15 @@ try:
 except IndexError as exc:
     raise SystemExit("Scheduling contract gate failed: canonical runtime payload not found") from exc
 
-gate_source = Path(__file__).read_text(encoding="utf-8")
+# Prove this gate is structurally read-only instead of searching its own source
+# for mutation method names. Self-text matching is unsafe because the policy
+# naturally has to describe forbidden mutation methods.
+gate_tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+forbidden_calls = {"write_text", "write_bytes", "unlink", "mkdir", "rmdir", "rename", "replace"}
+mutating_calls = []
+for node in ast.walk(gate_tree):
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in forbidden_calls:
+        mutating_calls.append(node.func.attr)
 
 checks = {
     "schedule source exists": '<main class="wrap">' in schedule and 'id="root"' in schedule,
@@ -48,7 +57,7 @@ checks = {
     "legacy browser schedule fields are not required": 'buffer_minutes' not in runtime and 'max_daily_bookings' not in runtime,
     "transform is explicit production owner": "expected exactly one legacy schedule runtime module" in transform and "path.write_text" in transform,
     "production build applies transform": "qa/finalize-schedule-center-appwrite.py" in vercel_build,
-    "gate remains read-only": "write_text(" not in gate_source and "unlink(" not in gate_source and "unlink(" not in gate_source,
+    "gate remains read-only": not mutating_calls,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
