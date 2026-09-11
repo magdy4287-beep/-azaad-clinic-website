@@ -1,3 +1,5 @@
-This marker intentionally authorizes the controlled database-only Neon migration workflow for this exact commit.
+NEON database-only migration authorization is RETIRED.
 
-Execution marker renewed after the guard was hardened. Storage migration remains deliberately excluded.
+The controlled historical-Supabase → canonical-Neon migration has already completed successfully. Do not rerun the destructive migration workflow for this branch. Future database recovery requires a new explicit authorization and independently reviewed execution.
+
+Storage migration remains deliberately excluded from this database-only workflow.
