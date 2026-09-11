@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 ROOT=Path(__file__).resolve().parents[1]
 path=ROOT/'scheduling-v2.js'
 text=path.read_text(encoding='utf-8')
@@ -12,18 +11,18 @@ old="""  const client = () => window.AZAAD?.supabase || null;
 """
 new="""  const API='/api/admin-appointments?resource=scheduling';
   async function api(method,params={},body){ const u=new URL(API,window.location.origin); Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));}); const r=await fetch(u.toString(),{method,credentials:'include',cache:'no-store',headers:{Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})}); let p={};try{p=await r.json()}catch{} if(!r.ok)throw Error(p.error||`HTTP ${r.status}`);return p; }
-  async function db(table,columns='*',filter){ const [from,to]=range(); const p=await api('GET',{table,from,to}); return Array.isArray(p.rows)?p.rows:[]; }
+  function doctorScoped(rows,table){ const role=String(window.AZAAD?.state?.role||'').toUpperCase(); if(role!=='DOCTOR')return rows; const doctorId=String(window.AZAAD?.state?.staff?.doctor_id||''); if(!doctorId)throw Error('حساب الطبيب غير مرتبط بطبيب نشط.'); if(table==='doctors'||table==='bookings'||table==='schedules'||table==='overrides')return rows.filter(x=>String(x.doctor_id)===doctorId); if(table==='waiting')return rows.filter(x=>String(x.doctor_id||x.preferred_doctor_id||'')===doctorId); return rows; }
+  async function db(table,columns='*',filter){ const [from,to]=range(); const p=await api('GET',{table,from,to}); return doctorScoped(Array.isArray(p.rows)?p.rows:[],table); }
   async function invoke(action,body){ return api('POST',{}, {action,...body}); }
 """
 if old not in text: raise SystemExit('FAIL-CLOSED: expected legacy scheduling helper block not found')
 text=text.replace(old,new,1)
 old_patient="""  async function patientSearch(v){const q=String(v||'').trim();if(!q)return[];return db('clinic_patients','id,mrn,patient_name,patient_phone,active',x=>x.eq('active',true).or(`mrn.ilike.%${q}%,patient_name.ilike.%${q}%,patient_phone.ilike.%${q}%`).limit(12));}
 """
-new_patient="""  async function patientSearch(v){const q=String(v||'').trim();if(!q)return[];const p=await api('GET',{table:'patients',q});return Array.isArray(p.rows)?p.rows:[];}
+new_patient="""  async function patientSearch(v){const q=String(v||'').trim();if(!q)return[];if(String(window.AZAAD?.state?.role||'').toUpperCase()==='DOCTOR')return[];const p=await api('GET',{table:'patients',q});return Array.isArray(p.rows)?p.rows:[];}
 """
 if old_patient not in text: raise SystemExit('FAIL-CLOSED: expected legacy patient search block not found')
 text=text.replace(old_patient,new_patient,1)
-text=text.replace("  async function refresh(){root();const [from,to]=range();try{", "  async function refresh(){root();const [from,to]=range();try{")
 if any(x in text for x in ("window.AZAAD?.supabase","functions.invoke('azaad-appointments-actions'","supabase client غير متاح","supabase-js")): raise SystemExit('FAIL-CLOSED: Supabase runtime marker survived scheduling-v2 transform')
 path.write_text(text,encoding='utf-8')
-print('PASS: Scheduling V2 browser runtime uses Appwrite session cookie + consolidated admin-appointments API')
+print('PASS: Scheduling V2 browser runtime uses Appwrite session cookie + consolidated admin-appointments API with doctor isolation')
