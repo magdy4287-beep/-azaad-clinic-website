@@ -123,11 +123,8 @@ Required evidence for the exact production commit:
 - AI/fallback result when applicable
 - audit/financial evidence when applicable
 - rollback/restore evidence when applicable
-- AI/fallback result when the change affects an AI-assisted surface
 
 Missing evidence is **NOT PROVEN**, never an implied PASS.
-
-If evidence is missing, status is **NOT PROVEN**, not PASS.
 
 ## 7. Deterministic engineering / self-healing policy
 
