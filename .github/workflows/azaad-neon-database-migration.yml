@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   migrate:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/chore/architecture-cleanup-20260910'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/chore/architecture-cleanup-20260910' && contains(github.event.head_commit.message, '[NEON-MIGRATION-AUTHORIZED]')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
