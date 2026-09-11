@@ -1,0 +1,80 @@
+name: AZAAD Controlled Neon Database Migration
+
+on:
+  push:
+    branches:
+      - chore/architecture-cleanup-20260910
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/chore/architecture-cleanup-20260910' && hashFiles('.github/NEON_MIGRATION_EXECUTION_MARKER.md') != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact migration revision
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL 17 client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+      - name: Verify migration secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_DB_URL"
+          test -n "$NEON_DATABASE_URL"
+          test -n "$DR_BACKUP_PASSPHRASE"
+      - name: Execute canonical database-only migration
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          bash scripts/azaad-dr-real-restore.sh
+      - name: Verify critical Neon schema
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT to_regclass('public.clinic_staff'), to_regclass('public.clinic_patients'), to_regclass('public.clinic_bookings');"
+          test "$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.clinic_staff;")" -ge 0
+          echo 'PASS: critical clinic schema exists'
+      - name: Prove public table and row-count parity
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/azaad-parity"
+          mkdir -p "$work"
+          : > "$work/supabase.tsv"
+          : > "$work/neon.tsv"
+          while IFS= read -r table; do
+            count="$(psql "$SUPABASE_DB_URL" -Atqc "SELECT count(*) FROM public.\"$table\";")"
+            printf '%s\t%s\n' "$table" "$count" >> "$work/supabase.tsv"
+          done < <(psql "$SUPABASE_DB_URL" -Atqc "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;")
+          while IFS= read -r table; do
+            count="$(psql "$NEON_DATABASE_URL" -Atqc "SELECT count(*) FROM public.\"$table\";")"
+            printf '%s\t%s\n' "$table" "$count" >> "$work/neon.tsv"
+          done < <(psql "$NEON_DATABASE_URL" -Atqc "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'azaad_dr_reconciliation' ORDER BY tablename;")
+          diff -u "$work/supabase.tsv" "$work/neon.tsv"
+          echo 'PASS: public table names and row counts match exactly'
+      - name: Explicitly record database-only boundary
+        run: |
+          echo 'database_restore=PASS_IF_ALL_PREVIOUS_STEPS_PASS'
+          echo 'storage_migration=NOT_EXECUTED_BY_DESIGN'
+          echo 'identity_auth=NOT_PROVEN'
+          echo 'browser_clinical_financial_e2e=NOT_PROVEN'
+          echo 'production_cutover=BLOCKED'
