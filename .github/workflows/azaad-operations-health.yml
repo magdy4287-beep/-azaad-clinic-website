@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -F "Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -F "AI cannot approve, impersonate, bypass, or execute around this chain." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "AI cannot approve, impersonate, bypass, or execute around the refund chain." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "AI must never:" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "AI financial approval" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "AI privilege escalation" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
