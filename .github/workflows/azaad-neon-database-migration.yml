@@ -28,7 +28,16 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg
+          sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
           sudo apt-get install -y postgresql-client-17
+          command -v pg_dump
+          command -v pg_restore
+          pg_dump --version
+          pg_restore --version
       - name: Verify migration secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
