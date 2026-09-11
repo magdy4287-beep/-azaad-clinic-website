@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /admin/
+Disallow: /patient-dashboard
+Disallow: /patient-portal
+Disallow: /doctor-dashboard.html
+Disallow: /management-dashboard.html
+Disallow: /api/
+
+Sitemap: https://azaad-clinic-website.vercel.app/sitemap.xml
