@@ -24,20 +24,27 @@ jobs:
           set -euo pipefail
           test -s .github/NEON_MIGRATION_EXECUTION_MARKER.md
           echo 'PASS: explicit migration marker is present'
-      - name: Install PostgreSQL 17 client
+      - name: Install PostgreSQL client toolchain
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y ca-certificates curl gnupg
           sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
+          if apt-cache show postgresql-client-17 >/dev/null 2>&1; then
+            sudo apt-get install -y postgresql-client-17
+          else
+            echo 'PGDG 17 package unavailable; using Ubuntu-supported PostgreSQL client as compatibility fallback.'
+            sudo apt-get install -y postgresql-client
+          fi
           command -v pg_dump
           command -v pg_restore
+          command -v psql
           pg_dump --version
           pg_restore --version
+          psql --version
       - name: Verify migration secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -56,7 +63,9 @@ jobs:
           DR_BACKUP_PASSPHRASE: ${{ secrets.DR_BACKUP_PASSPHRASE }}
         run: |
           set -euo pipefail
-          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          if [ -d /usr/lib/postgresql/17/bin ]; then
+            export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          fi
           bash scripts/azaad-dr-real-restore.sh
       - name: Verify critical Neon schema
         env:
