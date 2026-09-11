@@ -59,8 +59,7 @@ jobs:
           grep -F "AI financial approval" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "AI privilege escalation" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "AI authorization bypass" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -F "AI/fallback result when the change affects an AI-assisted surface" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -F "If evidence is missing, status is **NOT PROVEN**, not PASS." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -F "Missing evidence is **NOT PROVEN**, never an implied PASS." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "A backup that has never been restored is not considered proven recovery capability." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
 
