@@ -63,6 +63,25 @@ jobs:
           grep -F "Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem" AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -F "A backup that has never been restored is not considered proven recovery capability." AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
 
+      - name: Verify public SEO and private portal indexing boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s robots.txt
+          test -s sitemap.xml
+          test -s docs/AZAAD_PUBLIC_SEO_GO_LIVE.md
+          grep -F 'Sitemap: https://azaad-clinic-website.vercel.app/sitemap.xml' robots.txt
+          grep -F 'Disallow: /patient.html' robots.txt
+          grep -F '<loc>https://azaad-clinic-website.vercel.app/</loc>' sitemap.xml
+          grep -F 'name="robots" content="index, follow' index.html
+          grep -F 'rel="canonical" href="https://azaad-clinic-website.vercel.app/"' index.html
+          grep -F 'hreflang="ar"' index.html
+          grep -F 'hreflang="en"' index.html
+          grep -F 'application/ld+json' index.html
+          grep -F 'MedicalBusiness' index.html
+          grep -F 'name="robots" content="noindex, nofollow' patient.html
+          echo "Public SEO / private patient indexing boundary: PASS"
+
       - name: Verify one-time workflow safety
         shell: bash
         run: |
@@ -92,10 +111,6 @@ jobs:
           echo "Checking ${url}"
           curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
           test -s /tmp/azaad-vercel.html
-          # Production currently identifies the public clinic surface as
-          # Azaad Psychotherapy; the old 'Azaad Clinic' literal was stale gate
-          # text and caused a false-negative despite HTTP 200 and the canonical
-          # central-i18n runtime being present.
           grep -Fq 'Azaad Psychotherapy' /tmp/azaad-vercel.html
           grep -Fq 'central-i18n.js' /tmp/azaad-vercel.html
           echo "Vercel production HTTP/content health: PASS"
