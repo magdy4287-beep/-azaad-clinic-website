@@ -2,221 +2,129 @@
 
 Status: **ADOPTED / ACTIVE**
 
-Effective branch: `main`
-Production source of truth: `main` → GitHub Pages.
-Backend: Supabase Auth/Postgres/RLS/Edge Functions.
-Vercel: optional preview/development infrastructure unless explicitly promoted by a future release decision.
+## 0. Canonical production architecture
 
-## 0. Free-Only + AI-First Engineering Constraint
+- Production source of truth: GitHub `main` after release governance approval.
+- Production hosting/runtime: **Vercel**.
+- Identity/authentication: **Appwrite**.
+- Application data: **Neon Postgres**.
+- Browser session: server-managed HttpOnly session; privileged Appwrite/Neon credentials never enter browser code.
+- Supabase: **legacy migration / historical DR evidence only**. It is not a production runtime, authentication boundary, database owner, or browser dependency.
+- Free-only constraint: no production requirement may depend on a paid plan, paid API, paid AI model, paid credits, or paid add-on.
 
-AZAAD is a **100% free-only project** and an **AI-first clinic platform**.
+Every module follows:
 
-No production requirement, gate, architecture decision, recovery procedure, monitoring path, AI integration, deployment path, or operational dependency may require a paid plan, paid API, paid infrastructure, paid AI model, paid credits, or paid add-on.
+`UI owner → runtime owner → data owner → backend boundary → permission boundary → E2E contract → production evidence`
 
-Rules:
+No duplicate runtime owner is accepted merely because an older implementation still exists in the repository. Legacy source may remain only when it is explicitly unreachable, transformed safely, or retained as migration/DR evidence and protected by a gate.
 
-- Never upgrade a provider plan to make a gate pass.
-- Never create a paid development/preview/recovery resource automatically.
-- Never introduce a paid API, paid AI model, paid credit pool, or paid service as a hidden dependency.
-- Prefer free/native capabilities first.
-- AI assistance is expected across the clinic platform, including administrative, reception, scheduling, patient-facing, clinical-support, financial/reporting, management, and the Patient Dashboard surfaces, subject to role authorization and safety boundaries.
-- AI is assistive and must not become a single point of failure for core operations.
-- Every AI-assisted workflow must have a safe free fallback: deterministic application logic, a free/native model or capability, cached/previously computed non-sensitive results where appropriate, or a human/manual workflow.
-- If a capability cannot be proven on the free-only stack, record it as **NOT PROVEN ON FREE-ONLY STACK** rather than converting it into a paid requirement.
-- A free-tier limitation is not a reason to weaken a security, clinical, privacy, or financial control.
-- Production must remain operational without optional paid infrastructure or paid AI.
+## 1. Free-only + AI-first constraint
 
-### AI safety and human authority
+AZAAD must remain operational on the free-first stack. Never upgrade a provider, add paid infrastructure, add paid AI, or introduce hidden paid dependencies merely to make a gate pass.
 
-AI may assist with search, summarization, classification, drafting, navigation, insights, recommendations, analytics, and other explicitly bounded assistance.
-
-AI must never:
+AI is assistive only. It may search, summarize, classify, draft, recommend, analyze, or navigate within explicit authorization boundaries. AI must never:
 
 - approve or execute a refund outside the human approval chain
 - grant or escalate privileges
-- bypass RLS or authorization
+- bypass authorization or privacy controls
 - impersonate an authorized human approver
 - make the final clinical decision
-- silently alter authoritative financial, clinical, identity, permission, or audit records
+- silently mutate authoritative identity, permission, financial, clinical, or audit records
 
-AI outputs are untrusted inputs until validated by the applicable authorization and domain rules.
+Every AI surface requires a safe non-AI fallback. AI failure, timeout, malformed output, or unavailable provider must not block safe core clinic operations.
 
-Recovery rule: a paid-only restore drill is **not** an acceptable production dependency. Recovery evidence must use free/native capabilities where available; otherwise the limitation is documented and the gate remains explicitly NOT PROVEN.
+## 2. Production hardening gate
 
-## 1. Production Hardening Gate
+Every production change is evaluated for:
 
-Every production change must be evaluated for:
-
-- authentication/session integrity
-- RBAC and privilege boundaries
-- Supabase RLS and server-side authorization
+- Appwrite authentication and session integrity
+- RBAC and least privilege
+- server-side authorization and doctor/patient scoping
 - IDOR/cross-patient access
-- secret exposure and browser trust
-- unsafe client-side authorization
-- XSS/injection and unsafe redirects
-- rate limiting and abuse resistance where applicable
+- secret exposure and browser trust boundaries
+- XSS/injection/unsafe redirects
+- abuse resistance where applicable
 - auditability of sensitive actions
-- financial integrity
-- clinical-data integrity
-- AI safety boundaries and fallback behavior
-- error and information leakage
+- financial and clinical data integrity
+- AI safety and fallback behavior
+- error/information leakage
 - Arabic/English and RTL/LTR behavior
 - responsive behavior
+- exact production SHA provenance
 
-Severity policy:
+Severity:
 
-- Critical: release blocker; contain and fix before release.
-- High: release blocker unless explicitly risk-accepted by authorized human owner with evidence.
-- Medium: may release only with documented owner and follow-up date.
+- Critical: release blocker.
+- High: release blocker unless explicitly risk-accepted by the authorized human owner with evidence.
+- Medium: release only with documented owner/follow-up.
 - Low: backlog unless it affects a production gate.
 
-## 2. Financial Safety Gate
+## 3. Financial safety
 
-Refunds are never executed directly from a client or AI action.
-
-Required sequence:
+Refunds use exactly:
 
 `Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution`
 
-This applies to every original payment method and refund method, including Cash → Cash.
+The server owns authorization and state transitions. The browser and AI cannot bypass or impersonate an approver. Completed financial records are not destructively edited; corrections use controlled workflows, duplicate transactions are rejected, and sensitive actions are attributable to an authenticated actor.
 
-AI cannot approve, impersonate, bypass, or execute around this chain.
+## 4. Clinical safety
 
-Other financial invariants:
+Clinical access is authenticated, role-scoped, and patient-scoped. Doctor access must be bound to the authenticated staff/doctor identity. Cross-patient access, privilege escalation, and client-only authorization are release blockers.
 
-- completed financial records are not destructively edited
-- corrections use controlled workflows
-- duplicate financial transactions are rejected
-- sensitive financial actions are attributable to an authenticated actor
-- approval history is preserved
+Historical clinical records remain auditable through controlled correction/archive workflows. AI remains assistive and cannot make the final clinical decision.
 
-## 3. Clinical Safety Gate
+## 5. UAT contract
 
-Clinical access must remain authorized and scoped.
-
-- no cross-patient access
-- no privilege escalation through the browser
-- clinical changes require appropriate authenticated role scope
-- historical clinical records are preserved through controlled correction/archive workflows
-- AI is assistive only and cannot make the final clinical decision
-
-## 4. AI Coverage & Patient Dashboard Gate
-
-AI is a platform capability, not a standalone feature.
-
-Applicable AI-assisted surfaces include, according to role and enabled capability:
-
-- reception/front desk assistance
-- patient search and navigation assistance
-- scheduling and booking assistance
-- waiting-list assistance
-- patient-facing assistance and the Patient Dashboard
-- doctor clinical-workspace assistance
-- assessment and clinical summarization assistance
-- management dashboards and operational insights
-- financial/reporting analysis assistance
-- administrative and configuration assistance
-- analytics and decision-support assistance
-
-Each surface must preserve authorization, privacy, auditability, and human authority. AI availability must never be required for a core transaction to remain safe and usable.
-
-For each AI-assisted surface, release evidence should establish:
-
-`AI request → authorization → bounded processing → validation → safe response/fallback → audit where sensitive`
-
-A missing AI provider, exhausted free quota, model failure, malformed output, or timeout must degrade safely without bypassing controls or blocking essential non-AI clinic workflows.
-
-## 5. UAT Contract
-
-UAT must cover complete workflows, not isolated buttons.
+UAT validates complete workflows rather than isolated controls.
 
 ### Reception
-
 `Search/Register → Patient 360 → Schedule → Check-in → Payment → Receipt`
 
 ### Doctor
-
 `Queue → Patient → Clinical Workspace → Assessment → Diagnosis/Plan → Complete Visit`
 
 ### Management/Owner
-
 `Dashboard → Financials → Refund Request → Doctor Approval → Management/Owner Approval → Execution → Audit`
 
 ### Administration
-
 `Users → Roles → Permissions → Audit → Configuration`
 
 ### Patient Dashboard
-
-`Authenticated Patient → Dashboard → Appointments → Relevant patient-facing information → Safe AI assistance/fallback → Logout`
-
-### AI UAT
-
-For each applicable AI surface:
-
-`Authorized user → AI assistance → bounded output → validation → safe fallback → no unauthorized side effect`
+`Authenticated Patient → Dashboard → Appointments → patient-facing information → safe AI assistance/fallback → Logout`
 
 ### Negative UAT
+Must reject unauthorized patient/clinical/financial access, direct refund execution without both approvals, AI approval or privilege escalation, duplicate payment/refund, invalid appointment transitions, expired/invalid sessions, and unsafe state changes caused by AI failure.
 
-The following must be rejected:
+## 6. Release governance
 
-- unauthorized patient access
-- unauthorized clinical access
-- unauthorized financial action
-- direct refund execution without both approvals
-- AI financial approval
-- AI privilege escalation
-- AI authorization bypass
-- duplicate payment/refund
-- invalid appointment state transition
-- expired/invalid session access
-- AI failure causing an unsafe or unauthorized state change
-
-## 6. Release Governance
-
-No production change is considered ready from a Git commit alone.
+No production change is ready from a Git commit alone.
 
 Required sequence:
 
-`Requirement → bounded change → implementation → authorization checks → validation → audit/security → errors → Arabic/English → responsive → AI/fallback checks where applicable → verification → production deployment → production smoke → evidence`
+`Requirement → bounded change → implementation → authorization → validation → security/audit → errors → i18n → responsive → AI/fallback checks → CI → production deployment → production smoke/browser E2E → exact-SHA evidence`
 
-Every change must identify:
-
-- acceptance criteria
-- affected modules
-- security impact
-- data/financial impact
-- AI impact and fallback impact when applicable
-- rollback strategy
-- verification evidence
-
-A passing Core Gate must not be weakened to accommodate an unrelated change.
-
-### Executable governance enforcement
-
-`.github/workflows/azaad-release-governance-gate.yml` enforces this document on `main` and pull requests targeting `main`.
-
-The gate verifies that:
-
-- this policy is present and contains the critical financial, release, AI, free-only, and evidence rules
-- one-time/once workflows cannot acquire automatic `push`, `schedule`, `pull_request`, or `pull_request_target` triggers
-- one-time/once workflows cannot silently introduce `secrets` or `environment` blocks
-
-One-time workflows that have completed their migration remain manually dispatched only. They must never become part of the normal production release path.
-
-## 7. Required Production Evidence
-
-A release is certified only when the applicable evidence exists for the exact production commit:
+Required evidence for the exact production commit:
 
 - CI/regression result
 - security/authorization result
-- relevant UAT result
-- production deployment result
-- production browser/smoke result
-- AI/fallback result when the change affects an AI-assisted surface
+- applicable UAT result
+- Vercel production deployment result
+- production smoke/browser result
+- AI/fallback result when applicable
 - audit/financial evidence when applicable
+- rollback/restore evidence when applicable
 
-If evidence is missing, status is **NOT PROVEN**, not PASS.
+Missing evidence is **NOT PROVEN**, never an implied PASS.
+
+## 7. Deterministic engineering / self-healing policy
+
+AZAAD uses an evidence-driven loop:
+
+`ROOT SCAN → OWNERSHIP MAP → ROOT CAUSE → MINIMAL SAFE CHANGE → STATIC GATES → BUILD → BROWSER/E2E → EXACT SHA → DOCUMENT → NEXT ROOT SCAN`
+
+Self-healing means deterministic diagnosis and safe, bounded remediation with verification. CI must not silently mutate source, merge pull requests, perform destructive database/provider operations, or weaken a failing contract to obtain a green result.
+
+When a failure occurs, improve the missing capability or guardrail rather than merely changing the symptom-level assertion.
 
 ## 8. Operations
 
@@ -224,62 +132,20 @@ Production incidents follow:
 
 `Detect → Triage → Contain → Investigate → Correct → Verify → Deploy → Monitor → Postmortem`
 
-Priority:
+P0 includes patient-data exposure, security breach, financial corruption, or catastrophic production failure. P1 includes a major or unsafe production workflow outage.
 
-- P0: patient-data exposure, security breach, financial corruption, or catastrophic production failure.
-- P1: major production workflow unavailable or materially unsafe.
-- P2: significant degradation with workaround.
-- P3: minor defect or cosmetic issue.
+Protect evidence first. Do not perform destructive emergency edits that erase the forensic trail. AI incidents follow the same containment and audit discipline as other application incidents.
 
-For P0/P1, protect evidence first and preserve audit/database history. Do not perform destructive emergency edits that erase the forensic trail.
+## 9. Backup / recovery / DR
 
-AI incidents include unsafe output, authorization boundary failures, privacy leakage, unexpected tool/action behavior, or failure to degrade safely. Treat an AI failure as a normal application incident with the same evidence and containment discipline.
+Recovery evidence must use free/native capabilities where possible. A paid-only restore drill is not a production dependency.
 
-## 9. Backup / Recovery
+Supabase may be retained as migration or historical DR evidence, but recovery must not assume Supabase is the active AZAAD runtime. Portable export/restore procedures must be independently verifiable against the canonical Appwrite + Neon + Vercel architecture.
 
-Before operational certification, maintain and periodically test:
+A recovery capability that cannot be proven on the free-only stack is explicitly **NOT PROVEN ON FREE-ONLY STACK** rather than silently converted into a paid requirement.
 
-- database backup availability
-- restore procedure
-- data-integrity validation after restore
-- application recovery procedure
-- ownership and escalation contacts
-- documented recovery objectives (RPO/RTO)
+## 10. Go-Live rule
 
-A backup that has never been restored is not considered proven recovery capability.
+AZAAD is operationally certified only when Identity, Auth, Sessions, RBAC, Patient, Booking, Scheduling, Doctor, Clinical, Finance, Administration, Audit, Security, AI Safety, Backup, Restore, DR, Monitoring, Mobile, Arabic, English, CI, E2E, UAT, Production, SOP, Staff Training, and the Go-Live Drill have applicable evidence for the same release baseline.
 
-Paid-only recovery resources are prohibited. Use free/native recovery capabilities where available. If the free-only environment cannot provide a real restore drill, record **NOT PROVEN ON FREE-ONLY STACK** and do not claim recovery certification.
-
-## 10. Observability
-
-Monitor at minimum:
-
-- authentication failures
-- authorization/RLS denials
-- application/API failures
-- Edge Function failures
-- payment/refund failures
-- appointment failures
-- frontend/browser errors
-- AI failures, timeouts, malformed outputs, and fallback activations
-- unusual access-denial spikes
-
-Sensitive logs must not contain plaintext passwords, secrets, unnecessary patient data, or raw sensitive AI prompts/outputs unless explicitly required and appropriately protected for the operational purpose.
-
-## 11. Change Freeze Rule
-
-Once a release passes all applicable gates, do not continue changing unrelated code under the same release candidate. New work becomes a new bounded change and must obtain fresh evidence.
-
-## 12. Current Adoption
-
-The Core Stack & Production Gates remain **PASS / LOCKED** under `AZAAD_ENGINEERING_CONTROL_PLAN.md`.
-
-This document activates the next operating layer:
-
-**Production Hardening → UAT → Release Governance → Operations**
-
-The layer is active, and its governance rules are executable through CI. Individual release gates remain evidence-based and must not be marked PASS without fresh evidence.
-
-The AZAAD free-only constraint is a permanent project rule and overrides any proposal that introduces a paid dependency merely to close a gate.
-
-The AI-first constraint is also permanent: AI may assist across the platform, including the Patient Dashboard, but every AI capability must remain free-only, role-scoped, auditable where sensitive, human-authorized for consequential actions, and safely degradable when AI is unavailable.
+A passing historical run does not certify a newer SHA. Every release must prove its own exact production artifact and runtime behavior.
