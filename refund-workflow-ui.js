@@ -1,14 +1,15 @@
 /* AZAAD CLINIC — CANONICAL REFUND WORKFLOW UI
  * Every refund: Request -> Doctor Approval -> Management/Owner Approval -> Processing.
- * Canonical runtime: Appwrite session -> /api/refunds -> Neon.
+ * Canonical runtime: Appwrite session -> /api/invoices?resource=refunds -> Neon.
  * Financial mutations are server-side and fail closed; the browser never receives provider secrets.
  */
 (() => {
   'use strict';
   const tr = (ar, en) => (document.documentElement.lang || '').startsWith('en') ? en : ar;
   const esc = v => String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
-  const api = (action, body) => fetch(`/api/refunds?action=${encodeURIComponent(action)}`, { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body || {}) }).then(async r => { const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.error || tr('تعذر تنفيذ العملية.','Refund operation failed.')); return data; });
-  const get = () => fetch('/api/refunds', { credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' } }).then(async r => { const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.error || 'refund_workflow_unavailable'); return data; });
+  const endpoint = '/api/invoices?resource=refunds';
+  const api = (action, body) => fetch(`${endpoint}&action=${encodeURIComponent(action)}`, { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body || {}) }).then(async r => { const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.error || tr('تعذر تنفيذ العملية.','Refund operation failed.')); return data; });
+  const get = () => fetch(endpoint, { credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' } }).then(async r => { const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.error || 'refund_workflow_unavailable'); return data; });
   const toast = (m, error = false) => window.showToast ? window.showToast(m, error ? 'error' : 'success') : console[error ? 'error' : 'log'](m);
   const role = () => String(window.AZAAD?.state?.staff?.role || window.AZAAD?.state?.identity?.role || '').toUpperCase();
 
