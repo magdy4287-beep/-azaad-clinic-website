@@ -20,9 +20,19 @@ No duplicate runtime owner is accepted merely because an older implementation st
 
 ## 1. Free-only + AI-first constraint
 
-AZAAD must remain operational on the free-first stack. Never upgrade a provider, add paid infrastructure, add paid AI, or introduce hidden paid dependencies merely to make a gate pass.
+**AZAAD is a **100% free-only project** and an **AI-first clinic platform**.**
 
-AI is assistive only. It may search, summarize, classify, draft, recommend, analyze, or navigate within explicit authorization boundaries. AI must never:
+Never upgrade a provider plan to make a gate pass.
+
+Never introduce a paid API, paid AI model, paid credit pool, or paid service as a hidden dependency.
+
+AI assistance is expected across the clinic platform, including the Patient Dashboard, but AI is assistive only. It may search, summarize, classify, draft, recommend, analyze, or navigate within explicit authorization boundaries.
+
+AI is assistive and must not become a single point of failure for core operations.
+
+Every AI-assisted workflow must have a safe free fallback. AI failure, timeout, malformed output, or unavailable provider must not block safe core clinic operations.
+
+AI must never:
 
 - approve or execute a refund outside the human approval chain
 - grant or escalate privileges
@@ -31,7 +41,7 @@ AI is assistive only. It may search, summarize, classify, draft, recommend, anal
 - make the final clinical decision
 - silently mutate authoritative identity, permission, financial, clinical, or audit records
 
-Every AI surface requires a safe non-AI fallback. AI failure, timeout, malformed output, or unavailable provider must not block safe core clinic operations.
+For financial safety, **AI financial approval** is prohibited. **AI privilege escalation** is prohibited. **AI authorization bypass** is prohibited. AI cannot approve, impersonate, bypass, or execute around the refund chain.
 
 ## 2. Production hardening gate
 
@@ -113,8 +123,11 @@ Required evidence for the exact production commit:
 - AI/fallback result when applicable
 - audit/financial evidence when applicable
 - rollback/restore evidence when applicable
+- AI/fallback result when the change affects an AI-assisted surface
 
 Missing evidence is **NOT PROVEN**, never an implied PASS.
+
+If evidence is missing, status is **NOT PROVEN**, not PASS.
 
 ## 7. Deterministic engineering / self-healing policy
 
@@ -139,6 +152,8 @@ Protect evidence first. Do not perform destructive emergency edits that erase th
 ## 9. Backup / recovery / DR
 
 Recovery evidence must use free/native capabilities where possible. **Paid-only recovery resources are prohibited.**
+
+A backup that has never been restored is not considered proven recovery capability.
 
 Supabase may be retained as migration or historical DR evidence, but recovery must not assume Supabase is the active AZAAD runtime. Portable export/restore procedures must be independently verifiable against the canonical Appwrite + Neon + Vercel architecture.
 
