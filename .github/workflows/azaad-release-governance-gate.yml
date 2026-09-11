@@ -23,8 +23,8 @@ jobs:
           set -euo pipefail
           test -s AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'Requirement → bounded change → implementation → authorization checks → validation → audit/security' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
-          grep -Fq 'If evidence is missing, status is **NOT PROVEN**, not PASS.' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'Requirement → bounded change → implementation → authorization → validation → security/audit' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
+          grep -Fq 'Missing evidence is **NOT PROVEN**, never an implied PASS.' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
 
       - name: Enforce one-time workflow safety
         shell: bash
