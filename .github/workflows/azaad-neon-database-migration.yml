@@ -13,12 +13,17 @@ permissions:
 
 jobs:
   migrate:
-    if: github.ref == 'refs/heads/chore/architecture-cleanup-20260910' && hashFiles('.github/NEON_MIGRATION_EXECUTION_MARKER.md') != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/chore/architecture-cleanup-20260910'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Checkout exact migration revision
         uses: actions/checkout@v4
+      - name: Verify one-time execution marker
+        run: |
+          set -euo pipefail
+          test -s .github/NEON_MIGRATION_EXECUTION_MARKER.md
+          echo 'PASS: explicit migration marker is present'
       - name: Install PostgreSQL 17 client
         run: |
           set -euo pipefail
@@ -34,6 +39,7 @@ jobs:
           test -n "$SUPABASE_DB_URL"
           test -n "$NEON_DATABASE_URL"
           test -n "$DR_BACKUP_PASSPHRASE"
+          echo 'PASS: migration secrets are present'
       - name: Execute canonical database-only migration
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -71,7 +77,7 @@ jobs:
           done < <(psql "$NEON_DATABASE_URL" -Atqc "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'azaad_dr_reconciliation' ORDER BY tablename;")
           diff -u "$work/supabase.tsv" "$work/neon.tsv"
           echo 'PASS: public table names and row counts match exactly'
-      - name: Explicitly record database-only boundary
+      - name: Record bounded database-only result
         run: |
           echo 'database_restore=PASS_IF_ALL_PREVIOUS_STEPS_PASS'
           echo 'storage_migration=NOT_EXECUTED_BY_DESIGN'
