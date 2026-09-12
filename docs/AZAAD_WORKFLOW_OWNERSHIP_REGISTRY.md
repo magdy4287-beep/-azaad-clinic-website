@@ -14,12 +14,10 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-admin-gates.yml` | Admin structural acceptance | Admin, scheduling, marketing structural contracts | Canonical Admin acceptance |
 | `azaad-admin-nextgen-gate.yml` | Admin Next-Gen feature contracts | Next-Gen JS, role, bilingual and credential-safety contracts | Canonical feature gate |
 | `azaad-browser-e2e.yml` | Browser behavior | End-to-end browser behavior against the intended artifact | Canonical runtime gate |
-| `azaad-auth-bridge-e2e.yml` | Auth bridge behavior | Authentication/session bridge | Canonical auth E2E |
 | `azaad-comprehensive-system-contract.yml` | Cross-system contracts | System-wide structural contracts | Canonical system gate |
 | `azaad-appointment-gate.yml` | Appointment contract | Appointment contract only | Canonical appointment gate |
 | `central-scheduling-gate.yml` | Central scheduling domain | Central scheduling contract | Canonical scheduling-domain gate |
 | `scheduling-actions-gate.yml` | Scheduling actions | Scheduling action contract | Canonical scheduling-actions gate |
-| `azaad-patient-booking-gate.yml` | Patient booking architecture | Patient lookup / booking contract | Canonical patient-booking gate |
 | `azaad-booking-ui-final-fix.yml` | Booking presentation behavior | Booking UI formatting/action contract | Canonical booking-UI gate |
 | `azaad-clinical-ai-gate.yml` | Clinician AI safety/UX | Clinical AI cockpit, longitudinal evidence and safety boundary | Canonical clinical-AI gate |
 | `azaad-ai-gate.yml` | AI operating system | AI operating-system contract | Canonical AI platform gate |
@@ -59,7 +57,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 `central-scheduling-gate.yml` and `scheduling-actions-gate.yml` are separate because one owns the scheduling domain contract and the other owns action semantics.
 
-`azaad-patient-booking-gate.yml` and `azaad-booking-ui-final-fix.yml` are separate because one owns patient identity/booking safety and the other owns presentation behavior.
+`azaad-booking-ui-final-fix.yml` owns presentation behavior and is intentionally not duplicated by another booking UI workflow.
 
 `azaad-ai-gate.yml` and `azaad-clinical-ai-gate.yml` are separate because one owns the general AI operating boundary and the other owns clinician-facing clinical AI safety.
 
