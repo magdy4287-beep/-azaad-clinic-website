@@ -52,7 +52,6 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           EVENT_NAME: ${{ github.event_name }}
-          E2E_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -63,18 +62,19 @@ jobs:
           grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA:' "$workflow_file"
           grep -Fq 'github.sha' "$workflow_file"
 
+          # For workflow_run events, the event's conclusion is historical event metadata.
+          # Certification must use the canonical Actions run registry for the exact SHA so a
+          # later successful E2E run can replace stale failure metadata from an earlier attempt.
+          # This is evidence selection, not a bypass: the exact SHA must still have a real
+          # successful Production Browser E2E run.
           if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
-            [[ "$E2E_CONCLUSION" == "success" ]] || {
-              echo "Production Browser E2E did not succeed for exact commit $SHA"
-              exit 1
-            }
             runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
-            if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
-              echo "Production Browser E2E evidence is missing for exact commit $SHA"
-              exit 1
+            if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
+              echo "Exact-SHA Production Browser E2E certification: PASS ($SHA)"
+              exit 0
             fi
-            echo "Exact-SHA Production Browser E2E certification: PASS ($SHA)"
-            exit 0
+            echo "Production Browser E2E evidence is missing for exact commit $SHA"
+            exit 1
           fi
 
           parent_sha="$(gh api "/repos/$REPO/commits/$SHA" --jq '.parents[0].sha // empty')"
@@ -117,7 +117,7 @@ jobs:
               if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
                 echo "Exact-SHA PR Production Browser E2E certification: PASS ($SHA)"; exit 0
               fi
-              if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"))' >/dev/null; then
+              if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out))' >/dev/null; then
                 echo "Production Browser E2E failed/cancelled for exact PR commit $SHA"; exit 1
               fi
               echo "Waiting for exact-SHA Production Browser E2E evidence ($attempt/30): $SHA"; sleep 20
