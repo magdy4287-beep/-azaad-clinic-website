@@ -7,7 +7,8 @@ admin = (ROOT / 'admin.html').read_text(encoding='utf-8')
 loader = (ROOT / 'qa' / 'lazy-admin-modules.py').read_text(encoding='utf-8')
 enterprise = (ROOT / 'admin-enterprise-centers.js').read_text(encoding='utf-8')
 purchasing = (ROOT / 'admin-purchasing-center.js').read_text(encoding='utf-8')
-purchases_api = (ROOT / 'api' / 'purchases.js').read_text(encoding='utf-8')
+purchases_api_path = ROOT / 'api' / 'purchases.js'
+purchases_api = purchases_api_path.read_text(encoding='utf-8') if purchases_api_path.exists() else ''
 
 registry_match = re.search(r'data-azaad-admin-module-registry=["\']1["\'][^>]*>(.*?)</script>', admin, re.I | re.S)
 registry_body = registry_match.group(1) if registry_match else ''
@@ -45,8 +46,8 @@ check('purchasing: no browser-local clinic_purchases query', ".from('clinic_purc
 check('purchasing: browser has no Supabase provider URL', 'supabase.co' not in purchasing and 'supabase' not in purchasing.lower())
 check('purchasing: browser has no Supabase key or access-token dependency', 'sb_publishable_' not in purchasing and 'access_token' not in purchasing and 'apikey' not in purchasing)
 check('purchasing: browser uses canonical same-origin API', "'/api/purchases'" in purchasing or '"/api/purchases"' in purchasing)
-check('purchasing: dedicated server boundary exists', "'/api/purchases'" in purchases_api and 'appwrite-neon' in purchases_api)
-check('purchasing: server boundary enforces write roles', "['OWNER','ADMIN','MANAGER']" in purchases_api and 'WRITE_ROLES' in purchases_api)
+check('purchasing: dedicated server boundary exists', purchases_api_path.exists() and 'clinic_purchases' in purchases_api and 'appwrite-neon' in purchases_api)
+check('purchasing: server boundary enforces write roles', "WRITE_ROLES" in purchases_api and "'OWNER','ADMIN','MANAGER'" in purchases_api)
 check('purchasing: exposes all CRUD HTTP methods', all(re.search(r"method\s*:\s*['\"]" + method + r"['\"]", purchasing) or re.search(r"call\([^\n]*['\"]" + method + r"['\"]", purchasing) for method in ('GET','POST','PATCH','DELETE')))
 
 for domain, backend in DOMAINS.items():
