@@ -63,49 +63,36 @@ jobs:
           grep -Fq 'AZAAD_EXPECTED_PRODUCTION_SHA:' "$workflow_file"
           grep -Fq 'github.sha' "$workflow_file"
 
-          # workflow_run is authoritative after the upstream Browser E2E completes.
           if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
             [[ "$E2E_CONCLUSION" == 'success' ]] || {
               echo "Production Browser E2E did not succeed for exact commit $SHA"
               exit 1
             }
-
             runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
             if ! printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
               echo "Production Browser E2E evidence is missing for exact commit $SHA"
               exit 1
             fi
-
             echo "Exact-SHA Production Browser E2E certification: PASS ($SHA)"
             exit 0
           fi
 
           parent_sha="$(gh api "/repos/$REPO/commits/$SHA" --jq '.parents[0].sha // empty')"
-          if [[ -z "$parent_sha" ]]; then
-            echo "Cannot determine parent commit for certification evidence: $SHA"
-            exit 1
-          fi
-
+          [[ -n "$parent_sha" ]] || { echo "Cannot determine parent commit for certification evidence: $SHA"; exit 1; }
           mapfile -t changed_files < <(gh api "/repos/$REPO/compare/$parent_sha...$SHA" --jq '.files[]?.filename')
-          if [[ "${#changed_files[@]}" -eq 0 ]]; then
-            echo "No changed files detected between $parent_sha and $SHA"
-            exit 1
-          fi
-
-          echo "Changed files for $SHA:"
-          printf '  %s\n' "${changed_files[@]}"
+          [[ "${#changed_files[@]}" -gt 0 ]] || { echo "No changed files detected between $parent_sha and $SHA"; exit 1; }
+          echo "Changed files for $SHA:"; printf '  %s\n' "${changed_files[@]}"
 
           evidence_only_change=1
           for file in "${changed_files[@]}"; do
             case "$file" in
-              docs/*|*.md) ;;
+              docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
               *) evidence_only_change=0; break ;;
             esac
           done
 
-          # Documentation/governance-only PRs intentionally do not trigger Browser E2E
-          # because azaad-browser-e2e.yml ignores docs/*.md changes. Reuse a certified
-          # runtime ancestor immediately; never substitute another runtime commit.
+          # Docs/governance-only PRs and this certification-policy workflow are deliberately
+          # outside the runtime Browser E2E trigger. Reuse only a certified runtime ancestor.
           if [[ "$EVENT_NAME" == 'pull_request' && "$evidence_only_change" -eq 1 ]]; then
             candidate_sha="$parent_sha"
             while [[ -n "$candidate_sha" ]]; do
@@ -115,61 +102,45 @@ jobs:
                 echo "Inherited Production Browser E2E certification: PASS ($candidate_sha)"
                 exit 0
               fi
-
               next_parent="$(gh api "/repos/$REPO/commits/$candidate_sha" --jq '.parents[0].sha // empty')"
               [[ -n "$next_parent" ]] || break
               mapfile -t ancestor_files < <(gh api "/repos/$REPO/compare/$next_parent...$candidate_sha" --jq '.files[]?.filename')
               ancestor_evidence_only=1
               for file in "${ancestor_files[@]}"; do
                 case "$file" in
-                  docs/*|*.md) ;;
+                  docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
                   *) ancestor_evidence_only=0; break ;;
                 esac
               done
-              [[ "$ancestor_evidence_only" -eq 1 ]] || {
-                echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"
-                exit 1
-              }
+              [[ "$ancestor_evidence_only" -eq 1 ]] || { echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"; exit 1; }
               candidate_sha="$next_parent"
             done
             echo "No certified runtime ancestor found for evidence-only commit $SHA"
             exit 1
           fi
 
-          # PR runtime-affecting changes must have completed exact-head-SHA E2E evidence.
           if [[ "$EVENT_NAME" == 'pull_request' ]]; then
             for attempt in {1..30}; do
               runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$SHA&per_page=100")"
               if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
-                echo "Exact-SHA PR Production Browser E2E certification: PASS ($SHA)"
-                exit 0
+                echo "Exact-SHA PR Production Browser E2E certification: PASS ($SHA)"; exit 0
               fi
               if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"))' >/dev/null; then
-                echo "Production Browser E2E failed/cancelled for exact PR commit $SHA"
-                exit 1
+                echo "Production Browser E2E failed/cancelled for exact PR commit $SHA"; exit 1
               fi
-              echo "Waiting for exact-SHA Production Browser E2E evidence ($attempt/30): $SHA"
-              sleep 20
+              echo "Waiting for exact-SHA Production Browser E2E evidence ($attempt/30): $SHA"; sleep 20
             done
             echo "Timed out waiting for exact-SHA Production Browser E2E evidence for PR commit $SHA"
-            echo "Certification refuses to bypass or substitute another commit."
-            exit 1
+            echo "Certification refuses to bypass or substitute another commit."; exit 1
           fi
 
-          # Manual invocation and pushes retain the strict exact-SHA policy unless the
-          # commit is evidence-only, in which case certified runtime-ancestor inheritance is safe.
-          if [[ "$evidence_only_change" -ne 1 ]]; then
-            echo "Runtime-affecting change detected. Certification must arrive through completed exact-SHA Browser E2E evidence."
-            exit 1
-          fi
-
+          [[ "$evidence_only_change" -eq 1 ]] || { echo "Runtime-affecting change detected. Certification must arrive through completed exact-SHA Browser E2E evidence."; exit 1; }
           candidate_sha="$parent_sha"
           while [[ -n "$candidate_sha" ]]; do
             echo "Checking certification ancestor: $candidate_sha"
             runs="$(gh api --paginate "/repos/$REPO/actions/workflows/azaad-browser-e2e.yml/runs?head_sha=$candidate_sha&per_page=100")"
             if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$candidate_sha"'" and .conclusion == "success")' >/dev/null; then
-              echo "Inherited Production Browser E2E certification: PASS ($candidate_sha)"
-              exit 0
+              echo "Inherited Production Browser E2E certification: PASS ($candidate_sha)"; exit 0
             fi
             next_parent="$(gh api "/repos/$REPO/commits/$candidate_sha" --jq '.parents[0].sha // empty')"
             [[ -n "$next_parent" ]] || break
@@ -177,16 +148,11 @@ jobs:
             ancestor_evidence_only=1
             for file in "${ancestor_files[@]}"; do
               case "$file" in
-                docs/*|*.md) ;;
+                docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
                 *) ancestor_evidence_only=0; break ;;
               esac
             done
-            [[ "$ancestor_evidence_only" -eq 1 ]] || {
-              echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"
-              exit 1
-            }
+            [[ "$ancestor_evidence_only" -eq 1 ]] || { echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"; exit 1; }
             candidate_sha="$next_parent"
           done
-
-          echo "No certified runtime ancestor found for evidence-only commit $SHA"
-          exit 1
+          echo "No certified runtime ancestor found for evidence-only commit $SHA"; exit 1
