@@ -23,6 +23,10 @@
     { "source": "/admin/admin/admin/:path*", "destination": "/admin.html", "permanent": false },
     { "source": "/admin/admin/:path*", "destination": "/admin.html", "permanent": false }
   ],
+  "rewrites": [
+    { "source": "/api/runtime-health", "destination": "/api/admin-auth?action=runtime-health" },
+    { "source": "/api/frontdesk-checkin", "destination": "/api/clinical-assessments?action=check-in" }
+  ],
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!*.md' ':!docs/**'",
   "git": {
     "deploymentEnabled": true
