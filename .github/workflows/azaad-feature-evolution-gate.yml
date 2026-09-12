@@ -30,8 +30,10 @@ jobs:
           done
       - name: Run feature contract
         run: python qa/marketing-hybrid-and-public-privacy-gate.py
-      - name: Verify marketing migration and edge functions are present
+      - name: Verify historical marketing migration evidence
         run: |
+          # Supabase paths below are retained as migration/rollback evidence only.
+          # They are not production runtime owners.
           test -f supabase/migrations/20260818160000_azaad_marketing_platform.sql
           test -f supabase/migrations/20260818162000_harden_public_booking_existing_patient_privacy.sql
           test -f supabase/functions/azaad-marketing-ai/index.ts
