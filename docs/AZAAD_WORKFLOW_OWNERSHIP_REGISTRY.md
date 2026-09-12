@@ -44,6 +44,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `locale-stability-contract.yml` | Locale stability | Locale/runtime stability contract | Canonical locale gate |
 | `azaad-waiting-list-gate.yml` | Waiting list | Waiting-list contract | Canonical domain gate |
 | `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
+| `azaad-source-canonicality-gate.yml` | Source canonicality | Proves the repository itself is canonical and build transforms do not hide source drift | Canonical source-integrity gate |
 
 ## Proven non-duplication decisions
 
@@ -56,6 +57,8 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 `azaad-ai-gate.yml` and `azaad-clinical-ai-gate.yml` are separate because one owns the general AI operating boundary and the other owns clinician-facing clinical AI safety.
 
 `azaad-clinical-authorization-e2e.yml` is separate from `azaad-browser-e2e.yml`: authorization semantics and browser runtime behavior are different evidence surfaces.
+
+`azaad-source-canonicality-gate.yml` is separate from the production build and other verification workflows because it uniquely asserts that the checked-in source tree is already canonical and that the build pipeline is not silently repairing source drift.
 
 Canonical production and DR workflows operate only on Vercel/Appwrite/Neon boundaries. They must not depend on retired provider artifacts, credentials, endpoints, functions, or migrations.
 
