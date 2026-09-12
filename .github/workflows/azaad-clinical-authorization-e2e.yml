@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for file in frontdesk-checkin-workflow.js api/frontdesk-checkin.js; do
+          for file in frontdesk-checkin-workflow.js api/clinical-assessments.js; do
             test -f "$file" || { echo "FAIL-CLOSED: missing clinical runtime surface: $file"; exit 1; }
             if grep -Ein 'supabase\.co|AZAAD_SUPABASE|supabase\.auth|createSupabaseClient|/rest/v1/rpc/' "$file"; then
               echo "FAIL-CLOSED: retired Supabase dependency remains in $file"
