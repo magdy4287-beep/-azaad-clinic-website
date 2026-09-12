@@ -18,7 +18,7 @@ for needle in ('/api/marketing', 'SUPPORTED_PLATFORMS', 'human approval', 'Free 
     assert needle in marketing, needle
 
 assert 'marketing-studio-v4.js' in lazy
-assert 'marketing-studio-v3.js' in lazy
+assert 'marketing-studio-v3.js' not in lazy
 assert not (root / 'marketing-studio-v3.js').exists()
 assert not (root / 'patient-booking-privacy-v2.js').exists()
 
