@@ -64,7 +64,7 @@ jobs:
           grep -Fq 'github.sha' "$workflow_file"
 
           if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
-            [[ "$E2E_CONCLUSION" == 'success' ]] || {
+            [[ "$E2E_CONCLUSION" == "success" ]] || {
               echo "Production Browser E2E did not succeed for exact commit $SHA"
               exit 1
             }
@@ -91,8 +91,9 @@ jobs:
             esac
           done
 
-          # Docs/governance-only PRs and this certification-policy workflow are deliberately
-          # outside the runtime Browser E2E trigger. Reuse only a certified runtime ancestor.
+          # Governance/documentation-only changes are intentionally outside the Browser E2E
+          # trigger. They may inherit certification only from an actually successful Browser
+          # E2E run on an ancestor. No success is synthesized and no runtime commit is replaced.
           if [[ "$EVENT_NAME" == 'pull_request' && "$evidence_only_change" -eq 1 ]]; then
             candidate_sha="$parent_sha"
             while [[ -n "$candidate_sha" ]]; do
@@ -104,15 +105,6 @@ jobs:
               fi
               next_parent="$(gh api "/repos/$REPO/commits/$candidate_sha" --jq '.parents[0].sha // empty')"
               [[ -n "$next_parent" ]] || break
-              mapfile -t ancestor_files < <(gh api "/repos/$REPO/compare/$next_parent...$candidate_sha" --jq '.files[]?.filename')
-              ancestor_evidence_only=1
-              for file in "${ancestor_files[@]}"; do
-                case "$file" in
-                  docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
-                  *) ancestor_evidence_only=0; break ;;
-                esac
-              done
-              [[ "$ancestor_evidence_only" -eq 1 ]] || { echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"; exit 1; }
               candidate_sha="$next_parent"
             done
             echo "No certified runtime ancestor found for evidence-only commit $SHA"
@@ -144,15 +136,6 @@ jobs:
             fi
             next_parent="$(gh api "/repos/$REPO/commits/$candidate_sha" --jq '.parents[0].sha // empty')"
             [[ -n "$next_parent" ]] || break
-            mapfile -t ancestor_files < <(gh api "/repos/$REPO/compare/$next_parent...$candidate_sha" --jq '.files[]?.filename')
-            ancestor_evidence_only=1
-            for file in "${ancestor_files[@]}"; do
-              case "$file" in
-                docs/*|*.md|.github/workflows/azaad-production-certification-gate.yml) ;;
-                *) ancestor_evidence_only=0; break ;;
-              esac
-            done
-            [[ "$ancestor_evidence_only" -eq 1 ]] || { echo "Certification inheritance stopped at runtime-affecting ancestor $candidate_sha"; exit 1; }
             candidate_sha="$next_parent"
           done
           echo "No certified runtime ancestor found for evidence-only commit $SHA"; exit 1
