@@ -1,5 +1,20 @@
 # AZAAD — Root Scan Governance
 
+## Canonical engineering tree
+
+```text
+AZAAD
+├── Runtime → Vercel
+├── Identity / Session → Appwrite
+├── Production Data → Neon
+├── Protected production domains → one explicit runtime owner + data owner + backend boundary + permission boundary + E2E contract
+├── Verification → GitHub Actions + exact-SHA artifact checks + targeted browser/production evidence
+├── Historical Evidence → supabase/ + frozen certification snapshots
+└── Governance → current architecture/go-live documents + this root-scan policy
+```
+
+This is a governance map, not a second implementation plan.
+
 ## Purpose
 
 Keep the engineering tree deterministic, current, and resistant to stale architecture, duplicate ownership, and self-reintroduced legacy runtime dependencies.
