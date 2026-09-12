@@ -117,7 +117,7 @@ jobs:
               if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and .conclusion == "success")' >/dev/null; then
                 echo "Exact-SHA PR Production Browser E2E certification: PASS ($SHA)"; exit 0
               fi
-              if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out))' >/dev/null; then
+              if printf '%s' "$runs" | jq -e '.workflow_runs[] | select(.head_sha == "'"$SHA"'" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"))' >/dev/null; then
                 echo "Production Browser E2E failed/cancelled for exact PR commit $SHA"; exit 1
               fi
               echo "Waiting for exact-SHA Production Browser E2E evidence ($attempt/30): $SHA"; sleep 20
