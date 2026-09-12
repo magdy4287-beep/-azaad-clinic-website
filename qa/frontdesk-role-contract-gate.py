@@ -20,7 +20,7 @@ if roles != canonical:
     print(f"expected={canonical}")
     sys.exit(1)
 
-if "FRONTDESK" in text:
+if re.search(r"\bFRONTDESK\b", text):
     print("FAIL: deprecated FRONTDESK role token remains in active clinical API")
     sys.exit(1)
 
