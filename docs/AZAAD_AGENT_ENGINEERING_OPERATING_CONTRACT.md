@@ -11,9 +11,29 @@ This repository is operated as a long-running engineering system. Future agents 
 3. **Trace the root:** follow the execution path from HTML entrypoint → script graph → transform → API boundary → identity → Neon data → audit.
 4. **Parallelize independent work:** inspect CI/workflow ownership, runtime ownership, backend boundaries, and production telemetry independently when they do not mutate the same file.
 5. **Change the canonical owner:** do not patch a generated artifact when the source transform owns it; do not add a second endpoint when an existing consolidated boundary can safely own the resource.
-6. **Fail closed:** duplicate owners, retired runtime markers, browser credentials, hidden legacy providers, and ambiguous transform ordering are build failures.
+6. **Fail closed:** duplicate owners, retired runtime markers, browser credentials, hidden legacy providers, ambiguous transform ordering, and stale certification pointers are build/review failures.
 7. **Verify proportionally:** rerun the smallest meaningful gate first; broaden to exact-SHA Browser E2E only after new failures or architecture changes justify it.
 8. **Promote only with evidence:** production SHA, build provenance SHA, Browser E2E SHA, and certification SHA must match before Go-Live is declared.
+
+## Parallel work discipline
+
+Independent read-only investigations may run concurrently. Mutations are serialized per file and per ownership boundary. Never make two competing edits to the same canonical file in parallel, and never let one workstream silently redefine another workstream's owner.
+
+Every workstream must leave a compact evidence record: `scope → finding → owner → action/no-action → verification → next dependency`.
+
+## Root-scan and deduplication policy
+
+At the start of every meaningful task, scan for:
+
+- duplicate runtime/API entrypoints;
+- duplicate workflow ownership;
+- stale deployment paths;
+- stale release-candidate SHA/PR references;
+- legacy provider references that can enter the production runtime;
+- generated artifacts that are being treated as source-of-truth;
+- duplicate or contradictory engineering plans.
+
+Do not delete historical evidence merely because it is old. Historical evidence remains under its historical/evidence role. Instead, make exactly one document authoritative for the current state and convert stale active pointers into historical references. Deletion is allowed only when a duplicate has no evidence, ownership, rollback, or audit value and a repository gate proves it is unused.
 
 ## Self-healing policy
 
@@ -27,8 +47,14 @@ Known repair classes:
 - missing backend boundary → reuse an existing consolidated API boundary where possible
 - wrong production artifact → exact commit provenance + production Browser E2E
 - stale workflow → workflow ownership registry + retired-workflow gate
+- stale certification pointer → canonical release-state document + certification-state gate
+- known platform configuration failure → detect from production telemetry and route repair to the owning platform boundary; never hardcode secrets or introduce a fallback runtime provider
 
 Any new failure must first become a reproducible gate before it becomes an automatic repair rule.
+
+## AI operating rule
+
+AI may investigate, propose, implement bounded repository changes, and verify them. AI must not silently alter production infrastructure, credentials, security policy, clinical authorization, financial controls, or data-retention behavior. High-risk changes require explicit evidence and the repository's normal review gates.
 
 ## Free-forever rule
 
@@ -40,4 +66,4 @@ Never transfer a successful result from an older SHA to a newer SHA. Every relea
 
 ## Astra-inspired collaboration pattern
 
-The project adopts the publicly documented engineering behaviors of GPT-6 Astra: initiative and follow-through, context selection, tool orchestration, parallel delegation where useful, adapting to new evidence, and thorough verification. This is an engineering workflow pattern, not a dependency on the model itself.
+The project adopts the publicly documented engineering behaviors of GPT-6 Astra: initiative and follow-through, context selection, tool orchestration, parallel delegation where useful, adapting to new evidence, and thorough verification. Astra's public guidance emphasizes multistep tool workflows, proportional reasoning effort, and verification through code/browser execution; these are adopted here as engineering workflow principles, not as a dependency on the model itself.
