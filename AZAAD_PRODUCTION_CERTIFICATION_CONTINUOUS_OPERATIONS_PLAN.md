@@ -4,34 +4,37 @@ Status: **ACTIVE / CONTINUOUSLY EVIDENCE-GATED**
 
 Emergency DR is **CLOSED**. Controlled Evolution must not reopen the emergency transport/re-entry path.
 
-Current canonical release line: `main` at `fda2342c323baf487eb02885c1980308986f697b` (PR #114 merged). Certification state: **BLOCKED / NOT PROVEN**.
+Current canonical release line: `main` at `ebb7b05a1b71305f4cafb33a35d57456bc148041` (PR #123 merged). Certification state: **NOT PROVEN until fresh evidence for the current mainline is established**.
 
-## Current blocker tree
+> **Evidence boundary:** The blocker tree below is carried-forward evidence from the prior certified investigation and is not a live status assertion for the current mainline. Any blocker listed there must be freshly re-proven against the current exact SHA before being treated as an active blocker. Historical evidence must not be transferred across SHAs.
+
+## Carried-forward blocker evidence — requires fresh re-proof
 
 ```text
-Canonical mainline fda2342c...
-├── Architecture hygiene / ownership                 PASS on pre-merge head; merged in PR #114
-├── Cloudflare Workers build                         PASS on exact pre-merge head
-├── GitHub/Vercel/Netlify deployment checks          PASS on exact merge SHA where observed
-├── Appwrite identity/session boundary               NOT CURRENTLY THE ROOT FAILURE
+Previous verified line: fda2342c...
+├── Architecture hygiene / ownership                 PASS on pre-merge head; historical evidence
+├── Cloudflare Workers build                         PASS on exact pre-merge head; historical evidence
+├── GitHub/Vercel/Netlify deployment checks          PASS on exact merge SHA where observed; historical evidence
+├── Appwrite identity/session boundary               NOT CURRENTLY THE ROOT FAILURE at the prior snapshot
 ├── Neon data boundary
 │   └── Vercel Production DATABASE_URL
-│       └── neondb_owner password authentication failed
-│           ├── /api/admin-auth                     → HTTP 503
-│           └── /api/public-clinic-data             → HTTP 503
+│       └── neondb_owner password authentication failed at the prior snapshot
+│           ├── /api/admin-auth                     → HTTP 503 (historical)
+│           └── /api/public-clinic-data             → HTTP 503 (historical)
 ├── Production Browser E2E
-│   ├── 15/21 PASS
-│   ├── 5 admin/auth failures                        → Neon credential failure
-│   └── 1 public-language-media failure              → independent investigation required
+│   ├── 15/21 PASS                                   → historical evidence
+│   ├── 5 admin/auth failures                        → historical Neon credential evidence
+│   └── 1 public-language-media failure              → historical investigation item
 └── Certification
-    └── NOT PROVEN until runtime blocker is repaired
+    └── NOT PROVEN at the prior snapshot
 ```
 
-The current Neon failure is an **environment/runtime configuration blocker**, not a reason to introduce a Supabase fallback or alter the canonical application boundary. The canonical production architecture remains Vercel runtime + Appwrite identity/session + Neon data. Supabase is legacy migration/DR evidence only.
+The canonical production architecture remains **Vercel runtime + Appwrite identity/session + Neon data**. Supabase is legacy migration/DR evidence only. A prior Neon failure must not be converted into a current blocker without fresh exact-SHA runtime evidence.
 
 ## Evidence discipline
 
 - Never transfer a successful result from an older SHA to a newer SHA.
+- Never transfer a failure from an older SHA to a newer SHA without fresh reproduction.
 - The exact production deployment and exact commit must be identified before interpreting runtime evidence.
 - A successful build/deployment does not prove database credentials, browser behavior, UAT, or certification.
 - A missing or stale evidence item is `NOT PROVEN`, never PASS.
@@ -49,7 +52,7 @@ Every repair must be canonical, isolated, targeted-tested, browser-tested where 
 
 ## Gates
 
-Security: authentication/session integrity, RBAC, RLS/server authorization, IDOR resistance, privilege escalation resistance, secret exposure, browser trust boundaries, Edge Function authorization, SECURITY DEFINER safety, information leakage.
+Security: authentication/session integrity, RBAC, RLS/server authorization, IDOR resistance, privilege escalation resistance, secret exposure, browser trust boundaries, backend/API authorization, SECURITY DEFINER safety, information leakage.
 
 Clinical: patient isolation, doctor scope, clinical lifecycle, controlled corrections/history, auditability, safe AI assistance/fallback, no AI final clinical authority.
 
