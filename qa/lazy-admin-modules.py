@@ -9,10 +9,7 @@ CORE = [
 
 LAZY = {
     "bookings": [
-        "patient-appointment-actions.js",
-        "appointment-cancellation-ui.js",
         "patient-financial-summary.js",
-        "patient-clinical-history.js",
     ],
     "doctors": ["doctors-center-v2.js", "doctor-staff-binding.js", "doctor-staff-convert.js"],
     "services": ["services-center-v2.js"],
