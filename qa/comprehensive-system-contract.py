@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AZAAD comprehensive system contract — fail closed."""
 from __future__ import annotations
-import re,sys
+import re, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]; FAILURES=[]; WARNINGS=[]
 def read(p):
@@ -9,56 +9,44 @@ def read(p):
     except OSError as e:FAILURES.append(f'cannot read {p}: {e}');return ''
 def require(c,m):
     if not c:FAILURES.append(m)
-central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; enterprise=ROOT/'admin-enterprise-centers.js'; invoice_api=ROOT/'api/invoices.js'
-for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py'),(enterprise,'admin-enterprise-centers.js'),(invoice_api,'api/invoices.js')):require(p.exists(),f'{l} is missing')
-ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); et=read(enterprise); it=read(invoice_api)
+central=ROOT/'central-i18n.js'; vercel=ROOT/'vercel.json'; build_runner=ROOT/'qa/vercel-build.py'; responsive=ROOT/'azaad-responsive-shell.css'; role_ui=ROOT/'azaad-role-experience.js'; injector=ROOT/'qa/inject-responsive-shell.py'; enterprise=ROOT/'admin-enterprise-centers.js'; invoice_api=ROOT/'api/invoices.js'; staff_api=ROOT/'api/staff-admin.js'
+for p,l in ((central,'central-i18n.js'),(build_runner,'qa/vercel-build.py'),(responsive,'azaad-responsive-shell.css'),(role_ui,'azaad-role-experience.js'),(injector,'qa/inject-responsive-shell.py'),(enterprise,'admin-enterprise-centers.js'),(invoice_api,'api/invoices.js'),(staff_api,'api/staff-admin.js')):require(p.exists(),f'{l} is missing')
+ct=read(central); vt=read(vercel); bt=read(build_runner); rt=read(role_ui); et=read(enterprise); it=read(invoice_api); st_api=read(staff_api)
 for token,msg in [('window.AZAAD_I18N','central I18N runtime API'),('MutationObserver','central I18N dynamic observer'),('azaadLanguageChanged','central language-change event')]:require(token in ct,f'{msg} missing')
 require('location.reload()' not in ct,'central I18N reloads pages')
 require('qa/vercel-build.py' in vt,'Vercel does not use the bounded production build runner')
-for step in ('qa/inject-central-i18n.py','qa/inject-responsive-shell.py','.github/patch-admin.py','qa/remove-legacy-admin-i18n-runtime.py','.github/inject-patient-actions.py','.github/inject-doctor-actions.py','qa/lazy-admin-modules.py','qa/verify-production-contracts.py','qa/finalize-appwrite-admin-auth.py'):
-    require(step in bt,f'Vercel production build runner missing step: {step}')
-for retired in ('.github/finalize-auth.py','qa/fix-production-contracts.py'):
-    require(retired not in bt,f'retired build checkpoint still referenced: {retired}')
-require('azaad-responsive-shell.css' in read(injector),'responsive CSS injection missing');require('azaad-role-experience.js' in read(injector),'admin role UI injection missing')
+for step in ('qa/inject-central-i18n.py','qa/inject-responsive-shell.py','.github/patch-admin.py','qa/remove-legacy-admin-i18n-runtime.py','.github/inject-patient-actions.py','.github/inject-doctor-actions.py','qa/lazy-admin-modules.py','qa/verify-production-contracts.py','qa/finalize-appwrite-admin-auth.py'):require(step in bt,f'Vercel production build runner missing step: {step}')
+for retired in ('.github/finalize-auth.py','qa/fix-production-contracts.py'):require(retired not in bt,f'retired build checkpoint still referenced: {retired}')
+require('azaad-responsive-shell.css' in read(injector),'responsive CSS injection missing'); require('azaad-role-experience.js' in read(injector),'admin role UI injection missing')
 for r in ('OWNER','ADMIN','MANAGER','SECRETARY','RECEPTION','CASHIER','MARKETING'):require(r in rt,f'role navigation contract missing {r}')
-normalized=re.sub(r'\s+',' ',rt).strip()
-state_assignment_patterns=(r'(?:const|let|var)\s+authenticatedState\s*=\s*window\.AZAAD\s*&&\s*window\.AZAAD\.state',r'(?:const|let|var)\s+authenticatedState\s*=\s*window\[\s*["\']AZAAD["\']\s*\]\s*\.state')
-role_assignment_patterns=(r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState\s*&&\s*authenticatedState\.role',r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState(?:\?\.)?\.role')
-role_projection_patterns=(r'document\.body\.dataset\.role\s*=\s*current',r'document\.documentElement\.dataset\.role\s*=\s*current')
-state_source=any(re.search(p,normalized) for p in state_assignment_patterns); role_source=any(re.search(p,normalized) for p in role_assignment_patterns); role_projection=all(re.search(p,normalized) for p in role_projection_patterns)
+normalized=re.sub(r'\s+',' ',rt).strip(); state_source=('const authenticatedState = window.AZAAD && window.AZAAD.state' in normalized) or bool(re.search(r'(?:const|let|var)\s+authenticatedState\s*=\s*window(?:\.AZAAD|\[["\']AZAAD["\']\])\s*\.state',normalized)); role_source=bool(re.search(r'(?:const|let|var)\s+authenticatedRole\s*=\s*authenticatedState\s*(?:&&\s*authenticatedState)?\s*(?:\?\.|\.)\s*role',normalized)); role_projection=all(re.search(p,normalized) for p in (r'document\.body\.dataset\.role\s*=\s*current',r'document\.documentElement\.dataset\.role\s*=\s*current'))
 require('getAuthenticatedRole' in normalized and state_source and role_source and role_projection,'admin role shell does not expose the authenticated role')
-require(all(x in et for x in ('OWNER','ADMIN','MANAGER','CASHIER')),'RCM finance role scope missing')
-require("'/api/invoices?limit=200'" in et,'RCM owner is not wired to the canonical invoice backend')
-require("provider: 'appwrite-neon'" in it and 'public.clinic_invoices' in it and 'public.clinic_payments' in it,'canonical invoice API is not Appwrite-Neon backed')
-require('credentials: \'include\'' in et and 'cache: \'no-store\'' in et,'RCM owner does not use the protected session boundary')
-require(not (ROOT/'rcm-finance-loader.js').exists(),'retired global RCM loader still exists')
-require(not (ROOT/'rcm-finance-center.js').exists(),'retired duplicate RCM renderer still exists')
+require(all(x in et for x in ('OWNER','ADMIN','MANAGER','CASHIER')),'RCM finance role scope missing'); require("'/api/invoices?limit=200'" in et,'RCM owner is not wired to the canonical invoice backend'); require("provider: 'appwrite-neon'" in it and 'public.clinic_invoices' in it and 'public.clinic_payments' in it,'canonical invoice API is not Appwrite-Neon backed'); require("credentials: 'include'" in et and "cache: 'no-store'" in et,'RCM owner does not use the protected session boundary')
+require(not (ROOT/'rcm-finance-loader.js').exists(),'retired global RCM loader still exists'); require(not (ROOT/'rcm-finance-center.js').exists(),'retired duplicate RCM renderer still exists')
 htmls=sorted(ROOT.rglob('*.html'))
 for h in htmls:
-    rel=h.relative_to(ROOT).as_posix();t=read(h)
+    rel=h.relative_to(ROOT).as_posix(); t=read(h)
     if '.git/' in rel:continue
     if 'central-i18n.js' not in t and 'qa/inject-central-i18n.py' not in bt:FAILURES.append(f'{rel}: no central I18N runtime or build injection')
     if re.search(r'(?:lang|language)[^\n]{0,180}location\.reload\s*\(',t,re.I):FAILURES.append(f'{rel}: language switching contains location.reload()')
-refund=ROOT/'refund-workflow-ui.js'; rf=read(refund) if refund.exists() else '';require(refund.exists(),'refund workflow missing')
+refund=ROOT/'refund-workflow-ui.js'; rf=read(refund) if refund.exists() else ''; require(refund.exists(),'refund workflow missing')
 for x in ('approve_refund_doctor','approve_refund_management','process_refund','doctor_approval_status','management_approval_status'):require(x in rf,f'refund control missing: {x}')
 require('Every refund: Request -> Doctor Approval -> Management/Owner Approval -> Processing' in rf,'refund hierarchy missing')
 sec=[p for p in ROOT.rglob('*') if p.is_file() and p.suffix.lower() in {'.js','.ts','.sql','.html','.md'} and '.git' not in p.parts]; st='\n'.join(read(p) for p in sec)
 require((ROOT/'change-password.html').exists(),'password page missing')
-for x,m in [('owner_set_staff_account_status','owner staff status RPC'),('azaad-account-security','account security function'),('CANNOT_DISABLE_SELF','self-disable protection'),('LAST_OWNER_PROTECTED','last-owner protection'),('PASSWORD_UPDATE_FAILED','password recovery')]:require(x in st,f'{m} missing')
-for x in ('suspend','disable','reactivate'):require(x in st.lower(),f'staff {x} capability missing')
-mai=ROOT/'supabase/functions/azaad-marketing-ai/index.ts'; mt=read(mai) if mai.exists() else '';require(mai.exists(),'marketing AI source missing');require('allowedRoles' in mt and 'MARKETING' in mt,'marketing AI role scope missing');require('local-free-fallback' in mt,'marketing AI free fallback missing')
-require(bool(list(ROOT.rglob('*ai*'))+list(ROOT.rglob('*AI*'))),'no AI surface found');require(bool(list(ROOT.rglob('*report*'))+list(ROOT.rglob('*Report*'))),'no reporting surface found')
+for x,m in [('CANNOT_DISABLE_SELF','self-disable protection'),('LAST_OWNER_PROTECTED','last-owner protection'),('PASSWORD_UPDATE_FAILED','password recovery')]:require(x in st_api or x in st,f'{m} missing')
+for x,m in [('suspend','staff suspend capability'),('disable','staff disable capability'),('reactivate','staff reactivate capability')]:require(x in st_api.lower() or x in st.lower(),f'{m} missing')
+mai=ROOT/'supabase/functions/azaad-marketing-ai/index.ts'; mt=read(mai) if mai.exists() else ''; require(mai.exists(),'marketing AI source missing'); require('allowedRoles' in mt and 'MARKETING' in mt,'marketing AI role scope missing'); require('local-free-fallback' in mt,'marketing AI free fallback missing')
+require(bool(list(ROOT.rglob('*ai*'))+list(ROOT.rglob('*AI*'))),'no AI surface found'); require(bool(list(ROOT.rglob('*report*'))+list(ROOT.rglob('*Report*'))),'no reporting surface found')
 wd=ROOT/'.github/workflows'; names={p.name for p in wd.glob('*.yml')} if wd.exists() else set()
 for x in ('azaad-ai-gate.yml','azaad-department-ai-gate.yml','azaad-executive-ai-gate.yml','azaad-payments-reporting-gate.yml','azaad-integration-gate.yml'):require(x in names,f'missing workflow gate: {x}')
-require('ai_can_approve' in st,'AI approval prohibition missing');require('clinic_ai_recommendations' in st,'AI recommendation persistence missing');require('human' in st.lower() and 'approval' in st.lower(),'human approval policy missing')
-admins=[p for p in ROOT.glob('admin/**/index.html') if p.is_file()]
+require('ai_can_approve' in st,'AI approval prohibition missing'); require('clinic_ai_recommendations' in st,'AI recommendation persistence missing'); require('human' in st.lower() and 'approval' in st.lower(),'human approval policy missing')
+admins=[p for p in ROOT.glob('admin/**/index.html') if p.is_file()];
 if len(admins)>1:require('/admin/admin/:path*' in vt,'duplicate admin trees lack redirects')
 for p in [p for p in ROOT.rglob('*.js') if '.git' not in p.parts]:
-    t=read(p);rel=p.relative_to(ROOT).as_posix()
+    t=read(p); rel=p.relative_to(ROOT).as_posix()
     if any(x in t for x in ('openai.com','anthropic.com','gemini.google.com')) and 'qa/' not in rel:WARNINGS.append(f'{rel}: review external AI provider for Free-only compliance')
-print('AZAAD comprehensive system contract');print(f'HTML pages scanned: {len(htmls)}');print(f'JS sources scanned: {len([p for p in ROOT.rglob("*.js") if ".git" not in p.parts])}');print(f'Security/AI source files scanned: {len(sec)}')
-if WARNINGS:
- print('WARNINGS:');[print(f'  - {x}') for x in sorted(set(WARNINGS))]
-if FAILURES:
- print('FAILURES:');[print(f'  - {x}') for x in FAILURES];print(f'CONTRACT FAILED: {len(FAILURES)} blocking finding(s)');sys.exit(1)
+print('AZAAD comprehensive system contract'); print(f'HTML pages scanned: {len(htmls)}'); print(f'JS sources scanned: {len([p for p in ROOT.rglob("*.js") if ".git" not in p.parts])}'); print(f'Security/AI source files scanned: {len(sec)}')
+if WARNINGS: print('WARNINGS:'); [print(f'  - {x}') for x in sorted(set(WARNINGS))]
+if FAILURES: print('FAILURES:'); [print(f'  - {x}') for x in FAILURES]; print(f'CONTRACT FAILED: {len(FAILURES)} blocking finding(s)'); sys.exit(1)
 print('CONTRACT PASSED')

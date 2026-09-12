@@ -3,7 +3,10 @@ from pathlib import Path
 index = Path('index.html').read_text(encoding='utf-8')
 fix = Path('booking-ui-final-fix.js').read_text(encoding='utf-8')
 
-assert 'booking-ui-final-fix.js?v=2' in index
+# The public page owns the current booking UI patch; cache versions may advance
+# without changing the runtime owner. The contract must therefore validate the
+# canonical script identity rather than pinning an obsolete query-string value.
+assert 'booking-ui-final-fix.js?v=' in index
 for token in ['formatTime12', 'hideConfirmationButton', 'styleWhatsAppAction', 'moveStatusBelowWhatsApp', 'bookingSucceeded']:
     assert token in fix, token
 

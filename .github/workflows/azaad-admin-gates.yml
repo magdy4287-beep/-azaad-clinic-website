@@ -44,7 +44,7 @@ jobs:
       - name: Run canonical Admin backend boundary gate
         run: python3 qa/admin-backend-boundary-gate.py
 
-      - name: Run scheduling contract gate
+      - name: Run scheduling contract gate against source plus explicit production transform ownership
         run: python3 qa/scheduling-contract-gate.py
 
       - name: Run canonical Marketing Studio V3 gate

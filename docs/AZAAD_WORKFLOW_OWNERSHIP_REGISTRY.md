@@ -14,77 +14,78 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-admin-gates.yml` | Admin structural acceptance | Admin, scheduling, marketing structural contracts | Canonical Admin acceptance |
 | `azaad-admin-nextgen-gate.yml` | Admin Next-Gen feature contracts | Next-Gen JS, role, bilingual and credential-safety contracts | Canonical feature gate |
 | `azaad-browser-e2e.yml` | Browser behavior | End-to-end browser behavior against the intended artifact | Canonical runtime gate |
-| `azaad-auth-bridge-e2e.yml` | Auth bridge behavior | Authentication/session bridge | Canonical auth E2E |
 | `azaad-comprehensive-system-contract.yml` | Cross-system contracts | System-wide structural contracts | Canonical system gate |
 | `azaad-appointment-gate.yml` | Appointment contract | Appointment contract only | Canonical appointment gate |
 | `central-scheduling-gate.yml` | Central scheduling domain | Central scheduling contract | Canonical scheduling-domain gate |
 | `scheduling-actions-gate.yml` | Scheduling actions | Scheduling action contract | Canonical scheduling-actions gate |
-| `azaad-patient-booking-gate.yml` | Patient booking architecture | Patient lookup / booking contract | Canonical patient-booking gate |
 | `azaad-booking-ui-final-fix.yml` | Booking presentation behavior | Booking UI formatting/action contract | Canonical booking-UI gate |
 | `azaad-clinical-ai-gate.yml` | Clinician AI safety/UX | Clinical AI cockpit, longitudinal evidence and safety boundary | Canonical clinical-AI gate |
 | `azaad-ai-gate.yml` | AI operating system | AI operating-system contract | Canonical AI platform gate |
+| `azaad-department-ai-gate.yml` | Department AI boundaries | Department-level AI contracts | Canonical domain gate |
+| `azaad-executive-ai-gate.yml` | Executive AI boundaries | Executive AI contracts | Canonical domain gate |
+| `azaad-feature-evolution-gate.yml` | Feature evolution | Marketing/public privacy feature contract and required feature artifacts | Canonical feature gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
-| `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
-| `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
-| `azaad-controlled-p0-neon-parity.yml` | Controlled runtime data parity | Authoritative Supabase-to-Neon restore verification, clinical count parity, runtime-critical schema/function invariants | Canonical controlled P0 repair gate |
-| `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
-| `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
-| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | PR retirement contract; optional historical probe on explicit manual dispatch | Retained for branch-protection continuity; not a certification runtime gate |
+| `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization and exact-SHA E2E | Canonical clinical authorization E2E |
+| `azaad-clinical-fixture-boundary.yml` | Clinical fixture safety | Controlled fixture creation/isolation contract | Canonical fixture boundary gate |
+| `azaad-emergency-dr-restore.yml` | Emergency DR transport/restore | Historical Supabase public-schema snapshot to DR-capable Neon target | Canonical emergency DR gate |
+| `azaad-emergency-dr-auth.yml` | Emergency identity DR | Historical identity/auth portability preflight | Canonical DR support gate |
+| `azaad-emergency-dr-execute.yml` | Emergency DR execution | Explicitly authorized historical DR execution path | Canonical emergency execution gate |
+| `azaad-emergency-dr-final.yml` | Emergency DR final verification | Final DR evidence and reconciliation | Canonical DR final gate |
+| `azaad-emergency-dr-functions.yml` | Emergency function recovery | Historical function transport/recovery evidence | Canonical DR function gate |
+| `azaad-dr-synthetic.yml` | DR synthetic validation | Non-destructive DR readiness simulation | Canonical synthetic DR gate |
+| `azaad-controlled-p0-neon-parity.yml` | Neon runtime integrity | Read-only Neon target, schema, reachability, and critical-table verification | Canonical read-only integrity gate |
+| `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability | Canonical controlled readiness gate |
+| `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation | Canonical controlled auth preflight |
+| `azaad-integration-gate.yml` | Cross-module integration | Cross-domain integration contracts | Canonical integration gate |
+| `azaad-marketing-security-gate.yml` | Marketing security boundary | Marketing/public-surface security contracts | Canonical domain gate |
+| `azaad-patient-360-gate.yml` | Patient 360 domain | Patient longitudinal/360 contracts | Canonical domain gate |
+| `azaad-patient-financial-integration.yml` | Patient-finance integration | Patient financial integration contract | Canonical integration gate |
+| `azaad-payments-reporting-gate.yml` | Payments/reporting | Payment and reporting contract | Canonical finance gate |
+| `azaad-rcm-gate.yml` | Revenue-cycle boundary | RCM/financial contract | Canonical finance gate |
+| `azaad-phase12-security-audit-gate.yml` | Security audit | Phase 12 security audit assertions | Canonical security gate |
+| `azaad-security-regression-gate.yml` | Security regression | Security regression contract | Canonical security gate |
+| `doctor-identity-gate.yml` | Doctor identity | Doctor identity/credential boundary | Canonical doctor gate |
+| `doctor-isolation-contract.yml` | Doctor isolation | Doctor data/route isolation contract | Canonical doctor gate |
+| `i18n-stability-contract.yml` | Internationalization stability | i18n contract | Canonical locale gate |
+| `locale-stability-contract.yml` | Locale stability | Locale/runtime stability contract | Canonical locale gate |
+| `azaad-waiting-list-gate.yml` | Waiting list | Waiting-list contract | Canonical domain gate |
+| `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
+| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | Explicit historical diagnostic only | Retained diagnostic |
 
 ## Proven non-duplication decisions
 
-### Production certification
+`azaad-production-certification-v2.yml` was retired because it duplicated `azaad-production-certification-gate.yml`.
 
-`azaad-production-certification-v2.yml` was retired because its responsibility and assertions duplicated `azaad-production-certification-gate.yml`. The canonical workflow remains the owner for the baseline certification contract.
+`central-scheduling-gate.yml` and `scheduling-actions-gate.yml` are separate because one owns the scheduling domain contract and the other owns action semantics.
 
-### Scheduling
+`azaad-booking-ui-final-fix.yml` owns presentation behavior and is intentionally not duplicated by another booking UI workflow.
 
-`central-scheduling-gate.yml` and `scheduling-actions-gate.yml` are intentionally separate. The first owns the central scheduling domain model/contract; the second owns action semantics.
+`azaad-ai-gate.yml` and `azaad-clinical-ai-gate.yml` are separate because one owns the general AI operating boundary and the other owns clinician-facing clinical AI safety.
 
-### Booking
+`azaad-clinical-authorization-e2e.yml` is separate from `azaad-browser-e2e.yml`: authorization semantics and browser runtime behavior are different evidence surfaces.
 
-`azaad-patient-booking-gate.yml` and `azaad-booking-ui-final-fix.yml` are intentionally separate. The first owns patient identity/booking safety; the second owns presentation-level booking behavior.
+The historical Supabase-to-Neon migration is complete. Its destructive migration workflow is retired. `azaad-controlled-p0-neon-parity.yml` is read-only and must never become a restore path.
 
-### AI
+Emergency DR workflows are separate from production migration and browser E2E because they own historical recovery evidence rather than production runtime certification.
 
-`azaad-ai-gate.yml` and `azaad-clinical-ai-gate.yml` are intentionally separate. The first owns the general AI operating boundary; the second owns clinician-facing clinical AI behavior and safety evidence.
+`pgrst303-rest-root-diagnostic.yml` is retained only for explicit historical incident investigation and branch-protection continuity; it is not a current authentication/runtime gate.
 
-### Clinical authorization
+`azaad-final-release-certification.yml` is a manually invoked candidate-SHA-locked go-live decision and is not a duplicate of automatic certification.
 
-`azaad-clinical-authorization-e2e.yml` is intentionally separate from `azaad-browser-e2e.yml`. Browser E2E owns production UI/runtime behavior; clinical authorization E2E owns authenticated multi-role authorization semantics and controlled clinical fixture creation. It must not be duplicated by a second `workflow_run` trigger.
+## Inventory rule
 
-### Emergency DR
-
-`azaad-emergency-dr-restore.yml` is intentionally separate from production certification and browser E2E. It owns only emergency data-plane transport/restore from the retained Supabase public schema to Neon DR. It does not certify identity equivalence, application authorization, RLS/RPC behavioral equivalence, or production cutover.
-
-### Controlled Neon parity
-
-`azaad-controlled-p0-neon-parity.yml` is a repair/verification gate only. It must never become a hidden source mutator, production cutover mechanism, or Emergency DR re-entry path. Its restore remains fail-closed and is followed by independent clinical-count and runtime-schema reconciliation.
-
-### Controlled provider readiness
-
-`azaad-controlled-runtime-provider-readiness.yml` is read-only and separate from Emergency DR and P0 Neon parity. It verifies the selected free provider surfaces (Appwrite identity/storage and Neon database) before production wiring and performs no data migration or production mutation.
-
-### Controlled auth parity preflight
-
-`azaad-controlled-auth-parity-preflight.yml` is read-only. It reconciles identity UUIDs between retained Supabase Auth and Appwrite before credential import/cutover. It never reads or prints password hashes, sessions, refresh tokens, or plaintext credentials and performs no user mutation.
-
-### Legacy PGRST303 diagnostic
-
-`pgrst303-rest-root-diagnostic.yml` is retained only for branch-protection continuity and explicit historical incident investigation. It is not a current authentication/runtime gate because Admin identity is Appwrite-backed.
-
-### Final release
-
-`azaad-final-release-certification.yml` is not a duplicate of the automatic production certification gate. It is a manually invoked, candidate-SHA-locked go-live decision consuming fresh evidence from required workflows.
+The table above is exhaustive for the current `.github/workflows` directory. A workflow file without a registry row is an architecture violation. A registry row without a workflow file is also an architecture violation unless explicitly marked `Retired` with a documented reason.
 
 ## Retired temporary diagnostics
 
-The following temporary workflows have been retired after their root-cause evidence was established on the canonical artifact:
+The following temporary workflows have been retired after their root-cause evidence was established:
 
 - `azaad-browser-e2e-root-fix.yml`
 - `azaad-api-module-import-diagnostic.yml`
+- `azaad-controlled-neon-public-migration.yml`
+- `azaad-neon-database-migration.yml`
 
-Their responsibilities are now covered by the canonical Browser E2E, production certification, runtime-boundary gates, and the canonical build verification chain. They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility.
+They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility and explicit authorization.
 
 ## Retirement rule
 

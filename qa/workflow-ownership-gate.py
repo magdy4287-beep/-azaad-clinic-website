@@ -30,14 +30,14 @@ retired = [p.name for p in workflow_files if p.name.endswith(retired_markers)]
 if retired:
     raise SystemExit("Retired/duplicate-style workflow name(s): " + ", ".join(retired))
 
-# Canonical workflows must remain represented in the architecture registry.
-# Broader legacy workflows are grandfathered until their own retirement evidence exists.
+# Only workflows that are actually present in the executable tree may be
+# treated as canonical here. Historical/retired names must not be hard-coded
+# into this gate because doing so creates false failures after safe retirement.
 CANONICAL_WORKFLOWS = {
     "azaad-production-certification-gate.yml",
     "azaad-release-governance-gate.yml",
     "azaad-final-release-certification.yml",
     "azaad-browser-e2e.yml",
-    "azaad-auth-bridge-e2e.yml",
     "azaad-comprehensive-system-contract.yml",
     "azaad-clinical-authorization-e2e.yml",
     "azaad-emergency-dr-restore.yml",
@@ -45,6 +45,9 @@ CANONICAL_WORKFLOWS = {
     "azaad-controlled-runtime-provider-readiness.yml",
     "azaad-controlled-auth-parity-preflight.yml",
 }
+missing_files = sorted(name for name in CANONICAL_WORKFLOWS if not (WORKFLOWS / name).is_file())
+if missing_files:
+    raise SystemExit("Canonical workflow(s) missing from executable tree: " + ", ".join(missing_files))
 missing_registry = sorted(name for name in CANONICAL_WORKFLOWS if name not in registry)
 if missing_registry:
     raise SystemExit("Canonical workflow(s) missing ownership entry: " + ", ".join(missing_registry))

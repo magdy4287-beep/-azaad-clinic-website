@@ -1,9 +1,13 @@
 /* AZAAD CLINIC — Doctors Center V2
-   Free-first enhancement layer. It works on top of the existing doctor loader,
-   preserves the existing admin/auth flow, and never deletes historical records. */
+   Free-first enhancement layer. It works on top of the canonical doctor loader,
+   preserves the existing admin/auth flow, and never deletes historical records.
+
+   Canonical runtime: Appwrite-authenticated session -> clinic admin APIs -> Neon.
+   This UI enhancement intentionally has no direct database/provider access.
+*/
 (()=>{
-  const ready=()=>window.AZAAD?.supabase&&document.getElementById('doctorList');
-  const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+  'use strict';
+  const ready=()=>Boolean(window.AZAAD?.state?.session||window.AZAAD?.state?.staff)&&document.getElementById('doctorList');
   const state={timer:null};
   function inject(){
     const panel=document.getElementById('doctors'); if(!panel||document.getElementById('doctorsV2Tools')) return;

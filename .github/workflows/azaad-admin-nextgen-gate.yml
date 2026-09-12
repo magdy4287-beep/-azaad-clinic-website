@@ -18,23 +18,6 @@ on:
       - 'invoice-print-email.js'
       - 'scheduling-actions-contract.js'
       - 'qa/secretary-hybrid-role-contract.py'
-  push:
-    branches: [feat/ai-operating-system-20260815]
-    paths:
-      - 'admin-nextgen-v2.js'
-      - 'admin-patient-icon-guard.js'
-      - '.github/patch-admin.py'
-      - 'admin.html'
-      - 'admin.js'
-      - 'patients-center.js'
-      - 'frontdesk-workflow.js'
-      - 'central-i18n.js'
-      - 'admin-english-hardening.js'
-      - 'secretary-hybrid-workflow.js'
-      - 'patient-demographics-editor.js'
-      - 'invoice-print-email.js'
-      - 'scheduling-actions-contract.js'
-      - 'qa/secretary-hybrid-role-contract.py'
 
 permissions:
   contents: read
