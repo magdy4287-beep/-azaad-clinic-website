@@ -41,7 +41,7 @@ Self-healing is deterministic and evidence-driven: diagnostics identify the owne
 
 ## Agent harness
 
-Use `docs/AZAAD_AGENT_ENGINEERING_HARNESS.md` as the detailed contract for repository-as-system-of-record, depth-first execution, mechanical enforcement, entropy control, bounded self-healing, parallel discovery, and evidence discipline. Keep this file short enough to function as a routing map.
+Use `docs/AZAAD_KNOWLEDGE_INDEX.md` as the progressive-disclosure entrypoint. It routes to `docs/AZAAD_AGENT_ENGINEERING_HARNESS.md` and the authoritative architecture, ownership, plan, incident, and verification artifacts. Keep this file short enough to function as a routing map.
 
 ## Required evidence before Go-Live
 
@@ -49,4 +49,4 @@ Exact commit provenance, canonical production build, security/RBAC gates, Appwri
 
 ## Repository knowledge
 
-Read `docs/ARCHITECTURE.md`, `docs/AZAAD_ARCHITECTURE_HYGIENE.md`, `docs/AZAAD_AGENT_ENGINEERING_HARNESS.md`, the active certification/operations documents, and the relevant domain gate before changing a runtime boundary. Prefer small, inspectable changes over broad rewrites.
+Read `docs/AZAAD_KNOWLEDGE_INDEX.md` first, then follow its links to `docs/ARCHITECTURE.md`, `docs/AZAAD_ARCHITECTURE_HYGIENE.md`, `docs/AZAAD_AGENT_ENGINEERING_HARNESS.md`, the active certification/operations documents, the current incident records, and the relevant domain gate before changing a runtime boundary. Prefer small, inspectable changes over broad rewrites.
