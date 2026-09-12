@@ -1,10 +1,11 @@
 # Azaad Clinic — Administration Roadmap
 
 ## Product rule
-- **Free-only architecture:** no paid AI API, paid SaaS, paid plugin, or future mandatory subscription is required by this roadmap.
-- AI uses the existing Supabase Edge Functions and the current **free-local-rules-engine** insights service where applicable.
+- **Free-first architecture:** no paid AI API, paid SaaS, paid plugin, or future mandatory subscription is required by this roadmap.
+- Current production runtime is **Vercel + Appwrite identity/session boundary + Neon data boundary**.
+- Supabase is **legacy migration/DR evidence only**. It is not a production browser/server runtime owner and must not be used as the target for new production administration work.
 - Patient-facing pages and the current booking experience remain unchanged; this roadmap targets the administration system.
-- Existing authentication, staff roles, permissions, audit trail, Supabase Edge Functions, and current admin controller remain the baseline.
+- Existing authentication, staff roles, permissions, audit trail, and current admin controller remain governed by the current production architecture.
 
 ## Phase 1 — Admin foundation and daily operations
 1. **🌐 Full English mode**
@@ -81,7 +82,7 @@
 14. **🛡️ IT security**
     - Keep secrets server-side.
     - Publishable keys only in public clients.
-    - Authenticated Edge Functions for protected data.
+    - Authenticated Appwrite session boundaries for protected production data.
     - Role/permission checks and audit logging.
     - Rate limiting, input validation, secure headers, no-store responses and safe error handling.
     - Security/advisor checks after schema changes.
@@ -99,16 +100,20 @@
 
 17. **📣 Marketing**
     - Campaign planning, offers, post library, channel status and performance KPIs.
-    - Free AI suggestions using existing local/rules-based insights and optional future self-hosted/free models only.
+    - Free AI suggestions using the current local/rules-based insights boundary and optional future self-hosted/free models only.
 
 ## Current implementation checkpoint
-- `admin.html` remains the baseline administration controller.
-- `patient-session-bridge-v3.js` now loads the enhancement layer on `admin.html` and keeps session restoration behavior.
-- `admin-enhancements-v1.js` adds free-only Patient 360, Invoice/RCM, Analytics and AI panels plus an admin-wide language switch.
-- Existing Supabase functions already provide Patient 360, Invoice Center, Management Dashboard and AI Insights capabilities.
+- `admin.html` remains the administration controller.
+- Current production authentication/session ownership is Appwrite.
+- Current production data ownership is Neon.
+- Production deployment/runtime ownership is Vercel.
+- `admin-enhancements-v1.js` and related administration enhancements must follow the current Appwrite + Neon production boundaries.
+- Historical Supabase functions and migrations may remain in `supabase/` only as preserved migration/rollback/DR evidence. They are not production runtime owners and must not be treated as active implementation dependencies.
 
 ## Verification gates
-- Every phase must be verified against the real Supabase data model before adding schema assumptions.
+- Every phase must be verified against the **current Neon production data model** before adding schema assumptions.
+- Legacy Supabase artifacts may be inspected only when validating migration/DR/history evidence.
 - No service-role key is placed in browser code.
 - No destructive hard-delete is used for doctors/services where historical records depend on them.
 - Production deployment is accepted only after a fresh successful deployment and runtime verification.
+- Any new production API/domain must have one explicit runtime owner, one data owner, one backend boundary, one permission boundary, and one E2E contract.
