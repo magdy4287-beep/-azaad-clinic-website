@@ -4,46 +4,48 @@ Status: **ACTIVE / CONTINUOUSLY EVIDENCE-GATED**
 
 Emergency DR is **CLOSED**. Controlled Evolution must not reopen the emergency transport/re-entry path.
 
-Current release candidate: PR #96, branch `controlled-evolution/browser-e2e-root-fix`. Certification state: **BLOCKED / NOT PROVEN**.
+Current canonical release line: `main` at `fda2342c323baf487eb02885c1980308986f697b` (PR #114 merged). Certification state: **BLOCKED / NOT PROVEN**.
 
 ## Current blocker tree
 
 ```text
-Controlled Evolution
-├── Canonical build / artifact parity              PASS
-├── Admin restore boundary                         PASS
-├── Appwrite static/security contract              PASS
-├── Public / Patient / Responsive contracts        PASS
-├── P0-A Admin authentication
-│   └── Appwrite session_create → HTTP 401
-│       └── user_invalid_credentials
-│           └── external credential state not proven
-└── P0-B Clinical authentication
-    └── Supabase Auth password grant → HTTP 402
-        └── provider/platform blocker
+Canonical mainline fda2342c...
+├── Architecture hygiene / ownership                 PASS on pre-merge head; merged in PR #114
+├── Cloudflare Workers build                         PASS on exact pre-merge head
+├── GitHub/Vercel/Netlify deployment checks          PASS on exact merge SHA where observed
+├── Appwrite identity/session boundary               NOT CURRENTLY THE ROOT FAILURE
+├── Neon data boundary
+│   └── Vercel Production DATABASE_URL
+│       └── neondb_owner password authentication failed
+│           ├── /api/admin-auth                     → HTTP 503
+│           └── /api/public-clinic-data             → HTTP 503
+├── Production Browser E2E
+│   ├── 15/21 PASS
+│   ├── 5 admin/auth failures                        → Neon credential failure
+│   └── 1 public-language-media failure              → independent investigation required
+└── Certification
+    └── NOT PROVEN until runtime blocker is repaired
 ```
 
-Latest Browser E2E evidence is **16/21 PASS**; the five failures are downstream of the Appwrite authentication boundary. The E2E secret-shape diagnostic established only presence and valid formatting, not password equality. No auth bypass or fallback is permitted.
+The current Neon failure is an **environment/runtime configuration blocker**, not a reason to introduce a Supabase fallback or alter the canonical application boundary. The canonical production architecture remains Vercel runtime + Appwrite identity/session + Neon data. Supabase is legacy migration/DR evidence only.
 
-Clinical E2E is independently blocked by Supabase HTTP 402 at native Auth before clinical authorization assertions execute. No application workaround is permitted.
+## Evidence discipline
 
-## Health audit evidence
-
-- Correct Neon runtime-boundary branch contains the required clinical schema.
-- Neon diagnostics found no long-running queries and no locks.
-- Supabase rollback/reference public tables remain present and RLS-enabled.
-- Latest Supabase Auth log query returned no additional diagnostic records in the connector's 24-hour window.
-- Existing security-advisor findings remain separately classified until causal evidence warrants escalation.
+- Never transfer a successful result from an older SHA to a newer SHA.
+- The exact production deployment and exact commit must be identified before interpreting runtime evidence.
+- A successful build/deployment does not prove database credentials, browser behavior, UAT, or certification.
+- A missing or stale evidence item is `NOT PROVEN`, never PASS.
+- Fix environment blockers at the owning platform boundary; do not encode credentials, fallback providers, or test bypasses into application code.
 
 ## Controlled repair rule
 
-No P2/P3 work proceeds while P0 blockers remain open. P1 security findings remain preserved for the final security gate. Every repair must be canonical, isolated, targeted-tested, browser-tested where applicable, security-verified, and production-verified against the exact commit.
+No P2/P3 work proceeds while Critical/High production blockers remain open unless the work is an independent read-only investigation or documentation/guardrail improvement that cannot change the failing boundary.
+
+Every repair must be canonical, isolated, targeted-tested, browser-tested where applicable, security-verified, and production-verified against the exact resulting commit.
 
 ## Certification path
 
 `Secure & Safety-Gated Production → Controlled Feature Evolution → Patient/Clinical/Financial E2E → Human-Approved AI → Security/UAT Certification → Go-Live → Continuous Operations`
-
-A missing or stale evidence item is `NOT PROVEN`, never PASS.
 
 ## Gates
 
@@ -91,7 +93,7 @@ Previously verified baseline browser evidence:
 - Tested commit: `6935d6648a9e6a765ddd9c866af434928a5a3b2b`
 - Result: **SUCCESS**
 
-This is historical evidence only and does not certify the current controlled-evolution candidate.
+This is historical evidence only and does not certify the current mainline.
 
 ## Certification states
 
