@@ -9,8 +9,6 @@ ADMIN_FEATURE_SCRIPTS = (
     "azaad-operations-role-guard.js",
     "azaad-operations-control-center.js",
     "frontdesk-workflow.js",
-    "patient-merge-tool.js",
-    "patient-clinical-history.js",
     "admin-enhancements-v1.js",
     "admin-english-hardening.js",
     "doctors-center-v2.js",
@@ -27,7 +25,6 @@ ADMIN_FEATURE_SCRIPTS = (
     "doctor-staff-binding.js",
     "doctor-staff-convert.js",
     "patient-financial-summary.js",
-    "patient-appointment-actions.js",
     "doctor-visit-actions.js",
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
@@ -139,8 +136,6 @@ inject_head_script("admin.html", ADMIN_SHELL_SRC)
 
 for target, script in (
     ("clinical-assessment.html", "azaad-platform-kernel.js"),
-    ("clinical-assessment.html", "clinical-followup-widget.js"),
-    ("clinical-assessment.html", "clinician-transfer-widget.js"),
     ("clinical-assessment.html", "clinician-ai-session-cockpit.js"),
     ("clinical-assessment.html", "clinician-longitudinal-dashboard.js"),
     ("clinical-assessment.html", "patient-demographics-editor.js"),
