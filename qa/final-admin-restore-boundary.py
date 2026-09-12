@@ -30,9 +30,6 @@ text = re.sub(r'(=\s*await\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_R
 startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match: raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
 
-# A module can execute after parsing, when document.readyState is already
-# "interactive". Therefore the restore owner may never be nested under an
-# `if (document.readyState === "loading")` branch. Publish it unconditionally.
 ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
 if ready_guard and owners[0].start() > ready_guard.start():
     owner_start = owners[0].start(); brace_start = text.find('{', owner_start)
@@ -60,7 +57,6 @@ if ready_guard and owners[0].start() > ready_guard.start():
     if end < len(text) and text[end] == ';': end += 1
     owner_source = text[owner_start:end]
     text = text[:owner_start] + text[end:]
-    # Re-find the ready guard after removing the owner and publish immediately before it.
     ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
     if not ready_guard: raise SystemExit('FAIL-CLOSED: ready-state guard disappeared during restore-owner relocation')
     text = text[:ready_guard.start()] + owner_source + '\n\n' + text[ready_guard.start():]
@@ -74,7 +70,7 @@ ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\
 if ready_guard and owners[0].start() > ready_guard.start(): raise SystemExit('FAIL-CLOSED: Appwrite restore owner remains nested after ready-state guard')
 if not re.search(r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*\(\s*\)', text): raise SystemExit('Final Admin restore boundary: startup/restoreSession must call the canonical global Appwrite restore owner')
 
-RUNTIME_JS = {'admin.js','admin-enhancements-v1.js','admin-english-hardening.js','admin-patient-icon-guard.js','azaad-role-experience.js','patient-appointment-actions.js','appointment-cancellation-ui.js','patient-financial-summary.js','patient-clinical-history.js','doctors-center-v2.js','doctor-staff-binding.js','doctor-staff-convert.js','services-center-v2.js','scheduling-v2.js','marketing-studio-v3.js','marketing-intelligence-loader.js','staff-management.js','patient-merge-tool.js','hr-performance-analytics.js','admin-calendar-center.js'}
+RUNTIME_JS = {'admin.js','admin-enhancements-v1.js','admin-english-hardening.js','admin-patient-icon-guard.js','azaad-role-experience.js','patient-appointment-actions.js','appointment-cancellation-ui.js','patient-financial-summary.js','patient-clinical-history.js','doctors-center-v2.js','doctor-staff-binding.js','doctor-staff-convert.js','services-center-v2.js','scheduling-v2.js','marketing-studio-v4.js','marketing-intelligence-loader.js','staff-management.js','patient-merge-tool.js','hr-performance-analytics.js','admin-calendar-center.js'}
 failures = []
 for name in sorted(RUNTIME_JS):
     path = Path(name)
