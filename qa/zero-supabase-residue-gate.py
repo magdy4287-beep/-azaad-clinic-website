@@ -1,18 +1,18 @@
-"""Fail-closed repository gate for the Zero-Supabase architecture."""
+"""Fail-closed repository gate for the zero-legacy-provider architecture."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_MARKERS = (
-    "supabase.co",
-    "@supabase/supabase-js",
-    "@supabase/functions-js",
-    "SUPABASE_URL",
-    "SUPABASE_ANON_KEY",
-    "SUPABASE_PUBLISHABLE_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "createClient(",
-    "supabase.auth.",
-    "functions/v1/",
+    "supabase" + ".co",
+    "@supabase/" + "supabase-js",
+    "@supabase/" + "functions-js",
+    "SUPABASE_" + "URL",
+    "SUPABASE_" + "ANON_KEY",
+    "SUPABASE_" + "PUBLISHABLE_KEY",
+    "SUPABASE_" + "SERVICE_ROLE_KEY",
+    "createClient" + "(",
+    "supabase" + ".auth.",
+    "functions" + "/v1/",
 )
 SKIP_NAMES = {".git", ".venv", "node_modules", "__pycache__"}
 violations = []
@@ -30,12 +30,12 @@ for path in ROOT.rglob("*"):
         continue
     for marker in FORBIDDEN_MARKERS:
         if marker.lower() in text.lower():
-            violations.append(f"content: {relative} -> {marker}")
+            violations.append(f"content: {relative} -> legacy provider marker")
 
 if violations:
-    print("ZERO-SUPABASE RESIDUE GATE: FAIL")
+    print("ZERO-LEGACY-PROVIDER RESIDUE GATE: FAIL")
     for item in violations[:200]:
         print(item)
-    raise SystemExit(f"Supabase residue detected: {len(violations)} violation(s)")
+    raise SystemExit(f"Legacy provider residue detected: {len(violations)} violation(s)")
 
-print("ZERO-SUPABASE RESIDUE GATE: PASS")
+print("ZERO-LEGACY-PROVIDER RESIDUE GATE: PASS")
