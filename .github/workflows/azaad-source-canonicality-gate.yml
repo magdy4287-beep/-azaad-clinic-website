@@ -1,0 +1,47 @@
+name: AZAAD Source Canonicality Gate
+
+on:
+  push:
+    branches:
+      - chore/zero-supabase-retirement-20260913
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  source-canonicality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run production build transforms and verification
+        run: python3 qa/vercel-build.py
+
+      - name: Fail if the build had to canonicalize source
+        run: |
+          if ! git diff --quiet -- . ':!.github/workflows/azaad-source-canonicality-gate.yml'; then
+            echo 'SOURCE-CANONICALITY-GATE: FAIL'
+            echo 'The production build mutated repository source. A build-time legacy-to-canonical translation layer still exists.'
+            git status --short
+            git diff --stat
+            git diff -- . ':!.github/workflows/azaad-source-canonicality-gate.yml' > source-canonicality.patch
+            exit 1
+          fi
+          echo 'SOURCE-CANONICALITY-GATE: PASS'
+
+      - name: Upload canonicality diagnostic on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-source-canonicality-diagnostic
+          path: source-canonicality.patch
+          if-no-files-found: ignore
