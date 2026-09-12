@@ -39,10 +39,14 @@ Never repeat a gate that already passed unless its inputs or dependencies change
 
 Self-healing is deterministic and evidence-driven: diagnostics identify the owner, root cause, and smallest safe remediation. Automatic source mutation from CI is prohibited. An agent may implement the remediation in an isolated change, run the affected gates, inspect failures, and iterate until the evidence is clean. Destructive database/provider actions require explicit human approval.
 
+## Agent harness
+
+Use `docs/AZAAD_AGENT_ENGINEERING_HARNESS.md` as the detailed contract for repository-as-system-of-record, depth-first execution, mechanical enforcement, entropy control, bounded self-healing, parallel discovery, and evidence discipline. Keep this file short enough to function as a routing map.
+
 ## Required evidence before Go-Live
 
 Exact commit provenance, canonical production build, security/RBAC gates, Appwrite authorization E2E, browser E2E, backup/restore evidence for the canonical data boundary, UAT/pilot evidence, and operational runbook/training evidence must all pass. A green subset never overrides a failed certification gate.
 
 ## Repository knowledge
 
-Read `docs/ARCHITECTURE.md`, `docs/AZAAD_ARCHITECTURE_HYGIENE.md`, the active certification/operations documents, and the relevant domain gate before changing a runtime boundary. Prefer small, inspectable changes over broad rewrites.
+Read `docs/ARCHITECTURE.md`, `docs/AZAAD_ARCHITECTURE_HYGIENE.md`, `docs/AZAAD_AGENT_ENGINEERING_HARNESS.md`, the active certification/operations documents, and the relevant domain gate before changing a runtime boundary. Prefer small, inspectable changes over broad rewrites.
