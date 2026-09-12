@@ -24,10 +24,8 @@ Production certification is SHA-bound: the deployed Admin artifact exposes `meta
 - Admin control center: `/admin.html`
 - Booking status: `/booking-status.html`
 - Clinical assessment tools: `/clinical-assessment.html`
-- Clinical assessment history: `/clinical-assessment-history.html`
-- Clinical question bank: `/clinical-question-bank.html`
 
-There is intentionally no separate `/patient.html` route in the canonical frontend. The patient-facing experience is the root public site (`/`); patient 360 is an authenticated Admin clinical domain.
+There is intentionally no separate `/patient.html` route in the canonical frontend. The patient-facing experience is the root public site (`/`); patient 360 is an authenticated Admin clinical domain. Clinical assessment history and the clinical question bank are administered through the authenticated clinical/Admin experience rather than separate production routes.
 
 ## Canonical architecture
 
