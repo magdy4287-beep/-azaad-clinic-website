@@ -26,16 +26,15 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-feature-evolution-gate.yml` | Feature evolution | Marketing/public privacy feature contract and required feature artifacts | Canonical feature gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization and exact-SHA E2E | Canonical clinical authorization E2E |
-| `azaad-clinical-fixture-boundary.yml` | Clinical fixture safety | Controlled fixture creation/isolation contract | Canonical fixture boundary gate |
-| `azaad-emergency-dr-restore.yml` | Emergency DR transport/restore | Historical Supabase public-schema snapshot to DR-capable Neon target | Canonical emergency DR gate |
-| `azaad-emergency-dr-auth.yml` | Emergency identity DR | Historical identity/auth portability preflight | Canonical DR support gate |
-| `azaad-emergency-dr-execute.yml` | Emergency DR execution | Explicitly authorized historical DR execution path | Canonical emergency execution gate |
+| `azaad-emergency-dr-restore.yml` | Emergency DR transport/restore | Canonical Neon DR transport/restore | Canonical emergency DR gate |
+| `azaad-emergency-dr-auth.yml` | Emergency identity DR | Appwrite identity portability preflight | Canonical DR support gate |
+| `azaad-emergency-dr-execute.yml` | Emergency DR execution | Explicitly authorized canonical DR execution path | Canonical emergency execution gate |
 | `azaad-emergency-dr-final.yml` | Emergency DR final verification | Final DR evidence and reconciliation | Canonical DR final gate |
-| `azaad-emergency-dr-functions.yml` | Emergency function recovery | Historical function transport/recovery evidence | Canonical DR function gate |
+| `azaad-emergency-dr-functions.yml` | Emergency function recovery | Canonical backend function recovery evidence | Canonical DR function gate |
 | `azaad-dr-synthetic.yml` | DR synthetic validation | Non-destructive DR readiness simulation | Canonical synthetic DR gate |
 | `azaad-controlled-p0-neon-parity.yml` | Neon runtime integrity | Read-only Neon target, schema, reachability, and critical-table verification | Canonical read-only integrity gate |
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability | Canonical controlled readiness gate |
-| `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation | Canonical controlled auth preflight |
+| `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Appwrite identity reconciliation | Canonical controlled auth preflight |
 | `azaad-integration-gate.yml` | Cross-module integration | Cross-domain integration contracts | Canonical integration gate |
 | `azaad-marketing-security-gate.yml` | Marketing security boundary | Marketing/public-surface security contracts | Canonical domain gate |
 | `azaad-patient-360-gate.yml` | Patient 360 domain | Patient longitudinal/360 contracts | Canonical domain gate |
@@ -50,7 +49,6 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `locale-stability-contract.yml` | Locale stability | Locale/runtime stability contract | Canonical locale gate |
 | `azaad-waiting-list-gate.yml` | Waiting list | Waiting-list contract | Canonical domain gate |
 | `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
-| `pgrst303-rest-root-diagnostic.yml` | Legacy PostgREST incident investigation | Explicit historical diagnostic only | Retained diagnostic |
 
 ## Proven non-duplication decisions
 
@@ -64,11 +62,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 `azaad-clinical-authorization-e2e.yml` is separate from `azaad-browser-e2e.yml`: authorization semantics and browser runtime behavior are different evidence surfaces.
 
-The historical Supabase-to-Neon migration is complete. Its destructive migration workflow is retired. `azaad-controlled-p0-neon-parity.yml` is read-only and must never become a restore path.
-
-Emergency DR workflows are separate from production migration and browser E2E because they own historical recovery evidence rather than production runtime certification.
-
-`pgrst303-rest-root-diagnostic.yml` is retained only for explicit historical incident investigation and branch-protection continuity; it is not a current authentication/runtime gate.
+Canonical production and DR workflows operate only on Vercel/Appwrite/Neon boundaries. They must not depend on retired provider artifacts, credentials, endpoints, functions, or migrations.
 
 `azaad-final-release-certification.yml` is a manually invoked candidate-SHA-locked go-live decision and is not a duplicate of automatic certification.
 
@@ -84,6 +78,8 @@ The following temporary workflows have been retired after their root-cause evide
 - `azaad-api-module-import-diagnostic.yml`
 - `azaad-controlled-neon-public-migration.yml`
 - `azaad-neon-database-migration.yml`
+- `azaad-clinical-fixture-boundary.yml`
+- `pgrst303-rest-root-diagnostic.yml`
 
 They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility and explicit authorization.
 
