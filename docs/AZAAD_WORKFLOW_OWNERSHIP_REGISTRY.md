@@ -25,8 +25,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-ai-gate.yml` | AI operating system | AI operating-system contract | Canonical AI platform gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization, controlled identities, fixture boundary and exact-SHA E2E | Canonical clinical authorization E2E |
-| `azaad-neon-database-migration.yml` | Controlled Neon database migration | One-time Supabase-to-Neon public-schema restore, critical schema verification, exact table/row-count parity; storage and identity are explicitly out of scope | Canonical migration gate |
-| `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
+| `azaad-emergency-dr-restore.yml` | Emergency disaster-recovery transport and restore | Encrypted portable historical Supabase public-schema snapshot, integrity verification, Neon DR restore, and reconciliation; identity/auth portability is explicitly out of scope | Canonical emergency DR gate |
 | `azaad-controlled-p0-neon-parity.yml` | Neon runtime integrity | Read-only Neon target, schema, reachability, and critical-table verification after migration | Canonical read-only integrity gate |
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability; no production mutation | Canonical controlled readiness gate |
 | `azaad-controlled-auth-parity-preflight.yml` | Controlled identity parity preflight | Read-only Supabase/Appwrite identity UUID reconciliation; no credentials or production mutation | Canonical controlled auth preflight |
@@ -56,9 +55,9 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 ### Neon migration and integrity
 
-`azaad-neon-database-migration.yml` is the single canonical database migration owner for the current controlled architecture branch. It is the only workflow allowed to execute the destructive Supabase-to-Neon public-schema restore during this migration window. `azaad-controlled-p0-neon-parity.yml` is strictly read-only and verifies the resulting Neon target; it must never become a second restore path.
+The historical Supabase-to-Neon migration has completed and its executable one-time migration workflow is retired. `.github/NEON_MIGRATION_EXECUTION_MARKER.md` is retained only as a retirement record. `azaad-controlled-p0-neon-parity.yml` is strictly read-only and verifies the resulting Neon target; it must never become a restore path.
 
-The former `azaad-controlled-neon-public-migration.yml` was retired because it duplicated the migration owner and could create a second destructive path. It must not be recreated unless a future migration has a distinct, documented responsibility.
+The former `azaad-controlled-neon-public-migration.yml` and the branch-scoped `azaad-neon-database-migration.yml` were retired because both created executable destructive migration paths that are no longer part of the canonical production release path. A future migration requires a new explicit authorization, distinct workflow responsibility, and independent review.
 
 ### Emergency DR
 
@@ -66,7 +65,7 @@ The former `azaad-controlled-neon-public-migration.yml` was retired because it d
 
 ### Controlled provider readiness
 
-`azaad-controlled-runtime-provider-readiness.yml` is read-only and separate from Emergency DR and Neon migration. It verifies the selected free provider surfaces before production wiring and performs no data migration or production mutation.
+`azaad-controlled-runtime-provider-readiness.yml` is read-only and separate from Emergency DR. It verifies the selected free provider surfaces before production wiring and performs no data migration or production mutation.
 
 ### Controlled auth parity preflight
 
@@ -87,8 +86,9 @@ The following temporary workflows have been retired after their root-cause evide
 - `azaad-browser-e2e-root-fix.yml`
 - `azaad-api-module-import-diagnostic.yml`
 - `azaad-controlled-neon-public-migration.yml`
+- `azaad-neon-database-migration.yml`
 
-Their responsibilities are covered by the canonical Browser E2E, production certification, runtime-boundary gates, and the canonical Neon migration workflow. They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility.
+Their responsibilities are covered by the canonical Browser E2E, production certification, runtime-boundary gates, read-only Neon integrity verification, and the emergency DR workflow where applicable. They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility and explicit authorization.
 
 ## Retirement rule
 
