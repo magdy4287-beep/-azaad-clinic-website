@@ -67,6 +67,12 @@ A detected regression should produce a clear CI failure with the violated bounda
 
 Historical certification baselines may preserve old blockers, provider names, fingerprints, counts, and deployment SHAs for auditability. They must be visibly marked as historical/frozen evidence and must state that their findings require fresh re-proving before being treated as current blockers.
 
+## Continuation / no-loop rule
+
+After each merged root-scan repair, the next task starts from the resulting `main` SHA. Completed evidence is carried forward and is not re-run without a new change or an explicit release gate. Do not reopen a closed DR phase, repeat a successful historical certification run, recreate a removed Supabase runtime, add a duplicate controller/service/workflow, or weaken a failing gate merely to obtain green status.
+
+Independent investigations may proceed in parallel when the available tooling supports it, but writes to the same file, branch, runtime boundary, or database target remain serialized. Parallelism must never create competing canonical owners or unverified overlapping mutations.
+
 ## Free-forever constraint
 
 All governance, scanning, verification, and self-healing controls must use repository-native or already-available free capabilities whenever possible. No mandatory paid SaaS, paid AI API, or paid plugin may be introduced as a production dependency.
