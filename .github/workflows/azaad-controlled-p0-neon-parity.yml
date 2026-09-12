@@ -95,14 +95,19 @@ jobs:
           done
           echo 'PASS: critical Neon application tables are readable.'
 
-      - name: Verify Supabase is not an executable dependency of this gate
+      - name: Verify retired Supabase dependency is absent from active Neon gates
+        shell: bash
         run: |
           set -euo pipefail
-          if grep -RniE 'SUPABASE_|supabase\.co|supabase-js|supabase/functions' .github/workflows/azaad-controlled-p0-neon-parity.yml; then
-            echo 'FAIL-CLOSED: retired Supabase dependency detected in the active Neon gate.'
+          # Do not scan this file: its fail-closed assertions necessarily contain
+          # the retired provider strings and would otherwise self-match.
+          matches="$(grep -RniE 'SUPABASE_|supabase\.co|supabase-js|supabase/functions' .github/workflows --exclude='azaad-controlled-p0-neon-parity.yml' || true)"
+          if [ -n "$matches" ]; then
+            echo "$matches"
+            echo 'FAIL-CLOSED: retired Supabase dependency detected in another active workflow.'
             exit 1
           fi
-          echo 'PASS: active Neon integrity gate has no Supabase dependency.'
+          echo 'PASS: no retired Supabase dependency detected in other active workflows.'
 
       - name: Controlled P0 gate
         run: |
