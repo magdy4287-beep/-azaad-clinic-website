@@ -26,11 +26,6 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-feature-evolution-gate.yml` | Feature evolution | Marketing/public privacy feature contract and required feature artifacts | Canonical feature gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization and exact-SHA E2E | Canonical clinical authorization E2E |
-| `azaad-emergency-dr-restore.yml` | Emergency DR transport/restore | Canonical Neon DR transport/restore | Canonical emergency DR gate |
-| `azaad-emergency-dr-auth.yml` | Emergency identity DR | Appwrite identity portability preflight | Canonical DR support gate |
-| `azaad-emergency-dr-execute.yml` | Emergency DR execution | Explicitly authorized canonical DR execution path | Canonical emergency execution gate |
-| `azaad-emergency-dr-final.yml` | Emergency DR final verification | Final DR evidence and reconciliation | Canonical DR final gate |
-| `azaad-emergency-dr-functions.yml` | Emergency function recovery | Canonical backend function recovery evidence | Canonical DR function gate |
 | `azaad-dr-synthetic.yml` | DR synthetic validation | Non-destructive DR readiness simulation | Canonical synthetic DR gate |
 | `azaad-controlled-p0-neon-parity.yml` | Neon runtime integrity | Read-only Neon target, schema, reachability, and critical-table verification | Canonical read-only integrity gate |
 | `azaad-controlled-runtime-provider-readiness.yml` | Controlled provider readiness | Read-only Appwrite identity/storage inventory plus Neon reachability | Canonical controlled readiness gate |
@@ -70,9 +65,9 @@ Canonical production and DR workflows operate only on Vercel/Appwrite/Neon bound
 
 The table above is exhaustive for the current `.github/workflows` directory. A workflow file without a registry row is an architecture violation. A registry row without a workflow file is also an architecture violation unless explicitly marked `Retired` with a documented reason.
 
-## Retired temporary diagnostics
+## Retired temporary diagnostics and emergency recovery workflows
 
-The following temporary workflows have been retired after their root-cause evidence was established:
+The following workflows have been retired after their unique recovery/diagnostic responsibility was removed or absorbed by canonical read-only/synthetic controls:
 
 - `azaad-browser-e2e-root-fix.yml`
 - `azaad-api-module-import-diagnostic.yml`
@@ -80,8 +75,13 @@ The following temporary workflows have been retired after their root-cause evide
 - `azaad-neon-database-migration.yml`
 - `azaad-clinical-fixture-boundary.yml`
 - `pgrst303-rest-root-diagnostic.yml`
+- `azaad-emergency-dr-restore.yml`
+- `azaad-emergency-dr-auth.yml`
+- `azaad-emergency-dr-execute.yml`
+- `azaad-emergency-dr-final.yml`
+- `azaad-emergency-dr-functions.yml`
 
-They must not be recreated as parallel permanent gates unless a new incident produces a distinct verification responsibility and explicit authorization.
+They must not be recreated as parallel permanent gates. Emergency recovery is documented and exercised through the canonical Vercel/Appwrite/Neon portability and synthetic DR contracts rather than a second provider-specific workflow family.
 
 ## Retirement rule
 
