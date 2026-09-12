@@ -5,6 +5,10 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.env.AZAAD_STATIC_ROOT || process.cwd();
 const port = Number(process.env.PORT || 4173);
+const API_REWRITES = new Map([
+  ['/api/runtime-health', '/api/admin-auth?action=runtime-health'],
+  ['/api/frontdesk-checkin', '/api/clinical-assessments?action=check-in'],
+]);
 
 function safePath(urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0]);
@@ -23,23 +27,20 @@ async function writeWebResponse(res, response) {
 
 function decorateNodeResponse(res) {
   if (typeof res.status !== 'function') {
-    res.status = function status(code) {
-      this.statusCode = Number(code) || 200;
-      return this;
-    };
+    res.status = function status(code) { this.statusCode = Number(code) || 200; return this; };
   }
   if (typeof res.json !== 'function') {
-    res.json = function json(body) {
-      if (!this.headersSent) this.setHeader('content-type', 'application/json; charset=utf-8');
-      this.end(JSON.stringify(body));
-      return this;
-    };
+    res.json = function json(body) { if (!this.headersSent) this.setHeader('content-type', 'application/json; charset=utf-8'); this.end(JSON.stringify(body)); return this; };
   }
   return res;
 }
 
 async function invokeApi(req, res, pathname) {
-  const name = pathname.slice('/api/'.length).replace(/\.js$/, '');
+  const rewrite = API_REWRITES.get(pathname);
+  const effectiveUrl = rewrite ? new URL(rewrite, req.url) : new URL(req.url);
+  const effectivePathname = effectiveUrl.pathname;
+  if (rewrite) req.url = effectiveUrl.toString();
+  const name = effectivePathname.slice('/api/'.length).replace(/\.js$/, '');
   if (!/^[A-Za-z0-9_-]+$/.test(name)) return false;
   const file = path.resolve(root, 'api', `${name}.js`);
   try { await fs.access(file); } catch { return false; }
@@ -49,8 +50,7 @@ async function invokeApi(req, res, pathname) {
   const rawBody = Buffer.concat(chunks);
   if (rawBody.length) {
     const text = rawBody.toString('utf8');
-    try { req.body = JSON.parse(text); }
-    catch { req.body = text; }
+    try { req.body = JSON.parse(text); } catch { req.body = text; }
   }
 
   const module = await import(pathToFileURL(file).href + `?t=${Date.now()}`);
@@ -64,9 +64,6 @@ const server = http.createServer(async (req, res) => {
   try {
     const requestUrl = new URL(req.url || '/', `http://${req.headers.host || `127.0.0.1:${port}`}`);
     const pathname = requestUrl.pathname;
-    // Vercel's Node request contract exposes req.url as a URL-like request target.
-    // The local harness must provide the same absolute URL because API handlers
-    // use it for protocol-sensitive cookie construction.
     req.url = requestUrl.toString();
     if (pathname.startsWith('/api/')) {
       if (await invokeApi(req, res, pathname)) return;
@@ -77,17 +74,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const data = await fs.readFile(file);
       const ext = path.extname(file).toLowerCase();
-      const types = {
-        '.html': 'text/html; charset=utf-8',
-        '.js': 'text/javascript; charset=utf-8',
-        '.css': 'text/css; charset=utf-8',
-        '.json': 'application/json; charset=utf-8',
-        '.svg': 'image/svg+xml',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.webp': 'image/webp'
-      };
+      const types = { '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp' };
       res.setHeader('content-type', types[ext] || 'application/octet-stream');
       if (ext === '.html' || ext === '.js') res.setHeader('cache-control', 'no-store, max-age=0');
       res.end(data);
