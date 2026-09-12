@@ -19,14 +19,14 @@ If a required recovery capability cannot be proven on the free-only stack, recor
 
 ## Provider model
 
-Supabase is the current primary backend runtime. It is not the authoritative owner of AZAAD's data model.
+**Current production architecture:** Vercel is the canonical application runtime/deployment boundary, Appwrite is the canonical identity/session boundary, and Neon is the canonical production data boundary. Supabase is preserved only for migration, rollback, disaster-recovery, and historical evidence; it is not a production runtime or production data owner.
 
 The portable source of truth is:
 
 - PostgreSQL schema and migrations
 - application code
 - authorization/RLS model
-- Edge/API contracts
+- backend/API contracts
 - audit/event contracts
 - encrypted export artifacts
 - identity mapping rules
@@ -159,7 +159,7 @@ Verify:
 - privileged server-side operations
 - SECURITY DEFINER protections where retained
 - RLS policies and grants
-- Edge/API authorization
+- backend/API authorization
 - audit attribution
 - fail-closed denial behavior
 
