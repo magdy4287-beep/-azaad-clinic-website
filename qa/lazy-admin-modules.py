@@ -25,7 +25,7 @@ LAZY = {
 
 LEGACY_OR_CONTRACT = {
     "admin-enhancements-v1.js", "clinic-posts.js", "marketing-workspace-v2.js", "marketing-platform-expansion.js",
-    "marketing-studio-v3.js", "scheduling-actions-contract.js", "scheduling-v2-waiting.js", "admin-nextgen-fixes.js", "admin-nextgen-v2.js",
+    "scheduling-actions-contract.js", "scheduling-v2-waiting.js", "admin-nextgen-fixes.js", "admin-nextgen-v2.js",
     "finance-executive-dashboard.js", "finance-executive-loader.js", "finance-executive-annual-monthly.js", "finance-executive-period-loader.js",
     "patient-merge-tool.js", "hr-performance-analytics.js",
 }
