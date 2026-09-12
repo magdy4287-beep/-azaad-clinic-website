@@ -23,6 +23,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-ai-gate.yml` | AI operating system | AI operating-system contract | Canonical AI platform gate |
 | `azaad-department-ai-gate.yml` | Department AI boundaries | Department-level AI contracts | Canonical domain gate |
 | `azaad-executive-ai-gate.yml` | Executive AI boundaries | Executive AI contracts | Canonical domain gate |
+| `azaad-feature-evolution-gate.yml` | Feature evolution | Marketing/public privacy feature contract and required feature artifacts | Canonical feature gate |
 | `azaad-operations-health.yml` | Operational health | Runtime/operations health checks | Canonical operations gate |
 | `azaad-clinical-authorization-e2e.yml` | Clinical authorization boundary | Authenticated multi-role authorization and exact-SHA E2E | Canonical clinical authorization E2E |
 | `azaad-clinical-fixture-boundary.yml` | Clinical fixture safety | Controlled fixture creation/isolation contract | Canonical fixture boundary gate |
