@@ -12,7 +12,6 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-release-governance-gate.yml` | Release governance | Release policy and governance controls | Canonical |
 | `azaad-final-release-certification.yml` | Manual final go-live decision | Exact candidate SHA + required fresh CI + production surface | Canonical manual gate |
 | `azaad-admin-gates.yml` | Admin structural acceptance | Admin, scheduling, marketing structural contracts | Canonical Admin acceptance |
-| `azaad-admin-nextgen-gate.yml` | Admin Next-Gen feature contracts | Next-Gen JS, role, bilingual and credential-safety contracts | Canonical feature gate |
 | `azaad-browser-e2e.yml` | Browser behavior | End-to-end browser behavior against the intended artifact | Canonical runtime gate |
 | `azaad-comprehensive-system-contract.yml` | Cross-system contracts | System-wide structural contracts | Canonical system gate |
 | `azaad-appointment-gate.yml` | Appointment contract | Appointment contract only | Canonical appointment gate |
@@ -41,7 +40,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `doctor-identity-gate.yml` | Doctor identity | Doctor identity/credential boundary | Canonical doctor gate |
 | `doctor-isolation-contract.yml` | Doctor isolation | Doctor data/route isolation contract | Canonical doctor gate |
 | `i18n-stability-contract.yml` | Internationalization stability | i18n contract | Canonical locale gate |
-| `locale-stability-contract.yml` | Locale stability | Locale/runtime stability contract | Canonical locale gate |
+| `locale-stability-contract.yml` | Locale/runtime stability | Locale/runtime stability contract | Canonical locale gate |
 | `azaad-waiting-list-gate.yml` | Waiting list | Waiting-list contract | Canonical domain gate |
 | `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
 | `azaad-source-canonicality-gate.yml` | Source canonicality | Proves the repository itself is canonical and build transforms do not hide source drift | Canonical source-integrity gate |
@@ -64,6 +63,10 @@ Canonical production and DR workflows operate only on Vercel/Appwrite/Neon bound
 
 `azaad-final-release-certification.yml` is a manually invoked candidate-SHA-locked go-live decision and is not a duplicate of automatic certification.
 
+## Retired feature-era workflow
+
+`azaad-admin-nextgen-gate.yml` is retired. Its protected `admin-nextgen-v2.js` source was removed during canonical Admin reconstruction, and its remaining assertions are obsolete or covered by the canonical Admin structural, browser, authorization, and source-integrity gates. The workflow must not be recreated merely to preserve checks against deleted source.
+
 ## Inventory rule
 
 The table above is exhaustive for the current `.github/workflows` directory. A workflow file without a registry row is an architecture violation. A registry row without a workflow file is also an architecture violation unless explicitly marked `Retired` with a documented reason.
@@ -77,7 +80,7 @@ The following workflows have been retired after their unique recovery/diagnostic
 - `azaad-controlled-neon-public-migration.yml`
 - `azaad-neon-database-migration.yml`
 - `azaad-clinical-fixture-boundary.yml`
-- `pgrst303-rest-root-diagnostic.yml`
+- `pgrst303-rest-diagnostic.yml`
 - `azaad-emergency-dr-restore.yml`
 - `azaad-emergency-dr-auth.yml`
 - `azaad-emergency-dr-execute.yml`
