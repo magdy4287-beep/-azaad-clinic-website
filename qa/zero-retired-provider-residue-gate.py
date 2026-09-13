@@ -6,7 +6,7 @@ LEGACY_PROVIDER = "sup" + "abase"
 FORBIDDEN_MARKERS = (
     LEGACY_PROVIDER,
     LEGACY_PROVIDER + ".co",
-    "@" + LEGACY_PROVIDER + "/" + "supabase-js",
+    "@" + LEGACY_PROVIDER + "/" + ("sup" + "abase") + "-js",
     "@" + LEGACY_PROVIDER + "/" + "functions-js",
     "SUP" + "ABASE_" + "URL",
     "SUP" + "ABASE_" + "ANON_KEY",
