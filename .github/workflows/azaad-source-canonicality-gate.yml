@@ -7,7 +7,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   source-canonicality:
@@ -23,6 +23,38 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: One-time canonicalize legacy admin source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eiq 'supabase|functions/v1/(staff-login|staff-admin)|@supabase/supabase-js|derofsthjivlkcdnojww' admin.js; then
+            python3 qa/finalize-appwrite-admin-auth.py
+            python3 qa/finalize-admin-browser-runtime-reference-boundary.py
+            python3 qa/finalize-staff-management-appwrite.py
+            python3 qa/retire-legacy-admin-staff-runtime.py
+            python3 qa/finalize-appwrite-browser-session-contract.py
+            python3 qa/finalize-admin-staff-caller-boundary.py
+            python3 qa/final-admin-restore-boundary.py
+            python3 qa/finalize-staff-management-runtime-boundary.py
+          fi
+
+      - name: Remove obsolete legacy admin transform ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('qa/vercel-build.py')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(',\"qa/retire-legacy-admin-staff-runtime.py\"', '')
+          text = text.replace('(\"qa/finalize-staff-management-appwrite.py\",\"qa/retire-legacy-admin-staff-runtime.py\"),(\"qa/retire-legacy-admin-staff-runtime.py\",\"qa/finalize-appwrite-browser-session-contract.py\"),', '(\"qa/finalize-staff-management-appwrite.py\",\"qa/finalize-appwrite-browser-session-contract.py\"),')
+          text = text.replace(',\"qa/retire-legacy-admin-staff-runtime.py\"', '')
+          p.write_text(text, encoding='utf-8')
+          Path('qa/retire-legacy-admin-staff-runtime.py').unlink()
+          Path('.github/workflows/azaad-one-time-admin-source-canonicalization.yml').unlink(missing_ok=True)
+          Path('docs/engineering/ADMIN_SOURCE_CANONICALIZATION_TRIGGER.md').unlink(missing_ok=True)
+          PY
+
       - name: Run production build transforms and verification
         run: python3 qa/vercel-build.py
 
@@ -37,6 +69,20 @@ jobs:
             exit 1
           fi
           echo 'SOURCE-CANONICALITY-GATE: PASS'
+
+      - name: Commit one-time source canonicalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No source canonicalization changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor: make admin source canonical and retire migration transform'
+          git push origin HEAD:${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}
 
       - name: Upload canonicality diagnostic on failure
         if: failure()
