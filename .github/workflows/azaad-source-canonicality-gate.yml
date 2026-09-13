@@ -48,12 +48,25 @@ jobs:
           text = p.read_text(encoding='utf-8')
           text = text.replace(',\"qa/retire-legacy-admin-staff-runtime.py\"', '')
           text = text.replace('(\"qa/finalize-staff-management-appwrite.py\",\"qa/retire-legacy-admin-staff-runtime.py\"),(\"qa/retire-legacy-admin-staff-runtime.py\",\"qa/finalize-appwrite-browser-session-contract.py\"),', '(\"qa/finalize-staff-management-appwrite.py\",\"qa/finalize-appwrite-browser-session-contract.py\"),')
-          text = text.replace(',\"qa/retire-legacy-admin-staff-runtime.py\"', '')
           p.write_text(text, encoding='utf-8')
           Path('qa/retire-legacy-admin-staff-runtime.py').unlink()
           Path('.github/workflows/azaad-one-time-admin-source-canonicalization.yml').unlink(missing_ok=True)
           Path('docs/engineering/ADMIN_SOURCE_CANONICALIZATION_TRIGGER.md').unlink(missing_ok=True)
           PY
+
+      - name: Commit canonical source migration before build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin.js admin.html qa/vercel-build.py qa/retire-legacy-admin-staff-runtime.py .github/workflows/azaad-one-time-admin-source-canonicalization.yml docs/engineering/ADMIN_SOURCE_CANONICALIZATION_TRIGGER.md
+          if git diff --cached --quiet; then
+            echo 'No one-time admin source migration changes were produced.'
+          else
+            git commit -m 'refactor: make admin source canonical and retire migration transform'
+            git push origin HEAD:${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}
+          fi
 
       - name: Run production build transforms and verification
         run: python3 qa/vercel-build.py
@@ -69,20 +82,6 @@ jobs:
             exit 1
           fi
           echo 'SOURCE-CANONICALITY-GATE: PASS'
-
-      - name: Commit one-time source canonicalization
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            echo 'No source canonicalization changes to commit.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'refactor: make admin source canonical and retire migration transform'
-          git push origin HEAD:${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}
 
       - name: Upload canonicality diagnostic on failure
         if: failure()
