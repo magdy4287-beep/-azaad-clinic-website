@@ -80,7 +80,7 @@ The following workflows have been retired after their unique recovery/diagnostic
 - `azaad-controlled-neon-public-migration.yml`
 - `azaad-neon-database-migration.yml`
 - `azaad-clinical-fixture-boundary.yml`
-- `pgrst303-rest-diagnostic.yml`
+- `pgrst303-rest-root-diagnostic.yml`
 - `azaad-emergency-dr-restore.yml`
 - `azaad-emergency-dr-auth.yml`
 - `azaad-emergency-dr-execute.yml`
