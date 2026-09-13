@@ -14,23 +14,23 @@ text = text.replace("if (!result?.authenticated || result?.provider !== 'appwrit
 text = text.replace("state.session = result.session; state.user = result.user || result.session.user || null; state.provider = 'appwrite';", "state.session = { user: result.user || null }; state.user = result.user || null; state.provider = 'appwrite';")
 if 'session: { access_token:' in text: raise SystemExit('Final Admin restore boundary: secret-bearing session object remains in browser Admin controller')
 
-owner_re = r'window\\.AZAAD_RESTORE_STAFF_PROFILE\\s*=\\s*async\\s+function\\s+restoreStaffProfile\\s*\\(\\s*\\)'
+owner_re = r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*=\s*async\s+function\s+restoreStaffProfile\s*\(\s*\)'
 owners = list(re.finditer(owner_re, text))
 if not owners:
-    fn = re.search(r'async function restoreStaffProfile\\s*\\(\\s*\\)\\s*\\{', text)
+    fn = re.search(r'async function restoreStaffProfile\s*\(\s*\)\s*\{', text)
     if not fn: raise SystemExit('Final Admin restore boundary: restoreStaffProfile implementation is missing')
     text = text[:fn.start()] + 'window.AZAAD_RESTORE_STAFF_PROFILE = ' + text[fn.start():]
     owners = list(re.finditer(owner_re, text))
 if len(owners) != 1: raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once (found {len(owners)})')
 
-text = re.sub(r'(\\breturn\\s+)restoreStaffProfile\\s*\\(\\s*\\)', r'\\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
-text = re.sub(r'(\\bawait\\s+)restoreStaffProfile\\s*\\(\\s*\\)', r'\\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
-text = re.sub(r'(=\\s*await\\s+)restoreStaffProfile\\s*\\(\\s*\\)', r'\\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
+text = re.sub(r'(\breturn\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
+text = re.sub(r'(\bawait\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
+text = re.sub(r'(=\s*await\s+)restoreStaffProfile\s*\(\s*\)', r'\1window.AZAAD_RESTORE_STAFF_PROFILE()', text)
 
-startup_match = re.search(r'document\\.addEventListener\\(\\s*["\\']DOMContentLoaded["\\']', text)
+startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match: raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
 
-ready_guard = re.search(r'if\\s*\\(\\s*document\\.readyState\\s*===\\s*["\\']loading["\\']\\s*\\)\\s*\\{', text)
+ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
 if ready_guard and owners[0].start() > ready_guard.start():
     owner_start = owners[0].start(); brace_start = text.find('{', owner_start)
     if brace_start < 0: raise SystemExit('FAIL-CLOSED: canonical restore owner body is missing')
@@ -57,18 +57,18 @@ if ready_guard and owners[0].start() > ready_guard.start():
     if end < len(text) and text[end] == ';': end += 1
     owner_source = text[owner_start:end]
     text = text[:owner_start] + text[end:]
-    ready_guard = re.search(r'if\\s*\\(\\s*document\\.readyState\\s*===\\s*["\\']loading["\\']\\s*\\)\\s*\\{', text)
+    ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
     if not ready_guard: raise SystemExit('FAIL-CLOSED: ready-state guard disappeared during restore-owner relocation')
     text = text[:ready_guard.start()] + owner_source + '\n\n' + text[ready_guard.start():]
 
 owners = list(re.finditer(owner_re, text))
 if len(owners) != 1: raise SystemExit(f'Final Admin restore boundary: canonical global restore owner must exist exactly once after relocation (found {len(owners)})')
-startup_match = re.search(r'document\\.addEventListener\\(\\s*["\\']DOMContentLoaded["\\']', text)
+startup_match = re.search(r'document\.addEventListener\(\s*["\']DOMContentLoaded["\']', text)
 if not startup_match: raise SystemExit('Final Admin restore boundary: DOMContentLoaded startup owner is missing')
 if owners[0].start() > startup_match.start(): raise SystemExit('FAIL-CLOSED: Appwrite restore owner is published after DOMContentLoaded startup')
-ready_guard = re.search(r'if\\s*\\(\\s*document\\.readyState\\s*===\\s*["\\']loading["\\']\\s*\\)\\s*\\{', text)
+ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\']\s*\)\s*\{', text)
 if ready_guard and owners[0].start() > ready_guard.start(): raise SystemExit('FAIL-CLOSED: Appwrite restore owner remains nested after ready-state guard')
-if not re.search(r'window\\.AZAAD_RESTORE_STAFF_PROFILE\\s*\\(\\s*\\)', text): raise SystemExit('Final Admin restore boundary: startup/restoreSession must call the canonical global Appwrite restore owner')
+if not re.search(r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*\(\s*\)', text): raise SystemExit('Final Admin restore boundary: startup/restoreSession must call the canonical global Appwrite restore owner')
 
 RUNTIME_JS = {'admin.js','admin-enhancements-v1.js','admin-english-hardening.js','admin-patient-icon-guard.js','azaad-role-experience.js','patient-appointment-actions.js','patient-financial-summary.js','doctors-center-v2.js','doctor-staff-binding.js','doctor-staff-convert.js','services-center-v2.js','scheduling-v2.js','marketing-studio-v4.js','marketing-intelligence-loader.js','staff-management.js','hr-performance-analytics.js','admin-calendar-center.js'}
 failures = []
