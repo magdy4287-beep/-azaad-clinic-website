@@ -1,9 +1,6 @@
 name: AZAAD Source Canonicality Gate
 
 on:
-  push:
-    branches:
-      - chore/zero-supabase-retirement-20260913
   pull_request:
 
 permissions:
