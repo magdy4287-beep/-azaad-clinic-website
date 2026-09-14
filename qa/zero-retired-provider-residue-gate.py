@@ -12,7 +12,9 @@ FORBIDDEN_MARKERS = (
     "SUP" + "ABASE_" + "ANON_KEY",
     "SUP" + "ABASE_" + "PUBLISHABLE_KEY",
     "SUP" + "ABASE_" + "SERVICE_ROLE_KEY",
-    "createClient" + "(",
+    "createClient(" + LEGACY_PROVIDER,
+    "createClient(" + "https://esm.sh/@" + LEGACY_PROVIDER,
+    "createClient(" + "npm:@" + LEGACY_PROVIDER,
     LEGACY_PROVIDER + ".auth.",
     "functions" + "/v1/",
 )
