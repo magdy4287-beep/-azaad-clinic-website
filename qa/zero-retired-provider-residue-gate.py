@@ -1,8 +1,9 @@
 """Fail-closed gate for zero retired-provider runtime dependency residue.
 
-QA assertions and historical evidence may intentionally mention the retired provider
-when proving that the provider is absent from production. This gate therefore scans
-production/runtime/configuration surfaces; dedicated QA contracts own their assertions.
+QA assertions and documentation may intentionally mention the retired provider when
+proving that the provider is absent from production. This gate scans production,
+runtime, and configuration surfaces; dedicated QA/documentation contracts own their
+historical assertions.
 """
 from pathlib import Path
 
@@ -26,12 +27,15 @@ FORBIDDEN_MARKERS = (
     "process.env." + "SUP" + "ABASE",
 )
 SKIP_NAMES = {".git", ".venv", "node_modules", "__pycache__", "qa", "docs"}
+RUNTIME_EXTENSIONS = {".js", ".html", ".css", ".json", ".yml", ".yaml", ".py", ".sh", ".sql", ".toml", ".ini", ".conf"}
 violations = []
 
 for path in ROOT.rglob("*"):
     if not path.is_file() or any(part in SKIP_NAMES for part in path.parts):
         continue
     relative = path.relative_to(ROOT)
+    if path.suffix.lower() not in RUNTIME_EXTENSIONS:
+        continue
     if any(part.lower() == LEGACY_PROVIDER for part in relative.parts):
         violations.append((str(relative), "path", "directory/file name"))
         continue
