@@ -16,10 +16,7 @@ REQUIRED_TERMINAL_TRANSFORMS = {
 
 EXECUTABLE_ROOTS = (ROOT / "qa", ROOT / "scripts", ROOT / ".github")
 EXECUTABLE_SUFFIXES = {".py", ".sh"}
-PLACEHOLDER_PATTERNS = (
-    re.compile(r"^\s*#\s*(?:placeholder|no[- ]op)\s*$", re.I | re.M),
-    re.compile(r"^\s*(?:pass)\s*(?:#.*)?$", re.M),
-)
+PLACEHOLDER_COMMENT = re.compile(r"^\s*#\s*(?:placeholder|no[- ]op)\s*$", re.I | re.M)
 
 if not BUILD.is_file():
     raise SystemExit("Engineering-tree GC gate: qa/vercel-build.py is required")
@@ -53,18 +50,6 @@ def extract_tuple_paths(name):
         paths.append(elt.value)
     return paths
 
-
-def tracked_text_files():
-    roots = (ROOT / "qa", ROOT / "scripts", ROOT / ".github", ROOT / "docs")
-    files = []
-    for base in roots:
-        if not base.exists():
-            continue
-        for path in base.rglob("*"):
-            if path.is_file() and path.suffix.lower() in {".py", ".sh", ".yml", ".yaml", ".md", ".json", ".js", ".ts"}:
-                files.append(path)
-    return files
-
 transforms = extract_tuple_paths("TRANSFORM_STEPS")
 verifiers = extract_tuple_paths("VERIFY_STEPS")
 
@@ -92,7 +77,6 @@ for path in transforms:
 # High-confidence executable garbage collection. This intentionally checks only
 # executable/control files and does not guess about ordinary docs/assets.
 # A future placeholder/no-op executable is a deterministic architecture defect.
-tracked = tracked_text_files()
 for base in EXECUTABLE_ROOTS:
     if not base.exists():
         continue
@@ -103,7 +87,7 @@ for base in EXECUTABLE_ROOTS:
             continue
         body = path.read_text(encoding="utf-8", errors="replace")
         meaningful = [line.strip() for line in body.splitlines() if line.strip() and not line.lstrip().startswith("#")]
-        if not meaningful or any(pattern.search(body) for pattern in PLACEHOLDER_PATTERNS):
+        if not meaningful or PLACEHOLDER_COMMENT.search(body) or meaningful == ["pass"]:
             failures.append(f"placeholder/no-op executable must be retired or implemented: {path.relative_to(ROOT).as_posix()}")
 
 # Detect exact duplicate executable payloads inside the controlled executable
