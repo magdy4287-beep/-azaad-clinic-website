@@ -1,0 +1,51 @@
+name: AZAAD Canonicalize Admin Source Once
+
+on:
+  push:
+    branches:
+      - chore/zero-supabase-retirement-20260913
+
+permissions:
+  contents: write
+
+jobs:
+  canonicalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate canonical admin source through existing production transforms
+        shell: bash
+        run: |
+          set +e
+          python3 qa/vercel-build.py
+          build_rc=$?
+          set -e
+          echo "Build verification exit code: ${build_rc}"
+          test -s admin.js
+          cp admin.js /tmp/azaad-admin-canonical.js
+          git reset --hard HEAD
+          cp /tmp/azaad-admin-canonical.js admin.js
+          test -s admin.js
+
+      - name: Commit canonical admin source
+        shell: bash
+        run: |
+          if git diff --quiet -- admin.js; then
+            echo 'ADMIN SOURCE ALREADY CANONICAL'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin.js
+          git commit -m 'chore: canonicalize admin source boundary'
+          git push origin HEAD:${GITHUB_REF_NAME}
