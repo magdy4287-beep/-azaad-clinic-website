@@ -18,14 +18,43 @@ def function_body(source, marker):
     if brace < 0:
         return None
     depth = 0
-    for index in range(brace, len(source)):
-        char = source[index]
-        if char == "{":
+    quote = None
+    escape = False
+    line_comment = False
+    block_comment = False
+    i = brace
+    while i < len(source):
+        char = source[i]
+        nxt = source[i + 1] if i + 1 < len(source) else ""
+        if line_comment:
+            if char == "\n":
+                line_comment = False
+        elif block_comment:
+            if char == "*" and nxt == "/":
+                block_comment = False
+                i += 1
+        elif quote:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == quote:
+                quote = None
+        elif char in ("'", '"', "`'):
+            quote = char
+        elif char == "/" and nxt == "/":
+            line_comment = True
+            i += 1
+        elif char == "/" and nxt == "*":
+            block_comment = True
+            i += 1
+        elif char == "{":
             depth += 1
         elif char == "}":
             depth -= 1
             if depth == 0:
-                return source[brace + 1:index]
+                return source[brace + 1:i]
+        i += 1
     return None
 
 
