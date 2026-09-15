@@ -46,9 +46,9 @@ for token, msg in (("window.AZAAD_I18N", "central I18N runtime API"), ("Mutation
     require(token in ct, f"{msg} missing")
 require("location.reload()" not in ct, "central I18N reloads pages")
 require("qa/vercel-build.py" in vt, "Vercel does not use the bounded production build runner")
-for step in ("qa/inject-central-i18n.py", "qa/inject-responsive-shell.py", ".github/patch-admin.py", "qa/remove-legacy-admin-i18n-runtime.py", ".github/inject-patient-actions.py", ".github/inject-doctor-actions.py", "qa/lazy-admin-modules.py", "qa/verify-production-contracts.py", "qa/finalize-appwrite-admin-auth.py"):
+for step in ("qa/inject-central-i18n.py", "qa/inject-responsive-shell.py", ".github/patch-admin.py", ".github/inject-patient-actions.py", ".github/inject-doctor-actions.py", "qa/lazy-admin-modules.py", "qa/verify-production-contracts.py", "qa/finalize-appwrite-admin-auth.py"):
     require(step in bt, f"Vercel production build runner missing step: {step}")
-for retired in (".github/finalize-auth.py", "qa/fix-production-contracts.py"):
+for retired in (".github/finalize-auth.py", "qa/fix-production-contracts.py", "qa/remove-legacy-admin-i18n-runtime.py"):
     require(retired not in bt, f"retired build checkpoint still referenced: {retired}")
 require("azaad-responsive-shell.css" in read(injector), "responsive CSS injection missing")
 require("azaad-role-experience.js" in read(injector), "admin role UI injection missing")
@@ -83,8 +83,6 @@ require("Every refund: Request -> Doctor Approval -> Management/Owner Approval -
 sec = [p for p in ROOT.rglob("*") if p.is_file() and p.suffix.lower() in {".js", ".ts", ".sql", ".html", ".md"} and ".git" not in p.parts]
 st = "\n".join(read(p) for p in sec)
 require((ROOT / "change-password.html").exists(), "password page missing")
-# These are canonical lowercase API error codes; match case-insensitively so the
-# contract verifies the actual runtime boundary instead of requiring stale casing.
 security_tokens = st_api.lower() + "\n" + st.lower()
 for x, m in (("cannot_disable_self", "self-disable protection"), ("last_owner_protected", "last-owner protection"), ("password_update_failed", "password recovery")):
     require(x in security_tokens, f"{m} missing")
