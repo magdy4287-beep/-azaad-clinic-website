@@ -13,5 +13,8 @@ assert 'marketing-studio-v3.js' not in studio
 assert 'marketing-studio-v4.js' in lazy
 assert 'marketing-studio-v3.js' not in lazy
 assert 'api/public-clinic-data?scope=team' in team
-assert 'clinic_team' in public_data or 'scope=team' in public_data
+# Canonical public team storage is now clinic_public_team_profiles, joined to
+# clinic_staff for the doctor identity. The old clinic_team marker was retired.
+assert 'clinic_public_team_profiles' in public_data
+assert 'show_on_patient_portal=true' in public_data
 print('marketing hybrid + public privacy gate: PASS')
