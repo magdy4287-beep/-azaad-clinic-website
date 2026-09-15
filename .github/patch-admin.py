@@ -26,10 +26,9 @@ ADMIN_FEATURE_SCRIPTS = (
     "doctor-visit-actions.js",
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
+    "insurance-admission-office.js",
 )
 
-# Only these files are permitted to receive the legacy translation-key compatibility
-# rewrite. Never recursively mutate arbitrary JavaScript during a production build.
 ADMIN_COMPATIBILITY_FILES = tuple(dict.fromkeys((
     "admin.html",
     "admin-english-hardening.js",
@@ -55,7 +54,6 @@ def _remove_script_source(text, script_name):
 
 
 def _remove_legacy_inline_admin_controller(text):
-    """Explicit ownership marker: canonicalize-admin-runtime owns legacy-controller removal."""
     return text
 
 
@@ -104,8 +102,6 @@ def patch_admin_injected_compatibility():
 
 
 def patch_nextgen_scripts():
-    # Explicit ownership list: production builds must never recursively rewrite
-    # arbitrary JavaScript outside the Admin compatibility surface.
     for relative in ADMIN_COMPATIBILITY_FILES:
         path = Path(relative)
         if not path.exists() or path.suffix != '.js':
@@ -124,9 +120,6 @@ def patch_nextgen_scripts():
         if updated != text:
             path.write_text(updated, encoding='utf-8')
 
-
-# Runtime authentication, startup restoration, and session ownership are deliberately
-# absent here. They belong exclusively to the canonical Appwrite/admin-boundary transforms.
 for script in ADMIN_FEATURE_SCRIPTS:
     inject_script("admin.html", script)
 
