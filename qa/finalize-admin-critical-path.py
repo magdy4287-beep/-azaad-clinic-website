@@ -101,7 +101,7 @@ login_bounds = bounds(js, "async function login(")
 login_body = js[login_bounds[0]:login_bounds[1]]
 
 role_pattern = re.compile(
-    r"applyStaffRole\s*\(\s*result\.staff\s*\)\s*;",
+    r"(?:!\s*)?applyStaffRole\s*\(\s*result\.staff\s*\)\s*;",
     re.S,
 )
 role_match = role_pattern.search(login_body)
