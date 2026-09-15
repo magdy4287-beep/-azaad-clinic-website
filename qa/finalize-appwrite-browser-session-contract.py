@@ -84,10 +84,11 @@ text, role_count = role_pattern.subn('SECRETARY: [\n    "dashboard.view",\n    "
 if role_count != 1: raise SystemExit('SECRETARY role permission block not found')
 
 role_gate = '["OWNER", "ADMIN", "MANAGER"].includes(String(state.currentRole || state.staff?.role || "").toUpperCase().trim())'
-init_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
-load_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
-text, init_count = re.subn(init_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {{', text, flags=re.S)
-text, load_count = re.subn(load_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.load === "function") {{', text, flags=re.S)
+# Accept the two canonical forms used by the runtime: a direct if-guard or a deferred Promise wrapper.
+init_pattern = r'(?:if\s*\(\s*)?window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"](?:\s*\))?'
+load_pattern = r'(?:if\s*\(\s*)?window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"](?:\s*\))?'
+text, init_count = re.subn(init_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function")', text, count=1, flags=re.S)
+text, load_count = re.subn(load_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.load === "function")', text, count=1, flags=re.S)
 if init_count == 0: raise SystemExit('Privileged Staff init call site not found')
 
 text = re.sub(r"if\s*\(\s*!state\.session\?\.access_token\s*\)\s*throw new Error\([^;]+;", "if (!state.session || state.provider !== 'appwrite') throw new Error('جلسة الإدارة غير صالحة.');", text)
@@ -96,7 +97,6 @@ if re.search(r'\bsupabase\.auth\.', text) or 'functions/v1/staff-login' in text:
     raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
 admin.write_text(text, encoding='utf-8')
 
-# retire-legacy-admin-staff-runtime.py owns the inline staffApi replacement in admin.html; patch its final artifact here too.
 html = Path('admin.html')
 if html.is_file():
     html_text = html.read_text(encoding='utf-8')
