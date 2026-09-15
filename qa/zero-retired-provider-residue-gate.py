@@ -26,21 +26,34 @@ for path in ROOT.rglob("*"):
         continue
     relative = path.relative_to(ROOT)
     if any(part.lower() == LEGACY_PROVIDER for part in relative.parts):
-        violations.append(f"path: {relative}")
+        violations.append((str(relative), "path", "directory/file name"))
         continue
     try:
         text = path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, OSError):
         continue
+    lower_text = text.lower()
     for marker in FORBIDDEN_MARKERS:
-        if marker.lower() in text.lower():
-            violations.append(f"content: {relative} -> retired-provider residue")
-            break
+        lower_marker = marker.lower()
+        if lower_marker not in lower_text:
+            continue
+        line_numbers = [
+            str(index)
+            for index, line in enumerate(text.splitlines(), start=1)
+            if lower_marker in line.lower()
+        ]
+        location = ",".join(line_numbers[:12])
+        if len(line_numbers) > 12:
+            location += ",..."
+        violations.append((str(relative), "content", f"marker={marker!r} lines={location}"))
+        break
 
 if violations:
     print("ZERO-RETIRED-PROVIDER RESIDUE GATE: FAIL")
-    for item in violations[:200]:
-        print(item)
+    for relative, kind, detail in violations[:200]:
+        print(f"{kind}: {relative} -> {detail}")
+    if len(violations) > 200:
+        print(f"... {len(violations) - 200} additional violation(s) omitted")
     raise SystemExit(f"Retired provider residue detected: {len(violations)} violation(s)")
 
 print("ZERO-RETIRED-PROVIDER RESIDUE GATE: PASS")
