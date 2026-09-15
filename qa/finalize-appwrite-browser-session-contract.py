@@ -5,12 +5,20 @@ import re
 def bounds(src, name, required=True):
     matches = list(re.finditer(rf'async function {re.escape(name)}\s*\([^)]*\)\s*\{{', src))
     if not matches:
-        if required: raise SystemExit(f'{name}: canonical function missing')
+        if required:
+            raise SystemExit(f'{name}: canonical function missing')
         return None
-    if len(matches) != 1: raise SystemExit(f'{name}: expected exactly one canonical function, found {len(matches)}')
-    m = matches[0]; i = src.find('{', m.start()); depth = 0; quote = None; escape = False; line = block = False
+    if len(matches) != 1:
+        raise SystemExit(f'{name}: expected exactly one canonical function, found {len(matches)}')
+    m = matches[0]
+    i = src.find('{', m.start())
+    depth = 0
+    quote = None
+    escape = False
+    line = block = False
     while i < len(src):
-        c = src[i]; n = src[i + 1] if i + 1 < len(src) else ''
+        c = src[i]
+        n = src[i + 1] if i + 1 < len(src) else ''
         if line:
             if c == '\n': line = False
         elif block:
@@ -29,79 +37,128 @@ def bounds(src, name, required=True):
         i += 1
     raise SystemExit(f'{name}: unterminated function')
 
+
 def replace_fn(src, name, replacement, required=True):
     b = bounds(src, name, required)
-    if not b: return src
+    if not b:
+        return src
     return src[:b[0]] + replacement + src[b[1]:]
 
+
 LOGIN = r'''async function login(username, password) {
-  const cleanUsername = String(username || '').trim().toLowerCase(); const cleanPassword = String(password || '');
-  if (!cleanUsername) throw new Error('اسم المستخدم مطلوب.'); if (!cleanPassword) throw new Error('كلمة المرور مطلوبة.');
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  const cleanPassword = String(password || '');
+  if (!cleanUsername) throw new Error('اسم المستخدم مطلوب.');
+  if (!cleanPassword) throw new Error('كلمة المرور مطلوبة.');
   const response = await fetch('/api/admin-auth', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ username: cleanUsername, password: cleanPassword }) });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result?.error === 'invalid_credentials' ? 'بيانات الدخول غير صحيحة.' : (result?.message || 'تعذر تسجيل الدخول.'));
   if (result?.provider !== 'appwrite' || !result?.authenticated || !result?.staff) throw new Error('جلسة Appwrite غير صالحة.');
-  if (result.staff.active === false) throw new Error('حساب الموظف غير فعال.'); if (!applyStaffRole(result.staff)) throw new Error('دور الموظف غير صالح.');
-  state.session = Object.freeze({ provider: 'appwrite' }); state.user = result.user || { id: result.staff.auth_user_id || null, email: result.staff.email || null }; state.provider = 'appwrite';
-  if (redirectDoctorIfNeeded()) return; await initializeApplication();
+  if (result.staff.active === false) throw new Error('حساب الموظف غير فعال.');
+  if (!applyStaffRole(result.staff)) throw new Error('دور الموظف غير صالح.');
+  state.session = Object.freeze({ provider: 'appwrite' });
+  state.user = result.user || { id: result.staff.auth_user_id || null, email: result.staff.email || null };
+  state.provider = 'appwrite';
+  if (redirectDoctorIfNeeded()) return;
+  await initializeApplication();
 }'''
+
 RESTORE = r'''async function restoreStaffProfile() {
-  const retryDelays = [0, 150, 350]; let lastStatus = null;
-  try { for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
-    if (retryDelays[attempt]) await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
-    const response = await fetch('/api/admin-auth', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } }); lastStatus = response.status;
-    if (response.ok) { const result = await response.json().catch(() => ({})); if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || result.staff.active === false) return false;
-      state.session = Object.freeze({ provider: 'appwrite' }); state.user = result.user || { id: result.staff.auth_user_id || null, email: result.staff.email || null }; state.provider = 'appwrite'; return applyStaffRole(result.staff); }
-    if (![401, 408, 429, 500, 502, 503, 504].includes(response.status)) return false;
-  } console.warn('Appwrite session restore unavailable after bounded retries:', lastStatus); return false;
-  } catch (error) { console.warn('Appwrite session restore failed:', error); return false; }
+  const retryDelays = [0, 150, 350];
+  let lastStatus = null;
+  try {
+    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+      if (retryDelays[attempt]) await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+      const response = await fetch('/api/admin-auth', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } });
+      lastStatus = response.status;
+      if (response.ok) {
+        const result = await response.json().catch(() => ({}));
+        if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || result.staff.active === false) return false;
+        state.session = Object.freeze({ provider: 'appwrite' });
+        state.user = result.user || { id: result.staff.auth_user_id || null, email: result.staff.email || null };
+        state.provider = 'appwrite';
+        return applyStaffRole(result.staff);
+      }
+      if (![401, 408, 429, 500, 502, 503, 504].includes(response.status)) return false;
+    }
+    console.warn('Appwrite session restore unavailable after bounded retries:', lastStatus);
+    return false;
+  } catch (error) {
+    console.warn('Appwrite session restore failed:', error);
+    return false;
+  }
 }'''
+
 LOAD = r'''async function loadBookings() {
-  if (!requirePermission("bookings.view")) return; if (state.loadingBookings) return; state.loadingBookings = true;
-  try { if (!state.session || state.provider !== 'appwrite') throw new Error("جلسة الإدارة غير صالحة.");
-    const response = await fetch("/api/admin-appointments?from=2000-01-01&to=2100-12-31&limit=500", { method: "GET", credentials: "include", cache: "no-store", headers: { Accept: "application/json" } }); const payload = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(payload?.error || "تعذر تحميل الحجوزات التشغيلية."); state.bookings = Array.isArray(payload?.appointments) ? payload.appointments : [];
-    renderBookings(); updateStatistics(); refreshCommandCenter(); window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated"));
-  } catch (error) { console.error("Booking loading error:", error); state.bookings = []; renderBookingFallback(); window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated")); }
-  finally { state.loadingBookings = false; }
-}'''
-STAFF_API = r'''async function staffApi(action, payload = {}) {
-  const role = String(state.currentRole || state.staff?.role || '').toUpperCase().trim();
-  if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) throw new Error("ليس لديك صلاحية.");
-  const response = await fetch('/api/staff-admin', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(payload || {}) }) });
-  let body = {}; try { body = await response.json(); } catch (_) {}
-  if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
-  return body;
+  if (!requirePermission("bookings.view")) return;
+  if (state.loadingBookings) return;
+  state.loadingBookings = true;
+  try {
+    if (!state.session || state.provider !== 'appwrite') throw new Error("جلسة الإدارة غير صالحة.");
+    const response = await fetch("/api/admin-appointments?from=2000-01-01&to=2100-12-31&limit=500", { method: "GET", credentials: "include", cache: "no-store", headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.error || "تعذر تحميل الحجوزات التشغيلية.");
+    state.bookings = Array.isArray(payload?.appointments) ? payload.appointments : [];
+    renderBookings(); updateStatistics(); refreshCommandCenter();
+    window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated"));
+  } catch (error) {
+    console.error("Booking loading error:", error);
+    state.bookings = [];
+    renderBookingFallback();
+    window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated"));
+  } finally {
+    state.loadingBookings = false;
+  }
 }'''
 
 admin = Path('admin.js')
 if not admin.is_file(): raise SystemExit('admin.js is required')
 text = admin.read_text(encoding='utf-8')
-for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]: text = replace_fn(text, name, replacement)
+for name, replacement in [('login', LOGIN), ('restoreStaffProfile', RESTORE), ('loadBookings', LOAD)]:
+    text = replace_fn(text, name, replacement)
 
 role_pattern = re.compile(r'SECRETARY\s*:\s*\[.*?\]', re.S)
 text, role_count = role_pattern.subn('SECRETARY: [\n    "dashboard.view",\n    "bookings.view",\n    "patients.view",\n    "followups.view"\n  ]', text, count=1)
-if role_count != 1: raise SystemExit('SECRETARY role permission block not found')
+if role_count != 1:
+    raise SystemExit('SECRETARY role permission block not found')
 
-role_gate = '["OWNER", "ADMIN", "MANAGER"].includes(String(state.currentRole || state.staff?.role || "").toUpperCase().trim())'
-init_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.init\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
-load_pattern = r'if\s*\(\s*window\.AZAAD_STAFF\s*&&\s*typeof\s+window\.AZAAD_STAFF\.load\s*===\s*[\'\"]function[\'\"]\s*\)\s*\{'
-text, init_count = re.subn(init_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.init === "function") {{', text, flags=re.S)
-text, load_count = re.subn(load_pattern, f'if ({role_gate} && window.AZAAD_STAFF && typeof window.AZAAD_STAFF.load === "function") {{', text, flags=re.S)
-if init_count == 0: raise SystemExit('Privileged Staff init call site not found')
+# The current Admin controller owns session restoration directly. Do not look for
+# the retired AZAAD_STAFF.init/load abstraction: that abstraction is no longer part
+# of the canonical runtime.
+if 'window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile' not in text:
+    raise SystemExit('Canonical Appwrite restore owner not found')
+if "fetch('/api/admin-auth'" not in text or "credentials: 'include'" not in text:
+    raise SystemExit('Admin session is not using the canonical HttpOnly API boundary')
+if "provider: 'appwrite'" not in text:
+    raise SystemExit('Appwrite provider marker missing')
 
-text = re.sub(r"if\s*\(\s*!state\.session\?\.access_token\s*\)\s*throw new Error\([^;]+;", "if (!state.session || state.provider !== 'appwrite') throw new Error('جلسة الإدارة غير صالحة.');", text)
-text = text.replace("session: Boolean(window.AZAAD?.state?.session?.access_token)", "session: Boolean(window.AZAAD?.state?.session)")
+# Least privilege: the Secretary must never inherit staff-management permission.
+secretary_match = re.search(r'SECRETARY\s*:\s*\[(.*?)\]', text, re.S)
+if not secretary_match or 'staff.view' in secretary_match.group(1):
+    raise SystemExit('SECRETARY staff-management permission regression')
+
+# No browser access token or retired provider auth may survive this boundary.
 if re.search(r'\bsupabase\.auth\.', text) or 'functions/v1/staff-login' in text:
-    raise SystemExit('Appwrite browser boundary regression: legacy Supabase auth surface remains executable')
+    raise SystemExit('Appwrite browser boundary regression: retired provider auth surface remains executable')
+if re.search(r'\b(?:access_token|refresh_token)\b', text):
+    raise SystemExit('Browser session contract still exposes provider access/refresh tokens')
+
 admin.write_text(text, encoding='utf-8')
 
-# retire-legacy-admin-staff-runtime.py owns the inline staffApi replacement in admin.html; patch its final artifact here too.
 html = Path('admin.html')
 if html.is_file():
     html_text = html.read_text(encoding='utf-8')
+    # Keep any inline staffApi implementation aligned with the canonical role boundary.
     if bounds(html_text, 'staffApi', required=False):
-        html_text = replace_fn(html_text, 'staffApi', STAFF_API, required=True)
+        staff_api = r'''async function staffApi(action, payload = {}) {
+  const role = String(window.AZAAD?.state?.role || document.body?.dataset?.role || '').toUpperCase().trim();
+  if (!["OWNER", "ADMIN", "MANAGER"].includes(role)) throw new Error("ليس لديك صلاحية.");
+  const response = await fetch('/api/staff-admin', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(payload || {}) }) });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body?.error || body?.message || `HTTP ${response.status}`);
+  return body;
+}'''
+        html_text = replace_fn(html_text, 'staffApi', staff_api, required=True)
         html.write_text(html_text, encoding='utf-8')
 
-print(f'Appwrite browser session contract finalized: cookie-only auth; SECRETARY least privilege; privileged staff calls role-gated (init={init_count}, load={load_count}); inline staffApi patched when present.')
+print('Appwrite browser session contract finalized: canonical restore owner, HttpOnly cookie boundary, bounded restore, and Secretary least privilege.')

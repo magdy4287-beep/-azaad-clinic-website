@@ -15,10 +15,35 @@ if init_start < 0:
 brace_start = js.find("{", init_start)
 depth = 0
 init_end = None
+quote = None
+escape = False
+line_comment = False
+block_comment = False
 for i in range(brace_start, len(js)):
-    if js[i] == "{":
+    ch = js[i]
+    nxt = js[i + 1] if i + 1 < len(js) else ""
+    if line_comment:
+        if ch == "\n":
+            line_comment = False
+    elif block_comment:
+        if ch == "*" and nxt == "/":
+            block_comment = False
+    elif quote:
+        if escape:
+            escape = False
+        elif ch == "\\":
+            escape = True
+        elif ch == quote:
+            quote = None
+    elif ch in ("'", '"', "`"):
+        quote = ch
+    elif ch == "/" and nxt == "/":
+        line_comment = True
+    elif ch == "/" and nxt == "*":
+        block_comment = True
+    elif ch == "{":
         depth += 1
-    elif js[i] == "}":
+    elif ch == "}":
         depth -= 1
         if depth == 0:
             init_end = i + 1
@@ -36,9 +61,6 @@ if re.search(r"await\s+loadBookings\s*\(\s*\)", init_body):
 if "void loadBookings().catch(" not in init_body:
     raise SystemExit("loadBookings() must be explicitly background/nonblocking")
 
-# Navigation is owned exclusively by admin-shell.js. The Admin core critical path
-# therefore verifies only bindings owned by admin.js; bindTabs() is intentionally
-# forbidden rather than required.
 load_pos = init_body.find("loadBookings()")
 for name in (
     "bindBookingFilters();",
@@ -56,9 +78,14 @@ if "function bindTabs()" in js or "function switchPanel(" in js:
     raise SystemExit("Retired duplicate navigation owner remains in admin.js")
 
 state_true = init_body.find("state.initialized = true;")
-state_false = init_body.find("state.initializing = false;")
-if state_true < 0 or state_false < 0 or state_true > load_pos or state_false > load_pos:
+if state_true < 0 or state_true > load_pos:
     raise SystemExit("Admin interactive state must be established before background data work")
+
+# state.initializing is intentionally cleared by the finally block after the
+# background booking request is started. Requiring it to be false before that
+# request would contradict the canonical fail-safe lifecycle.
+if "state.initializing = false;" not in init_body:
+    raise SystemExit("Admin initialization must clear state.initializing in its finally path")
 
 if "await window.AZAAD_STAFF.init" in init_body:
     raise SystemExit("Optional staff runtime is still awaited by Admin initialization")

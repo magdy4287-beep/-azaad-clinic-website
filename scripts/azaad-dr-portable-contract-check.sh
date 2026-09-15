@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Provider-neutral, synthetic-only contract check.
 # This validates the shape and safety properties of the DR fixture without
-# connecting to Supabase, Production, or any external provider.
+# connecting to production or any external provider.
 
 fixture="${1:-qa/fixtures/azaad-dr-synthetic-export.json}"
 

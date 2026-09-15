@@ -13,26 +13,28 @@ workflow_files = sorted(WORKFLOWS.glob("*.yml")) + sorted(WORKFLOWS.glob("*.yaml
 if not workflow_files:
     raise SystemExit("No GitHub workflows found")
 
-# Temporary incident workflows are retired once their canonical replacement
-# passes on the same artifact. Keep their absence as a permanent invariant so
-# future cleanup cannot accidentally resurrect duplicate verification paths.
 RETIRED_WORKFLOW_FILES = {
     "azaad-browser-e2e-root-fix.yml",
     "azaad-api-module-import-diagnostic.yml",
+    "azaad-controlled-neon-public-migration.yml",
+    "azaad-neon-database-migration.yml",
+    "azaad-clinical-fixture-boundary.yml",
+    "pgrst303-rest-root-diagnostic.yml",
+    "azaad-emergency-dr-restore.yml",
+    "azaad-emergency-dr-auth.yml",
+    "azaad-emergency-dr-execute.yml",
+    "azaad-emergency-dr-final.yml",
+    "azaad-emergency-dr-functions.yml",
 }
 resurrected = sorted(name for name in RETIRED_WORKFLOW_FILES if (WORKFLOWS / name).exists())
 if resurrected:
     raise SystemExit("Retired workflow(s) must not be resurrected: " + ", ".join(resurrected))
 
-# Prevent known retired/duplicate naming patterns from silently returning.
 retired_markers = ("-v2.yml", "-v2.yaml", "-backup.yml", "-copy.yml", "-old.yml")
 retired = [p.name for p in workflow_files if p.name.endswith(retired_markers)]
 if retired:
     raise SystemExit("Retired/duplicate-style workflow name(s): " + ", ".join(retired))
 
-# Only workflows that are actually present in the executable tree may be
-# treated as canonical here. Historical/retired names must not be hard-coded
-# into this gate because doing so creates false failures after safe retirement.
 CANONICAL_WORKFLOWS = {
     "azaad-production-certification-gate.yml",
     "azaad-release-governance-gate.yml",
@@ -40,7 +42,6 @@ CANONICAL_WORKFLOWS = {
     "azaad-browser-e2e.yml",
     "azaad-comprehensive-system-contract.yml",
     "azaad-clinical-authorization-e2e.yml",
-    "azaad-emergency-dr-restore.yml",
     "azaad-controlled-p0-neon-parity.yml",
     "azaad-controlled-runtime-provider-readiness.yml",
     "azaad-controlled-auth-parity-preflight.yml",
@@ -52,7 +53,6 @@ missing_registry = sorted(name for name in CANONICAL_WORKFLOWS if name not in re
 if missing_registry:
     raise SystemExit("Canonical workflow(s) missing ownership entry: " + ", ".join(missing_registry))
 
-# A workflow must have an explicit top-level name and a trigger block.
 invalid = []
 for path in workflow_files:
     text = path.read_text(encoding="utf-8")

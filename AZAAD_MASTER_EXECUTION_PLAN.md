@@ -1,464 +1,126 @@
-# AZAAD CLINIC — MASTER EXECUTION PLAN
+# AZAAD CLINIC — MASTER ENGINEERING & GO-LIVE EXECUTION PLAN
 
-## 1. Product Goal
+## 0. Final objective
 
-Build **AZAAD CLINIC MANAGEMENT SYSTEM** as a production-ready clinic operating system, not a collection of admin tabs.
+Operate AZAAD as a real clinic platform that is secure, auditable, recoverable, bilingual, responsive, production-verifiable, and free-first.
 
-Core rule:
+The production architecture is fixed:
 
-> A module is complete only when the real end-to-end path works: UI → authorization → database/Edge Function → validation → audit/security → result/error handling → Arabic/English → responsive behavior → verification.
+- **Vercel** — canonical runtime and deployment.
+- **Appwrite** — canonical identity, authentication, sessions, and protected browser boundary.
+- **Neon** — canonical production database.
+- **GitHub Actions** — source/build/security/certification governance.
 
-## 2. Non-Negotiable Architecture Rules
+No retired backend provider or compatibility runtime may exist in the active repository.
 
-- Free-first / no paid service is required for core operation, now or in the foreseeable future.
-- No paid AI, translation, messaging, analytics, hosting, or automation service may be a hard dependency of core clinic operation.
-- External free-tier AI may be optional; core workflows must continue if quotas disappear.
-- Do not put Supabase service-role or secret keys in browser code.
-- Preserve the existing patient-facing and booking experience unless a verified integration requires a change.
-- Preserve the existing administration account and owner protection.
-- Prefer existing Supabase tables, views, functions and workflows before creating duplicates.
-- Archive historical clinical/financial entities instead of destructive deletion where relationships/history exist.
-- Every privileged operation must respect role permissions and produce an audit/security trail where appropriate.
-- English and Arabic are first-class modes; dynamic content must translate too.
-- Production status is only READY after a real deployment and verification; a GitHub commit alone is not production proof.
+## 1. Non-negotiable engineering rules
 
-## 3. Execution Order
+1. Source is canonical. Production must not depend on transforming legacy source into a different architecture at build time.
+2. One runtime owner per production domain.
+3. One data owner per production domain.
+4. One backend boundary per protected API/domain.
+5. One permission boundary per protected operation.
+6. One E2E contract per production workflow.
+7. Fail closed on architecture drift, secret exposure, authorization bypass, duplicate ownership, or source residue.
+8. Never weaken a gate merely to obtain green CI.
+9. Never introduce a paid dependency as a hard requirement for core clinic operation.
+10. Preserve historical patient, clinical, financial, and audit records when relationships exist; archive instead of destructive deletion.
+11. Arabic and English are first-class UI modes.
+12. Production READY requires fresh deployment and verification evidence, not only a Git commit.
 
-### Cross-Department Operational Integration — Added 2026-08-19
+## 2. Current root-cleanup program
 
-- [x] Doctor transfer data model with patient/doctor request source and treating-doctor approval state.
-- [x] Attendance model with clock-in/out, breaks, lateness and absence status.
-- [x] Doctor compensation model: percentage, salary, salary + percentage, fixed-per-visit.
-- [x] Effective-dated consultation pricing foundation.
-- [x] Canonical service-catalog mapping foundation to prevent duplicate service definitions.
-- [x] Daily operational report aggregate foundation.
-- [x] Doctor dashboard operational center mount.
-- [x] Cross-department acceptance contract documented.
-- [ ] Wire secretary unified daily schedule UI with one row per doctor and inline appointment workflow.
-- [ ] Wire free-slot booking and waiting-list conversion into the unified schedule.
-- [ ] Wire early/late check-in to doctor availability while preserving original appointment time.
-- [ ] Wire transfer request/doctor approval/completion UI.
-- [ ] Wire attendance UI and payroll/compensation calculations to the existing HR/finance surfaces.
-- [ ] Wire management/owner global and per-doctor/service pricing UI.
-- [ ] Normalize duplicate service records against the canonical catalog and preserve historical invoice references.
-- [ ] Wire daily/monthly/yearly reports and employee-of-month/year scoring to source facts.
-- [ ] Wire central free/local AI recommendations to report facts with traceable evidence.
+### P0 — Repository architecture
 
-### Phase 1 — Language & UI Foundation 🌐
+- Remove retired-provider directories, packages, URLs, environment variables, workflows, fixtures, migrations, documentation, and executable references.
+- Remove build transforms whose sole purpose is to erase retired architecture from source.
+- Keep one fail-closed zero-residue gate in the production build chain.
+- Keep architecture and ownership gates aligned with Vercel/Appwrite/Neon.
 
-- [x] `clinic_i18n` foundation.
-- [x] English/Arabic admin layer foundation.
-- [x] RTL/LTR switching foundation.
-- [x] Dynamic translation hardening foundation.
-- [ ] Replace brittle text-scan translation with stable translation keys / centralized renderer where practical.
-- [ ] Translate headings, labels, buttons, placeholders, options, validation errors, empty states, toast messages, modal text and dynamically generated records.
-- [ ] Verify that switching to English leaves **zero Arabic UI chrome** on the page.
-- [ ] Verify that switching to Arabic restores Arabic UI chrome and RTL.
-- [ ] Keep patient/doctor/service names bilingual where source data supports it.
-- [ ] No paid translation dependency.
+### P1 — Admin runtime
 
-### Phase 2 — Patient 360 + Appointment Center 🤢📅
+- Canonical Appwrite login/session lifecycle.
+- HttpOnly session boundary where applicable.
+- Canonical admin API boundary on Vercel.
+- OWNER/ADMIN/MANAGER staff-management authorization.
+- SECRETARY/RECEPTION/CASHIER/DOCTOR/MARKETING must not call protected staff-management endpoints unless explicitly authorized by the role matrix.
+- Refresh/session persistence and logout must be tested independently.
 
-- [ ] Search by patient name.
-- [ ] Search by phone.
-- [ ] Search by MRN.
-- [ ] Search by booking number.
-- [ ] Show today's patient/booking files under the status filter area.
-- [ ] Real calendar/date selector for yesterday, today, tomorrow and arbitrary future dates.
-- [ ] Date selection filters real appointments/patients by appointment date.
-- [ ] Show patient demographics, phone, MRN and booking details.
-- [ ] Show upcoming appointments and previous visits.
-- [ ] Show invoices, paid amounts and outstanding balances.
-- [ ] Allow controlled editing of patient name/phone with validation and audit.
-- [ ] Show warnings/alerts/clinical administrative notes with permission controls.
-- [ ] Show clinical history to authorized doctors/admin.
-- [ ] Show doctor notes per visit.
-- [ ] Show longitudinal patient progress graph across visits.
-- [ ] Show treatment/progress trend clearly enough to evaluate whether care is improving.
-- [ ] Show next recommended session/follow-up date when available.
-- [ ] Generate follow-up/no-show/missed-action alerts.
-- [ ] Rebooking workflow.
-- [ ] Safe patient merge with historical preservation and audit.
-- [ ] Optional free/local Smart Insights for operational and progress signals; never make AI a dependency for clinical decisions.
+### P2 — Clinical runtime
 
-### Phase 3 — Doctors Center 🧑‍⚕️
+- Appwrite browser identity and role binding.
+- Neon clinical data ownership.
+- Doctor-to-staff binding and patient authorization.
+- Clinical assessment, visit, transfer, and longitudinal data flows.
+- No client-side service-role credentials.
 
-- [ ] Show every registered doctor, not only the Add Doctor action.
-- [ ] Photo beside each doctor.
-- [ ] Add/change photo.
-- [ ] Arabic/English name.
-- [ ] Specialty.
-- [ ] Bio.
-- [ ] Services.
-- [ ] Active/inactive state.
-- [ ] Edit doctor.
-- [ ] Archive doctor when leaving the clinic; preserve historical records.
-- [ ] Schedule linkage.
-- [ ] Performance, patients, completion, no-show and revenue metrics.
-- [ ] Free/local AI suggestions for operational performance only.
+### P3 — Scheduling
 
-### Phase 4 — Services Center 🩺
+- One canonical scheduling boundary.
+- Explicit doctor availability and working-hours rules.
+- Conflict prevention and deterministic slot selection.
+- Waiting-list and cancellation/rebooking consistency.
+- Secretary workflow must use the canonical scheduling API rather than a second controller.
 
-- [ ] Show all existing services on load.
-- [ ] Add service.
-- [ ] Edit service.
-- [ ] Archive/remove service safely without breaking historical invoices.
-- [ ] Price.
-- [ ] Duration.
-- [ ] Arabic/English name.
-- [ ] Arabic/English description.
-- [ ] Active/inactive.
-- [ ] Ordering.
-- [ ] Doctor association.
-- [ ] Booking linkage.
-- [ ] Invoice/RCM linkage.
-- [ ] Free/local AI-assisted operational suggestions where useful.
+### P4 — Patient and public experience
 
-### Phase 5 — Doctor Scheduling 🕐
+- Public booking and clinic data use canonical Vercel APIs.
+- Patient-facing privacy boundaries remain fail closed.
+- Patient 360, demographics, financial summaries, and history use canonical Neon-backed APIs.
+- Arabic/English and RTL/LTR behavior remain stable.
 
-- [x] Explicit weekday payload foundation.
-- [x] `doctor_weekly_schedules` schema verified in Supabase.
-- [ ] Load all active doctors into selector.
-- [ ] Show each doctor's saved weekly schedule.
-- [ ] Edit each weekday.
-- [ ] Working days and closures.
-- [ ] Start/end times.
-- [ ] Break start/end.
-- [ ] Slot duration.
-- [ ] Buffer.
-- [ ] Maximum bookings.
-- [ ] Booking-mode rules.
-- [ ] Conflict/overlap validation.
-- [ ] Availability preview.
-- [ ] Booking engine consistency check.
-- [ ] Optional free/local AI scheduling suggestions without changing saved rules automatically.
+### P5 — Operations, HR, RCM, marketing
 
-### Phase 6 — Marketing Workspace 📣
+- Preserve existing operational domain owners.
+- Keep permissions explicit by role.
+- Preserve auditability for financial, HR, and clinical changes.
+- AI features remain optional and must never become a hard dependency for core workflows.
 
-- [ ] Show all existing posts/campaign records, not only New Post.
-- [ ] Add post/offer.
-- [ ] Image/media support.
-- [ ] Video/media support where supported by existing storage.
-- [ ] Caption and long description.
-- [ ] Arabic/English copy.
-- [ ] Platform selection.
-- [ ] Draft/scheduled/published states.
-- [ ] Edit.
-- [ ] Archive/delete safely.
-- [ ] Leads and source.
-- [ ] Conversion tracking.
-- [ ] Marketing employee ownership.
-- [ ] Campaign performance.
-- [ ] Free/local AI ideas, copy suggestions and campaign analysis.
+## 3. Verification ladder
 
-### Phase 7 — Holidays & Closures 🚫
+After every root repair:
 
-- [ ] Clinic-wide closure.
-- [ ] Doctor-specific closure.
-- [ ] Selector includes all active doctors.
-- [ ] Allow choosing any active doctor for a doctor-specific closure.
-- [ ] Date range and reason.
-- [ ] Arabic/English notes.
-- [ ] Booking engine enforcement.
-- [ ] Historical booking preservation.
-- [ ] Free/local AI suggestions for closure/availability conflicts where useful.
+1. Static source/residue scan.
+2. Architecture and ownership gates.
+3. JavaScript/Python syntax validation where applicable.
+4. Targeted domain contract.
+5. Build verification.
+6. Exact deployed-SHA verification.
+7. Browser E2E for affected workflows.
+8. Security/authorization regression.
+9. Production smoke evidence.
+10. Release/UAT/DR evidence when the change affects those boundaries.
 
-### Phase 8 — General Working Hours 🕘
+Evidence must be tied to the exact commit and deployed artifact. If a workflow has no recorded run, the result is **not proven**.
 
-- [ ] Replace Save-only UI with a real editable weekly hours table.
-- [ ] Each weekday.
-- [ ] Enabled/closed state.
-- [ ] Start/end time.
-- [ ] Break start/end.
-- [ ] Save/update validation.
-- [ ] Preview of effective clinic hours.
-- [ ] Booking engine linkage.
-- [ ] Arabic/English.
-- [ ] Free/local AI suggestions for operational hours only; no automatic changes without authorization.
+## 4. Root-scan method
 
-### Phase 9 — HR Management 👥
+Use this sequence without looping over already-proven work:
 
-**Existing employee management is protected and must not be replaced.**
+**root scan → ownership map → dependency graph → root cause → minimal safe repair → targeted verification → full residue re-scan → documentation → next boundary**
 
-- [ ] Keep current employee-management workflow intact.
-- [ ] Show active employees beneath the existing management area.
-- [ ] Edit/details action per employee.
-- [x] `clinic_staff_hr` foundation.
-- [x] `clinic_staff_documents` foundation.
-- [x] `clinic_compensation_rules` foundation.
-- [x] Doctor-specific `clinic_doctor_compensation_rules` foundation.
-- [x] `clinic_staff_attendance` foundation.
-- [ ] HR profile.
-- [ ] Department.
-- [ ] Job title.
-- [ ] Hire date.
-- [ ] Employment status.
-- [ ] Salary and salary period.
-- [ ] Commission percentage.
-- [ ] Fixed per visit.
-- [ ] Fixed per booking.
-- [ ] Targets.
-- [ ] Documents/certificates and expiry dates.
-- [ ] Shifts and attendance UI.
-- [ ] Payroll calculation/reconciliation.
-- [ ] Performance.
-- [ ] Patients handled.
-- [ ] Revenue contribution.
-- [ ] Doctor/employee share reporting.
-- [ ] Monthly/yearly compensation reporting.
-- [ ] Employee of Month/Year based on defined metrics.
-- [ ] HR-style dashboards, records and reminders.
-- [ ] Free/local AI workforce insights and improvement suggestions.
+Do not delete similarly named files merely because they look old. Delete a component only after proving it is obsolete, unreachable, superseded, or forbidden by the canonical architecture.
 
-### Phase 10 — Clinic Configuration Center ⚙️
+## 5. Release gates
 
-- [ ] Replace empty Settings panel with a real configuration center.
-- [ ] Clinic identity/contact.
-- [ ] WhatsApp configuration.
-- [ ] Social links.
-- [ ] Booking settings.
-- [ ] Slot duration defaults.
-- [ ] Payment instructions.
-- [ ] Bank information with appropriate access restrictions.
-- [ ] Notification templates.
-- [ ] Arabic/English content.
-- [ ] Workflow settings.
-- [ ] AI settings.
-- [ ] Security settings.
-- [ ] Validation and audit for every privileged configuration change.
-- [ ] Preserve administration account.
-- [ ] No secrets displayed unnecessarily in the UI.
+A release candidate is eligible only when:
 
-### Phase 11 — Administration + Workflow 👤⚙️
+- zero retired-provider residue is proven;
+- Vercel is the deployed runtime;
+- Appwrite is the identity/session owner;
+- Neon is the production data owner;
+- role/permission matrix is proven;
+- browser session persistence and logout are proven;
+- clinical and scheduling boundaries are proven;
+- no production secret is browser-visible;
+- exact SHA matches the tested artifact;
+- required production/browser workflows have fresh evidence;
+- DR/UAT requirements are satisfied for the release scope.
 
-- [x] `clinic_workflow_steps` foundation.
-- [ ] Keep current administration account unchanged.
-- [ ] Role-specific workflow steps.
-- [ ] SLA definitions.
-- [ ] Ownership and escalation.
-- [ ] Booking → Visit.
-- [ ] No-show Recovery.
-- [ ] Clinical Follow-up.
-- [ ] Daily Closing.
-- [ ] Marketing Lead.
-- [ ] Automated reminders/escalations where supported by free infrastructure.
-- [ ] Management recommendations from real reports.
-- [ ] Doctor/service pricing and compensation-rule administration with strict authorization and audit.
+## 6. Self-healing policy
 
-### Phase 12 — Analytics & Reports 📊
+Self-healing means detection, fail-closed behavior, bounded repair, and normal review/release governance. It never means silent production mutation, automatic permission expansion, disabling security gates, or replacing canonical owners without evidence.
 
-- [ ] Dedicated charts/dashboard section.
-- [ ] Bookings.
-- [ ] Completion rate.
-- [ ] No-show.
-- [ ] Cancellation.
-- [ ] Revenue.
-- [ ] Collected.
-- [ ] Outstanding.
-- [ ] Expenses.
-- [ ] Net cash flow.
-- [ ] Doctor share.
-- [ ] Clinic share.
-- [ ] Attendance.
-- [ ] Lateness/absence.
-- [ ] Compensation.
-- [ ] Employee performance.
-- [ ] Patients handled.
-- [ ] Daily/monthly/yearly reports.
-- [ ] Trends.
-- [ ] Date/filter consistency.
-- [ ] Recommendations for workflow, quality, productivity and profitability.
-- [ ] Employee of Month/Year evidence-based scoring.
-- [ ] Free/local AI analytics and recommendations.
+## 7. Continuation rule
 
-### Phase 13 — Invoices & RCM 🧾
-
-**Priority: #1 management center after Patient/Booking.**
-
-- [x] `clinic_invoice_items` foundation.
-- [ ] Show all existing invoices.
-- [ ] Search by invoice number.
-- [ ] Search by patient name.
-- [ ] Search by phone.
-- [ ] Search by MRN.
-- [ ] Real invoice calendar/date filter.
-- [ ] Daily invoice list.
-- [ ] Invoice number.
-- [ ] Patient/MRN/phone.
-- [ ] Booking.
-- [ ] Doctor.
-- [ ] Service.
-- [ ] Multi-line invoice items.
-- [ ] Subtotal.
-- [ ] Discount.
-- [ ] Total.
-- [ ] Paid.
-- [ ] Remaining.
-- [ ] Payment method.
-- [ ] Verification.
-- [ ] Refund.
-- [ ] Void.
-- [ ] Edit with controlled audit rules.
-- [ ] Daily/monthly/yearly reports.
-- [ ] Doctor revenue.
-- [ ] Clinic revenue.
-- [ ] Outstanding AR.
-- [ ] RCM work queues and payment follow-up.
-- [ ] Free/local AI for anomaly detection and collections prioritization.
-
-### Phase 14 — IT Security 🛡️
-
-- [x] `clinic_security_events` foundation.
-- [ ] Login events.
-- [ ] Failed-login events.
-- [ ] Permission violations.
-- [ ] Sensitive-action logging.
-- [ ] IP/user-agent handling.
-- [ ] Severity classification.
-- [ ] Security dashboard.
-- [ ] Audit trail integration.
-- [ ] RLS review for exposed tables.
-- [ ] Auth hardening, including leaked-password protection review.
-- [ ] Secret/key exposure audit.
-- [ ] Input validation and output encoding review.
-- [ ] Rate limiting/abuse controls where supported by current free infrastructure.
-- [ ] Backup/recovery verification and operational continuity plan.
-- [ ] Monitoring for runtime failures and deployment regressions.
-- [ ] Free/local AI-assisted anomaly summaries only; AI is never the security control itself.
-
-### Phase 15 — Purchasing 🛒
-
-- [x] Existing `clinic_purchases` foundation.
-- [ ] Show existing purchases.
-- [ ] Add/edit/archive purchase safely.
-- [ ] Item/category/quantity.
-- [ ] Unit/total price.
-- [ ] Supplier.
-- [ ] Payment method/date/notes.
-- [ ] Daily/monthly/yearly reporting.
-- [ ] Finance/profit linkage.
-- [ ] Free/local AI suggestions for purchasing trends and waste control.
-
-### Phase 16 — Finance Center 💰
-
-- [x] Existing payments/expenses/daily closing foundations.
-- [ ] Show real finance data.
-- [ ] Revenue.
-- [ ] Collection.
-- [ ] Expenses.
-- [ ] Doctor share.
-- [ ] Clinic share.
-- [ ] Employee-related compensation where authorized.
-- [ ] Net.
-- [ ] Daily closing.
-- [ ] Reconciliation.
-- [ ] Daily/monthly/yearly reporting.
-- [ ] Finance staffing visibility where applicable.
-- [ ] Free/local AI financial anomaly and trend insights.
-
-### Phase 17 — Free Smart Insights 🧠
-
-- [x] `azaad-ai-insights` local/free foundation.
-- [x] `clinic_ai_insights` storage foundation.
-- [ ] No-show anomaly detection.
-- [ ] Completion trend detection.
-- [ ] Outstanding AR detection.
-- [ ] Negative cash-flow detection.
-- [ ] Follow-up backlog detection.
-- [ ] Open-alert detection.
-- [ ] Doctor performance signals.
-- [ ] Employee performance signals.
-- [ ] Scheduling optimization suggestions.
-- [ ] Marketing ideas and campaign analysis.
-- [ ] Arabic/English recommendations.
-- [ ] Explain the data/signals behind recommendations.
-- [ ] Keep external AI optional and non-critical.
-
-## 4. Cross-Cutting Acceptance Gates
-
-### Language Gate 🌐
-- English mode: no Arabic UI chrome remains.
-- Arabic mode: Arabic UI chrome + RTL restored.
-- Dynamic rows/modals/options/placeholders/toasts/errors are translated.
-- Patient/doctor/service data uses bilingual fields where available.
-
-### Patient/Clinical Gate 🤢
-- Date search returns the correct appointment population.
-- Patient identity is consistent across booking, visit and invoice.
-- Clinical progress is historical and read-only where appropriate.
-- AI never replaces clinician judgment.
-
-### Financial Gate 💰
-- Invoice totals reconcile.
-- Payments reconcile.
-- Outstanding reconciles.
-- Doctor/clinic shares reconcile.
-- Expenses and purchasing reconcile.
-- Daily/monthly/yearly reports use consistent periods.
-- Compensation calculations reconcile to approved rules and attendance/visit facts.
-
-### Security Gate 🛡️
-- No secret/service-role keys in frontend.
-- RLS verified on exposed tables.
-- Privileged actions are authorized.
-- Sensitive operations are audited.
-- Security events are available for investigation.
-- Backups/recovery are verified.
-
-### Free-First Gate 🆓
-- Core clinic operation works without paid AI/API.
-- Core clinic operation does not depend on a free quota that can unexpectedly become unavailable.
-- Optional external AI integrations have a local/free fallback.
-- No paid upgrade is introduced merely to bypass a deployment/build limit without explicit approval.
-
-### Production Gate 🚀
-- GitHub checks pass.
-- Deployment reaches READY.
-- Browser smoke test passes.
-- Critical paths are verified against the deployed environment.
-- Production is never declared updated from a GitHub commit alone.
-
-## 5. Fast Execution Strategy
-
-Work in small vertical slices rather than opening every module at once:
-
-1. Discover the real backend contract.
-2. Fix the current blocker.
-3. Implement one bounded module slice.
-4. Verify immediately against real data.
-5. Fix root causes before adding the next slice.
-6. Re-run regression checks.
-7. Only then mark the slice complete.
-
-Priority order for fastest useful value:
-
-**English hardening → Patient 360/Calendar → Scheduling/Closures/Hours → Doctors → Services → Follow-up/Alerts → Invoices/RCM → Finance → Analytics → HR → Settings/Workflow → Marketing → Security hardening → Smart Insights polish.**
-
-## 6. Current State Snapshot
-
-- PR #58 is the current comprehensive system-hardening branch.
-- PR #58 is not merged into `main`.
-- Supabase contains the HR, i18n, invoice-item, AI, workflow and security foundations.
-- `doctor_weekly_schedules` exists with weekday/enabled/start/end/break/slot/buffer/max-bookings/mode fields.
-- Current English implementation is a foundation only; it must be hardened until zero Arabic UI chrome remains in English mode.
-- Existing admin account and patient-facing booking experience remain protected.
-- The current PR must pass technical review before merge.
-
-## 7. Definition of Done
-
-A module is marked **DONE** only when:
-
-- UI is usable and complete, not just a tab/button.
-- Real backend data is used.
-- Permissions are enforced.
-- Writes are validated.
-- Errors are handled.
-- Audit/security requirements are satisfied.
-- Arabic/English work completely.
-- RTL/LTR work.
-- Existing flows still work.
-- Business calculations reconcile.
-- Free-first requirement is satisfied.
-- The deployed path has been verified.
-
-**No tab-only completion. No placeholder completion. No paid dependency for core operation. No production claim without deployment evidence.**
+Always continue from the newest verified `main` SHA. Carry forward successful evidence. Re-open a completed gate only when a new change invalidates its evidence or a release gate explicitly requires re-proving it.

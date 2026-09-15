@@ -17,7 +17,6 @@ The repository follows one-owner-per-responsibility. A feature may consume anoth
 | Styling | dedicated CSS files | Visual system; no business logic |
 | Build transformation | `qa/vercel-build.py` + `.github/patch-admin.py` | Deterministic build-time composition only |
 | QA gates | `qa/*gate*.py`, browser E2E | Verification; never production feature ownership |
-| Legacy migration evidence | `supabase/` | Historical/rollback evidence only; never production runtime |
 
 ## 2. Canonical runtime order
 
@@ -50,13 +49,13 @@ Browser
 
 `DATABASE_URL`, `APPWRITE_API_KEY`, and any privileged provider credential are server-only. Browser bundles must fail certification if they contain privileged credentials or direct database-provider access.
 
-## 4. Supabase retirement boundary
+## 4. Zero-legacy-provider boundary
 
-Supabase is retired from the AZAAD production runtime. The repository may retain historical Supabase functions/migrations because they document prior security/data contracts, but they are not deployable production ownership.
+The AZAAD production architecture has exactly three canonical platform owners: Vercel runtime, Appwrite identity/session, and Neon operational data. Retired provider trees, endpoints, credentials, migrations, functions, compatibility adapters, and historical runtime shims are not part of the repository architecture and must not remain in source, workflows, tests, documentation, or reachable artifacts.
 
-No new feature may introduce a Supabase runtime dependency. Existing legacy references are migrated one bounded domain at a time and must be removed from the canonical runtime path before certification.
+The zero-residue gate is fail-closed. If retired-provider residue is detected, the production build is blocked until the owning domain is migrated or the obsolete artifact is removed.
 
-The previous Supabase environment is not a reason to purchase quota or upgrade a plan. AZAAD's production requirement is free-only operation.
+AZAAD remains free-first/free-only: no paid quota or mandatory subscription may be introduced to preserve an obsolete runtime boundary.
 
 ## 5. Repository tree
 
@@ -82,10 +81,8 @@ The previous Supabase environment is not a reason to purchase quota or upgrade a
 │   ├── contract gates
 │   ├── browser E2E
 │   └── build integrity gates
-├── docs
-│   └── architecture and operational contracts
-└── legacy evidence
-    └── supabase/  (historical only)
+└── docs
+    └── architecture and operational contracts
 ```
 
 ## 6. Anti-duplication rules
@@ -96,7 +93,7 @@ The previous Supabase environment is not a reason to purchase quota or upgrade a
 4. One i18n owner per surface.
 5. One media-transform owner. UI stores transforms; original media remains immutable.
 6. QA scripts verify contracts; they do not patch production behavior after the fact.
-7. One production data authority: Neon. Legacy providers cannot silently become fallback data sources.
+7. One production data authority: Neon. Retired providers cannot silently become fallback data sources.
 
 ## 7. Refactoring policy
 
