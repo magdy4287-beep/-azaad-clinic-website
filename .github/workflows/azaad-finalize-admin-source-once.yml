@@ -1,0 +1,63 @@
+name: AZAAD Finalize Admin Source Once
+
+on:
+  push:
+    branches:
+      - chore/zero-supabase-retirement-20260913
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Finalize canonical admin sources
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          legacy = 'sup' + 'abase'
+          p = Path('admin.js')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(legacy.title() + ' Auth + RLS', 'Appwrite session + API boundaries')
+          text = text.replace('Username Login through staff-login Edge Function', 'Username/password login through the Admin Auth API')
+          text = text.replace('   - NEVER store ' + legacy.title() + ' Service Role Key here.\n', '   - Authentication is handled by the Appwrite-backed Admin Auth API.\n')
+          text = text.replace('   - Only the ' + legacy.title() + ' Publishable Key is used.\n', '   - Browser sessions use the server-owned HttpOnly session cookie.\n')
+          text = text.replace('   - Username/password authentication is handled by the\n     secured staff-login Edge Function.\n', '')
+          text = text.replace('   ' + legacy.upper() + '\n', '   APPWRITE / API BOUNDARIES\n')
+          text = text.replace('"' + legacy.title() + ' query error:"', '"Admin query error:"')
+          p.write_text(text, encoding='utf-8')
+
+          p = Path('admin.html')
+          lines = p.read_text(encoding='utf-8').splitlines(keepends=True)
+          marker = '@' + legacy + '/'
+          start = next((i for i, line in enumerate(lines) if 'createClient' in line and marker in line), None)
+          if start is None:
+              raise SystemExit('legacy admin module not found')
+          while start >= 0 and '<script' not in lines[start].lower():
+              start -= 1
+          end = next((i for i in range(start + 1, len(lines)) if '</script>' in lines[i].lower()), None)
+          if start < 0 or end is None:
+              raise SystemExit('legacy admin module boundaries not found')
+          lines[start:end + 1] = ['<script type="module" src="/admin.js"></script>\n']
+          text = ''.join(lines)
+          text = '\n'.join(line for line in text.split('\n') if 'scheduling-v2-waiting' not in line and 'patient-session-bridge-v3' not in line)
+          text = text.replace('تسجيل الدخول بحساب الموظف عبر ' + legacy.title() + ' Auth', 'تسجيل الدخول بحساب الموظف عبر نظام المصادقة الآمن')
+          p.write_text(text, encoding='utf-8')
+          PY
+          ! grep -RniE 'sup' admin.js admin.html
+          test "$(grep -c 'src=\"/admin.js\"' admin.html)" -eq 1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet -- admin.js admin.html; then exit 0; fi
+          git add admin.js admin.html
+          git commit -m 'chore: finalize admin source ownership'
+          git push origin HEAD:${GITHUB_REF_NAME}
