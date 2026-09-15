@@ -12,6 +12,7 @@ REQUIRED_TERMINAL_TRANSFORMS = {
     "qa/retire-legacy-admin-staff-runtime.py",
     "qa/final-admin-restore-boundary.py",
     "qa/finalize-staff-management-runtime-boundary.py",
+    "qa/finalize-admin-interactivity-appwrite.py",
 }
 
 EXECUTABLE_ROOTS = (ROOT / "qa", ROOT / "scripts", ROOT / ".github")
@@ -74,9 +75,6 @@ for path in transforms:
     if path in {"qa/vercel-build.py", "qa/engineering-tree-garbage-collection-gate.py"}:
         failures.append(f"build registry cannot transform through its own gate: {path}")
 
-# High-confidence executable garbage collection. This intentionally checks only
-# executable/control files and does not guess about ordinary docs/assets.
-# A future placeholder/no-op executable is a deterministic architecture defect.
 for base in EXECUTABLE_ROOTS:
     if not base.exists():
         continue
@@ -90,9 +88,6 @@ for base in EXECUTABLE_ROOTS:
         if not meaningful or PLACEHOLDER_COMMENT.search(body) or meaningful == ["pass"]:
             failures.append(f"placeholder/no-op executable must be retired or implemented: {path.relative_to(ROOT).as_posix()}")
 
-# Detect exact duplicate executable payloads inside the controlled executable
-# tree. This is advisory unless the files are both build/workflow owned: the
-# gate never assumes that similarly named wrappers are interchangeable.
 hashes = {}
 for base in EXECUTABLE_ROOTS:
     if not base.exists():
