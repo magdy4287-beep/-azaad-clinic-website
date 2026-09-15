@@ -64,7 +64,7 @@ async function resolveStaff(username) {
   const databaseUrl = String(process.env.DATABASE_URL || '').trim();
   if (!databaseUrl) throw new Error('DATABASE_RUNTIME_NOT_CONFIGURED');
   const sql = neon(databaseUrl);
-  const rows = await sql`select id, auth_user_id, full_name, username, email, phone, role, active from public.clinic_staff where active = true and (lower(username) = lower(${username}) or lower(email) = lower(${username})) order by case when lower(username) = lower(${username}) then 0 else 1 end limit 1`;
+  const rows = await sql`select id, auth_user_id, full_name, username, email, phone, role, active, doctor_id from public.clinic_staff where active = true and (lower(username) = lower(${username}) or lower(email) = lower(${username})) order by case when lower(username) = lower(${username}) then 0 else 1 end limit 1`;
   return rows[0] || null;
 }
 async function databaseFingerprint() {
@@ -85,7 +85,7 @@ async function createSession(username, password) {
 async function verifySession(request) {
   const secret = cookieValue(request); const user = await appwriteAccount(secret); if (!user?.$id) return null;
   const databaseUrl = String(process.env.DATABASE_URL || '').trim(); if (!databaseUrl) return null;
-  const sql = neon(databaseUrl); const rows = await sql`select id, auth_user_id, full_name, username, email, phone, role, active from public.clinic_staff where auth_user_id = ${user.$id} and active = true limit 1`;
+  const sql = neon(databaseUrl); const rows = await sql`select id, auth_user_id, full_name, username, email, phone, role, active, doctor_id from public.clinic_staff where auth_user_id = ${user.$id} and active = true limit 1`;
   const staff = rows[0] || null; return staff ? { user, staff } : null;
 }
 async function updatePassword(userId, password) {
