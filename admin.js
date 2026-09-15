@@ -19,35 +19,9 @@
    - Time is displayed using 12-hour format.
    ============================================================ */
 
-import {
-  createClient
-} from "https://esm.sh/@supabase/supabase-js@2";
-
 /* ============================================================
    SUPABASE
    ============================================================ */
-
-const SUPABASE_URL =
-  "https://derofsthjivlkcdnojww.supabase.co";
-
-const SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa";
-
-const STAFF_LOGIN_FUNCTION =
-  `${SUPABASE_URL}/functions/v1/staff-login`;
-
-const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  }
-);
-
 /* ============================================================
    WEBSITE
    ============================================================ */
@@ -74,7 +48,8 @@ const state = {
   currentRole: null,
   permissions: new Set(),
   initialized: false,
-  loadingBookings: false
+  loadingBookings: false,
+  initializing: false
 };
 
 /* ============================================================
@@ -89,7 +64,7 @@ const ROLE_PERMISSIONS = {
     "followups.view",
     "marketing.view",
     "finance.view",
-    "staff.view"
+    "staff.view",
   ],
 
   ADMIN: [
@@ -99,7 +74,7 @@ const ROLE_PERMISSIONS = {
     "followups.view",
     "marketing.view",
     "finance.view",
-    "staff.view"
+    "staff.view",
   ],
 
   MANAGER: [
@@ -109,7 +84,7 @@ const ROLE_PERMISSIONS = {
     "followups.view",
     "marketing.view",
     "finance.view",
-    "staff.view"
+    "staff.view",
   ],
 
   SECRETARY: [
@@ -123,24 +98,24 @@ const ROLE_PERMISSIONS = {
     "dashboard.view",
     "bookings.view",
     "patients.view",
-    "followups.view"
+    "followups.view",
   ],
 
   CASHIER: [
     "dashboard.view",
-    "finance.view"
+    "finance.view",
   ],
 
   DOCTOR: [
     "dashboard.view",
     "bookings.view",
     "patients.view",
-    "followups.view"
+    "followups.view",
   ],
 
   MARKETING: [
     "dashboard.view",
-    "marketing.view"
+    "marketing.view",
   ]
 };
 
@@ -184,22 +159,13 @@ const escapeHTML = value => {
    ============================================================ */
 
 function todayISO() {
-  const now = new Date();
+  const canonical = window.AZAAD_CORE_CONTEXT?.todayISO;
 
-  const year =
-    now.getFullYear();
+  if (typeof canonical !== "function") {
+    throw new Error("AZAAD_CORE_CONTEXT.todayISO is required for Admin business dates.");
+  }
 
-  const month =
-    String(
-      now.getMonth() + 1
-    ).padStart(2, "0");
-
-  const day =
-    String(
-      now.getDate()
-    ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return canonical();
 }
 
 function formatDate(value) {
@@ -262,8 +228,8 @@ function formatTime(value) {
 
   const suffix =
     hour < 12
-      ? "ص"
-      : "م";
+      ? "AM"
+      : "PM";
 
   let displayHour =
     hour % 12;
@@ -541,147 +507,77 @@ function redirectDoctorIfNeeded() {
 }
 
 /* ============================================================
+   FINAL ADMIN INTERACTION SAFETY
+   ------------------------------------------------------------
+   Optional modules must never be able to freeze the shell.
+   Authentication and Logout remain owned exclusively by the
+   Admin controller; this guard only restores document interactivity.
+   It does not perform authentication and does not bypass RLS.
+   ============================================================ */
+(function installAdminInteractionSafety() {
+  const restoreInteraction = () => {
+    try {
+      document.documentElement.removeAttribute("inert");
+      document.body?.removeAttribute("inert");
+      if (document.body) {
+        document.body.style.pointerEvents = "";
+      }
+    } catch (error) {
+      console.error("Admin interaction safety error:", error);
+    }
+  };
+
+  const install = () => {
+    restoreInteraction();
+  };
+
+  window.AZAAD_RESTORE_STAFF_PROFILE = async function restoreStaffProfile() {
+  const retryDelays = [0, 150, 350]; let lastStatus = null;
+  try { for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+    if (retryDelays[attempt]) await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+    const response = await fetch('/api/admin-auth', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } }); lastStatus = response.status;
+    if (response.ok) { const result = await response.json().catch(() => ({})); if (!result?.authenticated || result?.provider !== 'appwrite' || !result?.staff || result.staff.active === false) return false;
+      state.session = Object.freeze({ provider: 'appwrite' }); state.user = result.user || { id: result.staff.auth_user_id || null, email: result.staff.email || null }; state.provider = 'appwrite'; return applyStaffRole(result.staff); }
+    if (![401, 408, 429, 500, 502, 503, 504].includes(response.status)) return false;
+  } console.warn('Appwrite session restore unavailable after bounded retries:', lastStatus); return false;
+  } catch (error) { console.warn('Appwrite session restore failed:', error); return false; }
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", install, { once: true });
+  } else {
+    install();
+  }
+
+  window.addEventListener("error", restoreInteraction, true);
+  window.addEventListener("unhandledrejection", restoreInteraction, true);
+})();
+
+/* ============================================================
    LOGIN
    ============================================================ */
 
-async function login(
-  username,
-  password
-) {
-  const cleanUsername =
-    String(
-      username || ""
-    )
-      .trim()
-      .toLowerCase();
+async function login(username, password) {
+  const cleanUsername = String(username || '').trim().toLowerCase(); const cleanPassword = String(password || '');
+  if (!cleanUsername) throw new Error('اسم المستخدم مطلوب.'); if (!cleanPassword) throw new Error('كلمة المرور مطلوبة.');
+  const response = await fetch('/api/admin-auth', { method: 'POST', credentials: 'include', cache: 'no-store', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ username: cleanUsername, password: cleanPassword }) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result?.error === 'invalid_credentials' ? 'بيانات الدخول غير صحيحة.' : (result?.message || 'تعذر تسجيل الدخول.'));
+  if (result?.provider !== 'appwrite' || !result?.authenticated || !result?.staff) throw new Error('جلسة Appwrite غير صالحة.');
+  if (result.staff.active === false) throw new Error('حساب الموظف غير فعال.'); if (!applyStaffRole(result.staff)) throw new Error('دور الموظف غير صالح.');
+  state.session = Object.freeze({ provider: 'appwrite' }); state.user = result.user || { id: result.staff.auth_user_id || null, email: result.staff.email || null }; state.provider = 'appwrite';
+  if (redirectDoctorIfNeeded()) return; await initializeApplication();
+}
 
-  const cleanPassword =
-    String(
-      password || ""
-    );
 
-  if (!cleanUsername) {
-    throw new Error(
-      "اسم المستخدم مطلوب."
-    );
-  }
+function activateAuthenticatedAdminShell() {
+  const loginPage = document.getElementById("loginPage");
+  const adminPage = document.getElementById("adminPage");
 
-  if (!cleanPassword) {
-    throw new Error(
-      "كلمة المرور مطلوبة."
-    );
-  }
+  if (loginPage) loginPage.classList.add("hidden");
+  if (adminPage) adminPage.classList.remove("hidden");
 
-  const response =
-    await fetch(
-      STAFF_LOGIN_FUNCTION,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-
-          apikey:
-            SUPABASE_PUBLISHABLE_KEY
-        },
-
-        body: JSON.stringify({
-          username:
-            cleanUsername,
-
-          password:
-            cleanPassword
-        })
-      }
-    );
-
-  let result = null;
-
-  try {
-    result =
-      await response.json();
-  } catch {
-    result = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      result?.error ||
-      result?.message ||
-      "بيانات الدخول غير صحيحة."
-    );
-  }
-
-  if (
-    !result?.session?.access_token ||
-    !result?.session?.refresh_token
-  ) {
-    throw new Error(
-      "تعذر إنشاء جلسة تسجيل الدخول."
-    );
-  }
-
-  if (!result?.staff) {
-    throw new Error(
-      "تم تسجيل الدخول ولكن لم يتم العثور على ملف الموظف."
-    );
-  }
-
-  if (
-    result.staff.active === false
-  ) {
-    throw new Error(
-      "حساب الموظف غير فعال."
-    );
-  }
-
-  if (
-    !applyStaffRole(
-      result.staff
-    )
-  ) {
-    throw new Error(
-      "دور الموظف غير صالح."
-    );
-  }
-
-  const {
-    error
-  } =
-    await supabase.auth.setSession({
-      access_token:
-        result.session.access_token,
-
-      refresh_token:
-        result.session.refresh_token
-    });
-
-  if (error) {
-    throw error;
-  }
-
-  const sessionResult =
-    await supabase.auth.getSession();
-
-  state.session =
-    sessionResult.data?.session ||
-    result.session;
-
-  state.user =
-    state.session?.user ||
-    result.user ||
-    null;
-
-  applyStaffRole(
-    result.staff
-  );
-
-  if (redirectDoctorIfNeeded()) {
-    return;
-  }
-
-  await initializeApplication();
+  updateUserIdentity();
 }
 
 /* ============================================================
@@ -689,220 +585,62 @@ async function login(
    ============================================================ */
 
 async function logout() {
-  try {
-    await supabase.auth.signOut();
-  } catch (error) {
-    console.error(
-      "Logout error:",
-      error
-    );
-  }
-
-  state.session = null;
-  state.user = null;
-  state.staff = null;
-  state.currentRole = null;
-  state.permissions = new Set();
-  state.initialized = false;
-
-  window.location.reload();
+  state.session = null; state.user = null; state.staff = null; state.currentRole = null; state.permissions = new Set(); state.initialized = false; state.initializing = false; state.provider = null
+  const request = fetch('/api/admin-auth', { method: 'DELETE', credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } }).catch(error => { console.warn('Appwrite logout request failed:', error); return null })
+  try { await Promise.race([request, new Promise(resolve => setTimeout(resolve, 2500))]) } catch (error) { console.warn('Appwrite logout boundary failed:', error) }
+  window.location.replace('/admin.html')
 }
 
-/* ============================================================
-   RESTORE SESSION
-   ============================================================ */
 
-async function restoreSession() {
-  let sessionResult;
-
-  try {
-    sessionResult = await supabase.auth.getSession();
-  } catch (error) {
-    console.error("Session restore error:", error);
-    return false;
-  }
-
-  const session = sessionResult?.data?.session || null;
-
-  if (!session?.access_token || !session?.user?.id) {
-    return false;
-  }
-
-  state.session = session;
-  state.user = session.user;
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const validStaff = await restoreStaffProfile();
-
-    if (validStaff) {
-      if (redirectDoctorIfNeeded()) {
-        return true;
-      }
-
-      await initializeApplication();
-      return true;
-    }
-
-    await new Promise(resolve =>
-      setTimeout(resolve, attempt * 400)
-    );
-
-    try {
-      const refreshed = await supabase.auth.getSession();
-      const refreshedSession = refreshed?.data?.session;
-
-      if (refreshedSession?.access_token) {
-        state.session = refreshedSession;
-        state.user = refreshedSession.user;
-      }
-    } catch (error) {
-      console.warn("Session retry failed:", error);
-    }
-  }
-
-  console.warn("Staff profile could not be restored during startup.");
-  return false;
-}
-
-/* ============================================================
-   RESTORE STAFF
-   ============================================================ */
-
-async function restoreStaffProfile() {
-  if (!state.user?.id) {
-    return false;
-  }
-
-  const result =
-    await safeQuery(
-      supabase
-        .from(
-          "clinic_staff"
-        )
-        .select(`
-          id,
-          auth_user_id,
-          full_name,
-          username,
-          email,
-          phone,
-          role,
-          active
-        `)
-        .eq(
-          "auth_user_id",
-          state.user.id
-        )
-        .maybeSingle()
-    );
-
-  if (result.error) {
-    console.error(
-      "Staff lookup error:",
-      result.error
-    );
-
-    return false;
-  }
-
-  if (!result.data) {
-    console.warn(
-      "No clinic_staff record found."
-    );
-
-    return false;
-  }
-
-  if (
-    result.data.active === false
-  ) {
-    console.warn(
-      "Staff account inactive."
-    );
-
-    return false;
-  }
-
-  return applyStaffRole(
-    result.data
-  );
-}
 
 /* ============================================================
    INITIALIZE
    ============================================================ */
 
+async function waitForCanonicalCoreContext() {
+  if (typeof window.AZAAD_CORE_CONTEXT?.todayISO === "function") return;
+
+  const deadline = performance.now() + 3000;
+  while (performance.now() < deadline) {
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    if (typeof window.AZAAD_CORE_CONTEXT?.todayISO === "function") return;
+  }
+
+  throw new Error("AZAAD_CORE_CONTEXT.todayISO is required for Admin business dates.");
+}
+
 async function initializeApplication() {
-  if (
-    state.initialized
-  ) {
-    return;
+  if (state.initialized || state.initializing) return;
+  if (!state.session || !state.staff || !state.currentRole) return;
+
+  state.initializing = true;
+  if (!state.user?.id && state.staff?.auth_user_id) {
+    state.user = { id: state.staff.auth_user_id };
   }
 
-  if (
-    !state.session ||
-    !state.user ||
-    !state.staff ||
-    !state.currentRole
-  ) {
-    return;
-  }
-
-  state.initialized =
-    true;
-
-  const loginPage =
-    $("loginPage");
-
-  const adminPage =
-    $("adminPage");
-
-  if (loginPage) {
-    loginPage.classList.add(
-      "hidden"
-    );
-  }
-
-  if (adminPage) {
-    adminPage.classList.remove(
-      "hidden"
-    );
-  }
+  const loginPage = $("loginPage");
+  const adminPage = $("adminPage");
+  if (loginPage) loginPage.classList.add("hidden");
+  if (adminPage) adminPage.classList.remove("hidden");
 
   updateUserIdentity();
-
-  await loadBookings();
-
-  bindTabs();
-
   bindBookingFilters();
-
   bindLogout();
-
   bindPatientPage();
-
   buildCommandCenter();
 
-  if (
-    window.AZAAD_STAFF &&
-    typeof window.AZAAD_STAFF.init ===
-      "function"
-  ) {
-    try {
-      await window.AZAAD_STAFF.init();
-    } catch (error) {
-      console.error(
-        "Staff management init error:",
-        error
-      );
-    }
-  }
+  state.initialized = true;
+  state.initializing = false;
+  window.dispatchEvent(new CustomEvent("azaad:admin-authenticated"));
 
-  showToast(
-    `🟢 تم تسجيل الدخول بنجاح — ${state.currentRole}`,
-    "success"
+  void loadBookings().catch(error =>
+    console.error("Background booking load error:", error)
   );
+
+  
+  showToast(`🟢 تم تسجيل الدخول بنجاح — ${state.currentRole}`, "success");
 }
+
 
 /* ============================================================
    USER IDENTITY
@@ -988,87 +726,13 @@ function updateUserIdentity() {
    ============================================================ */
 
 async function loadBookings() {
-  if (
-    !requirePermission(
-      "bookings.view"
-    )
-  ) {
-    return;
-  }
-
-  if (
-    state.loadingBookings
-  ) {
-    return;
-  }
-
-  state.loadingBookings =
-    true;
-
-  try {
-    const result =
-      await safeQuery(
-        supabase
-          .from(
-            "clinic_bookings"
-          )
-          .select(`
-            id,
-            booking_code,
-            patient_name,
-            patient_phone,
-            appointment_date,
-            appointment_time,
-            status,
-            mode,
-            doctor_id,
-            service_id
-          `)
-          .order(
-            "appointment_date",
-            {
-              ascending: false
-            }
-          )
-          .order(
-            "appointment_time",
-            {
-              ascending: true
-            }
-          )
-          .limit(500)
-      );
-
-    if (result.error) {
-      console.error(
-        "Booking loading error:",
-        result.error
-      );
-
-      state.bookings =
-        [];
-
-      renderBookingFallback();
-
-      return;
-    }
-
-    state.bookings =
-      Array.isArray(
-        result.data
-      )
-        ? result.data
-        : [];
-
-    renderBookings();
-
-    updateStatistics();
-
-    refreshCommandCenter();
-  } finally {
-    state.loadingBookings =
-      false;
-  }
+  if (!requirePermission("bookings.view")) return; if (state.loadingBookings) return; state.loadingBookings = true;
+  try { if (!state.session || state.provider !== 'appwrite') throw new Error("جلسة الإدارة غير صالحة.");
+    const response = await fetch("/api/admin-appointments?from=2000-01-01&to=2100-12-31&limit=500", { method: "GET", credentials: "include", cache: "no-store", headers: { Accept: "application/json" } }); const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.error || "تعذر تحميل الحجوزات التشغيلية."); state.bookings = Array.isArray(payload?.appointments) ? payload.appointments : [];
+    renderBookings(); updateStatistics(); refreshCommandCenter(); window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated"));
+  } catch (error) { console.error("Booking loading error:", error); state.bookings = []; renderBookingFallback(); window.dispatchEvent(new CustomEvent("azaad:admin-bookings-updated")); }
+  finally { state.loadingBookings = false; }
 }
 
 /* ============================================================
@@ -1863,9 +1527,6 @@ function buildCommandCenter() {
     ?.addEventListener(
       "click",
       () => {
-        switchPanel(
-          "bookings"
-        );
       }
     );
 
@@ -1921,18 +1582,8 @@ function buildCommandCenter() {
           );
 
         if (staffPanel) {
-          switchPanel(
-            staffPanel.id
-          );
 
-          if (
-            window.AZAAD_STAFF &&
-            typeof window.AZAAD_STAFF.load ===
-              "function"
-          ) {
-            window.AZAAD_STAFF.load();
-          }
-
+          
           return;
         }
 
@@ -2398,9 +2049,6 @@ function showNoShowCenter() {
     );
 
   if (panel) {
-    switchPanel(
-      panel.id
-    );
   }
 
   const status =
@@ -2426,58 +2074,15 @@ function showNoShowCenter() {
    PANELS
    ============================================================ */
 
-function switchPanel(
-  panelId
-) {
-  if (!panelId) {
-    return;
-  }
-
-  const panel =
-    $(panelId);
-
-  if (!panel) {
-    showFeatureNotice(
-      panelId
-    );
-
-    return;
-  }
-
-  document
-    .querySelectorAll(
-      ".panel"
-    )
-    .forEach(
-      element =>
-        element.classList.remove(
-          "active"
-        )
-    );
-
-  panel.classList.add(
-    "active"
-  );
-
-  document
-    .querySelectorAll(
-      ".tab"
-    )
-    .forEach(
-      tab => {
-        tab.classList.toggle(
-          "active",
-          tab.dataset.panel ===
-            panelId
-        );
-      }
-    );
-
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
+function requestPanel(panelId) {
+  if (!panelId) return;
+  window.dispatchEvent(new CustomEvent("azaad:admin-panel-requested", {
+    detail: { panel: String(panelId) }
+  }));
 }
+
+
+
 
 function showFeatureNotice(
   feature
@@ -2492,35 +2097,7 @@ function showFeatureNotice(
    TABS
    ============================================================ */
 
-function bindTabs() {
-  document
-    .querySelectorAll(
-      ".tab"
-    )
-    .forEach(
-      tab => {
-        if (
-          tab.dataset
-            .azaadBound ===
-          "true"
-        ) {
-          return;
-        }
 
-        tab.dataset
-          .azaadBound =
-          "true";
-
-        tab.addEventListener(
-          "click",
-          () =>
-            switchPanel(
-              tab.dataset.panel
-            )
-        );
-      }
-    );
-}
 
 /* ============================================================
    BOOKING FILTERS
@@ -2775,91 +2352,12 @@ function bindLogin() {
   );
 }
 
-/* ============================================================
-   AUTH STATE
-   ============================================================ */
-
-supabase.auth.onAuthStateChange(
-  async (
-    event,
-    session
-  ) => {
-    if (
-      event ===
-      "SIGNED_IN"
-    ) {
-      if (!session) {
-        return;
-      }
-
-      state.session =
-        session;
-
-      state.user =
-        session.user;
-
-      if (
-        !state.initialized
-      ) {
-        try {
-          const validStaff =
-            await restoreStaffProfile();
-
-          if (
-            validStaff
-          ) {
-            await initializeApplication();
-          } else {
-            console.warn("Auth session exists but staff profile is not ready; keeping session intact.");
-          }
-        } catch (error) {
-          console.error(
-            "Auth staff restore error:",
-            error
-          );
-
-          console.warn("Auth staff restore failed; keeping the authenticated session for retry.");
-        }
-      }
-
-      return;
-    }
-
-    if (
-      event ===
-      "TOKEN_REFRESHED"
-    ) {
-      state.session =
-        session;
-
-      state.user =
-        session?.user ||
-        null;
-
-      return;
-    }
-
-    if (
-      event ===
-      "SIGNED_OUT"
-    ) {
-      state.session = null;
-      state.user = null;
-      state.staff = null;
-      state.currentRole = null;
-      state.permissions = new Set();
-      state.initialized = false;
-    }
-  }
-);
 
 /* ============================================================
    GLOBAL API
    ============================================================ */
 
 window.AZAAD = {
-  supabase,
-
   state,
 
   refresh: async () => {
@@ -2869,13 +2367,7 @@ window.AZAAD = {
 
     refreshCommandCenter();
 
-    if (
-      window.AZAAD_STAFF &&
-      typeof window.AZAAD_STAFF.load ===
-        "function"
-    ) {
-      await window.AZAAD_STAFF.load();
-    }
+    
   },
 
   shareWebsite,
@@ -2897,38 +2389,45 @@ window.AZAAD = {
   formatDate
 };
 
+
+
+/* ============================================================
+   POST-AUTH RUNTIME LOADER
+   ------------------------------------------------------------
+   Non-critical feature scripts are deliberately loaded only after
+   the Admin shell is interactive. Loading them is never awaited by
+   authentication or initialization.
+   ============================================================ */
+async function loadAfterAuthRuntimes() {
+  if (window.__AZAAD_AFTER_AUTH_RUNTIMES_LOADED) return;
+  window.__AZAAD_AFTER_AUTH_RUNTIMES_LOADED = true;
+  const manifests=Array.from(document.querySelectorAll("script[data-azaad-after-auth-src]"));
+  for(const manifest of manifests){
+    const src=manifest.dataset.azaadAfterAuthSrc; if(!src) continue;
+    await new Promise(resolve=>{const script=document.createElement("script");script.src=src;if(manifest.dataset.azaadAfterAuthType==="module")script.type="module";script.onload=resolve;script.onerror=resolve;document.body.appendChild(script);});
+    await new Promise(resolve=>setTimeout(resolve,0));
+  }
+}
+
 /* ============================================================
    START
    ============================================================ */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  async () => {
-    bindLogin();
+document.addEventListener("DOMContentLoaded", async () => {
+  bindLogin();
+  bindLogout();
+  bindBookingFilters();
+  bindPatientPage();
 
-    /*
-     * Login page may exist before authentication,
-     * while admin bindings are safe to initialize now.
-     */
-
-    bindLogout();
-    bindTabs();
-    bindBookingFilters();
-    bindPatientPage();
-
-    try {
-      await restoreSession();
-    } catch (error) {
-      console.error(
-        "Application startup error:",
-        error
-      );
-
-      showToast(
-        error?.message ||
-          "تعذر استعادة جلسة الدخول.",
-        "error"
-      );
+  try {
+    const validStaff = await window.AZAAD_RESTORE_STAFF_PROFILE();
+    if (validStaff) {
+      await initializeApplication();
     }
+  } catch (error) {
+    console.error("Application startup error:", error);
+    showToast(error?.message || "تعذر استعادة جلسة الدخول.", "error");
   }
-);
+});
+
+window.AZAAD_LOGIN_CONTROLLER_READY = true;
