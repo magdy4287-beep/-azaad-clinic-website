@@ -40,7 +40,7 @@ def function_body(source, marker):
                 escape = True
             elif char == quote:
                 quote = None
-        elif char in ("'", '"', "`'):
+        elif char in ("'", '"', "`"):
             quote = char
         elif char == "/" and nxt == "/":
             line_comment = True
