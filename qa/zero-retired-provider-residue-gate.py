@@ -1,4 +1,9 @@
-"""Fail-closed gate for zero retired-provider runtime dependency residue."""
+"""Fail-closed gate for zero retired-provider runtime dependency residue.
+
+QA assertions and historical evidence may intentionally mention the retired provider
+when proving that the provider is absent from production. This gate therefore scans
+production/runtime/configuration surfaces; dedicated QA contracts own their assertions.
+"""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +25,7 @@ FORBIDDEN_MARKERS = (
     "window.AZAAD." + LEGACY_PROVIDER,
     "process.env." + "SUP" + "ABASE",
 )
-SKIP_NAMES = {".git", ".venv", "node_modules", "__pycache__"}
+SKIP_NAMES = {".git", ".venv", "node_modules", "__pycache__", "qa", "docs"}
 violations = []
 
 for path in ROOT.rglob("*"):
