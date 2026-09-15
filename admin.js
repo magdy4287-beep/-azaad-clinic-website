@@ -4,15 +4,13 @@
    File: admin.js
 
    Production Admin Controller
-   Supabase Auth + RLS
-   Username Login through staff-login Edge Function
+   Appwrite session + API boundaries
+   Username/password login through the Admin Auth API
 
    IMPORTANT
    ------------------------------------------------------------
-   - NEVER store Supabase Service Role Key here.
-   - Only the Supabase Publishable Key is used.
-   - Username/password authentication is handled by the
-     secured staff-login Edge Function.
+   - Authentication is handled by the Appwrite-backed Admin Auth API.
+   - Browser sessions use the server-owned HttpOnly session cookie.
    - clinic_staff uses "active", NOT "is_active".
    - Authenticated session alone is NOT sufficient.
    - Active clinic_staff record + valid role are required.
@@ -20,7 +18,7 @@
    ============================================================ */
 
 /* ============================================================
-   SUPABASE
+   APPWRITE / API BOUNDARIES
    ============================================================ */
 /* ============================================================
    WEBSITE
@@ -393,7 +391,7 @@ async function safeQuery(
     return await query;
   } catch (error) {
     console.error(
-      "Supabase query error:",
+      "Admin query error:",
       error
     );
 
