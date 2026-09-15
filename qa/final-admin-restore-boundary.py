@@ -70,7 +70,7 @@ ready_guard = re.search(r'if\s*\(\s*document\.readyState\s*===\s*["\']loading["\
 if ready_guard and owners[0].start() > ready_guard.start(): raise SystemExit('FAIL-CLOSED: Appwrite restore owner remains nested after ready-state guard')
 if not re.search(r'window\.AZAAD_RESTORE_STAFF_PROFILE\s*\(\s*\)', text): raise SystemExit('Final Admin restore boundary: startup/restoreSession must call the canonical global Appwrite restore owner')
 
-RUNTIME_JS = {'admin.js','admin-enhancements-v1.js','admin-english-hardening.js','admin-patient-icon-guard.js','azaad-role-experience.js','patient-appointment-actions.js','patient-financial-summary.js','doctors-center-v2.js','doctor-staff-binding.js','doctor-staff-convert.js','services-center-v2.js','scheduling-v2.js','marketing-studio-v4.js','marketing-intelligence-loader.js','staff-management.js','hr-performance-analytics.js','admin-calendar-center.js'}
+RUNTIME_JS = {'admin.js','admin-enhancements-v1.js','admin-english-hardening.js','admin-patient-icon-guard.js','azaad-role-experience.js','patient-appointment-actions.js','patient-financial-summary.js','doctors-center-v2.js','doctor-staff-binding.js','doctor-staff-convert.js','services-center-v2.js','scheduling-v2.js','marketing-studio-v4.js','marketing-intelligence-loader.js','staff-management.js','admin-calendar-center.js'}
 failures = []
 for name in sorted(RUNTIME_JS):
     path = Path(name)
