@@ -38,6 +38,9 @@ jobs:
       - name: Run Scheduling V2 ownership and isolation contract
         run: python qa/scheduling-v2-contract-gate.py
 
+      - name: Run Emergency Department contract
+        run: python qa/emergency-department-contract-gate.py
+
       - name: Run comprehensive system contract
         run: python qa/comprehensive-system-contract.py
 
