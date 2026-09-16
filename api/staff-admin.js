@@ -2,7 +2,7 @@ import { neon } from '@neondatabase/serverless';
 
 const COOKIE = 'azaad_admin_appwrite_session';
 const OWNER_ROLE = 'OWNER';
-const STAFF_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'CASHIER', 'DOCTOR', 'MARKETING']);
+const STAFF_ROLES = new Set(['OWNER', 'ADMIN', 'MANAGER', 'SECRETARY', 'RECEPTION', 'CASHIER', 'DOCTOR', 'NURSE', 'MARKETING']);
 
 function json(res, body, status = 200) {
   res.statusCode = status;
@@ -117,10 +117,7 @@ export default async function handler(req, res) {
       const userResponse = await appwriteRequest(`/users/${encodeURIComponent(target.auth_user_id)}`);
       const appwriteUser = userResponse.ok ? await userResponse.json() : null;
       if (!appwriteUser?.$id || String(appwriteUser.phone || '') !== phone) return json(res, { error: 'phone_not_bound_to_auth' }, 409);
-      const tokenResponse = await fetch(`${String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '')}/account/tokens/phone`, {
-        method: 'POST', headers: { 'X-Appwrite-Project': String(process.env.APPWRITE_PROJECT_ID || '').trim(), 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ userId: appwriteUser.$id, phone }),
-      });
+      const tokenResponse = await fetch(`${String(process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '')}/account/tokens/phone`, { method: 'POST', headers: { 'X-Appwrite-Project': String(process.env.APPWRITE_PROJECT_ID || '').trim(), 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ userId: appwriteUser.$id, phone }) });
       if (!tokenResponse.ok) return json(res, { error: 'otp_send_failed' }, 502);
       await audit(sql, target.id, target.id, 'PASSWORD_RESET_REQUEST', null, { channel: 'sms' }, 'phone_otp');
       return json(res, { ok: true, message: 'تم إرسال رمز التحقق إلى رقم الهاتف المسجل.' });
