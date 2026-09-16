@@ -42,6 +42,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `i18n-stability-contract.yml` | Internationalization stability | i18n contract | Canonical locale gate |
 | `locale-stability-contract.yml` | Locale/runtime stability | Locale/runtime stability contract | Canonical locale gate |
 | `azaad-waiting-list-gate.yml` | Waiting list | Waiting-list contract | Canonical domain gate |
+| `azaad-emergency-department-gate.yml` | Emergency Department | ED schema, API, safety and workflow contract | Canonical ED domain gate |
 | `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
 | `azaad-source-canonicality-gate.yml` | Source canonicality | Proves the repository itself is canonical and build transforms do not hide source drift | Canonical source-integrity gate |
 
@@ -58,6 +59,8 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 `azaad-clinical-authorization-e2e.yml` is separate from `azaad-browser-e2e.yml`: authorization semantics and browser runtime behavior are different evidence surfaces.
 
 `azaad-source-canonicality-gate.yml` is separate from the production build and other verification workflows because it uniquely asserts that the checked-in source tree is already canonical and that the build pipeline is not silently repairing source drift.
+
+`azaad-emergency-department-gate.yml` owns only the Emergency Department vertical slice; downstream admission, ICU, surgery, pharmacy, laboratory and other domains retain their own ownership boundaries.
 
 Canonical production and DR workflows operate only on Vercel/Appwrite/Neon boundaries. They must not depend on retired provider artifacts, credentials, endpoints, functions, or migrations.
 
