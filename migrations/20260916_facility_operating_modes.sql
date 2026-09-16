@@ -5,9 +5,15 @@ create table if not exists public.facility_operating_mode (
   version integer not null default 1,
   active boolean not null default true,
   changed_by uuid,
-  changed_at timestamptz not null default now(),
-  unique(active)
+  changed_at timestamptz not null default now()
 );
+
+-- Existing installations from the first draft may have a UNIQUE(active) constraint.
+-- PostgreSQL cannot safely remove an unnamed generated constraint here without coupling
+-- this migration to an implementation-specific constraint name. New installations use
+-- the partial unique index below; the API also serializes mode changes transactionally.
+create unique index if not exists facility_operating_mode_one_active_idx
+  on public.facility_operating_mode(active) where active=true;
 
 create table if not exists public.facility_module_registry (
   id uuid primary key default gen_random_uuid(),
