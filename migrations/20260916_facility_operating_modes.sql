@@ -51,7 +51,7 @@ values
 ('icu','HOSPITAL','module.icu',false,false,true,'["admission","clinical"]','CERTIFIED'),
 ('nursing','HOSPITAL','module.nursing',false,false,true,'["patients","admission"]','CERTIFIED'),
 ('pharmacy_internal','HOSPITAL','module.pharmacy_internal',false,false,true,'["patients","clinical"]','CERTIFIED'),
-('pharmacy_external','CLINICAL','module.pharmacy_external',false,true,false,'["patients","clinical"]','CERTIFIED'),
+('pharmacy_external','HOSPITAL','module.pharmacy_external',false,false,true,'["patients","clinical"]','CERTIFIED'),
 ('laboratory','HOSPITAL','module.laboratory',false,false,true,'["patients","clinical"]','UNVERIFIED'),
 ('radiology','HOSPITAL','module.radiology',false,false,true,'["patients","clinical"]','UNVERIFIED'),
 ('operating_room','HOSPITAL','module.operating_room',false,false,true,'["admission","clinical"]','UNVERIFIED'),
