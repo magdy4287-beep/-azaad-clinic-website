@@ -1,0 +1,66 @@
+name: AZAAD One-Shot Source Canonicality Repair
+
+on:
+  push:
+    branches:
+      - feat/emergency-department-hybrid-20260916
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.head_commit.message != 'chore: canonicalize source from verified build diagnostic'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact pushed revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: feat/emergency-department-hybrid-20260916
+
+      - name: Verify repair baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "${GITHUB_SHA}" = "5be2645dbebc44eec339b9934695e1975a7597e6"
+
+      - name: Download verified source-canonicality diagnostic
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --location \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10426238244/zip" \
+            --output /tmp/source-canonicality.zip
+          unzip -p /tmp/source-canonicality.zip source-canonicality.patch > /tmp/source-canonicality.patch
+          test -s /tmp/source-canonicality.patch
+
+      - name: Apply only the verified diagnostic patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check /tmp/source-canonicality.patch
+          git apply --index /tmp/source-canonicality.patch
+          git diff --cached --check
+          git diff --cached --name-only
+
+      - name: Remove one-shot repair workflow from the resulting commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/_one-shot-source-canonicality-repair.yml
+          git diff --cached --check
+
+      - name: Commit verified canonical source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: canonicalize source from verified build diagnostic'
+          git push origin HEAD:feat/emergency-department-hybrid-20260916
