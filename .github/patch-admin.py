@@ -27,6 +27,7 @@ ADMIN_FEATURE_SCRIPTS = (
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
     "insurance-admission-office.js",
+    "emergency-department.js",
 )
 
 ADMIN_COMPATIBILITY_FILES = tuple(dict.fromkeys((
