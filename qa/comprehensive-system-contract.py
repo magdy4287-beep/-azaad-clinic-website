@@ -29,13 +29,14 @@ enterprise = ROOT / "admin-enterprise-centers.js"
 invoice_api = ROOT / "api/invoices.js"
 staff_api = ROOT / "api/staff-admin.js"
 ai_gate = ROOT / "qa/ai-operating-system-gate.py"
+ed_gate = ROOT / "qa/emergency-department-contract-gate.py"
 
 for p, label in (
     (central, "central-i18n.js"), (build_runner, "qa/vercel-build.py"),
     (responsive, "azaad-responsive-shell.css"), (role_ui, "azaad-role-experience.js"),
     (injector, "qa/inject-responsive-shell.py"), (enterprise, "admin-enterprise-centers.js"),
     (invoice_api, "api/invoices.js"), (staff_api, "api/staff-admin.js"),
-    (ai_gate, "qa/ai-operating-system-gate.py"),
+    (ai_gate, "qa/ai-operating-system-gate.py"), (ed_gate, "qa/emergency-department-contract-gate.py"),
 ):
     require(p.exists(), f"{label} is missing")
 
@@ -93,6 +94,13 @@ require(ai_gate.exists(), "AI operating-system gate missing")
 require("Core workflows never depend on AI." in read(ai_gate) or (ROOT / "docs/AZAAD_AI_OPERATING_SYSTEM_2026-08-15.md").exists(), "AI operating contract source missing")
 require(bool(list(ROOT.rglob("*ai*")) + list(ROOT.rglob("*AI*"))), "no AI surface found")
 require(bool(list(ROOT.rglob("*report*")) + list(ROOT.rglob("*Report*"))), "no reporting surface found")
+require(ed_gate.exists(), "Emergency Department contract gate missing")
+
+admins = [p for p in ROOT.glob("admin/**/index.html") if p.is_file()]
+if len(admins) > 1: require("/admin/admin/:path*" in vt, "duplicate admin trees lack redirects")
+for p in [p for p in ROOT.rglob("*.js") if ".git" not in p.parts]:
+    t = read(p); rel = p.relative_to(ROOT).as_posix()
+    if any(x in t for x in ("openai.com", "anthropic.com", "gemini.google.com")) and "qa/" not in rel: WARNINGS.append(f"{rel}: review external AI provider for Free-only compliance")
 
 wd = ROOT / ".github/workflows"; names = {p.name for p in wd.glob("*.yml")} if wd.exists() else set()
 for x in ("azaad-ai-gate.yml", "azaad-department-ai-gate.yml", "azaad-executive-ai-gate.yml", "azaad-payments-reporting-gate.yml", "azaad-integration-gate.yml"):
@@ -100,12 +108,6 @@ for x in ("azaad-ai-gate.yml", "azaad-department-ai-gate.yml", "azaad-executive-
 require("ai_can_approve" in st, "AI approval prohibition missing")
 require("clinic_ai_recommendations" in st, "AI recommendation persistence missing")
 require("human" in st.lower() and "approval" in st.lower(), "human approval policy missing")
-
-admins = [p for p in ROOT.glob("admin/**/index.html") if p.is_file()]
-if len(admins) > 1: require("/admin/admin/:path*" in vt, "duplicate admin trees lack redirects")
-for p in [p for p in ROOT.rglob("*.js") if ".git" not in p.parts]:
-    t = read(p); rel = p.relative_to(ROOT).as_posix()
-    if any(x in t for x in ("openai.com", "anthropic.com", "gemini.google.com")) and "qa/" not in rel: WARNINGS.append(f"{rel}: review external AI provider for Free-only compliance")
 
 print("AZAAD comprehensive system contract")
 print(f"HTML pages scanned: {len(htmls)}")
