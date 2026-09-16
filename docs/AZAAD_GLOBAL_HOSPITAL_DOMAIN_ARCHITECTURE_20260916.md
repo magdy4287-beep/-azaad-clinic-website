@@ -20,13 +20,13 @@ AZAAD uses a canonical internal model and optional external adapters:
 - **HL7 v2**: adapter boundary for legacy hospital interfaces.
 - **DICOM**: imaging/PACS/RIS interoperability boundary.
 - **SNOMED CT**: clinical terminology boundary where licensed/available for the deployment jurisdiction.
-- **LOINC**: laboratory and clinical observation/result terminology; LOINC is available under an open license. citeturn1search0turn1search16
+- **LOINC**: laboratory and clinical observation/result terminology; LOINC is available under an open license.
 - **ICD / national diagnosis coding**: jurisdiction-specific coding adapter.
 - **CPT/HCPCS or national procedure coding**: jurisdiction-specific claims adapter; never hard-code US-only assumptions into the core model.
-- **IHE profiles**: integration workflow patterns selected per deployed capability and jurisdiction. citeturn1search6turn1search19
-- **Payer authorization**: internal authorization state machine with optional Da Vinci CRD/DTR/PAS or national payer gateways. HL7 currently publishes Da Vinci PAS and related payer exchange guides for FHIR R4. citeturn0search2turn0search13
-- **Quality/safety**: ISO 7101 quality-management principles and WHO/IHI safety-learning patterns inform governance, incident learning, risk management and continuous improvement. citeturn0search0turn0search17turn0search19
-- **Security**: health-specific security controls follow the direction of ISO 27799:2025, while implementation remains subject to the deployed country's law and regulatory requirements. citeturn1search1
+- **IHE profiles**: integration workflow patterns selected per deployed capability and jurisdiction.
+- **Payer authorization**: internal authorization state machine with optional Da Vinci CRD/DTR/PAS or national payer gateways.
+- **Quality/safety**: ISO 7101 quality-management principles and WHO/IHI safety-learning patterns inform governance, incident learning, risk management and continuous improvement.
+- **Security**: health-specific security controls follow the direction of ISO 27799:2025, while implementation remains subject to the deployed country's law and regulatory requirements.
 
 ## Canonical hospital domains
 
@@ -73,7 +73,7 @@ Required vertical slice:
 
 AI is assistive. It may summarize, identify missing documentation, suggest coding/authorization evidence, detect anomalies and propose deterministic repairs. It must not autonomously decide triage, diagnosis, treatment, surgery, ICU admission, discharge, blood compatibility, medication administration, or payer appeal disposition.
 
-Emergency care is never blocked by payment or authorization processing. WHO's emergency-care guidance emphasizes systematic emergency care, triage, data quality and referral/counter-referral. citeturn0search3turn0search10
+Emergency care is never blocked by payment or authorization processing. WHO emergency-care guidance emphasizes systematic emergency care, triage, data quality and referral/counter-referral.
 
 ## Country-neutralization strategy
 
