@@ -45,8 +45,11 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-emergency-department-gate.yml` | Emergency Department | ED schema, API, safety and workflow contract | Canonical ED domain gate |
 | `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
 | `azaad-source-canonicality-gate.yml` | Source canonicality | Proves the repository itself is canonical and build transforms do not hide source drift | Canonical source-integrity gate |
+| `_one-shot-source-canonicality-repair.yml` | Retired source-repair marker | Confirms the former source-mutating repair path is retired; no source mutation | Retired |
 
 ## Proven non-duplication decisions
+
+`_one-shot-source-canonicality-repair.yml` is intentionally manual-only and non-mutating. It does not own source canonicalization and must never be used to repair or push repository changes.
 
 `azaad-production-certification-v2.yml` was retired because it duplicated `azaad-production-certification-gate.yml`.
 
