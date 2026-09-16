@@ -13,7 +13,7 @@ patch = read('.github/patch-admin.py')
 migration = read('db/migrations/20260916_emergency_department_hybrid.sql')
 
 checks = {
-    'ED API exists': 'api/emergency-department.js' in api or True,
+    'ED API source is non-empty': bool(api.strip()),
     'canonical Appwrite session': "azaad_admin_appwrite_session" in api and '/account' in api,
     'canonical Neon boundary': "@neondatabase/serverless" in api and "DATABASE_URL" in api,
     'reception registration': 'register_or_find_patient' in api,
@@ -28,7 +28,7 @@ checks = {
     'admission linkage': 'clinic_admission_episodes' in api,
     'AI human gate': 'human_review_required' in api and 'does not assign acuity' in ui,
     'payment never blocks clinical care': 'Financial routing never blocks clinically indicated emergency care.' in api and 'clinical_first' in api,
-    'billing boundary': 'clinic_ed_billing_events' in migration and 'resource===\'billing\'' in api,
+    'billing boundary': 'clinic_ed_billing_events' in migration and "resource==='billing'" in api,
     'audit event ledger': 'clinic_ed_events' in migration and 'await audit' in api,
     'Admin runtime owner': 'emergency-department.js' in patch,
     'no Supabase runtime': 'supabase' not in api.lower() and 'supabase' not in ui.lower(),
