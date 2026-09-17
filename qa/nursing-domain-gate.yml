@@ -1,0 +1,24 @@
+name: AZAAD Nursing Domain Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feat/emergency-department-hybrid-20260916
+
+jobs:
+  nursing-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify canonical Nursing contract
+        run: python3 qa/nursing-domain-contract.py
+      - name: Verify no Supabase runtime in Nursing API
+        run: |
+          if grep -Eiq 'supabase|createClient|VITE_SUPABASE' api/nursing.js; then
+            echo 'FAIL: retired Supabase runtime residue in api/nursing.js'
+            exit 1
+          fi
+      - name: JavaScript syntax check
+        run: node --check api/nursing.js

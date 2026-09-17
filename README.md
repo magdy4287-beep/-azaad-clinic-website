@@ -47,11 +47,11 @@ Browser
 - Admin runtime: one core + one lazy registry + one panel loader
 - Browser certification: one canonical production browser E2E workflow
 
-### Supabase retirement boundary
+### Retired-provider boundary
 
-Supabase is **not part of the AZAAD production runtime**. The project was moved away from Supabase because the previous runtime encountered quota/billing constraints and AZAAD's product requirement is a free-only operating model.
+The retired external backend is **not part of the AZAAD production runtime**. AZAAD's canonical architecture is Vercel + Appwrite + Neon and the retired provider must not be used as a production API, authentication authority, database authority, or required CI runtime dependency.
 
-The `supabase/` directory and historical Supabase migrations/functions are retained only as legacy engineering history/rollback evidence. They must not be used as production APIs, authentication, database authority, or a required CI runtime dependency. New production code must use the canonical Vercel → Appwrite/Neon boundary.
+The retired provider tree, migrations, functions, credentials, endpoints, and browser fallbacks are removed from the canonical source tree. Historical engineering evidence must not be executable or reachable from production. New production code must use the canonical Vercel → Appwrite/Neon boundary.
 
 ## Security
 
@@ -60,7 +60,7 @@ The `supabase/` directory and historical Supabase migrations/functions are retai
 - Sensitive database reads/writes are performed by the Vercel backend, not directly by browser code.
 - Session cookies are bounded and protected; server routes fail closed when identity or database configuration is unavailable.
 - Clinical assessment access requires authenticated staff permissions and appropriate patient/visit scope.
-- Legacy browser session-token and Supabase-auth fallbacks are not part of the canonical production authorization path.
+- Legacy browser session-token and retired-provider authentication fallbacks are not part of the canonical production authorization path.
 
 ## Data integrity
 

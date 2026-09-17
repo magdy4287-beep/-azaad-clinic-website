@@ -1,0 +1,25 @@
+name: AZAAD Pharmacy Domain Gate
+on:
+  pull_request:
+    paths:
+      - 'migrations/20260916_pharmacy_domain.sql'
+      - 'api/pharmacy.js'
+      - 'qa/pharmacy-domain-contract.py'
+      - 'docs/PHARMACY_DOMAIN_DESIGN.md'
+  push:
+    paths:
+      - 'migrations/20260916_pharmacy_domain.sql'
+      - 'api/pharmacy.js'
+      - 'qa/pharmacy-domain-contract.py'
+      - 'docs/PHARMACY_DOMAIN_DESIGN.md'
+jobs:
+  pharmacy-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python qa/pharmacy-domain-contract.py
+      - name: Reject retired provider
+        run: '! grep -Eqi "supabase|@supabase" api/pharmacy.js migrations/20260916_pharmacy_domain.sql'

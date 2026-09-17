@@ -1,0 +1,25 @@
+name: AZAAD ICU Domain Gate
+on:
+  pull_request:
+    paths:
+      - 'api/icu.js'
+      - 'migrations/20260916_icu_domain.sql'
+      - 'qa/icu-domain-contract.py'
+      - 'docs/AZAAD_HOSPITAL_MASTER_DOMAIN_MAP.md'
+  push:
+    branches: [main]
+    paths:
+      - 'api/icu.js'
+      - 'migrations/20260916_icu_domain.sql'
+      - 'qa/icu-domain-contract.py'
+      - 'docs/AZAAD_HOSPITAL_MASTER_DOMAIN_MAP.md'
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: ICU contract
+        run: python qa/icu-domain-contract.py

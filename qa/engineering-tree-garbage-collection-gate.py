@@ -1,5 +1,6 @@
 from pathlib import Path
 import ast
+import hashlib
 import re
 import sys
 
@@ -11,7 +12,12 @@ REQUIRED_TERMINAL_TRANSFORMS = {
     "qa/retire-legacy-admin-staff-runtime.py",
     "qa/final-admin-restore-boundary.py",
     "qa/finalize-staff-management-runtime-boundary.py",
+    "qa/finalize-admin-interactivity-appwrite.py",
 }
+
+EXECUTABLE_ROOTS = (ROOT / "qa", ROOT / "scripts", ROOT / ".github")
+EXECUTABLE_SUFFIXES = {".py", ".sh"}
+PLACEHOLDER_COMMENT = re.compile(r"^\s*#\s*(?:placeholder|no[- ]op)\s*$", re.I | re.M)
 
 if not BUILD.is_file():
     raise SystemExit("Engineering-tree GC gate: qa/vercel-build.py is required")
@@ -22,26 +28,15 @@ try:
 except SyntaxError as exc:
     raise SystemExit(f"Engineering-tree GC gate: build script syntax error: {exc}")
 
-assignments = {node.targets[0].id: node.value for node in tree.body if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)}
+assignments = {
+    node.targets[0].id: node.value
+    for node in tree.body
+    if isinstance(node, ast.Assign)
+    and len(node.targets) == 1
+    and isinstance(node.targets[0], ast.Name)
+}
 
 
-def extract_steps(name):
-    node = assignments.get(name)
-    if not isinstance(node, ast.List):
-        raise SystemExit(f"Engineering-tree GC gate: {name} must be a literal list")
-    values = []
-    for item in node.elts:
-        if not isinstance(item, ast.List) or len(item.elts) != 2:
-            raise SystemExit(f"Engineering-tree GC gate: {name} contains a non-step entry")
-        path_node = item.elts[1]
-        if not isinstance(path_node, ast.Name) and not isinstance(path_node, ast.Constant):
-            # TRANSFORM_STEPS/VERIFY_STEPS use a list comprehension; reject drift
-            # rather than guessing at dynamic build ownership.
-            raise SystemExit(f"Engineering-tree GC gate: {name} is not statically enumerable")
-        values.append(path_node.id if isinstance(path_node, ast.Name) else path_node.value)
-    return values
-
-# The canonical build currently uses list comprehensions over literal tuples.
 def extract_tuple_paths(name):
     node = assignments.get(name)
     if not isinstance(node, ast.ListComp):
@@ -52,7 +47,7 @@ def extract_tuple_paths(name):
     paths = []
     for elt in generator.iter.elts:
         if not isinstance(elt, ast.Constant) or not isinstance(elt.value, str):
-            raise SystemExit(f"Engineering-tree GC gate: {name} contains a dynamic transform path")
+            raise SystemExit(f"Engineering-tree GC gate: {name} contains a dynamic path")
         paths.append(elt.value)
     return paths
 
@@ -76,11 +71,38 @@ for required in sorted(REQUIRED_TERMINAL_TRANSFORMS):
     if transforms.count(required) != 1:
         failures.append(f"required canonical terminal transform must occur exactly once: {required}")
 
-# Prevent accidental reintroduction of the old broad mutation family as a
-# second owner: the build file itself is the only transform registry.
 for path in transforms:
     if path in {"qa/vercel-build.py", "qa/engineering-tree-garbage-collection-gate.py"}:
         failures.append(f"build registry cannot transform through its own gate: {path}")
+
+for base in EXECUTABLE_ROOTS:
+    if not base.exists():
+        continue
+    for path in base.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in EXECUTABLE_SUFFIXES:
+            continue
+        if ".git" in path.parts:
+            continue
+        body = path.read_text(encoding="utf-8", errors="replace")
+        meaningful = [line.strip() for line in body.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+        if not meaningful or PLACEHOLDER_COMMENT.search(body) or meaningful == ["pass"]:
+            failures.append(f"placeholder/no-op executable must be retired or implemented: {path.relative_to(ROOT).as_posix()}")
+
+hashes = {}
+for base in EXECUTABLE_ROOTS:
+    if not base.exists():
+        continue
+    for path in base.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in EXECUTABLE_SUFFIXES or ".git" in path.parts:
+            continue
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        hashes.setdefault(digest, []).append(path.relative_to(ROOT).as_posix())
+for paths in sorted(hashes.values()):
+    if len(paths) < 2:
+        continue
+    owned = [p for p in paths if p in transforms or p in verifiers]
+    if len(owned) > 1:
+        failures.append("exact duplicate executable payload has multiple active owners: " + ", ".join(sorted(paths)))
 
 if failures:
     print("ENGINEERING TREE GARBAGE COLLECTION: FAIL-CLOSED")
@@ -94,3 +116,5 @@ print(f" - verification owners: {len(verifiers)} unique")
 print(" - no transform/verify double ownership")
 print(" - all referenced scripts exist")
 print(" - canonical Appwrite/legacy-retirement terminal transforms are singular")
+print(" - no placeholder/no-op executable detected")
+print(" - duplicate executable payloads are rejected only when multiply owned")

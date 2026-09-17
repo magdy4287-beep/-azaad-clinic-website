@@ -1,0 +1,48 @@
+name: AZAAD Emergency Department Gate
+
+on:
+  push:
+    branches:
+      - 'feat/emergency-department-hybrid-20260916'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emergency-department:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Verify exact SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "EXACT-SHA: $(git rev-parse HEAD)"
+
+      - name: Emergency Department contract
+        run: python qa/emergency-department-contract-gate.py
+
+      - name: API JavaScript syntax
+        run: python qa/api-javascript-syntax-gate.py
+
+      - name: Zero retired provider runtime residue
+        run: python qa/zero-retired-provider-residue-gate.py
+
+      - name: Emergency source ownership
+        run: |
+          test "$(grep -c 'emergency-department.js' .github/patch-admin.py)" -ge 1
+          test -f api/emergency-department.js
+          test -f emergency-department.js
+          test -f db/migrations/20260916_emergency_department_hybrid.sql
+          echo "ED source ownership: PASS"

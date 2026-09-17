@@ -20,9 +20,16 @@
 </div>
 <script>
 (() => {'use strict';
-  const API='https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinical-assessments'; const KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa'; const qs=new URLSearchParams(location.search); const bookingId=qs.get('booking_id')||''; const patientId=qs.get('patient_id')||''; const visitId=qs.get('visit_id')||''; const state={templates:[],questions:[]}; const $=id=>document.getElementById(id); const token=async()=>window.AZAAD?.state?.session?.access_token||sessionStorage.getItem('azaad_admin_token')||((await window.supabase?.auth?.getSession?.())?.data?.session?.access_token)||''; const tr=(ar,en)=>(document.documentElement.lang||'ar').startsWith('en')?en:ar; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+  const API='/api/clinical-assessments'; const qs=new URLSearchParams(location.search); const bookingId=qs.get('booking_id')||''; const patientId=qs.get('patient_id')||''; const visitId=qs.get('visit_id')||''; const state={templates:[],questions:[]}; const $=id=>document.getElementById(id); const tr=(ar,en)=>(document.documentElement.lang||'ar').startsWith('en')?en:ar; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
   function setStatus(msg,ok=false){$('status').textContent=msg;$('status').className='status'+(ok?' ok':' err')}
-  async function request(method,params={},body){const t=await token();if(!t)throw Error(tr('جلسة الدخول غير موجودة أو منتهية.','Your authenticated session is missing or expired.'));const u=new URL(API);Object.entries(params).forEach(([k,v])=>v!==''&&v!=null&&u.searchParams.set(k,v));const r=await fetch(u,{method,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,apikey:KEY,'Content-Type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined,cache:'no-store'});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b?.error||b?.message||`HTTP ${r.status}`);return b}
+  async function request(method,params={},body){
+    const u=new URL(API,location.origin);
+    Object.entries(params).forEach(([k,v])=>v!==''&&v!=null&&u.searchParams.set(k,v));
+    const r=await fetch(u,{method,credentials:'include',headers:{Accept:'application/json','Content-Type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined,cache:'no-store'});
+    const b=await r.json().catch(()=>({}));
+    if(!r.ok)throw Error(b?.error||b?.message||`HTTP ${r.status}`);
+    return b;
+  }
   function renderMeta(){const parts=[];if(bookingId)parts.push(`📅 ${esc(bookingId)}`);if(patientId)parts.push(`👤 ${esc(patientId)}`);if(visitId)parts.push(`🩺 Visit ${esc(visitId)}`);$('meta').innerHTML=parts.map(x=>`<span class="pill">${x}</span>`).join('')||'<span class="pill">⚠️ Missing context</span>'}
   function renderTemplates(){const s=$('template');s.innerHTML=state.templates.map(t=>`<option value="${esc(t.id)}">${esc(t.name_ar||t.name||t.specialty||t.id)}</option>`).join('')}
   function questionsForTemplate(){return state.questions.filter(q=>String(q.template_id)===String($('template').value))}

@@ -11,11 +11,11 @@ shell = (ROOT / "admin-shell.js").read_text(encoding="utf-8")
 staff_runtime = (ROOT / "staff-management.js").read_text(encoding="utf-8")
 
 EXPECTED = {
-    "bookings": ["patient-appointment-actions.js"],
+    "bookings": ["patient-financial-summary.js"],
     "doctors": ["doctors-center-v2.js"],
     "services": ["services-center-v2.js"],
     "schedules": ["scheduling-v2.js"],
-    "posts": ["marketing-studio-v3.js"],
+    "posts": ["marketing-studio-v4.js"],
     "staff": ["staff-management.js"],
     "calendar": ["admin-calendar-center.js"],
     "holidays": ["admin-enhancements-v1.js"],

@@ -4,7 +4,7 @@
   if (window.__AZAAD_STAFF_MANAGEMENT_RUNTIME__) return;
   window.__AZAAD_STAFF_MANAGEMENT_RUNTIME__ = true;
   const state = { staff: [], initialized: false, loading: false, role: '' };
-  const ROLES = ['OWNER','ADMIN','MANAGER','SECRETARY','CASHIER','RECEPTION','DOCTOR','MARKETING'];
+  const ROLES = ['OWNER','ADMIN','MANAGER','SECRETARY','CASHIER','RECEPTION','DOCTOR','NURSE','MARKETING'];
   const MANAGEMENT_ROLES = new Set(['OWNER','ADMIN','MANAGER']);
   const panel = () => document.getElementById('staff') || document.getElementById('staffPanel');
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));

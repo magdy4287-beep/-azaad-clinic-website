@@ -13,29 +13,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Syntax check browser modules that exist
+      - name: Syntax check canonical browser modules
         run: |
           set -euo pipefail
-          for file in \
-            marketing-studio-v3.js \
-            public-team-display.js \
-            public-team-admin.js \
-            patient-booking-privacy-v2.js \
-            booking-share-deeplink.js; do
-            if [ -f "$file" ]; then
-              node --check "$file"
-            else
-              echo "SKIP: $file is not present in this repository revision"
-            fi
+          for file in marketing-studio-v4.js public-team-display.js; do
+            test -f "$file"
+            node --check "$file"
           done
-      - name: Run feature contract
+      - name: Run canonical feature contract
         run: python qa/marketing-hybrid-and-public-privacy-gate.py
-      - name: Verify historical marketing migration evidence
+      - name: Verify canonical marketing ownership
         run: |
-          # Supabase paths below are retained as migration/rollback evidence only.
-          # They are not production runtime owners.
-          test -f supabase/migrations/20260818160000_azaad_marketing_platform.sql
-          test -f supabase/migrations/20260818162000_harden_public_booking_existing_patient_privacy.sql
-          test -f supabase/functions/azaad-marketing-ai/index.ts
+          set -euo pipefail
+          test -f marketing-studio-v4.js
           test -f public-team-display.js
-          test -f public-team-admin.js
+          test -f api/public-clinic-data.js
+          test -f qa/marketing-hybrid-and-public-privacy-gate.py
+          ! grep -RInE --exclude-dir=.git --exclude='*.map' --exclude='*.md' \
+            'marketing-studio-v3\.js|clinic_team|supabase/functions/azaad-marketing-ai' \
+            marketing-studio-v4.js public-team-display.js api/public-clinic-data.js
+          echo 'canonical marketing ownership: PASS'
