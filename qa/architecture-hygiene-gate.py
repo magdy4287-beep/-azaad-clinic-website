@@ -23,7 +23,7 @@ RETIRED_PUSH_BRANCHES = {'feat/ai-operating-system-20260815'}
 for path in workflow_paths:
     text = path.read_text(encoding='utf-8', errors='replace')
     for branch in RETIRED_PUSH_BRANCHES:
-        if re.search(rf'(^|[\'"\s-]){re.escape(branch)}($|[\'"\s])', text):
+        if re.search(rf'([\'"\s-]|^){re.escape(branch)}($|[\'"\s])', text):
             failures.append(f'{path}: retired feature branch must not be a workflow trigger: {branch}')
 
 # Detect an actual repository deployment path, not the gate's own policy text.
@@ -38,19 +38,26 @@ for path in ROOT.rglob('*'):
     if re.search(r'netlify\s+deploy|netlify\.toml|netlify-cli|netlify_app', text, re.I):
         failures.append(f'{path}: legacy Netlify deployment reference')
 
-# API runtime ownership is consolidated into one Vercel catch-all entrypoint.
-# Domain handlers under /server are business modules, not extra Vercel
-# function boundaries. Requiring api/*.js per domain would regress the
-# free-tier architecture we are deliberately protecting.
-api_dir = ROOT / 'api'
-canonical_gateway = api_dir / '[...route].js'
-if not canonical_gateway.is_file():
-    failures.append('api gateway: expected canonical api/[...route].js entrypoint')
+# API runtime ownership is intentionally split into bounded Vercel entrypoints.
+# Platform capabilities that benefit from consolidation live under the single
+# /api/platform-gateway/[route].js boundary. Domain APIs that still require
+# their own stable entrypoint remain canonical and are not duplicated here.
+platform_gateway = ROOT / 'api' / 'platform-gateway' / '[route].js'
+if not platform_gateway.is_file():
+    failures.append('api platform gateway: expected api/platform-gateway/[route].js entrypoint')
 else:
-    gateway_text = canonical_gateway.read_text(encoding='utf-8', errors='replace')
-    for owner in ('admin-auth', 'admin-appointments', 'staff-admin'):
-        if f"'{owner}'" not in gateway_text:
-            failures.append(f'api/{owner}: canonical route missing from api/[...route].js')
+    gateway_text = platform_gateway.read_text(encoding='utf-8', errors='replace')
+    for owner in ('facility-mode', 'ai-insights', 'clinical-ai-cockpit', 'public-booking'):
+        if f"['{owner}'," not in gateway_text:
+            failures.append(f'api/platform-gateway: canonical route missing: {owner}')
+
+# The gateway must not be mistaken for a replacement owner of auth/staff APIs.
+# Those remain separate canonical security boundaries unless a future migration
+# proves equivalence and is verified on the exact production artifact.
+for owner in ('admin-auth', 'admin-appointments', 'staff-admin'):
+    canonical = ROOT / 'api' / f'{owner}.js'
+    if not canonical.is_file():
+        failures.append(f'api/{owner}: canonical security boundary missing')
 
 # Keep the workflow registry and the executable workflow tree in lockstep.
 if not REGISTRY.is_file():
@@ -80,5 +87,6 @@ print('ARCHITECTURE HYGIENE: PASS')
 print(' - no source-mutating workflow')
 print(' - no retired feature-branch workflow trigger')
 print(' - no repository Netlify deployment path')
-print(' - consolidated API gateway owns canonical routes')
+print(' - platform gateway owns its consolidated capability routes')
+print(' - security APIs retain explicit canonical boundaries')
 print(f' - workflow registry is complete ({len(workflow_paths)} workflows)')
