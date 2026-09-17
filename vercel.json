@@ -7,15 +7,11 @@
   "headers": [
     {
       "source": "/admin.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
     },
     {
       "source": "/admin.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }]
     }
   ],
   "redirects": [
@@ -23,16 +19,6 @@
     { "source": "/admin/admin/admin/:path*", "destination": "/admin.html", "permanent": false },
     { "source": "/admin/admin/:path*", "destination": "/admin.html", "permanent": false }
   ],
-  "rewrites": [
-    { "source": "/api/runtime-health", "destination": "/api/admin-auth?action=runtime-health" },
-    { "source": "/api/frontdesk-checkin", "destination": "/api/clinical-assessments?action=check-in" },
-    { "source": "/api/facility-mode", "destination": "/api/platform-gateway/facility-mode" },
-    { "source": "/api/ai-insights", "destination": "/api/platform-gateway/ai-insights" },
-    { "source": "/api/clinical-ai-cockpit", "destination": "/api/platform-gateway/clinical-ai-cockpit" },
-    { "source": "/api/public-booking", "destination": "/api/platform-gateway/public-booking" }
-  ],
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!*.md' ':!docs/**'",
-  "git": {
-    "deploymentEnabled": true
-  }
+  "git": { "deploymentEnabled": true }
 }
