@@ -19,9 +19,6 @@ for path in workflow_paths:
     if re.search(r'gh\s+pr\s+(merge|close)\b', text, re.I):
         failures.append(f'{path}: workflow must not merge/close PRs')
 
-# Historical feature branches are not valid CI deployment triggers. Keep this
-# fail-closed because an accidental reintroduction would silently resurrect
-# retired automation outside the canonical PR -> main path.
 RETIRED_PUSH_BRANCHES = {'feat/ai-operating-system-20260815'}
 for path in workflow_paths:
     text = path.read_text(encoding='utf-8', errors='replace')
@@ -30,8 +27,6 @@ for path in workflow_paths:
             failures.append(f'{path}: retired feature branch must not be a workflow trigger: {branch}')
 
 # Detect an actual repository deployment path, not the gate's own policy text.
-# Documentation and this diagnostic are excluded because they necessarily name
-# the retired provider while explaining the rule.
 for path in ROOT.rglob('*'):
     if not path.is_file() or '.git' in path.parts or path.resolve() == SELF:
         continue
@@ -43,23 +38,21 @@ for path in ROOT.rglob('*'):
     if re.search(r'netlify\s+deploy|netlify\.toml|netlify-cli|netlify_app', text, re.I):
         failures.append(f'{path}: legacy Netlify deployment reference')
 
-# Guard against obvious duplicate runtime owners for the same canonical API.
-# This intentionally checks only explicit server entrypoints, not test fixtures.
+# API runtime ownership is consolidated into one Vercel catch-all entrypoint.
+# Domain handlers under /server are business modules, not extra Vercel
+# function boundaries. Requiring api/*.js per domain would regress the
+# free-tier architecture we are deliberately protecting.
 api_dir = ROOT / 'api'
-if api_dir.exists():
-    canonical = {
-        'admin-auth': ['admin-auth'],
-        'admin-appointments': ['admin-appointments'],
-        'staff-admin': ['staff-admin'],
-    }
-    for owner, needles in canonical.items():
-        matches = [p for p in api_dir.glob('*.js') if any(n in p.stem for n in needles)]
-        if len(matches) != 1:
-            failures.append(f'api/{owner}: expected exactly one canonical file, found {len(matches)}')
+canonical_gateway = api_dir / '[...route].js'
+if not canonical_gateway.is_file():
+    failures.append('api gateway: expected canonical api/[...route].js entrypoint')
+else:
+    gateway_text = canonical_gateway.read_text(encoding='utf-8', errors='replace')
+    for owner in ('admin-auth', 'admin-appointments', 'staff-admin'):
+        if f"'{owner}'" not in gateway_text:
+            failures.append(f'api/{owner}: canonical route missing from api/[...route].js')
 
 # Keep the workflow registry and the executable workflow tree in lockstep.
-# This prevents silent workflow accumulation: every active workflow must have
-# one ownership row, and every row in the canonical table must point to a file.
 if not REGISTRY.is_file():
     failures.append('workflow registry is missing: docs/AZAAD_WORKFLOW_OWNERSHIP_REGISTRY.md')
 else:
@@ -87,5 +80,5 @@ print('ARCHITECTURE HYGIENE: PASS')
 print(' - no source-mutating workflow')
 print(' - no retired feature-branch workflow trigger')
 print(' - no repository Netlify deployment path')
-print(' - canonical API ownership is singular')
+print(' - consolidated API gateway owns canonical routes')
 print(f' - workflow registry is complete ({len(workflow_paths)} workflows)')
