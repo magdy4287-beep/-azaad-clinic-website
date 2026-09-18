@@ -7,7 +7,6 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
-      - 'clinician-transfer-widget.js'
       - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
@@ -34,25 +33,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate clinician cockpit source
+
+      - name: Validate clinician cockpit source boundary
         run: |
           python3 - <<'PY'
           from pathlib import Path
           text=Path('clinician-ai-session-cockpit.js').read_text(encoding='utf-8')
-          required=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers','/api/clinical-assessments','doctorFollowupWidget','safety:')
+          required=('/api/clinical-assessments','doctorFollowupWidget','safety:')
           missing=[x for x in required if x not in text]
-          if missing: raise SystemExit('missing clinician cockpit contract: '+', '.join(missing))
+          if missing: raise SystemExit('missing clinician cockpit runtime contract: '+', '.join(missing))
+          forbidden=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers')
+          leaked=[x for x in forbidden if x in text]
+          if leaked: raise SystemExit('browser must not own clinical DB tables: '+', '.join(leaked))
           PY
-      - name: Validate canonical assessment data contract
+
+      - name: Validate canonical assessment API data contract
         run: |
           python3 - <<'PY'
           from pathlib import Path
           text=Path('api/clinical-assessments.js').read_text(encoding='utf-8')
-          required=('score_percent','baseline_score_percent','previous_score_percent','safety_review_required','clinical_assessment_answers')
+          required=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers','score_percent','baseline_score_percent','previous_score_percent','safety_review_required')
           missing=[x for x in required if x not in text]
           if missing: raise SystemExit('missing assessment API contract: '+', '.join(missing))
           PY
-      - name: Validate longitudinal dashboard
+
+      - name: Validate longitudinal dashboard contract
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -61,6 +66,7 @@ jobs:
           missing=[x for x in required if x not in text]
           if missing: raise SystemExit('missing longitudinal contract: '+', '.join(missing))
           PY
+
       - name: Validate evidence and question library
         run: |
           python3 - <<'PY'
@@ -71,18 +77,21 @@ jobs:
               missing=[x for x in required if x not in text]
               if missing: raise SystemExit(f'missing {name} contract: '+', '.join(missing))
           PY
+
       - name: Validate safety boundary
         run: |
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-ai-session-cockpit.js
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-longitudinal-dashboard.js
           grep -q "decision" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
           grep -q "licensed\|licensing" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
+
       - name: Validate bilingual clinician UX
         run: |
           grep -q "startsWith('en')" clinician-ai-session-cockpit.js
           grep -q "startsWith('en')" clinician-longitudinal-dashboard.js
           grep -q "المساعد السريري للجلسة" clinician-ai-session-cockpit.js
           grep -q "Clinical Session Copilot" clinician-ai-session-cockpit.js
+
       - name: Validate follow-up and retired transfer boundary
         run: |
           grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
