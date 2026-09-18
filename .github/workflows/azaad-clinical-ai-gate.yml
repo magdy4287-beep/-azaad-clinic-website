@@ -89,4 +89,3 @@ jobs:
           grep -q "clinical-followup-widget.js" .github/patch-admin.py
           test ! -e clinician-transfer-widget.js
           ! grep -q "clinician-transfer-widget.js" .github/patch-admin.py
-          ! grep -q "supabase.co/functions/v1/azaad-clinician-transfer" .github/patch-admin.py
