@@ -1,0 +1,52 @@
+name: AZAAD One-Time Source Materialization
+
+on:
+  push:
+    branches: [fix/canonical-api-gate-20260917]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Execute canonical source transforms exactly once
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ast, subprocess
+          from pathlib import Path
+          tree=ast.parse(Path('qa/vercel-build.py').read_text(encoding='utf-8'))
+          node=next(n.value for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name) and n.targets[0].id=='TRANSFORM_STEPS')
+          for command in ast.literal_eval(node):
+              print('[AZAAD ONE-TIME MATERIALIZATION]', ' '.join(command), flush=True)
+              subprocess.run(command, check=True)
+          PY
+      - name: Remove artifact-only provenance mutation
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('admin.html'); t=p.read_text(encoding='utf-8')
+          t=re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?', '', t, flags=re.I)
+          p.write_text(t, encoding='utf-8')
+          PY
+      - name: Commit materialized canonical source
+        run: |
+          set -euo pipefail
+          git add -A
+          git reset -- .github/workflows/azaad-one-time-source-materialization.yml
+          if git diff --cached --quiet; then echo 'NO SOURCE DRIFT GENERATED'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: materialize canonical production source [skip ci]'
+          git push origin HEAD:fix/canonical-api-gate-20260917
