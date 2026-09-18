@@ -3,6 +3,7 @@ import aiInsights from '../../server/api/platform-ai-insights.js';
 import clinicalAiCockpit from '../../server/api/platform-clinical-ai-cockpit.js';
 import publicBooking from '../../server/api/public-booking.js';
 import marketing from '../../server/api/marketing.js';
+import admissions from '../../server/api/admissions.js';
 
 const ROUTES = new Map([
   ['facility-mode', facilityMode],
@@ -10,6 +11,7 @@ const ROUTES = new Map([
   ['clinical-ai-cockpit', clinicalAiCockpit],
   ['public-booking', publicBooking],
   ['marketing', marketing],
+  ['admissions', admissions],
 ]);
 
 export default async function handler(req, res) {
