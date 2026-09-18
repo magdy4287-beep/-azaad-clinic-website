@@ -36,43 +36,41 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate clinician cockpit source
         run: |
-          test -s clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_templates" clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_questions" clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_sessions" clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_answers" clinician-ai-session-cockpit.js
-          grep -q "/api/clinical-assessments" clinician-ai-session-cockpit.js
-          grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
-          grep -q "Safety alerts\|تنبيهات الأمان" clinician-ai-session-cockpit.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('clinician-ai-session-cockpit.js').read_text(encoding='utf-8')
+          required=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers','/api/clinical-assessments','doctorFollowupWidget','safety:')
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing clinician cockpit contract: '+', '.join(missing))
+          PY
       - name: Validate canonical assessment data contract
         run: |
-          test -s api/clinical-assessments.js
-          grep -q "score_percent" api/clinical-assessments.js
-          grep -q "baseline_score_percent" api/clinical-assessments.js
-          grep -q "previous_score_percent" api/clinical-assessments.js
-          grep -q "safety_review_required" api/clinical-assessments.js
-          grep -q "clinical_assessment_answers" api/clinical-assessments.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('api/clinical-assessments.js').read_text(encoding='utf-8')
+          required=('score_percent','baseline_score_percent','previous_score_percent','safety_review_required','clinical_assessment_answers')
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing assessment API contract: '+', '.join(missing))
+          PY
       - name: Validate longitudinal dashboard
         run: |
-          test -s clinician-longitudinal-dashboard.js
-          grep -q "clinical_assessment_sessions" clinician-longitudinal-dashboard.js
-          grep -q "score_percent" clinician-longitudinal-dashboard.js
-          grep -q "baseline_score_percent" clinician-longitudinal-dashboard.js
-          grep -q "previous" clinician-longitudinal-dashboard.js
-          grep -q "safety_review_required" clinician-longitudinal-dashboard.js
-          grep -q "improving" clinician-longitudinal-dashboard.js
-          grep -q "worsening" clinician-longitudinal-dashboard.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('clinician-longitudinal-dashboard.js').read_text(encoding='utf-8')
+          required=('clinical_assessment_sessions','score_percent','baseline_score_percent','previous','safety_review_required','improving','worsening')
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing longitudinal contract: '+', '.join(missing))
+          PY
       - name: Validate evidence and question library
         run: |
-          test -s clinical-evidence-library.js
-          grep -q "source_url" clinical-evidence-library.js || grep -q "sourceBadge" clinical-evidence-library.js
-          grep -q "evidence_type" clinical-evidence-library.js
-          grep -q "is_favorite" clinical-evidence-library.js
-          grep -q "reviewed_at" clinical-evidence-library.js
-          grep -q "discuss_with_team" clinical-evidence-library.js
-          grep -q "AI candidate" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
-          grep -q "license" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
-          grep -q "provenance" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
+          python3 - <<'PY'
+          from pathlib import Path
+          evidence=Path('clinical-evidence-library.js').read_text(encoding='utf-8')
+          roadmap=Path('docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md').read_text(encoding='utf-8')
+          for name,text,required in (('evidence',evidence,('source_url','evidence_type','is_favorite','reviewed_at','discuss_with_team')),('roadmap',roadmap,('AI candidate','license','provenance'))):
+              missing=[x for x in required if x not in text]
+              if missing: raise SystemExit(f'missing {name} contract: '+', '.join(missing))
+          PY
       - name: Validate safety boundary
         run: |
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-ai-session-cockpit.js
