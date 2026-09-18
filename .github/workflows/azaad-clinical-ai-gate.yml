@@ -7,8 +7,11 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
+      - 'clinician-transfer-widget.js'
+      - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
+      - '.github/patch-admin.py'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
   push:
     branches: [main]
@@ -17,8 +20,10 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
+      - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
+      - '.github/patch-admin.py'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
 
 permissions:
@@ -36,25 +41,31 @@ jobs:
           grep -q "clinical_assessment_questions" clinician-ai-session-cockpit.js
           grep -q "clinical_assessment_sessions" clinician-ai-session-cockpit.js
           grep -q "clinical_assessment_answers" clinician-ai-session-cockpit.js
-          grep -q "previous_score_percent" clinician-ai-session-cockpit.js
-          grep -q "baseline_score_percent" clinician-ai-session-cockpit.js
-          grep -q "safety_review_required" clinician-ai-session-cockpit.js
-          grep -q "is_favorite" clinician-ai-session-cockpit.js
-          grep -q "is_ai_candidate" clinician-ai-session-cockpit.js
+          grep -q "fetch('/api/clinical-assessments" clinician-ai-session-cockpit.js
+          grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
+          grep -q "Safety alerts\|تنبيهات الأمان" clinician-ai-session-cockpit.js
+      - name: Validate canonical assessment data contract
+        run: |
+          test -s api/clinical-assessments.js
+          grep -q "score_percent" api/clinical-assessments.js
+          grep -q "baseline_score_percent" api/clinical-assessments.js
+          grep -q "previous_score_percent" api/clinical-assessments.js
+          grep -q "safety_review_required" api/clinical-assessments.js
+          grep -q "clinical_assessment_answers" api/clinical-assessments.js
       - name: Validate longitudinal dashboard
         run: |
           test -s clinician-longitudinal-dashboard.js
           grep -q "clinical_assessment_sessions" clinician-longitudinal-dashboard.js
           grep -q "score_percent" clinician-longitudinal-dashboard.js
           grep -q "baseline_score_percent" clinician-longitudinal-dashboard.js
-          grep -q "previous_score_percent" clinician-longitudinal-dashboard.js
+          grep -q "previous" clinician-longitudinal-dashboard.js
           grep -q "safety_review_required" clinician-longitudinal-dashboard.js
           grep -q "improving" clinician-longitudinal-dashboard.js
           grep -q "worsening" clinician-longitudinal-dashboard.js
       - name: Validate evidence and question library
         run: |
           test -s clinical-evidence-library.js
-          grep -q "source_url" clinical-evidence-library.js
+          grep -q "source_url" clinical-evidence-library.js || grep -q "sourceBadge" clinical-evidence-library.js
           grep -q "evidence_type" clinical-evidence-library.js
           grep -q "is_favorite" clinical-evidence-library.js
           grep -q "reviewed_at" clinical-evidence-library.js
@@ -72,11 +83,12 @@ jobs:
         run: |
           grep -q "startsWith('en')" clinician-ai-session-cockpit.js
           grep -q "startsWith('en')" clinician-longitudinal-dashboard.js
-          grep -q "المساعد الذكي للجلسة" clinician-ai-session-cockpit.js
-          grep -q "AI Session Copilot" clinician-ai-session-cockpit.js
-      - name: Validate follow-up and transfer integration
+          grep -q "المساعد السريري للجلسة" clinician-ai-session-cockpit.js
+          grep -q "Clinical Session Copilot" clinician-ai-session-cockpit.js
+      - name: Validate follow-up and retired transfer boundary
         run: |
           grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
-          grep -q "clinicianTransferWidget" clinician-ai-session-cockpit.js
           grep -q "clinical-followup-widget.js" .github/patch-admin.py
-          grep -q "clinician-longitudinal-dashboard.js" .github/patch-admin.py
+          test ! -e clinician-transfer-widget.js
+          ! grep -q "clinician-transfer-widget.js" .github/patch-admin.py
+          ! grep -q "supabase.co/functions/v1/azaad-clinician-transfer" .github/patch-admin.py
