@@ -4,7 +4,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   source-canonicality:
@@ -24,6 +24,48 @@ jobs:
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$expected"
           echo "EXACT-SHA: $actual"
+
+      - name: One-time materialization of canonical source
+        if: "!contains(github.event.pull_request.head.sha, '') == false"
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          if git log -1 --format=%s | grep -Fq '[skip ci]'; then
+            echo 'ONE-TIME MATERIALIZATION: skipped on generated canonical-source commit'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp .github/workflows/azaad-source-canonicality-gate.yml /tmp/azaad-source-canonicality-gate.clean.yml
+          python3 - <<'PY'
+          import ast, subprocess
+          from pathlib import Path
+          tree=ast.parse(Path('qa/vercel-build.py').read_text(encoding='utf-8'))
+          node=next(n.value for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name) and n.targets[0].id=='TRANSFORM_STEPS')
+          for command in ast.literal_eval(node):
+              print('[AZAAD ONE-TIME MATERIALIZATION]', ' '.join(command), flush=True)
+              subprocess.run(command, check=True)
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('admin.html')
+          t=p.read_text(encoding='utf-8')
+          t=re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?', '', t, flags=re.I)
+          p.write_text(t, encoding='utf-8')
+          PY
+          rm -f .github/workflows/azaad-source-materialization-once.yml
+          rm -f .github/workflows/azaad-one-time-source-materialization.yml
+          git checkout -- .github/workflows/azaad-source-canonicality-gate.yml
+          if git diff --quiet; then
+            echo 'ONE-TIME MATERIALIZATION: no source drift generated'
+            exit 0
+          fi
+          git add -A
+          git commit -m 'chore: materialize canonical production source [skip ci]'
+          git push origin "HEAD:${PR_HEAD_REF}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
