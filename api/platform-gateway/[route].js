@@ -2,12 +2,14 @@ import facilityMode from '../../server/api/platform-facility-mode.js';
 import aiInsights from '../../server/api/platform-ai-insights.js';
 import clinicalAiCockpit from '../../server/api/platform-clinical-ai-cockpit.js';
 import publicBooking from '../../server/api/public-booking.js';
+import marketing from '../../server/api/marketing.js';
 
 const ROUTES = new Map([
   ['facility-mode', facilityMode],
   ['ai-insights', aiInsights],
   ['clinical-ai-cockpit', clinicalAiCockpit],
   ['public-booking', publicBooking],
+  ['marketing', marketing],
 ]);
 
 export default async function handler(req, res) {
