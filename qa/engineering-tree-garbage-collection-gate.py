@@ -6,15 +6,6 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "qa" / "vercel-build.py"
-
-REQUIRED_TERMINAL_TRANSFORMS = {
-    "qa/finalize-appwrite-admin-auth.py",
-    "qa/retire-legacy-admin-staff-runtime.py",
-    "qa/final-admin-restore-boundary.py",
-    "qa/finalize-staff-management-runtime-boundary.py",
-    "qa/finalize-admin-interactivity-appwrite.py",
-}
-
 EXECUTABLE_ROOTS = (ROOT / "qa", ROOT / "scripts", ROOT / ".github")
 EXECUTABLE_SUFFIXES = {".py", ".sh"}
 PLACEHOLDER_COMMENT = re.compile(r"^\s*#\s*(?:placeholder|no[- ]op)\s*$", re.I | re.M)
@@ -37,12 +28,19 @@ assignments = {
 }
 
 
-def extract_tuple_paths(name):
+def extract_paths(name):
     node = assignments.get(name)
-    if not isinstance(node, ast.ListComp):
-        raise SystemExit(f"Engineering-tree GC gate: {name} must remain a literal list comprehension")
-    generator = node.generators[0] if len(node.generators) == 1 else None
-    if not generator or not isinstance(generator.iter, ast.Tuple):
+    if isinstance(node, ast.List):
+        paths = []
+        for elt in node.elts:
+            if not isinstance(elt, ast.Constant) or not isinstance(elt.value, str):
+                raise SystemExit(f"Engineering-tree GC gate: {name} contains a dynamic path")
+            paths.append(elt.value)
+        return paths
+    if not isinstance(node, ast.ListComp) or len(node.generators) != 1:
+        raise SystemExit(f"Engineering-tree GC gate: {name} must be a literal list or list comprehension")
+    generator = node.generators[0]
+    if not isinstance(generator.iter, ast.Tuple):
         raise SystemExit(f"Engineering-tree GC gate: {name} must have a literal tuple source")
     paths = []
     for elt in generator.iter.elts:
@@ -51,10 +49,13 @@ def extract_tuple_paths(name):
         paths.append(elt.value)
     return paths
 
-transforms = extract_tuple_paths("TRANSFORM_STEPS")
-verifiers = extract_tuple_paths("VERIFY_STEPS")
+transforms = extract_paths("TRANSFORM_STEPS")
+verifiers = extract_paths("VERIFY_STEPS")
 
 failures = []
+if transforms:
+    failures.append("production transform registry must be empty: canonical source is materialized in Git")
+
 for label, paths in (("transform", transforms), ("verify", verifiers)):
     duplicates = sorted({p for p in paths if paths.count(p) > 1})
     if duplicates:
@@ -66,10 +67,6 @@ for label, paths in (("transform", transforms), ("verify", verifiers)):
 shared = sorted(set(transforms) & set(verifiers))
 if shared:
     failures.append("script owned by both transform and verify phases: " + ", ".join(shared))
-
-for required in sorted(REQUIRED_TERMINAL_TRANSFORMS):
-    if transforms.count(required) != 1:
-        failures.append(f"required canonical terminal transform must occur exactly once: {required}")
 
 for path in transforms:
     if path in {"qa/vercel-build.py", "qa/engineering-tree-garbage-collection-gate.py"}:
@@ -111,10 +108,10 @@ if failures:
     sys.exit(1)
 
 print("ENGINEERING TREE GARBAGE COLLECTION: PASS")
-print(f" - transform owners: {len(transforms)} unique")
+print(f" - transform owners: {len(transforms)} (production build is source-immutable)")
 print(f" - verification owners: {len(verifiers)} unique")
 print(" - no transform/verify double ownership")
 print(" - all referenced scripts exist")
-print(" - canonical Appwrite/legacy-retirement terminal transforms are singular")
+print(" - canonical source is not rewritten by the production build")
 print(" - no placeholder/no-op executable detected")
 print(" - duplicate executable payloads are rejected only when multiply owned")
