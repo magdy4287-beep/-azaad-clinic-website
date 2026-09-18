@@ -2,7 +2,7 @@ name: AZAAD One-Time Source Materialization
 
 on:
   push:
-    branches: [codex/source-materialization-20260918]
+    branches: [fix/canonical-api-gate-20260917]
 
 permissions:
   contents: write
@@ -49,4 +49,4 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'chore: materialize canonical production source [skip ci]'
-          git push origin HEAD:codex/source-materialization-20260918
+          git push origin HEAD:fix/canonical-api-gate-20260917
