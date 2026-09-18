@@ -62,9 +62,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           text=Path('clinician-longitudinal-dashboard.js').read_text(encoding='utf-8')
-          required=('clinical_assessment_sessions','score_percent','baseline_score_percent','previous','safety_review_required','improving','worsening')
+          required=('/api/clinical-assessments','action=history','sessions','score_percent','baseline_score_percent','safety_review_required','improving','worsening')
           missing=[x for x in required if x not in text]
-          if missing: raise SystemExit('missing longitudinal contract: '+', '.join(missing))
+          if missing: raise SystemExit('missing longitudinal API contract: '+', '.join(missing))
           PY
 
       - name: Validate evidence and question library
