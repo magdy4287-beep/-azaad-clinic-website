@@ -26,7 +26,6 @@ jobs:
           echo "EXACT-SHA: $actual"
 
       - name: One-time materialization of canonical source
-        if: "!contains(github.event.pull_request.head.sha, '') == false"
         shell: bash
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -38,13 +37,14 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          cp .github/workflows/azaad-source-canonicality-gate.yml /tmp/azaad-source-canonicality-gate.clean.yml
           python3 - <<'PY'
           import ast, subprocess
           from pathlib import Path
           tree=ast.parse(Path('qa/vercel-build.py').read_text(encoding='utf-8'))
           node=next(n.value for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name) and n.targets[0].id=='TRANSFORM_STEPS')
-          for command in ast.literal_eval(node):
+          tuple_node=node.generators[0].iter
+          for element in tuple_node.elts:
+              command=['python3', ast.literal_eval(element)]
               print('[AZAAD ONE-TIME MATERIALIZATION]', ' '.join(command), flush=True)
               subprocess.run(command, check=True)
           PY
