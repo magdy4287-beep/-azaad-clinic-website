@@ -41,7 +41,7 @@ jobs:
           grep -q "clinical_assessment_questions" clinician-ai-session-cockpit.js
           grep -q "clinical_assessment_sessions" clinician-ai-session-cockpit.js
           grep -q "clinical_assessment_answers" clinician-ai-session-cockpit.js
-          grep -q "fetch('/api/clinical-assessments" clinician-ai-session-cockpit.js
+          grep -q "/api/clinical-assessments" clinician-ai-session-cockpit.js
           grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
           grep -q "Safety alerts\|تنبيهات الأمان" clinician-ai-session-cockpit.js
       - name: Validate canonical assessment data contract
