@@ -7,6 +7,7 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
+      - 'clinical-assessment.html'
       - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
@@ -19,6 +20,7 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
+      - 'clinical-assessment.html'
       - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
@@ -67,6 +69,19 @@ jobs:
           if missing: raise SystemExit('missing longitudinal API contract: '+', '.join(missing))
           PY
 
+      - name: Validate follow-up runtime ownership
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          cockpit=Path('clinician-ai-session-cockpit.js').read_text(encoding='utf-8')
+          widget=Path('clinical-followup-widget.js').read_text(encoding='utf-8')
+          page=Path('clinical-assessment.html').read_text(encoding='utf-8')
+          if 'doctorFollowupWidget' not in cockpit: raise SystemExit('missing clinician follow-up integration contract')
+          if 'followup-booking-create' not in widget: raise SystemExit('missing follow-up booking API contract')
+          if 'clinical-followup-widget.js' not in page: raise SystemExit('clinical assessment page does not load follow-up owner')
+          if 'clinician-transfer-widget.js' in page or Path('clinician-transfer-widget.js').exists(): raise SystemExit('retired transfer widget must remain absent')
+          PY
+
       - name: Validate evidence and question library
         run: |
           python3 - <<'PY'
@@ -91,10 +106,3 @@ jobs:
           grep -q "startsWith('en')" clinician-longitudinal-dashboard.js
           grep -q "المساعد السريري للجلسة" clinician-ai-session-cockpit.js
           grep -q "Clinical Session Copilot" clinician-ai-session-cockpit.js
-
-      - name: Validate follow-up and retired transfer boundary
-        run: |
-          grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
-          grep -q "clinical-followup-widget.js" .github/patch-admin.py
-          test ! -e clinician-transfer-widget.js
-          ! grep -q "clinician-transfer-widget.js" .github/patch-admin.py
