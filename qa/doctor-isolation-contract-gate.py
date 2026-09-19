@@ -11,7 +11,7 @@ def read(path):
     return p.read_text(encoding="utf-8")
 
 dashboard = read("doctor-dashboard.js")
-auth = read("api/admin-auth.js")
+auth = read("api/_admin-auth.js")
 appts = read("api/admin-appointments.js")
 clinical = read("api/clinical-assessments.js")
 
