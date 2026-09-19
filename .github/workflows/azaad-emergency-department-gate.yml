@@ -56,7 +56,7 @@ jobs:
       - name: Emergency source ownership
         run: |
           test "$(grep -c 'emergency-department.js' .github/patch-admin.py)" -ge 1
-          test -f api/emergency-department.js
+          test -f api/_emergency-department.js
           test -f emergency-department.js
           test -f db/migrations/20260916_emergency_department_hybrid.sql
           echo "ED source ownership: PASS"
