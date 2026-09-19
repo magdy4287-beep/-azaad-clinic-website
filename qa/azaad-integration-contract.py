@@ -21,7 +21,8 @@ assert "phone" in app.lower()
 assert "name" in app.lower()
 
 # Patient 360/admin search must understand MRN and booking identifiers.
-assert "booking_code" in patient_center
+assert "/api/admin-appointments?api=patients" in patient_center
+assert "/api/admin-appointments?api=patient&id=" in patient_center
 assert "mrn" in patient_center.lower()
 
 # Admin must load the patient/booking workflow layers.
