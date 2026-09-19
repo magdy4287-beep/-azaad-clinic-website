@@ -12,7 +12,13 @@ def run(steps,phase):
         if not Path(c[1]).is_file():
             raise SystemExit(f"Missing required production {phase} step: {c[1]}")
         print(f"[AZAAD build:{phase}] {' '.join(c)}",flush=True)
-        subprocess.run(c,check=True)
+        try:
+            subprocess.run(c,check=True)
+        except subprocess.CalledProcessError as exc:
+            raise SystemExit(
+                f"FIRST REAL BUILD VERIFIER FAILURE: phase={phase} script={c[1]} "
+                f"exit_code={exc.returncode}"
+            ) from exc
 
 if TRANSFORM_STEPS:
     raise SystemExit("FAIL-CLOSED: production source transforms must be materialized in Git, not executed by Vercel")
