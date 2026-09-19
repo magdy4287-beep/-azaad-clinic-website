@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def read(path):
     return (ROOT / path).read_text(encoding='utf-8')
 
-api = read('api/emergency-department.js')
+api = read('api/_emergency-department.js')
 ui = read('emergency-department.js')
 patch = read('.github/patch-admin.py')
 migration = read('db/migrations/20260916_emergency_department_hybrid.sql')
