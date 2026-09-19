@@ -39,7 +39,9 @@ jobs:
 
       - name: Verify exact SHA
         run: |
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
           echo "EXACT-SHA: $(git rev-parse HEAD)"
 
       - name: Emergency Department contract
