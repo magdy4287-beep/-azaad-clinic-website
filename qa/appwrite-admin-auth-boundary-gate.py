@@ -3,12 +3,14 @@ import re
 import sys
 
 root = Path(__file__).resolve().parents[1]
-auth = (root / 'api/admin-auth.js').read_text(encoding='utf-8')
-appointments = (root / 'api/admin-appointments.js').read_text(encoding='utf-8')
+auth = (root / 'api/_admin-auth.js').read_text(encoding='utf-8')
+appointments = (root / 'api/_admin-appointments.js').read_text(encoding='utf-8')
 transform = (root / 'qa/finalize-appwrite-admin-auth.py').read_text(encoding='utf-8')
 final_restore = (root / 'qa/final-admin-restore-boundary.py').read_text(encoding='utf-8')
 build = (root / 'qa/vercel-build.py').read_text(encoding='utf-8')
 admin = (root / 'admin.js').read_text(encoding='utf-8')
+
+gateway = (root / 'api/[...route].js').read_text(encoding='utf-8')
 
 parity_guard = bool(re.search(r'const\s+parity\s*=\s*Boolean\s*\(', auth)) and bool(re.search(r'session\?\.userId\s*&&\s*staff\.auth_user_id\s*&&\s*session\.userId\s*===\s*staff\.auth_user_id', auth))
 lifetime_guard = 'const SESSION_MAX_AGE = 60 * 60 * 8;' in auth and 'maxAge = SESSION_MAX_AGE' in auth and 'Max-Age=${maxAge}' in auth
@@ -25,6 +27,8 @@ canonical_admin_source_guard = (
     and "result?.provider !== 'appwrite'" in admin
     and 'window.AZAAD_LOGIN_CONTROLLER_READY = true;' in admin
 )
+
+gateway_auth_owner_guard = "'admin-auth'" in gateway and "'admin-appointments'" in gateway and "'staff-admin'" in gateway
 
 checks = [
     ('Appwrite Admin auth endpoint exists', 'account/sessions/email' in auth),
@@ -43,6 +47,7 @@ checks = [
     ('Admin appointments enforces role', appointments_role_guard),
     ('Admin appointments isolates E2E rows', "not ilike 'E2E-%'" in appointments),
     ('Canonical source contains Appwrite auth runtime', canonical_admin_source_guard),
+    ('Canonical gateway owns Admin auth/security API routes', gateway_auth_owner_guard),
     ('Canonical transform retains retired staff-login endpoint assertion', 'functions/v1/staff-login' in transform and 'raise SystemExit' in transform and 'Legacy staff-login' in transform),
     ('Final canonical Admin artifact strips browser access-token requirements', '!result?.session?.access_token' in final_restore and 'cookie-only' in final_restore),
     ('Appwrite API key is not embedded in frontend transform', 'APPWRITE_API_KEY' not in transform),
