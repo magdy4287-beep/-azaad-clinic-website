@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 enterprise = ROOT / "admin-enterprise-centers.js"
 invoice_api = ROOT / "api/_invoices.js"
-appointment_api = ROOT / "api/admin-appointments.js"
+appointment_api = ROOT / "api/_admin-appointments.js"
 failed = []
 
 def require(condition, message):
