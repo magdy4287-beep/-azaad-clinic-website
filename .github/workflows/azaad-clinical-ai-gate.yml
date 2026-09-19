@@ -8,7 +8,8 @@ on:
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
       - 'clinical-assessment.html'
-      - 'api/clinical-assessments.js'
+      - 'api/_clinical-assessments.js'
+      - 'api/[...route].js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
       - '.github/patch-admin.py'
@@ -21,7 +22,8 @@ on:
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
       - 'clinical-assessment.html'
-      - 'api/clinical-assessments.js'
+      - 'api/_clinical-assessments.js'
+      - 'api/[...route].js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
       - '.github/patch-admin.py'
@@ -53,10 +55,12 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          text=Path('api/clinical-assessments.js').read_text(encoding='utf-8')
+          text=Path('api/_clinical-assessments.js').read_text(encoding='utf-8')
+          gateway=Path('api/[...route].js').read_text(encoding='utf-8')
           required=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers','score_percent','baseline_score_percent','previous_score_percent','safety_review_required')
           missing=[x for x in required if x not in text]
           if missing: raise SystemExit('missing assessment API contract: '+', '.join(missing))
+          if "'clinical-assessments'" not in gateway: raise SystemExit('canonical gateway does not own clinical-assessments route')
           PY
 
       - name: Validate longitudinal dashboard contract
