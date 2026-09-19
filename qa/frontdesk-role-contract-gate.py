@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import sys
 
-path = Path("api/clinical-assessments.js")
+path = Path("api/_clinical-assessments.js")
 text = path.read_text(encoding="utf-8")
 
 canonical = ["OWNER", "ADMIN", "MANAGER", "SECRETARY", "RECEPTION", "CASHIER", "DOCTOR", "MARKETING"]
