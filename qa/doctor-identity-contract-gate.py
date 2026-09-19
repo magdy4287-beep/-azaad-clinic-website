@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 binding = (ROOT / "doctor-staff-binding.js").read_text(encoding="utf-8")
 convert = (ROOT / "doctor-staff-convert.js").read_text(encoding="utf-8")
 dashboard = (ROOT / "doctor-dashboard.js").read_text(encoding="utf-8")
-admin_auth = (ROOT / "api/admin-auth.js").read_text(encoding="utf-8")
+admin_auth = (ROOT / "api/_admin-auth.js").read_text(encoding="utf-8")
 
 checks = {
     "binding UI uses staff-admin": "staff-admin" in binding,
