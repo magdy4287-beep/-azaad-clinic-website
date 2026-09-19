@@ -27,9 +27,9 @@ jobs:
           set -euo pipefail
           test -f marketing-studio-v4.js
           test -f public-team-display.js
-          test -f api/public-clinic-data.js
+          test -f api/_public-clinic-data.js
           test -f qa/marketing-hybrid-and-public-privacy-gate.py
           ! grep -RInE --exclude-dir=.git --exclude='*.map' --exclude='*.md' \
             'marketing-studio-v3\.js|clinic_team|supabase/functions/azaad-marketing-ai' \
-            marketing-studio-v4.js public-team-display.js api/public-clinic-data.js
+            marketing-studio-v4.js public-team-display.js api/_public-clinic-data.js
           echo 'canonical marketing ownership: PASS'
