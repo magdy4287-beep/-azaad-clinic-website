@@ -7,7 +7,7 @@
 <title>Azaad Clinic | لوحة الإدارة</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#f5f7fb;color:#18213d;font-family:Arial,Tahoma,sans-serif}
+html,body{min-height:100%;height:auto;overflow-x:hidden}body{margin:0;background:#f5f7fb;color:#18213d;font-family:Arial,Tahoma,sans-serif}
 button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
 .login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .login-card,.card,.stat{background:#fff;border-radius:16px;box-shadow:0 7px 25px rgba(0,0,0,.05)}
@@ -16,7 +16,7 @@ h1,h2,h3{margin-top:0}label{display:block;margin-bottom:13px;font-weight:700}
 input,select,textarea{width:100%;margin-top:7px;padding:12px;border:1px solid #d9deea;border-radius:10px;background:#fff;outline:none}
 textarea{min-height:100px;resize:vertical}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700}.btn-primary{background:#17214f;color:#fff}.btn-secondary{background:#fff;color:#17214f;border:1px solid #d9deea}.btn-danger{background:#fff0f2;color:#a32939;border:1px solid #ffd2d8}.btn-success{background:#e7f7ed;color:#167345}.btn-gold{background:#b38a42;color:#fff}.btn:disabled{opacity:.55}
 .error{background:#fff0f2;color:#a32939;padding:11px;border-radius:10px;margin-top:12px}.muted{color:#6c758c}
-.admin{max-width:1450px;margin:auto;padding:15px}.topbar{background:#fff;border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;box-shadow:0 7px 25px rgba(0,0,0,.05)}
+.admin{max-width:1450px;margin:auto;padding:15px;min-height:100vh;height:auto;overflow:visible}.topbar{background:#fff;border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;box-shadow:0 7px 25px rgba(0,0,0,.05)}
 .top-actions,.item-actions{display:flex;gap:8px;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.stat{padding:20px}.stat-number{font-size:30px;font-weight:900;margin-bottom:5px}
 .tabs{display:flex;gap:8px;overflow-x:auto;margin:16px 0;padding-bottom:3px}.tab{white-space:nowrap;border:1px solid #d9deea;background:#fff;color:#17214f;border-radius:22px;padding:10px 16px}.tab.active{background:#17214f;color:#fff}
 .panel{display:none}.panel.active{display:block}.card{padding:18px;margin-bottom:15px}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.filters,.grid{display:grid;grid-template-columns:1fr 220px;gap:10px;margin:15px 0}.grid{grid-template-columns:1fr 1fr}.full{grid-column:1/-1}
@@ -29,7 +29,31 @@ textarea{min-height:100px;resize:vertical}.btn{border:0;border-radius:10px;paddi
 @media(max-width:800px){.stats{grid-template-columns:1fr 1fr}.filters,.grid,.time-row{grid-template-columns:1fr}.full{grid-column:auto}}
 @media(max-width:500px){.admin{padding:10px}.login-card{padding:22px}}
 </style>
-<script src="/central-i18n.js?v=4.0.0"></script>
+
+
+<link rel="stylesheet" href="/azaad-responsive-shell.css?v=1.0.0">
+
+<script src="/admin-shell.js?v=1" defer></script>
+<script>window.$=window.$||function(id){return document.getElementById(id)};</script>
+<script>window.addEventListener('error',function(e){if(e&&e.error&&e.error.stack)console.error('[AZAAD_PAGE_ERROR_STACK]',e.error.stack);});</script>
+<style id="azaad-admin-tree-v1">
+.admin-tree{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:16px 0;align-items:start}
+.admin-tree-group{background:#fff;border:1px solid #dfe4ee;border-radius:16px;padding:12px;box-shadow:0 5px 18px rgba(0,0,0,.04)}
+.admin-tree-group h3{font-size:13px;margin:0 0 9px;color:#6c758c;letter-spacing:.2px}
+.admin-tree-leaves{display:grid;gap:7px}
+.admin-tree .tab{width:100%;text-align:right;border-radius:11px;padding:9px 11px;white-space:normal}
+.admin-tree .tab.active{background:#17214f;color:#fff}
+@media(max-width:1100px){.admin-tree{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.admin-tree{grid-template-columns:1fr 1fr}.admin-tree-group{padding:10px}}
+@media(max-width:480px){.admin-tree{grid-template-columns:1fr}.admin-tree-group h3{font-size:12px}}
+</style>
+<script src="/central-i18n.js?v=6.0.0" defer></script>
+<script src="/azaad-core-context.js?v=1.1.0"></script>
+<script type="module" src="/admin.js?v=2026-08-24-login-fix"></script>
+
+<style id="azaad-role-navigation-gate">
+body:not([data-role="OWNER"]):not([data-role="ADMIN"]):not([data-role="MANAGER"]) :is(.tab[data-panel=staff], #staff) { display:none !important; }
+</style>
 </head>
 <body>
 
@@ -39,7 +63,7 @@ textarea{min-height:100px;resize:vertical}.btn{border:0;border-radius:10px;paddi
     <h2 style="margin-top:25px">لوحة إدارة العيادة</h2>
     <p class="muted">🔐 تسجيل الدخول بحساب الموظف عبر نظام المصادقة الآمن</p>
 
-    <form id="loginForm">
+    <form id="loginForm" onsubmit="event.preventDefault();">
       <label>
         اسم المستخدم
         <input
@@ -182,90 +206,62 @@ textarea{min-height:100px;resize:vertical}.btn{border:0;border-radius:10px;paddi
 
   </div>
 
-  <div class="tabs">
-
-    <button
-      class="tab active"
-      data-panel="bookings"
-      type="button"
-    >
-      📅 الحجوزات
-    </button>
-
-    <button
-      class="tab"
-      data-panel="doctors"
-      type="button"
-    >
-      🧑‍⚕️ الأطباء
-    </button>
-
-    <button
-      class="tab"
-      data-panel="services"
-      type="button"
-    >
-      🩺 الخدمات
-    </button>
-
-    <button
-      class="tab"
-      data-panel="schedules"
-      type="button"
-    >
-      🕐 جداول الأطباء
-    </button>
-
-    <button
-      class="tab"
-      data-panel="posts"
-      type="button"
-    >
-      📣 المنشورات والعروض
-    </button>
-
-    <button
-      class="tab"
-      data-panel="holidays"
-      type="button"
-    >
-      🚫 العطلات والإغلاقات
-    </button>
-
-    <button
-      class="tab"
-      data-panel="hours"
-      type="button"
-    >
-      🕘 ساعات العمل
-    </button>
-
-    <button
-      class="tab"
-      data-panel="staff"
-      type="button"
-    >
-      👥 الموظفون
-    </button>
-
-    <button
-      class="tab"
-      data-panel="settings"
-      type="button"
-    >
-      ⚙️ الإعدادات
-    </button>
-
-    <button
-      class="tab"
-      data-panel="account"
-      type="button"
-    >
-      👤 حساب الإدارة
-    </button>
-
+  <nav class="admin-tree" aria-label="AZAAD Admin">
+<section class="admin-tree-group"><h3>01 Operations</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="bookings" data-azaad-domain="bookings" type="button">📅 الحجوزات</button>
+<button class="tab" data-panel="calendar" data-azaad-domain="calendar" type="button">🗓️ التقويم</button>
+<button class="tab" data-panel="doctors" data-azaad-domain="doctors" type="button">🧑‍⚕️ الأطباء</button>
+<button class="tab" data-panel="services" data-azaad-domain="services" type="button">🩺 الخدمات</button>
+<button class="tab" data-panel="schedules" data-azaad-domain="schedules" type="button">🕐 جداول الأطباء</button>
+<button class="tab" data-panel="holidays" data-azaad-domain="holidays" type="button">🚫 العطلات والإغلاقات</button>
+<button class="tab" data-panel="hours" data-azaad-domain="hours" type="button">🕘 ساعات العمل</button>
+</div></section>
+<section class="admin-tree-group"><h3>02 Patient & Clinical</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="patient360EnterprisePanel" data-azaad-domain="patient360" type="button">🧑‍⚕️ Patient 360</button>
+</div></section>
+<section class="admin-tree-group"><h3>03 Workforce</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="staff" data-azaad-domain="staff" type="button">👥 الموظفون</button>
+<button class="tab" data-panel="settings" data-azaad-domain="settings" type="button">⚙️ إعدادات العيادة</button>
+<button class="tab" data-panel="account" data-azaad-domain="account" type="button">👤 حساب الإدارة</button>
+</div></section>
+<section class="admin-tree-group"><h3>04 Revenue Cycle</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="rcmEnterprisePanel" data-azaad-domain="rcm" type="button">🧾 Invoices & RCM</button>
+</div></section>
+<section class="admin-tree-group"><h3>05 Finance</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="financeEnterprisePanel" data-azaad-domain="finance" type="button">💰 Finance</button>
+</div></section>
+<section class="admin-tree-group"><h3>06 Purchasing</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="purchasingEnterprisePanel" data-azaad-domain="purchasing" type="button">🛒 Purchasing</button>
+</div></section>
+<section class="admin-tree-group"><h3>07 Growth</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="posts" data-azaad-domain="posts" type="button">📣 المنشورات والعروض</button>
+<button class="tab" data-panel="marketingEnterprisePanel" data-azaad-domain="marketing" type="button">📣 Marketing</button>
+</div></section>
+<section class="admin-tree-group"><h3>08 Analytics</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="analyticsEnterprisePanel" data-azaad-domain="analytics" type="button">📊 Analytics</button>
+</div></section>
+<section class="admin-tree-group"><h3>09 Intelligence</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="insightsEnterprisePanel" data-azaad-domain="insights" type="button">🧠 Smart Insights</button>
+</div></section>
+<section class="admin-tree-group"><h3>10 Security</h3><div class="admin-tree-leaves">
+<button class="tab" data-panel="securityEnterprisePanel" data-azaad-domain="security" type="button">🛡️ IT Security</button>
+</div></section>
+</nav>
+<section id="calendar" class="panel">
+  <div class="card">
+    <div class="panel-head"><div><h2>🗓️ التقويم المركزي</h2><div class="muted">الحجوزات الفعلية مرتبة حسب التاريخ والوقت.</div></div></div>
+    <div id="calendarBody" class="empty">⏳ جاري تجهيز التقويم...</div>
   </div>
+</section>
 
+<section id="patient360EnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>🧑‍⚕️ Patient 360</h2><div class="muted">ملف المريض الكامل</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="patient360">🔄 تحديث</button></div><div id="patient360EnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="rcmEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>🧾 Invoices & RCM</h2><div class="muted">الفواتير والتحصيل</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="rcm">🔄 تحديث</button></div><div id="rcmEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="analyticsEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>📊 Analytics</h2><div class="muted">مؤشرات التشغيل</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="analytics">🔄 تحديث</button></div><div id="analyticsEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="financeEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>💰 Finance</h2><div class="muted">الإيرادات والمصروفات</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="finance">🔄 تحديث</button></div><div id="financeEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="purchasingEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>🛒 Purchasing</h2><div class="muted">المشتريات والموردون</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="purchasing">🔄 تحديث</button></div><div id="purchasingEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="marketingEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>📣 Marketing</h2><div class="muted">النمو والحملات</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="marketing">🔄 تحديث</button></div><div id="marketingEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="insightsEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>🧠 Smart Insights</h2><div class="muted">التوصيات والمراجعة البشرية</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="insights">🔄 تحديث</button></div><div id="insightsEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
+<section id="securityEnterprisePanel" class="panel"><div class="card"><div class="panel-head"><div><h2>🛡️ IT Security</h2><div class="muted">الأحداث الأمنية والتدقيق</div></div><button class="btn btn-secondary" type="button" data-enterprise-refresh="security">🔄 تحديث</button></div><div id="securityEnterpriseBody" class="items" style="margin-top:15px"><div class="empty">⏳ جاري تجهيز الوحدة...</div></div></div></section>
   <section
     id="bookings"
     class="panel active"
@@ -444,6 +440,8 @@ textarea{min-height:100px;resize:vertical}.btn{border:0;border-radius:10px;paddi
     id="posts"
     class="panel"
   >
+
+      <div id="marketing-center" data-azaad-marketing-mount="1"></div>
 
     <div class="card">
 
@@ -712,11 +710,91 @@ textarea{min-height:100px;resize:vertical}.btn{border:0;border-radius:10px;paddi
   class="toast"
 ></div>
 
-<script type="module" src="/admin.js"></script>
 
 
-<script src="./scheduling-v2.js?v=1.0.0"></script>
-<script type="module" src="./patients-center.js?v=7.5.0"></script>
-<script src="./doctor-route-guard.js?v=2.0.0" defer></script>
+
+
+<script data-azaad-after-auth-src="./patients-center.js?v=7.5.0" data-azaad-after-auth-type="module" type="module"></script>
+<script data-azaad-after-auth-src="./doctor-route-guard.js?v=2.0.0" defer></script>
+
+<script data-azaad-after-auth-src="azaad-platform-kernel.js" defer></script>
+<script data-azaad-after-auth-src="azaad-operations-role-guard.js" defer></script>
+<script data-azaad-after-auth-src="azaad-operations-control-center.js" defer></script>
+<script data-azaad-after-auth-src="frontdesk-workflow.js" defer></script>
+
+
+
+
+<script data-azaad-after-auth-src="patient-mrn-display-v2.js" defer></script>
+
+
+<script data-azaad-after-auth-src="public-team-admin.js" defer></script>
+<script data-azaad-after-auth-src="ai-operating-center.js" defer></script>
+
+<script data-azaad-after-auth-src="waiting-list-center.js" defer></script>
+
+
+
+<script data-azaad-after-auth-src="doctor-visit-actions.js" defer></script>
+<script data-azaad-after-auth-src="secretary-hybrid-workflow.js" defer></script>
+<script data-azaad-after-auth-src="azaad-platform-control-plane.js" defer></script>
+<script data-azaad-after-auth-src="insurance-admission-office.js" defer></script>
+<script data-azaad-after-auth-src="emergency-department.js" defer></script>
+<script data-azaad-after-auth-src="/admin-english-hardening.js" defer data-azaad-admin-core="1"></script>
+<script data-azaad-after-auth-src="/admin-patient-icon-guard.js" defer data-azaad-admin-core="1"></script>
+<script src="/azaad-role-experience.js" defer data-azaad-admin-core="1"></script>
+
+<script data-azaad-admin-module-registry="1">
+(function(){
+  'use strict';
+  const groups = {'bookings': ['patient-financial-summary.js'], 'doctors': ['doctors-center-v2.js', 'doctor-staff-binding.js', 'doctor-staff-convert.js'], 'services': ['services-center-v2.js'], 'schedules': ['scheduling-v2.js'], 'posts': ['marketing-studio-v4.js', 'marketing-intelligence-loader.js'], 'staff': ['staff-management.js'], 'settings': [], 'calendar': ['admin-calendar-center.js'], 'patient360EnterprisePanel': ['admin-enterprise-centers.js'], 'rcmEnterprisePanel': ['admin-enterprise-centers.js'], 'analyticsEnterprisePanel': ['admin-enterprise-centers.js'], 'financeEnterprisePanel': ['admin-enterprise-centers.js'], 'purchasingEnterprisePanel': ['admin-purchasing-center.js'], 'marketingEnterprisePanel': ['admin-enterprise-centers.js'], 'insightsEnterprisePanel': ['admin-enterprise-centers.js'], 'securityEnterprisePanel': ['admin-enterprise-centers.js']};
+  const buildSha = document.querySelector('meta[name="azaad-build-sha"]')?.content || 'dev';
+  const loaded = new Map();
+  const loading = new Map();
+  const loadedForPanel = new Set();
+  const yieldToBrowser = () => new Promise(resolve => {
+    if (typeof window.requestIdleCallback === 'function') { window.requestIdleCallback(resolve, { timeout: 250 }); return; }
+    window.setTimeout(resolve, 0);
+  });
+  const load = src => {
+    if (loaded.has(src)) return Promise.resolve(true);
+    if (loading.has(src)) return loading.get(src);
+    const p = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      const separator = src.includes('?') ? '&' : '?';
+      s.src = '/' + src + separator + 'azaad_build=' + encodeURIComponent(buildSha);
+      s.defer = true; s.dataset.azaadAdminModule = src; s.dataset.azaadBuildSha = buildSha;
+      s.onload = () => { loaded.set(src, true); loading.delete(src); resolve(true); };
+      s.onerror = () => { loading.delete(src); reject(new Error('Failed to load ' + src)); };
+      document.head.appendChild(s);
+    });
+    loading.set(src, p); return p;
+  };
+  window.AZAAD_LOAD_ADMIN_PANEL = async function(panel) {
+    const key = String(panel || '');
+    if (loadedForPanel.has(key)) { window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', { detail: { panel: key } })); return; }
+    loadedForPanel.add(key);
+    for (const src of (groups[key] || [])) {
+      if (key !== 'calendar') await yieldToBrowser();
+      try {
+        await load(src);
+        if (key === 'calendar') window.AZAAD_ADMIN_CALENDAR?.render();
+      } catch (err) {
+        console.error('[AZAAD_ADMIN_MODULE]', key, src, err);
+        window.dispatchEvent(new CustomEvent('azaad:admin-module-error', { detail: { panel: key, src, error: err } }));
+      }
+    }
+    window.dispatchEvent(new CustomEvent('azaad:admin-panel-ready', { detail: { panel: key } }));
+  };
+  window.addEventListener('azaad:admin-panel-activated', event => {
+    const key = event.detail?.panel; if (!key) return;
+    if (key === 'calendar') { window.AZAAD_LOAD_ADMIN_PANEL(key); return; }
+    yieldToBrowser().then(() => window.AZAAD_LOAD_ADMIN_PANEL(key));
+  });
+  window.addEventListener('azaad:admin-authenticated', () => { void window.AZAAD_LOAD_ADMIN_PANEL('calendar'); }, { once: true });
+  window.AZAAD_ADMIN_MODULE_REGISTRY = Object.freeze({ core: ['admin-english-hardening.js', 'admin-patient-icon-guard.js', 'azaad-role-experience.js'], groups, load: window.AZAAD_LOAD_ADMIN_PANEL, buildSha });
+})();
+</script>
+<script data-azaad-after-auth-src="/doctor-services-admin.js"></script>
 </body>
 </html>

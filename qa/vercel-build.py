@@ -2,23 +2,30 @@ from pathlib import Path
 import os
 import subprocess
 
-TRANSFORM_STEPS=[["python3",x] for x in ("qa/inject-central-i18n.py","qa/fix-public-booking-central-i18n.py","qa/inject-responsive-shell.py","qa/inject-canonical-cairo-date.py",".github/patch-admin.py","qa/finalize-doctor-dashboard-appwrite.py","qa/finalize-schedule-center-appwrite.py","qa/finalize-clinician-ai-cockpit-appwrite.py","qa/finalize-patient-center-appwrite.py","qa/finalize-platform-control-boundary.py","qa/finalize-scheduling-api-boundary.py","qa/finalize-scheduling-v2-appwrite.py","qa/finalize-patient-demographics-api-boundary.py",".github/inject-patient-actions.py",".github/inject-doctor-actions.py","qa/lazy-admin-modules.py","qa/finalize-enterprise-admin.py","qa/final-public-i18n-owner.py","qa/admin-i18n-single-owner-gate.py","qa/finalize-central-i18n.py","qa/inject-public-performance-guard.py","qa/inject-public-experience-hardening.py","qa/inject-doctor-services-admin.py","qa/canonicalize-admin-runtime.py","qa/isolate-admin-login-runtime.py","qa/finalize-doctor-services-admin.py","qa/fix-admin-runtime-syntax.py","qa/finalize-admin-critical-path.py","qa/final-admin-interaction-safety.py","qa/normalize-admin-login-form.py","qa/final-admin-login-isolation.py","qa/canonicalize-admin-interactivity-v2.py","qa/harden-admin-refresh-session.py","qa/harden-admin-inline-refresh-session.py","qa/finalize-admin-operational-data.py","qa/finalize-admin-logout-ui.py","qa/bump-public-language-bridge.py","qa/finalize-admin-runtime-manifest.py","qa/restore-canonical-admin-controller.py","qa/finalize-admin-navigation-ownership.py","qa/finalize-appwrite-admin-auth.py","qa/finalize-admin-browser-runtime-reference-boundary.py","qa/finalize-staff-management-appwrite.py","qa/retire-legacy-admin-staff-runtime.py","qa/finalize-appwrite-browser-session-contract.py","qa/finalize-admin-staff-caller-boundary.py","qa/final-admin-restore-boundary.py","qa/finalize-staff-management-runtime-boundary.py","qa/finalize-admin-interactivity-appwrite.py")]
+# Production source is canonical and already materialized in Git.
+# Vercel must never rewrite tracked source during a build.
+TRANSFORM_STEPS=[]
 VERIFY_STEPS=[["python3",x] for x in ("qa/engineering-tree-garbage-collection-gate.py","qa/dedupe-admin-scripts.py","qa/admin-panel-ownership-contract.py","qa/admin-backend-boundary-gate.py","qa/admin-domain-ownership-matrix.py","qa/workflow-ownership-gate.py","qa/verify-admin-script-graph.py","qa/cairo-business-date-gate.py","qa/repository-architecture-gate.py","qa/api-javascript-syntax-gate.py","qa/verify-production-contracts.py","qa/verify-admin-post-auth-interactivity.py","qa/verify-admin-auth-critical-path.py","qa/verify-admin-staff-caller-boundary.py","qa/appwrite-admin-auth-boundary-gate.py","qa/public-booking-central-i18n-gate.py","qa/public-runtime-ownership-gate.py","qa/clinical-assessment-runtime-boundary-gate.py","qa/clinical-browser-runtime-boundary-gate.py","qa/canonical-runtime-drift-gate.py","qa/architecture-hygiene-gate.py","qa/zero-retired-provider-residue-gate.py")]
-paths=[s[1] for s in TRANSFORM_STEPS]
-for p in ("qa/finalize-doctor-dashboard-appwrite.py","qa/finalize-schedule-center-appwrite.py","qa/finalize-clinician-ai-cockpit-appwrite.py","qa/finalize-patient-center-appwrite.py","qa/finalize-platform-control-boundary.py","qa/finalize-scheduling-api-boundary.py","qa/finalize-scheduling-v2-appwrite.py","qa/finalize-patient-demographics-api-boundary.py","qa/finalize-admin-operational-data.py","qa/finalize-admin-navigation-ownership.py","qa/finalize-appwrite-admin-auth.py","qa/finalize-admin-browser-runtime-reference-boundary.py","qa/finalize-staff-management-appwrite.py","qa/retire-legacy-admin-staff-runtime.py","qa/finalize-appwrite-browser-session-contract.py","qa/finalize-admin-staff-caller-boundary.py","qa/final-admin-restore-boundary.py","qa/finalize-staff-management-runtime-boundary.py","qa/finalize-admin-interactivity-appwrite.py"):
-    if paths.count(p)!=1:raise SystemExit(f"Canonical production transform must exist exactly once: {p}")
-for a,b in ((".github/patch-admin.py","qa/finalize-doctor-dashboard-appwrite.py"),("qa/finalize-doctor-dashboard-appwrite.py","qa/finalize-schedule-center-appwrite.py"),("qa/finalize-schedule-center-appwrite.py","qa/finalize-clinician-ai-cockpit-appwrite.py"),("qa/finalize-clinician-ai-cockpit-appwrite.py","qa/finalize-patient-center-appwrite.py"),("qa/finalize-patient-center-appwrite.py","qa/finalize-platform-control-boundary.py"),("qa/finalize-platform-control-boundary.py","qa/finalize-scheduling-api-boundary.py"),("qa/finalize-scheduling-api-boundary.py","qa/finalize-scheduling-v2-appwrite.py"),("qa/finalize-scheduling-v2-appwrite.py","qa/finalize-patient-demographics-api-boundary.py"),("qa/finalize-appwrite-admin-auth.py","qa/finalize-admin-browser-runtime-reference-boundary.py"),("qa/finalize-admin-browser-runtime-reference-boundary.py","qa/finalize-staff-management-appwrite.py"),("qa/finalize-staff-management-appwrite.py","qa/retire-legacy-admin-staff-runtime.py"),("qa/retire-legacy-admin-staff-runtime.py","qa/finalize-appwrite-browser-session-contract.py"),("qa/finalize-appwrite-browser-session-contract.py","qa/finalize-admin-staff-caller-boundary.py"),("qa/finalize-admin-staff-caller-boundary.py","qa/final-admin-restore-boundary.py"),("qa/final-admin-restore-boundary.py","qa/finalize-staff-management-runtime-boundary.py"),("qa/finalize-staff-management-runtime-boundary.py","qa/finalize-admin-interactivity-appwrite.py")):
-    if paths.index(a)>=paths.index(b):raise SystemExit(f"Invalid production transform dependency order: {a} must precede {b}")
 
 def run(steps,phase):
     for c in steps:
-        if not Path(c[1]).is_file():raise SystemExit(f"Missing required production {phase} step: {c[1]}")
-        print(f"[AZAAD build:{phase}] {' '.join(c)}",flush=True);subprocess.run(c,check=True)
-run(TRANSFORM_STEPS,'transform');run(VERIFY_STEPS,'verify')
+        if not Path(c[1]).is_file():
+            raise SystemExit(f"Missing required production {phase} step: {c[1]}")
+        print(f"[AZAAD build:{phase}] {' '.join(c)}",flush=True)
+        try:
+            subprocess.run(c,check=True)
+        except subprocess.CalledProcessError as exc:
+            raise SystemExit(
+                f"FIRST REAL BUILD VERIFIER FAILURE: phase={phase} script={c[1]} "
+                f"exit_code={exc.returncode}"
+            ) from exc
+
+if TRANSFORM_STEPS:
+    raise SystemExit("FAIL-CLOSED: production source transforms must be materialized in Git, not executed by Vercel")
+
+run(VERIFY_STEPS,'verify')
 sha=(os.environ.get('VERCEL_GIT_COMMIT_SHA') or os.environ.get('GITHUB_SHA') or '').strip()
-if not sha:raise SystemExit('Missing canonical build commit SHA')
-admin=Path('admin.html');text=admin.read_text(encoding='utf-8');import re
-text=re.sub(r'<meta\s+name=["\']azaad-build-sha["\'][^>]*>\s*\n?','',text,flags=re.I);head=text.find('</head>')
-if head<0:raise SystemExit('admin.html has no </head> for build provenance marker')
-admin.write_text(text[:head]+f'<meta name="azaad-build-sha" content="{sha}">\n'+text[head:],encoding='utf-8')
-print(f'[AZAAD build] production artifact provenance SHA = {sha}',flush=True);print('[AZAAD build] canonical production transformation + fail-closed verification completed',flush=True)
+if not sha:
+    raise SystemExit('Missing canonical build commit SHA')
+print(f'[AZAAD build] production artifact provenance SHA = {sha}',flush=True)
+print('[AZAAD build] immutable canonical source + fail-closed verification completed',flush=True)
