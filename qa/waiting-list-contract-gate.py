@@ -8,11 +8,11 @@ def read(path):
     return (ROOT / path).read_text(encoding='utf-8')
 
 ui = read('waiting-list-center.js')
-api = read('api/waiting-list.js')
+api = read('api/_waiting-list.js')
 patch = read('.github/patch-admin.py')
 
 checks = {
-    'canonical waiting list API exists': 'api/waiting-list.js' in patch or 'waiting-list-center.js' in patch,
+    'canonical waiting list API exists': 'api/_waiting-list.js' in patch or 'waiting-list-center.js' in patch,
     'browser has no provider SDK': 'window.AZAAD?.supabase' not in ui and 'createClient' not in ui,
     'same-origin API reads': '/api/waiting-list?resource=entries' in ui,
     'same-origin patient search': '/api/waiting-list?resource=patients' in ui,
