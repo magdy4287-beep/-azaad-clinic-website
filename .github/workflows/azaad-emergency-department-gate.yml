@@ -4,6 +4,18 @@ on:
   push:
     branches:
       - 'feat/emergency-department-hybrid-20260916'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/emergency-department.js'
+      - 'emergency-department.js'
+      - 'db/migrations/20260916_emergency_department_hybrid.sql'
+      - 'qa/emergency-department-contract-gate.py'
+      - 'qa/api-javascript-syntax-gate.py'
+      - 'qa/zero-retired-provider-residue-gate.py'
+      - '.github/patch-admin.py'
+      - '.github/workflows/azaad-emergency-department-gate.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,10 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout exact branch head
+      - name: Checkout exact PR head revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up Python
