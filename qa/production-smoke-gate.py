@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-required = ["admin.html", "admin.js", "app.js", "public-ui.js", "api/admin-auth.js"]
+required = ["admin.html", "admin.js", "app.js", "public-ui.js", "api/_admin-auth.js"]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
     raise SystemExit("Production smoke gate failed: missing " + ", ".join(missing))
@@ -12,7 +12,7 @@ admin = (ROOT / "admin.html").read_text(encoding="utf-8")
 admin_js = (ROOT / "admin.js").read_text(encoding="utf-8")
 app = (ROOT / "app.js").read_text(encoding="utf-8")
 ui = (ROOT / "public-ui.js").read_text(encoding="utf-8")
-auth_api = (ROOT / "api/admin-auth.js").read_text(encoding="utf-8")
+auth_api = (ROOT / "api/_admin-auth.js").read_text(encoding="utf-8")
 
 checks = {
     "admin shell": bool(re.search(r"<html|<body|<script", admin, re.I)),
