@@ -70,3 +70,17 @@ AI may detect, classify, reproduce, explain, propose and verify deterministic de
 ## Free-first architecture
 
 Core operation must remain functional without a paid AI or infrastructure dependency. Prefer GitHub, Vercel free capabilities, Neon free capabilities, Appwrite free capabilities, browser-native APIs and open-source/local components when they meet reliability and security requirements. Paid services are optional adapters, never hidden hard dependencies.
+
+## Active Security Audit Contract
+
+The current production security contract is provider-neutral and applies to the canonical Appwrite/Neon/Vercel architecture.
+
+- Security-definer database functions must use an explicit, safe search path.
+- Internal privileged database functions must not be executable by unintended anonymous or public actors.
+- Every RLS-enabled production table must have an intentional policy posture, or an equivalent server-side authorization boundary where RLS is the enforcement mechanism.
+- Sensitive clinical, financial, identity and administrative data must be protected by server-side authorization and least-privilege database boundaries.
+- Refund approval hierarchy remains server-enforced with separation of requester, approver and processor where required.
+- Payment authorization, invoice balance and verification protections remain server-enforced.
+- AI remains assistive and cannot approve, bypass authorization, mutate privileged state without the required human gate, or determine clinical disposition.
+- Performance-critical database indexes must be present or explicitly accepted with evidence.
+- Existing security regression, browser and production artifact gates must remain green before release.
