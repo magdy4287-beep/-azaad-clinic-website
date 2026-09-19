@@ -19,19 +19,14 @@ for path in workflow_paths:
     if re.search(r'gh\s+pr\s+(merge|close)\b', text, re.I):
         failures.append(f'{path}: workflow must not merge/close PRs')
 
-# Historical feature branches are not valid CI deployment triggers. Keep this
-# fail-closed because an accidental reintroduction would silently resurrect
-# retired automation outside the canonical PR -> main path.
 RETIRED_PUSH_BRANCHES = {'feat/ai-operating-system-20260815'}
 for path in workflow_paths:
     text = path.read_text(encoding='utf-8', errors='replace')
     for branch in RETIRED_PUSH_BRANCHES:
-        if re.search(rf'(^|[\'"\s-]){re.escape(branch)}($|[\'"\s])', text):
+        if re.search(rf'([\'"\s-]|^){re.escape(branch)}($|[\'"\s])', text):
             failures.append(f'{path}: retired feature branch must not be a workflow trigger: {branch}')
 
 # Detect an actual repository deployment path, not the gate's own policy text.
-# Documentation and this diagnostic are excluded because they necessarily name
-# the retired provider while explaining the rule.
 for path in ROOT.rglob('*'):
     if not path.is_file() or '.git' in path.parts or path.resolve() == SELF:
         continue
@@ -43,23 +38,28 @@ for path in ROOT.rglob('*'):
     if re.search(r'netlify\s+deploy|netlify\.toml|netlify-cli|netlify_app', text, re.I):
         failures.append(f'{path}: legacy Netlify deployment reference')
 
-# Guard against obvious duplicate runtime owners for the same canonical API.
-# This intentionally checks only explicit server entrypoints, not test fixtures.
-api_dir = ROOT / 'api'
-if api_dir.exists():
-    canonical = {
-        'admin-auth': ['admin-auth'],
-        'admin-appointments': ['admin-appointments'],
-        'staff-admin': ['staff-admin'],
-    }
-    for owner, needles in canonical.items():
-        matches = [p for p in api_dir.glob('*.js') if any(n in p.stem for n in needles)]
-        if len(matches) != 1:
-            failures.append(f'api/{owner}: expected exactly one canonical file, found {len(matches)}')
+# API runtime ownership is intentionally split into bounded Vercel entrypoints.
+# Platform capabilities that benefit from consolidation live under the single
+# /api/platform-gateway/[route].js boundary. Domain APIs that still require
+# their own stable entrypoint remain canonical and are not duplicated here.
+platform_gateway = ROOT / 'api' / 'platform-gateway' / '[route].js'
+if not platform_gateway.is_file():
+    failures.append('api platform gateway: expected api/platform-gateway/[route].js entrypoint')
+else:
+    gateway_text = platform_gateway.read_text(encoding='utf-8', errors='replace')
+    for owner in ('facility-mode', 'ai-insights', 'clinical-ai-cockpit', 'public-booking'):
+        if f"['{owner}'," not in gateway_text:
+            failures.append(f'api/platform-gateway: canonical route missing: {owner}')
+
+# The gateway must not be mistaken for a replacement owner of auth/staff APIs.
+# Those remain separate canonical security boundaries unless a future migration
+# proves equivalence and is verified on the exact production artifact.
+for owner in ('admin-auth', 'admin-appointments', 'staff-admin'):
+    canonical = ROOT / 'api' / f'{owner}.js'
+    if not canonical.is_file():
+        failures.append(f'api/{owner}: canonical security boundary missing')
 
 # Keep the workflow registry and the executable workflow tree in lockstep.
-# This prevents silent workflow accumulation: every active workflow must have
-# one ownership row, and every row in the canonical table must point to a file.
 if not REGISTRY.is_file():
     failures.append('workflow registry is missing: docs/AZAAD_WORKFLOW_OWNERSHIP_REGISTRY.md')
 else:
@@ -87,5 +87,6 @@ print('ARCHITECTURE HYGIENE: PASS')
 print(' - no source-mutating workflow')
 print(' - no retired feature-branch workflow trigger')
 print(' - no repository Netlify deployment path')
-print(' - canonical API ownership is singular')
+print(' - platform gateway owns its consolidated capability routes')
+print(' - security APIs retain explicit canonical boundaries')
 print(f' - workflow registry is complete ({len(workflow_paths)} workflows)')

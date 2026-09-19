@@ -1,8 +1,6 @@
 # AZAAD Workflow Ownership Registry
 
-## Purpose
-
-This registry is the architectural source of truth for GitHub Actions workflow ownership. A workflow may exist only when it has a distinct responsibility, a distinct verification surface, and a clear set of source files/contracts that it owns.
+This registry is the architectural source of truth for GitHub Actions workflow ownership. A workflow may exist only when it has a distinct responsibility, verification surface, and clear source/contracts it owns.
 
 ## Canonical ownership map
 
@@ -12,7 +10,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-release-governance-gate.yml` | Release governance | Release policy and governance controls | Canonical |
 | `azaad-final-release-certification.yml` | Manual final go-live decision | Exact candidate SHA + required fresh CI + production surface | Canonical manual gate |
 | `azaad-admin-gates.yml` | Admin structural acceptance | Admin, scheduling, marketing structural contracts | Canonical Admin acceptance |
-| `azaad-browser-e2e.yml` | Browser behavior | End-to-end browser behavior against the intended artifact | Canonical runtime gate |
+| `azaad-browser-e2e.yml` | Browser behavior | End-to-end browser behavior against intended artifact | Canonical runtime gate |
 | `azaad-comprehensive-system-contract.yml` | Cross-system contracts | System-wide structural contracts | Canonical system gate |
 | `azaad-appointment-gate.yml` | Appointment contract | Appointment contract only | Canonical appointment gate |
 | `central-scheduling-gate.yml` | Central scheduling domain | Central scheduling contract | Canonical scheduling-domain gate |
@@ -44,12 +42,9 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 | `azaad-waiting-list-gate.yml` | Waiting list | Waiting-list contract | Canonical domain gate |
 | `azaad-emergency-department-gate.yml` | Emergency Department | ED schema, API, safety and workflow contract | Canonical ED domain gate |
 | `azaad-production-smoke-gate.yml` | Production smoke | Lightweight production HTTP/content health | Canonical smoke gate |
-| `azaad-source-canonicality-gate.yml` | Source canonicality | Proves the repository itself is canonical and build transforms do not hide source drift | Canonical source-integrity gate |
-| `_one-shot-source-canonicality-repair.yml` | Retired source-repair marker | Confirms the former source-mutating repair path is retired; no source mutation | Retired |
+| `azaad-source-canonicality-gate.yml` | Source canonicality | Proves checked-in source is canonical and build transforms do not hide source drift | Canonical source-integrity gate |
 
 ## Proven non-duplication decisions
-
-`_one-shot-source-canonicality-repair.yml` is intentionally manual-only and non-mutating. It does not own source canonicalization and must never be used to repair or push repository changes.
 
 `azaad-production-certification-v2.yml` was retired because it duplicated `azaad-production-certification-gate.yml`.
 
@@ -61,7 +56,7 @@ This registry is the architectural source of truth for GitHub Actions workflow o
 
 `azaad-clinical-authorization-e2e.yml` is separate from `azaad-browser-e2e.yml`: authorization semantics and browser runtime behavior are different evidence surfaces.
 
-`azaad-source-canonicality-gate.yml` is separate from the production build and other verification workflows because it uniquely asserts that the checked-in source tree is already canonical and that the build pipeline is not silently repairing source drift.
+`azaad-source-canonicality-gate.yml` is separate from the production build and other verification workflows because it uniquely asserts that checked-in source is already canonical and the build pipeline is not silently repairing source drift.
 
 `azaad-emergency-department-gate.yml` owns only the Emergency Department vertical slice; downstream admission, ICU, surgery, pharmacy, laboratory and other domains retain their own ownership boundaries.
 
@@ -71,11 +66,7 @@ Canonical production and DR workflows operate only on Vercel/Appwrite/Neon bound
 
 ## Retired feature-era workflow
 
-`azaad-admin-nextgen-gate.yml` is retired. Its protected `admin-nextgen-v2.js` source was removed during canonical Admin reconstruction, and its remaining assertions are obsolete or covered by the canonical Admin structural, browser, authorization, and source-integrity gates. The workflow must not be recreated merely to preserve checks against deleted source.
-
-## Inventory rule
-
-The table above is exhaustive for the current `.github/workflows` directory. A workflow file without a registry row is an architecture violation. A registry row without a workflow file is also an architecture violation unless explicitly marked `Retired` with a documented reason.
+`azaad-admin-nextgen-gate.yml` is retired. Its protected `admin-nextgen-v2.js` source was removed during canonical Admin reconstruction, and its remaining assertions are obsolete or covered by canonical Admin structural, browser, authorization, and source-integrity gates. The workflow must not be recreated merely to preserve checks against deleted source.
 
 ## Retired temporary diagnostics and emergency recovery workflows
 
@@ -92,21 +83,19 @@ The following workflows have been retired after their unique recovery/diagnostic
 - `azaad-emergency-dr-execute.yml`
 - `azaad-emergency-dr-final.yml`
 - `azaad-emergency-dr-functions.yml`
+- `_one-shot-source-canonicality-repair.yml`
 
-They must not be recreated as parallel permanent gates. Emergency recovery is documented and exercised through the canonical Vercel/Appwrite/Neon portability and synthetic DR contracts rather than a second provider-specific workflow family.
+These are documentation history only, not active workflow ownership. They must not be recreated as parallel permanent gates.
 
 ## Retirement rule
 
-A workflow is eligible for deletion only when all of the following are proven:
-
-1. No unique source/contract is protected by it.
-2. Its assertions are fully covered by one canonical workflow.
-3. Its trigger does not provide a unique required verification path.
-4. No release workflow references it as required evidence.
-5. No documentation or automation depends on its path.
-6. The replacement gate passes on the same exact commit.
+A workflow is eligible for deletion only when all are proven: no unique source/contract is protected; assertions are covered by one canonical workflow; trigger is not uniquely required; no release workflow requires it; no documentation/automation depends on its path; and the replacement passes on the same exact commit.
 
 A name containing `v2`, `final`, `fix`, `hardening`, or `nextgen` is not evidence that a workflow is obsolete.
+
+## Inventory rule
+
+The table above is exhaustive for the current `.github/workflows` directory. A workflow file without a registry row is an architecture violation. A retirement-history entry is documentation only and does not represent an active workflow file.
 
 ## Anti-recursion rule
 
@@ -114,12 +103,4 @@ No workflow may create or modify source files as part of ordinary CI verificatio
 
 ## Required future review
 
-Any new workflow must declare:
-
-- owner boundary,
-- protected files/contracts,
-- trigger reason,
-- why an existing workflow cannot own the same responsibility,
-- exact retirement path if it is temporary.
-
-Without those five items, the workflow is not architecture-approved.
+Any new workflow must declare owner boundary, protected files/contracts, trigger reason, why an existing workflow cannot own the same responsibility, and exact retirement path if temporary. Without those five items, the workflow is not architecture-approved.

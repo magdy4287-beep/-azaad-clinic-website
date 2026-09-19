@@ -7,8 +7,11 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
+      - 'clinical-assessment.html'
+      - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
+      - '.github/patch-admin.py'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
   push:
     branches: [main]
@@ -17,8 +20,11 @@ on:
       - 'clinician-longitudinal-dashboard.js'
       - 'clinical-evidence-library.js'
       - 'clinical-followup-widget.js'
+      - 'clinical-assessment.html'
+      - 'api/clinical-assessments.js'
       - 'docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md'
       - 'docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md'
+      - '.github/patch-admin.py'
       - '.github/workflows/azaad-clinical-ai-gate.yml'
 
 permissions:
@@ -29,54 +35,74 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate clinician cockpit source
+
+      - name: Validate clinician cockpit source boundary
         run: |
-          test -s clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_templates" clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_questions" clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_sessions" clinician-ai-session-cockpit.js
-          grep -q "clinical_assessment_answers" clinician-ai-session-cockpit.js
-          grep -q "previous_score_percent" clinician-ai-session-cockpit.js
-          grep -q "baseline_score_percent" clinician-ai-session-cockpit.js
-          grep -q "safety_review_required" clinician-ai-session-cockpit.js
-          grep -q "is_favorite" clinician-ai-session-cockpit.js
-          grep -q "is_ai_candidate" clinician-ai-session-cockpit.js
-      - name: Validate longitudinal dashboard
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('clinician-ai-session-cockpit.js').read_text(encoding='utf-8')
+          required=('/api/clinical-assessments','doctorFollowupWidget','safety:')
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing clinician cockpit runtime contract: '+', '.join(missing))
+          forbidden=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers')
+          leaked=[x for x in forbidden if x in text]
+          if leaked: raise SystemExit('browser must not own clinical DB tables: '+', '.join(leaked))
+          PY
+
+      - name: Validate canonical assessment API data contract
         run: |
-          test -s clinician-longitudinal-dashboard.js
-          grep -q "clinical_assessment_sessions" clinician-longitudinal-dashboard.js
-          grep -q "score_percent" clinician-longitudinal-dashboard.js
-          grep -q "baseline_score_percent" clinician-longitudinal-dashboard.js
-          grep -q "previous_score_percent" clinician-longitudinal-dashboard.js
-          grep -q "safety_review_required" clinician-longitudinal-dashboard.js
-          grep -q "improving" clinician-longitudinal-dashboard.js
-          grep -q "worsening" clinician-longitudinal-dashboard.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('api/clinical-assessments.js').read_text(encoding='utf-8')
+          required=('clinical_assessment_templates','clinical_assessment_questions','clinical_assessment_sessions','clinical_assessment_answers','score_percent','baseline_score_percent','previous_score_percent','safety_review_required')
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing assessment API contract: '+', '.join(missing))
+          PY
+
+      - name: Validate longitudinal dashboard contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('clinician-longitudinal-dashboard.js').read_text(encoding='utf-8')
+          required=('/api/clinical-assessments','action=history','sessions','score_percent','baseline_score_percent','safety_review_required','improving','worsening')
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing longitudinal API contract: '+', '.join(missing))
+          PY
+
+      - name: Validate follow-up runtime ownership
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          cockpit=Path('clinician-ai-session-cockpit.js').read_text(encoding='utf-8')
+          widget=Path('clinical-followup-widget.js').read_text(encoding='utf-8')
+          page=Path('clinical-assessment.html').read_text(encoding='utf-8')
+          if 'doctorFollowupWidget' not in cockpit: raise SystemExit('missing clinician follow-up integration contract')
+          if 'followup-booking-create' not in widget: raise SystemExit('missing follow-up booking API contract')
+          if 'clinical-followup-widget.js' not in page: raise SystemExit('clinical assessment page does not load follow-up owner')
+          if 'clinician-transfer-widget.js' in page or Path('clinician-transfer-widget.js').exists(): raise SystemExit('retired transfer widget must remain absent')
+          PY
+
       - name: Validate evidence and question library
         run: |
-          test -s clinical-evidence-library.js
-          grep -q "source_url" clinical-evidence-library.js
-          grep -q "evidence_type" clinical-evidence-library.js
-          grep -q "is_favorite" clinical-evidence-library.js
-          grep -q "reviewed_at" clinical-evidence-library.js
-          grep -q "discuss_with_team" clinical-evidence-library.js
-          grep -q "AI candidate" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
-          grep -q "license" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
-          grep -q "provenance" docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md
+          python3 - <<'PY'
+          from pathlib import Path
+          evidence=Path('clinical-evidence-library.js').read_text(encoding='utf-8')
+          roadmap=Path('docs/AZAAD_EVIDENCE_LIBRARY_ROADMAP_2026-08-15.md').read_text(encoding='utf-8')
+          for name,text,required in (('evidence',evidence,('source_url','evidence_type','is_favorite','reviewed_at','discuss_with_team')),('roadmap',roadmap,('AI candidate','license','provenance'))):
+              missing=[x for x in required if x not in text]
+              if missing: raise SystemExit(f'missing {name} contract: '+', '.join(missing))
+          PY
+
       - name: Validate safety boundary
         run: |
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-ai-session-cockpit.js
           ! grep -Eqi "diagnose automatically|prescribe automatically|autonomous diagnosis|change medication automatically" clinician-longitudinal-dashboard.js
           grep -q "decision" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
           grep -q "licensed\|licensing" docs/AZAAD_CLINICIAN_AI_SESSION_ASSESSMENT_SPEC_2026-08-15.md
+
       - name: Validate bilingual clinician UX
         run: |
           grep -q "startsWith('en')" clinician-ai-session-cockpit.js
           grep -q "startsWith('en')" clinician-longitudinal-dashboard.js
-          grep -q "المساعد الذكي للجلسة" clinician-ai-session-cockpit.js
-          grep -q "AI Session Copilot" clinician-ai-session-cockpit.js
-      - name: Validate follow-up and transfer integration
-        run: |
-          grep -q "doctorFollowupWidget" clinician-ai-session-cockpit.js
-          grep -q "clinicianTransferWidget" clinician-ai-session-cockpit.js
-          grep -q "clinical-followup-widget.js" .github/patch-admin.py
-          grep -q "clinician-longitudinal-dashboard.js" .github/patch-admin.py
+          grep -q "المساعد السريري للجلسة" clinician-ai-session-cockpit.js
+          grep -q "Clinical Session Copilot" clinician-ai-session-cockpit.js
