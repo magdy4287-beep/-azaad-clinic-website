@@ -1,5 +1,5 @@
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1];path=ROOT/'server'/'admin-appointments.js';text=path.read_text(encoding='utf-8');marker="if(resource==='services'||resource==='doctor-services'){"
+ROOT=Path(__file__).resolve().parents[1];path=ROOT/'api'/'admin-appointments.js';text=path.read_text(encoding='utf-8');marker="if(resource==='services'||resource==='doctor-services'){"
 if text.count(marker)!=1: raise SystemExit('FAIL-CLOSED: expected exactly one Admin service boundary marker')
 if any(x in text for x in ("resource==='platform'","resource==='operations'","resource==='frontdesk'")): raise SystemExit('FAIL-CLOSED: duplicate consolidated boundary injection detected')
 branch="""if(resource==='platform'){
