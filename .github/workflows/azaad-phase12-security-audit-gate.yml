@@ -18,12 +18,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Validate security audit contract
         run: |
-          test -f qa/azaad-phase12-security-audit-gate.md
-          grep -q "SECURITY DEFINER function without explicit search_path" qa/azaad-phase12-security-audit-gate.md
-          grep -q "unintended anon/public execution" qa/azaad-phase12-security-audit-gate.md
-          grep -q "every RLS-enabled public table" qa/azaad-phase12-security-audit-gate.md
-          grep -q "sensitive clinical/financial/admin tables" qa/azaad-phase12-security-audit-gate.md
-          grep -q "refund approval hierarchy" qa/azaad-phase12-security-audit-gate.md
-          grep -q "payment authorization" qa/azaad-phase12-security-audit-gate.md
-          grep -q "AI remains assistive" qa/azaad-phase12-security-audit-gate.md
+          test -f docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "Security-definer database functions must use an explicit, safe search path" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "unintended anonymous or public actors" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "Every RLS-enabled production table" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "Sensitive clinical, financial, identity and administrative data" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "Refund approval hierarchy remains server-enforced" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "Payment authorization, invoice balance" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
+          grep -q "AI remains assistive" docs/AZAAD_PLATFORM_CANONICAL_OWNERSHIP.md
           echo "Phase 12 Security Audit contract: PASS"
