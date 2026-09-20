@@ -49,7 +49,7 @@ test('admin password remains interactive while the canonical controller is loadi
 
 test('Patient 360 appointment action bridge uses the canonical frontdesk runtime',async({page})=>{
   await resetBrowserSession(page); const r=await page.request.get(`${baseURL}/frontdesk-checkin-workflow.js?azaad_clinical_boundary=1`); expect(r.ok()).toBeTruthy(); const s=await r.text();
-  expect(s).toContain('/api/frontdesk-checkin'); expect(s).not.toMatch(/supabase|functions\\/v1/i);
+  expect(s).toContain('/api/frontdesk-checkin'); expect(s).not.toMatch(/supabase|functions\/v1/i);
 });
 
 test('admin-auth API establishes an HttpOnly Appwrite session without exposing the secret',async({page})=>{
