@@ -26,8 +26,8 @@ responsive = ROOT / "azaad-responsive-shell.css"
 role_ui = ROOT / "azaad-role-experience.js"
 injector = ROOT / "qa/inject-responsive-shell.py"
 enterprise = ROOT / "admin-enterprise-centers.js"
-invoice_api = ROOT / "api/invoices.js"
-staff_api = ROOT / "api/staff-admin.js"
+invoice_api = ROOT / "api/_invoices.js"
+staff_api = ROOT / "api/_staff-admin.js"
 ai_gate = ROOT / "qa/ai-operating-system-gate.py"
 ed_gate = ROOT / "qa/emergency-department-contract-gate.py"
 
@@ -35,7 +35,7 @@ for p, label in (
     (central, "central-i18n.js"), (build_runner, "qa/vercel-build.py"),
     (responsive, "azaad-responsive-shell.css"), (role_ui, "azaad-role-experience.js"),
     (injector, "qa/inject-responsive-shell.py"), (enterprise, "admin-enterprise-centers.js"),
-    (invoice_api, "api/invoices.js"), (staff_api, "api/staff-admin.js"),
+    (invoice_api, "api/_invoices.js"), (staff_api, "api/_staff-admin.js"),
     (ai_gate, "qa/ai-operating-system-gate.py"), (ed_gate, "qa/emergency-department-contract-gate.py"),
 ):
     require(p.exists(), f"{label} is missing")
@@ -47,8 +47,9 @@ for token, msg in (("window.AZAAD_I18N", "central I18N runtime API"), ("Mutation
     require(token in ct, f"{msg} missing")
 require("location.reload()" not in ct, "central I18N reloads pages")
 require("qa/vercel-build.py" in vt, "Vercel does not use the bounded production build runner")
-for step in ("qa/inject-central-i18n.py", "qa/inject-responsive-shell.py", ".github/patch-admin.py", ".github/inject-patient-actions.py", ".github/inject-doctor-actions.py", "qa/lazy-admin-modules.py", "qa/verify-production-contracts.py", "qa/finalize-appwrite-admin-auth.py"):
-    require(step in bt, f"Vercel production build runner missing step: {step}")
+require("TRANSFORM_STEPS=[]" in bt, "Vercel production build runner must not mutate tracked source")
+for step in ("qa/verify-production-contracts.py", "qa/lazy-admin-modules.py", "qa/api-javascript-syntax-gate.py", "qa/zero-retired-provider-residue-gate.py"):
+    require(step in bt, f"Vercel production verifier missing canonical step: {step}")
 for retired in (".github/finalize-auth.py", "qa/fix-production-contracts.py", "qa/remove-legacy-admin-i18n-runtime.py"):
     require(retired not in bt, f"retired build checkpoint still referenced: {retired}")
 require("azaad-responsive-shell.css" in read(injector), "responsive CSS injection missing")
