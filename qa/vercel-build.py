@@ -31,7 +31,7 @@ print(f'[AZAAD build] production artifact provenance SHA = {sha}',flush=True)
 admin=Path('admin.html')
 text=admin.read_text(encoding='utf-8')
 import re
-text=re.sub(r'<meta\s+name=["']azaad-build-sha["'][^>]*>\s*\n?','',text,flags=re.I)
+text=re.sub(r"<meta\\s+name=[\"']azaad-build-sha[\"'][^>]*>\\s*\\n?",'',text,flags=re.I)
 head=text.find('</head>')
 if head<0:
     raise SystemExit('admin.html has no </head> for build provenance marker')
