@@ -70,7 +70,7 @@ jobs:
             exit 1
           fi
           additions="$(printf '%s\n' "$diff" | grep -Ec '^\+' || true)"
-          deletions="$(printf '%s\n' "$diff" | grep -Ec '^-' || true)"
+          deletions="$(printf '%s\n' "$diff" | grep -Ec '^-[^-]' || true)"
           if [ "$additions" -ne 1 ] || [ "$deletions" -ne 0 ]; then
             echo 'SOURCE-CANONICALITY-GATE: FAIL'
             echo 'admin.html provenance diff is not exactly one insertion.'
