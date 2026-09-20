@@ -84,7 +84,11 @@ jobs:
           const key=process.env.APPWRITE_API_KEY;
           const headers={'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'};
           const response=await fetch(`${endpoint}/users?limit=1`,{headers});
-          if(!response.ok) throw new Error(`Appwrite Users API HTTP ${response.status}`);
+          if(!response.ok) {
+            const payload=await response.json().catch(()=>({}));
+            console.log(`APPWRITE_USERS_ERROR type=${String(payload?.type||'unknown')} code=${String(payload?.code||response.status)} message=${String(payload?.message||'unknown')}`);
+            throw new Error(`Appwrite Users API HTTP ${response.status}`);
+          }
           const body=await response.json();
           if(!Number.isInteger(Number(body.total))) throw new Error('Appwrite user total is not numeric');
           console.log(`APPWRITE_USERS_TOTAL=${Number(body.total)}`);
@@ -106,7 +110,11 @@ jobs:
           const key=process.env.APPWRITE_API_KEY;
           const headers={'X-Appwrite-Project':project,'X-Appwrite-Key':key,'Accept':'application/json'};
           const response=await fetch(`${endpoint}/storage/buckets?limit=100`,{headers});
-          if(!response.ok) throw new Error(`Appwrite Storage API HTTP ${response.status}`);
+          if(!response.ok) {
+            const payload=await response.json().catch(()=>({}));
+            console.log(`APPWRITE_STORAGE_ERROR type=${String(payload?.type||'unknown')} code=${String(payload?.code||response.status)} message=${String(payload?.message||'unknown')}`);
+            throw new Error(`Appwrite Storage API HTTP ${response.status}`);
+          }
           const body=await response.json();
           const buckets=(body.buckets||[]).map(x=>x.name).sort();
           console.log(`APPWRITE_STORAGE_BUCKETS=${buckets.length}`);
