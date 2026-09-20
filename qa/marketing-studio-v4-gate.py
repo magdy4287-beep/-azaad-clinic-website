@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 studio = (ROOT / 'marketing-studio-v4.js').read_text(encoding='utf-8').lower()
 team = (ROOT / 'public-team-display.js').read_text(encoding='utf-8').lower()
-public_data = (ROOT / 'api/public-clinic-data.js').read_text(encoding='utf-8').lower()
+public_data = (ROOT / 'api/_public-clinic-data.js').read_text(encoding='utf-8').lower()
 lazy = (ROOT / 'qa/lazy-admin-modules.py').read_text(encoding='utf-8').lower()
 
 checks = {
