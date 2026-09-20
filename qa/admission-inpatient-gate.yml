@@ -1,0 +1,25 @@
+name: AZAAD Admission Inpatient Domain Gate
+
+on:
+  push:
+    paths:
+      - 'migrations/20260916_admission_inpatient_domain.sql'
+      - 'api/admissions.js'
+      - 'qa/admission-inpatient-domain-contract.py'
+      - 'docs/ADMISSION_INPATIENT_WARD_DESIGN.md'
+      - 'docs/AZAAD_HOSPITAL_MASTER_DOMAIN_MAP.md'
+  pull_request:
+    paths:
+      - 'migrations/20260916_admission_inpatient_domain.sql'
+      - 'api/admissions.js'
+      - 'qa/admission-inpatient-domain-contract.py'
+      - 'docs/ADMISSION_INPATIENT_WARD_DESIGN.md'
+      - 'docs/AZAAD_HOSPITAL_MASTER_DOMAIN_MAP.md'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Admission/Inpatient contract
+        run: python qa/admission-inpatient-domain-contract.py

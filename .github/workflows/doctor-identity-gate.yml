@@ -4,12 +4,18 @@ on:
   pull_request:
     paths:
       - 'qa/doctor-identity-contract-gate.py'
-      - 'supabase/migrations/**'
+      - 'doctor-staff-binding.js'
+      - 'doctor-staff-convert.js'
+      - 'doctor-dashboard.js'
+      - 'api/admin-auth.js'
   push:
     branches: [main]
     paths:
       - 'qa/doctor-identity-contract-gate.py'
-      - 'supabase/migrations/**'
+      - 'doctor-staff-binding.js'
+      - 'doctor-staff-convert.js'
+      - 'doctor-dashboard.js'
+      - 'api/admin-auth.js'
 
 jobs:
   gate:

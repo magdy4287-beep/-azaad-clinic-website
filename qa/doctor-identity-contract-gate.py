@@ -3,24 +3,22 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-base = (ROOT / "supabase/migrations/20260816_harden_doctor_staff_identity_mapping.sql").read_text(encoding="utf-8")
-contract = (ROOT / "supabase/migrations/20260816_enforce_doctor_staff_binding.sql").read_text(encoding="utf-8")
 binding = (ROOT / "doctor-staff-binding.js").read_text(encoding="utf-8")
 convert = (ROOT / "doctor-staff-convert.js").read_text(encoding="utf-8")
+dashboard = (ROOT / "doctor-dashboard.js").read_text(encoding="utf-8")
+admin_auth = (ROOT / "api/_admin-auth.js").read_text(encoding="utf-8")
 
 checks = {
-    "active doctor uniqueness": "clinic_staff_active_doctor_unique" in base,
-    "doctor foreign key": "clinic_staff_doctor_fk" in base,
-    "safe doctor deletion": "on delete set null" in base.lower(),
-    "doctor update propagation": "on update cascade" in base.lower(),
-    "doctor role requires binding": "role = 'DOCTOR' and doctor_id is not null" in contract,
-    "non-doctor cannot carry binding": "role <> 'DOCTOR' and doctor_id is null" in contract,
     "binding UI uses staff-admin": "staff-admin" in binding,
     "binding UI sends doctor_id": "doctor_id:doctorId" in binding,
     "binding UI does not create doctors": "لا يتم إنشاء طبيب جديد" in binding,
     "existing staff conversion uses staff-admin": "staff-admin" in convert,
     "existing staff conversion sets DOCTOR": "role:'DOCTOR'" in convert,
     "existing staff conversion sends doctor_id": "doctor_id:doctorId" in convert,
+    "doctor dashboard uses canonical admin auth": "/api/admin-auth" in dashboard,
+    "doctor dashboard requires doctor identity": "doctor_id" in dashboard,
+    "admin auth resolves staff identity": "clinic_staff" in admin_auth and "doctor_id" in admin_auth,
+    "admin auth is server-side": "credentials" in admin_auth or "HttpOnly" in admin_auth,
 }
 
 for name, ok in checks.items():

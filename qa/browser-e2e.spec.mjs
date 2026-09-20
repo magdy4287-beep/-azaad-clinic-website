@@ -47,9 +47,9 @@ test('admin password remains interactive while the canonical controller is loadi
   await expect(page).toHaveURL(/\/admin\.html(?:\?.*)?$/); await expect(password).toHaveValue('temporary-e2e-value');
 });
 
-test('Patient 360 appointment action bridge resource is available',async({page})=>{
-  await resetBrowserSession(page); const r=await page.request.get(`${baseURL}/patient-appointment-actions.js?v=13.0.0`); expect(r.ok()).toBeTruthy(); const s=await r.text();
-  expect(s).toContain('/functions/v1/azaad-frontdesk-checkin'); expect(s).toContain('function checkIn'); expect(s).toContain('p360-actions');
+test('Patient 360 appointment action bridge uses the canonical frontdesk runtime',async({page})=>{
+  await resetBrowserSession(page); const r=await page.request.get(`${baseURL}/frontdesk-checkin-workflow.js?azaad_clinical_boundary=1`); expect(r.ok()).toBeTruthy(); const s=await r.text();
+  expect(s).toContain('/api/frontdesk-checkin'); expect(s).not.toMatch(/supabase|functions\/v1/i);
 });
 
 test('admin-auth API establishes an HttpOnly Appwrite session without exposing the secret',async({page})=>{

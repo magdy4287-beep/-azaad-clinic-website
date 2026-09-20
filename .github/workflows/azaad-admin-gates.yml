@@ -47,5 +47,5 @@ jobs:
       - name: Run scheduling contract gate against source plus explicit production transform ownership
         run: python3 qa/scheduling-contract-gate.py
 
-      - name: Run canonical Marketing Studio V3 gate
-        run: python3 qa/marketing-studio-v3-gate.py
+      - name: Run canonical Marketing Studio V4 gate
+        run: python3 qa/marketing-studio-v4-gate.py

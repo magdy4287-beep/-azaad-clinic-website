@@ -54,220 +54,16 @@
    * LANGUAGE
    * =========================================================
    */
-  function getCurrentLanguage() {
-    try {
-      const saved =
-        localStorage.getItem(
-          'azaadClinicLanguage'
-        );
-      if (
-        saved === 'en' ||
-        saved === 'ar'
-      ) {
-        return saved;
-      }
-    } catch (_) {}
-    const htmlLang =
-      String(
-        document.documentElement.lang || ''
-      )
-        .toLowerCase()
-        .trim();
-    if (
-      htmlLang === 'en' ||
-      htmlLang.startsWith('en-')
-    ) {
-      return 'en';
-    }
-    return 'ar';
-  }
+  function getCurrentLanguage() { return window.AZAAD_I18N?.language?.() === 'en' ? 'en' : 'ar'; }
   function isEnglish() {
-    return (
-      getCurrentLanguage() === 'en'
-    );
+    return getCurrentLanguage() === 'en';
   }
   /*
    * =========================================================
    * TRANSLATIONS
    * =========================================================
    */
-  const I18N = {
-    ar: {
-      chooseDoctor: 'اختر الطبيب',
-      chooseService: 'اختر الخدمة',
-      chooseDate: 'اختر التاريخ',
-      chooseTime: 'اختر الوقت',
-      unspecified: 'غير محدد',
-      unavailable: 'غير متوفر',
-      clinic: 'داخل العيادة',
-      online: 'جلسة أونلاين',
-      loading: 'جاري التحميل...',
-      loadingAppointments: 'جاري تحميل المواعيد...',
-      noAppointments: 'لا توجد مواعيد متاحة لهذا اليوم.',
-      selectDoctorServiceDate:
-        'اختر الطبيب والخدمة والتاريخ لعرض المواعيد المتاحة.',
-      selectDoctor: 'من فضلك اختر الطبيب.',
-      selectService: 'من فضلك اختر الخدمة.',
-      selectDate: 'من فضلك اختر التاريخ.',
-      selectMode: 'من فضلك اختر نوع الجلسة.',
-      selectTime: 'من فضلك اختر أحد المواعيد المتاحة.',
-      enterName: 'من فضلك اكتب الاسم بالكامل.',
-      enterPhone: 'من فضلك اكتب رقم الهاتف.',
-      invalidPhone: 'من فضلك أدخل رقم هاتف صحيح.',
-      invalidEmail:
-        'من فضلك أدخل بريدًا إلكترونيًا صحيحًا أو اترك الحقل فارغًا.',
-      bookingConfirming: 'جاري تأكيد الحجز...',
-      bookingCreated: 'تم إنشاء طلب الحجز بنجاح.',
-      bookingSuccess: 'تم إنشاء الحجز بنجاح.',
-      bookingNumber: 'رقم الحجز',
-      doctor: 'الطبيب',
-      service: 'الخدمة',
-      date: 'التاريخ',
-      time: 'الوقت',
-      sessionType: 'نوع الجلسة',
-      patientName: 'اسم المريض',
-      phone: 'رقم الهاتف',
-      email: 'البريد الإلكتروني',
-      notes: 'ملاحظات المريض',
-      bookingRequest: 'طلب حجز جديد',
-      reviewAvailability:
-        'يرجى مراجعة توفر الطبيب وتأكيد الموعد مع المريض.',
-      sentFromWebsite:
-        'تم إرسال الطلب من موقع Azaad Clinic.',
-      whatsappTitle: 'تم إنشاء الحجز بنجاح',
-      whatsappDescription:
-        'لإكمال إجراءات الحجز، اضغط الزر التالي لإرسال تفاصيل الموعد إلى WhatsApp العيادة.',
-      sendToWhatsApp:
-        '📲 إرسال الموعد إلى WhatsApp العيادة',
-      whatsappReady:
-        'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الحجز إلى السكرتيرة.',
-      connectionTimeout:
-        'انتهت مهلة الاتصال بالخادم. يرجى المحاولة مرة أخرى.',
-      connectionFailed:
-        'تعذر الاتصال بخادم العيادة. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
-      dataLoadFailed:
-        'تعذر تحميل بيانات العيادة. يرجى تحديث الصفحة والمحاولة مرة أخرى.',
-      slotsLoadFailed:
-        'تعذر تحميل المواعيد. يرجى المحاولة مرة أخرى.',
-      bookingFailed:
-        'تعذر إرسال طلب الحجز.',
-      bookingCreatedNoCode:
-        'تم إنشاء الحجز ولكن لم يتم استلام رقم الحجز. يرجى التواصل مع العيادة.',
-      duplicateBooking:
-        'هذا الموعد تم حجزه بالفعل. يرجى اختيار موعد آخر.',
-      bookedRequest:
-        'تم تسجيل طلب الحجز. يمكنك إرسال تفاصيل الموعد إلى WhatsApp العيادة من الزر أعلاه.',
-      serviceMinutes: 'دقيقة',
-      onlineShort: 'أونلاين',
-      inPerson: 'حضوري',
-      doctorFallback: 'طبيب',
-      serviceFallback: 'خدمة',
-      invalidBookingResponse:
-        'تم إنشاء الحجز ولكن استجابة الخادم غير مكتملة. يرجى التواصل مع العيادة.'
-    },
-    en: {
-      chooseDoctor: 'Select doctor',
-      chooseService: 'Select service',
-      chooseDate: 'Select date',
-      chooseTime: 'Select time',
-      unspecified: 'Not specified',
-      unavailable: 'Not available',
-      clinic: 'In-clinic',
-      online: 'Online session',
-      loading: 'Loading...',
-      loadingAppointments: 'Loading appointments...',
-      noAppointments:
-        'No appointments are available for this day.',
-      selectDoctorServiceDate:
-        'Select a doctor, service, date, and session type to view available appointments.',
-      selectDoctor:
-        'Please select a doctor.',
-      selectService:
-        'Please select a service.',
-      selectDate:
-        'Please select a date.',
-      selectMode:
-        'Please select the session type.',
-      selectTime:
-        'Please select one of the available appointments.',
-      enterName:
-        'Please enter your full name.',
-      enterPhone:
-        'Please enter your phone number.',
-      invalidPhone:
-        'Please enter a valid phone number.',
-      invalidEmail:
-        'Please enter a valid email address or leave the field empty.',
-      bookingConfirming:
-        'Confirming your booking...',
-      bookingCreated:
-        'Your booking request was created successfully.',
-      bookingSuccess:
-        'Booking created successfully.',
-      bookingNumber:
-        'Booking number',
-      doctor:
-        'Doctor',
-      service:
-        'Service',
-      date:
-        'Date',
-      time:
-        'Time',
-      sessionType:
-        'Session type',
-      patientName:
-        'Patient name',
-      phone:
-        'Phone number',
-      email:
-        'Email',
-      notes:
-        'Patient notes',
-      bookingRequest:
-        'New booking request',
-      reviewAvailability:
-        'Please review the doctor availability and confirm the appointment with the patient.',
-      sentFromWebsite:
-        'This request was submitted from the Azaad Clinic website.',
-      whatsappTitle:
-        'Booking created successfully',
-      whatsappDescription:
-        'To complete the booking process, click the button below to send the appointment details to the clinic WhatsApp.',
-      sendToWhatsApp:
-        '📲 Send appointment to clinic WhatsApp',
-      whatsappReady:
-        'WhatsApp will open with the message ready. Press "Send" inside WhatsApp to send the booking to the receptionist.',
-      connectionTimeout:
-        'The connection timed out. Please try again.',
-      connectionFailed:
-        'Unable to connect to the clinic server. Please check your internet connection and try again.',
-      dataLoadFailed:
-        'Unable to load clinic data. Please refresh the page and try again.',
-      slotsLoadFailed:
-        'Unable to load appointments. Please try again.',
-      bookingFailed:
-        'Unable to submit the booking request.',
-      bookingCreatedNoCode:
-        'The booking was created, but no booking number was received. Please contact the clinic.',
-      duplicateBooking:
-        'This appointment has already been booked. Please select another appointment.',
-      bookedRequest:
-        'The booking request has been registered. You can send the appointment details to the clinic WhatsApp using the button above.',
-      serviceMinutes:
-        'minutes',
-      onlineShort:
-        'Online',
-      inPerson:
-        'In-person',
-      doctorFallback:
-        'Doctor',
-      serviceFallback:
-        'Service',
-      invalidBookingResponse:
-        'The booking was created, but the server response was incomplete. Please contact the clinic.'
-    }
-  };
+  const I18N = new Proxy({}, { get: (_target, lang) => new Proxy({}, { get: (_t, key) => window.AZAAD_I18N?.t?.(key) ?? key }) });;
   function t(key) {
     const language =
       getCurrentLanguage();
@@ -445,7 +241,19 @@
     if (!doctor) {
       return t('unspecified');
     }
+    if (isEnglish()) {
+      return (
+        doctor.name_en ||
+        doctor.full_name_en ||
+        doctor.display_name_en ||
+        doctor.name ||
+        doctor.full_name ||
+        doctor.display_name ||
+        t('doctorFallback')
+      );
+    }
     return (
+      doctor.name_ar ||
       doctor.name ||
       doctor.full_name ||
       doctor.display_name ||
@@ -458,7 +266,17 @@
     if (!doctor) {
       return '';
     }
+    if (isEnglish()) {
+      return (
+        doctor.title_en ||
+        doctor.specialty_en ||
+        doctor.title ||
+        doctor.specialty ||
+        ''
+      );
+    }
     return (
+      doctor.title_ar ||
       doctor.title ||
       doctor.specialty ||
       ''
@@ -484,7 +302,17 @@
     if (!service) {
       return t('unspecified');
     }
+    if (isEnglish()) {
+      return (
+        service.name_en ||
+        service.title_en ||
+        service.name ||
+        service.title ||
+        t('serviceFallback')
+      );
+    }
     return (
+      service.name_ar ||
       service.name ||
       service.title ||
       t('serviceFallback')
@@ -913,18 +741,14 @@ ${t('sentFromWebsite')}`;
               doctor.id
             )}">
               ${escapeHtml(
-                doctor.name ||
-                doctor.full_name ||
-                doctor.display_name ||
-                t('doctorFallback')
+                getDoctorName(doctor.id)
               )}
               ${
                 doctor.title ||
                 doctor.specialty
                   ? ' — ' +
                     escapeHtml(
-                      doctor.title ||
-                      doctor.specialty
+                      getDoctorTitle(doctor.id)
                     )
                   : ''
               }
@@ -947,9 +771,7 @@ ${t('sentFromWebsite')}`;
               service.id
             )}">
               ${escapeHtml(
-                service.name ||
-                service.title ||
-                t('serviceFallback')
+                getServiceName(service.id)
               )}
               ${
                 service.duration_minutes
@@ -1629,56 +1451,10 @@ ${t('sentFromWebsite')}`;
    * =========================================================
    */
   function setupLanguageObserver() {
-    let lastLanguage =
-      getCurrentLanguage();
-    const checkLanguage =
-      () => {
-        const currentLanguage =
-          getCurrentLanguage();
-        if (
-          currentLanguage !==
-          lastLanguage
-        ) {
-          lastLanguage =
-            currentLanguage;
-          refreshDynamicLanguage();
-        }
-      };
-    setInterval(
-      checkLanguage,
-      400
-    );
     window.addEventListener(
-      'storage',
-      (event) => {
-        if (
-          event.key ===
-          'azaadClinicLanguage'
-        ) {
-          checkLanguage();
-        }
-      }
+      'azaadLanguageChanged',
+      () => refreshDynamicLanguage()
     );
-    try {
-      const html =
-        document.documentElement;
-      const observer =
-        new MutationObserver(
-          () => {
-            checkLanguage();
-          }
-        );
-      observer.observe(
-        html,
-        {
-          attributes: true,
-          attributeFilter: [
-            'lang',
-            'dir'
-          ]
-        }
-      );
-    } catch (_) {}
   }
   /*
    * =========================================================

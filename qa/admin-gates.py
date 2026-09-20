@@ -73,8 +73,9 @@ check(
     and "FAIL-CLOSED: patients-center still contains retired Supabase/browser-token runtime" in patient_center_transform,
 )
 check(
-    "Patient Center transform is part of canonical production build",
-    "qa/finalize-patient-center-appwrite.py" in vercel_build,
+    "Patient Center source is canonical before production build",
+    "PATIENTS_API = '/api/admin-appointments'" in patient_center_transform
+    and "TRANSFORM_STEPS=[]" in vercel_build,
 )
 
 CANONICAL_PANELS = {

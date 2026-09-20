@@ -1,55 +1,28 @@
 #!/usr/bin/env python3
-"""Static Patient 360 acceptance contract. Never creates or mutates patient data."""
 from pathlib import Path
-import sys
-
-ROOT = Path(__file__).resolve().parents[1]
-PATIENTS = ROOT / "patients-center.js"
-ADMIN = ROOT / "admin.html"
-errors = []
-
-if not PATIENTS.exists():
-    errors.append("patients-center.js is missing")
+ROOT=Path(__file__).resolve().parents[1]
+errors=[]
+patients=ROOT/"patients-center.js"; api=ROOT/"api/_admin-appointments.js"; finance=ROOT/"patient-financial-summary.js"; finance_api=ROOT/"api/_patient-financial-summary.js"
+if not patients.exists(): errors.append("patients-center.js is missing")
 else:
-    text = PATIENTS.read_text(encoding="utf-8")
-    required = {
-        "canonical MRN normalization": "if (/^AZA-\\d{6}$/.test(v)) return v",
-        "numeric patient normalization": "v.padStart(6,'0')",
-        "five-digit Patient display": "`Patient ${normalized.slice(4)}`",
-        "patient search booking number": "p.booking_code",
-        "appointment date filter": "bookingDateFilter",
-        "appointment search": "bookingSearch",
-        "appointment API": "azaad-appointments-center",
-        "patient API": "azaad-patients",
-        "English helper": "const tr = (ar, en) => isEnglish() ? en : ar",
-        "Patient 360 entry": "open360",
-        "follow-up contract": "followups",
-        "invoice contract": "invoices",
-    }
-    for label, needle in required.items():
-        if needle not in text:
-            errors.append(f"{label} missing")
-
-if not ADMIN.exists():
-    errors.append("admin.html is missing")
+ t=patients.read_text(encoding="utf-8")
+ for label,needle in {"canonical MRN normalization":"normalizePatientNumber","five-digit Patient display":"Patient ${n.slice(-5)}","patient search API":"api/admin-appointments?api=patients","Patient 360 API":"api/admin-appointments?api=patient&id=","English helper":"const tr = (ar,en) => isEnglish() ? en : ar","Patient 360 entry":"open360"}.items():
+  if needle not in t: errors.append(f"{label} missing")
+if not api.exists(): errors.append("canonical Patient 360 API is missing")
 else:
-    text = ADMIN.read_text(encoding="utf-8")
-    for label, needle in {
-        "admin page": 'id="adminPage"',
-        "patients integration": "patients-center.js",
-    }.items():
-        if needle not in text:
-            errors.append(f"{label} missing")
-
+ t=api.read_text(encoding="utf-8")
+ for label,needle in {"booking contract":"booking_code","appointment date":"appointment_date","follow-up contract":"clinic_followups","invoice contract":"clinic_invoices","payment contract":"clinic_payments","clinical visit contract":"clinic_clinical_visits","alert contract":"clinic_alerts","server authorization":"clinic_staff","canonical provider":"appwrite-neon"}.items():
+  if needle not in t: errors.append(f"{label} missing")
+if not finance.exists(): errors.append("patient financial UI missing")
+if not finance_api.exists(): errors.append("canonical patient financial API missing")
+else:
+ t=finance_api.read_text(encoding="utf-8")
+ for label,needle in {"Neon boundary":"@neondatabase/serverless","invoice table":"public.clinic_invoices","payment table":"public.clinic_payments","Appwrite session":"azaad_admin_appwrite_session"}.items():
+  if needle not in t: errors.append(f"{label} missing")
+admin=ROOT/"admin.html"
+if not admin.exists() or "patients-center.js" not in admin.read_text(encoding="utf-8"): errors.append("Admin Patient Center integration missing")
 if errors:
-    print("PATIENT 360 CONTRACT GATE: FAIL")
-    for item in errors:
-        print(f"- {item}")
-    sys.exit(1)
-
+ print("PATIENT 360 CONTRACT GATE: FAIL")
+ for e in errors: print("-",e)
+ raise SystemExit(1)
 print("PATIENT 360 CONTRACT GATE: PASS")
-print("- AZA-###### remains canonical")
-print("- Patient ##### is the display/search contract")
-print("- Appointment date and search contracts are wired")
-print("- Patient 360, follow-up and invoice contracts are present")
-print("- No patient data was created or modified")

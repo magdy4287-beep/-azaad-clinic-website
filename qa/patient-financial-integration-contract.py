@@ -11,7 +11,7 @@ def read(name):
 
 patcher = read(".github/patch-admin.py")
 finance_ui = read("patient-financial-summary.js")
-finance_api = read("api/patient-financial-summary.js")
+finance_api = read("api/_patient-financial-summary.js")
 patient_center = read("patients-center.js")
 
 # Patient 360 must mount the financial UI through the canonical API boundary.

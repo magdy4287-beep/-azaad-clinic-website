@@ -9,7 +9,11 @@
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#172033;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     .wrap{max-width:980px;margin:0 auto;padding:20px}.head,.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 6px 24px #17214f0b}.head{padding:20px;margin-bottom:16px}.brand{font-size:13px;font-weight:800;color:#667085}.title{font-size:28px;font-weight:950;color:var(--ink);margin:4px 0}.meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:13px}.pill{padding:6px 10px;border-radius:999px;background:#eef2ff}.card{padding:18px;margin-bottom:14px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.btn{border:0;border-radius:11px;padding:11px 16px;font-weight:850;cursor:pointer}.primary{background:var(--ink);color:#fff}.secondary{background:#eef2f7;color:#172033}.success{background:#16834b;color:#fff}.danger{background:#fff0f0;color:#a22}.question{border-top:1px solid var(--line);padding:16px 0}.question:first-child{border-top:0}.qtitle{font-weight:850;margin-bottom:10px}.qmeta{font-size:12px;color:var(--muted);margin-bottom:9px}.options{display:flex;gap:8px;flex-wrap:wrap}.option{border:1px solid #d8dce5;border-radius:10px;padding:9px 12px;background:#fff;cursor:pointer}.option:has(input:checked){border-color:#5261ad;background:#eef2ff}.notes{width:100%;min-height:100px;border:1px solid #d8dce5;border-radius:12px;padding:12px;font:inherit;resize:vertical}.status{margin-top:12px;padding:10px;border-radius:10px;background:#f2f4f7;color:#475467}.status.ok{background:#ecfdf3;color:#067647}.status.err{background:#fff1f2;color:#b42318}.loading{text-align:center;padding:30px;color:var(--muted)}
   </style>
-<script src="/central-i18n.js?v=4.0.0"></script>
+
+
+<link rel="stylesheet" href="/azaad-responsive-shell.css?v=1.0.0">
+<script src="/central-i18n.js?v=6.0.0"></script>
+<script src="/azaad-core-context.js?v=1.0.0"></script>
 </head>
 <body>
 <div class="wrap">
@@ -20,9 +24,16 @@
 </div>
 <script>
 (() => {'use strict';
-  const API='https://derofsthjivlkcdnojww.supabase.co/functions/v1/azaad-clinical-assessments'; const KEY='sb_publishable_GC253fvQebNBsDOaKjWGRw_tPYJrgLa'; const qs=new URLSearchParams(location.search); const bookingId=qs.get('booking_id')||''; const patientId=qs.get('patient_id')||''; const visitId=qs.get('visit_id')||''; const state={templates:[],questions:[]}; const $=id=>document.getElementById(id); const token=async()=>window.AZAAD?.state?.session?.access_token||sessionStorage.getItem('azaad_admin_token')||((await window.supabase?.auth?.getSession?.())?.data?.session?.access_token)||''; const tr=(ar,en)=>(document.documentElement.lang||'ar').startsWith('en')?en:ar; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+  const API='/api/clinical-assessments'; const qs=new URLSearchParams(location.search); const bookingId=qs.get('booking_id')||''; const patientId=qs.get('patient_id')||''; const visitId=qs.get('visit_id')||''; const state={templates:[],questions:[]}; const $=id=>document.getElementById(id); const tr=(ar,en)=>(document.documentElement.lang||'ar').startsWith('en')?en:ar; const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
   function setStatus(msg,ok=false){$('status').textContent=msg;$('status').className='status'+(ok?' ok':' err')}
-  async function request(method,params={},body){const t=await token();if(!t)throw Error(tr('جلسة الدخول غير موجودة أو منتهية.','Your authenticated session is missing or expired.'));const u=new URL(API);Object.entries(params).forEach(([k,v])=>v!==''&&v!=null&&u.searchParams.set(k,v));const r=await fetch(u,{method,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,apikey:KEY,'Content-Type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined,cache:'no-store'});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b?.error||b?.message||`HTTP ${r.status}`);return b}
+  async function request(method,params={},body){
+    const u=new URL(API,location.origin);
+    Object.entries(params).forEach(([k,v])=>v!==''&&v!=null&&u.searchParams.set(k,v));
+    const r=await fetch(u,{method,credentials:'include',headers:{Accept:'application/json','Content-Type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined,cache:'no-store'});
+    const b=await r.json().catch(()=>({}));
+    if(!r.ok)throw Error(b?.error||b?.message||`HTTP ${r.status}`);
+    return b;
+  }
   function renderMeta(){const parts=[];if(bookingId)parts.push(`📅 ${esc(bookingId)}`);if(patientId)parts.push(`👤 ${esc(patientId)}`);if(visitId)parts.push(`🩺 Visit ${esc(visitId)}`);$('meta').innerHTML=parts.map(x=>`<span class="pill">${x}</span>`).join('')||'<span class="pill">⚠️ Missing context</span>'}
   function renderTemplates(){const s=$('template');s.innerHTML=state.templates.map(t=>`<option value="${esc(t.id)}">${esc(t.name_ar||t.name||t.specialty||t.id)}</option>`).join('')}
   function questionsForTemplate(){return state.questions.filter(q=>String(q.template_id)===String($('template').value))}
@@ -34,5 +45,10 @@
   renderMeta();if(!patientId||!visitId){setStatus(tr('السياق ناقص: يجب فتح الصفحة من Doctor Start Visit مع patient_id و visit_id.','Missing context: open this page from Doctor Start Visit with patient_id and visit_id.'));$('form').querySelector('button[type="submit"]').disabled=true}else loadTemplates();
 })();
 </script>
+<script src="azaad-platform-kernel.js" defer></script>
+<script src="clinical-followup-widget.js" defer></script>
+<script src="clinician-ai-session-cockpit.js" defer></script>
+<script src="clinician-longitudinal-dashboard.js" defer></script>
+<script src="patient-demographics-editor.js" defer></script>
 </body>
 </html>

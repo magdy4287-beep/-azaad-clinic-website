@@ -1,0 +1,89 @@
+name: AZAAD Source Canonicality Gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  source-canonicality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact PR head revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          echo "EXACT-SHA: $actual"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run production build transforms and verification
+        run: python3 qa/vercel-build.py
+
+      - name: Fail if the build changed canonical source outside provenance materialization
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only -- . ':!.github/workflows/azaad-source-canonicality-gate.yml')"
+          if [ -z "$changed" ]; then
+            echo 'SOURCE-CANONICALITY-GATE: PASS'
+            exit 0
+          fi
+          if [ "$changed" != "admin.html" ]; then
+            echo 'SOURCE-CANONICALITY-GATE: FAIL'
+            echo 'The production build changed canonical source outside the single allowed build provenance marker.'
+            git status --short
+            git diff --stat
+            git diff -- . ':!.github/workflows/azaad-source-canonicality-gate.yml' > source-canonicality.patch
+            exit 1
+          fi
+          diff="$(git diff --unified=0 -- admin.html)"
+          if ! printf '%s\n' "$diff" | grep -Eq '^\+<meta name="azaad-build-sha" content="'"$EXPECTED_SHA"'">
+
+      - name: Upload canonicality diagnostic on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-source-canonicality-diagnostic
+          path: source-canonicality.patch
+          if-no-files-found: ignore
+; then
+            echo 'SOURCE-CANONICALITY-GATE: FAIL'
+            echo 'admin.html changed, but not only by the exact expected build provenance marker.'
+            printf '%s\n' "$diff"
+            printf '%s\n' "$diff" > source-canonicality.patch
+            exit 1
+          fi
+          additions="$(printf '%s\n' "$diff" | grep -Ec '^\+' || true)"
+          deletions="$(printf '%s\n' "$diff" | grep -Ec '^-[^-]' || true)"
+          if [ "$additions" -ne 1 ] || [ "$deletions" -ne 0 ]; then
+            echo 'SOURCE-CANONICALITY-GATE: FAIL'
+            echo 'admin.html provenance diff is not exactly one insertion.'
+            printf '%s\n' "$diff"
+            printf '%s\n' "$diff" > source-canonicality.patch
+            exit 1
+          fi
+          echo 'SOURCE-CANONICALITY-GATE: PASS (only exact build provenance marker materialized)'
+
+      - name: Upload canonicality diagnostic on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaad-source-canonicality-diagnostic
+          path: source-canonicality.patch
+          if-no-files-found: ignore

@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 enterprise_path = ROOT / "admin-enterprise-centers.js"
-invoice_api = ROOT / "api" / "invoices.js"
+invoice_api = ROOT / "api" / "_invoices.js"
 legacy_loader = ROOT / "rcm-finance-loader.js"
 legacy_renderer = ROOT / "rcm-finance-center.js"
 

@@ -1,0 +1,62 @@
+name: AZAAD Emergency Department Gate
+
+on:
+  push:
+    branches:
+      - 'feat/emergency-department-hybrid-20260916'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/_emergency-department.js'
+      - 'emergency-department.js'
+      - 'db/migrations/20260916_emergency_department_hybrid.sql'
+      - 'qa/emergency-department-contract-gate.py'
+      - 'qa/api-javascript-syntax-gate.py'
+      - 'qa/zero-retired-provider-residue-gate.py'
+      - '.github/patch-admin.py'
+      - '.github/workflows/azaad-emergency-department-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emergency-department:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR head revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Verify exact SHA
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          echo "EXACT-SHA: $(git rev-parse HEAD)"
+
+      - name: Emergency Department contract
+        run: python qa/emergency-department-contract-gate.py
+
+      - name: API JavaScript syntax
+        run: python qa/api-javascript-syntax-gate.py
+
+      - name: Zero retired provider runtime residue
+        run: python qa/zero-retired-provider-residue-gate.py
+
+      - name: Emergency source ownership
+        run: |
+          test "$(grep -c 'emergency-department.js' .github/patch-admin.py)" -ge 1
+          test -f api/_emergency-department.js
+          test -f emergency-department.js
+          test -f db/migrations/20260916_emergency_department_hybrid.sql
+          echo "ED source ownership: PASS"

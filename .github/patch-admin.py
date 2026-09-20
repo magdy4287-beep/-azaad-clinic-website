@@ -9,8 +9,6 @@ ADMIN_FEATURE_SCRIPTS = (
     "azaad-operations-role-guard.js",
     "azaad-operations-control-center.js",
     "frontdesk-workflow.js",
-    "patient-merge-tool.js",
-    "patient-clinical-history.js",
     "admin-enhancements-v1.js",
     "admin-english-hardening.js",
     "doctors-center-v2.js",
@@ -18,23 +16,20 @@ ADMIN_FEATURE_SCRIPTS = (
     "patient-mrn-display-v2.js",
     "marketing-workspace-v2.js",
     "marketing-platform-expansion.js",
-    "marketing-studio-v3.js",
     "public-team-admin.js",
     "ai-operating-center.js",
     "admin-patient-icon-guard.js",
-    "admin-nextgen-v2.js",
     "waiting-list-center.js",
     "doctor-staff-binding.js",
     "doctor-staff-convert.js",
     "patient-financial-summary.js",
-    "patient-appointment-actions.js",
     "doctor-visit-actions.js",
     "secretary-hybrid-workflow.js",
     "azaad-platform-control-plane.js",
+    "insurance-admission-office.js",
+    "emergency-department.js",
 )
 
-# Only these files are permitted to receive the legacy translation-key compatibility
-# rewrite. Never recursively mutate arbitrary JavaScript during a production build.
 ADMIN_COMPATIBILITY_FILES = tuple(dict.fromkeys((
     "admin.html",
     "admin-english-hardening.js",
@@ -60,7 +55,6 @@ def _remove_script_source(text, script_name):
 
 
 def _remove_legacy_inline_admin_controller(text):
-    """Explicit ownership marker: canonicalize-admin-runtime owns legacy-controller removal."""
     return text
 
 
@@ -109,8 +103,6 @@ def patch_admin_injected_compatibility():
 
 
 def patch_nextgen_scripts():
-    # Explicit ownership list: production builds must never recursively rewrite
-    # arbitrary JavaScript outside the Admin compatibility surface.
     for relative in ADMIN_COMPATIBILITY_FILES:
         path = Path(relative)
         if not path.exists() or path.suffix != '.js':
@@ -129,9 +121,6 @@ def patch_nextgen_scripts():
         if updated != text:
             path.write_text(updated, encoding='utf-8')
 
-
-# Runtime authentication, startup restoration, and session ownership are deliberately
-# absent here. They belong exclusively to the canonical Appwrite/admin-boundary transforms.
 for script in ADMIN_FEATURE_SCRIPTS:
     inject_script("admin.html", script)
 
@@ -139,8 +128,6 @@ inject_head_script("admin.html", ADMIN_SHELL_SRC)
 
 for target, script in (
     ("clinical-assessment.html", "azaad-platform-kernel.js"),
-    ("clinical-assessment.html", "clinical-followup-widget.js"),
-    ("clinical-assessment.html", "clinician-transfer-widget.js"),
     ("clinical-assessment.html", "clinician-ai-session-cockpit.js"),
     ("clinical-assessment.html", "clinician-longitudinal-dashboard.js"),
     ("clinical-assessment.html", "patient-demographics-editor.js"),
