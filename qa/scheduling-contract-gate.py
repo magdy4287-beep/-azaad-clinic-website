@@ -10,7 +10,7 @@ checks={
  "canonical scheduling API": "/api/admin-appointments?resource=scheduling" in schedule,
  "HttpOnly session boundary": "credentials:'include'" in schedule and "cache:'no-store'" in schedule,
  "Neon backend": "provider:'appwrite-neon'" in api,
- "appointment date/time": "appointment_date" in schedule and "appointment_time" in schedule,
+ "appointment date/time": "appointment_date" in api and "appointment_time" in api,
  "waiting list boundary": "ADD_WAITING" in schedule and "ASSIGN_WAITING" in schedule,
  "scheduling is lazy-owned": '"schedules":' in lazy and "scheduling-v2.js" in lazy,
  "no legacy transform required": "TRANSFORM_STEPS=[]" in (ROOT/"qa/vercel-build.py").read_text(encoding="utf-8"),
