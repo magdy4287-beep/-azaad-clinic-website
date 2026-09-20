@@ -1,29 +1,29 @@
 const legacy = {
-  'admin-appointments': (await import('./_admin-appointments.js')).default,
-  'admin-auth': (await import('./_admin-auth.js')).default,
-  'clinical-assessments': (await import('./_clinical-assessments.js')).default,
-  'emergency-department': (await import('./_emergency-department.js')).default,
-  'icu': (await import('./_icu.js')).default,
-  'insurance-admission': (await import('./_insurance-admission.js')).default,
-  'invoices': (await import('./_invoices.js')).default,
-  'nursing': (await import('./_nursing.js')).default,
-  'patient-financial-summary': (await import('./_patient-financial-summary.js')).default,
-  'pharmacy': (await import('./_pharmacy.js')).default,
-  'public-clinic-data': (await import('./_public-clinic-data.js')).default,
-  'public-scheduling': (await import('./_public-scheduling.js')).default,
-  'public-team-admin': (await import('./_public-team-admin.js')).default,
-  'purchases': (await import('./_purchases.js')).default,
-  'staff-admin': (await import('./_staff-admin.js')).default,
-  'waiting-list': (await import('./_waiting-list.js')).default,
+  'admin-appointments': './_admin-appointments.js',
+  'admin-auth': './_admin-auth.js',
+  'clinical-assessments': './_clinical-assessments.js',
+  'emergency-department': './_emergency-department.js',
+  'icu': './_icu.js',
+  'insurance-admission': './_insurance-admission.js',
+  'invoices': './_invoices.js',
+  'nursing': './_nursing.js',
+  'patient-financial-summary': './_patient-financial-summary.js',
+  'pharmacy': './_pharmacy.js',
+  'public-clinic-data': './_public-clinic-data.js',
+  'public-scheduling': './_public-scheduling.js',
+  'public-team-admin': './_public-team-admin.js',
+  'purchases': './_purchases.js',
+  'staff-admin': './_staff-admin.js',
+  'waiting-list': './_waiting-list.js',
 };
 
 const platform = {
-  'facility-mode': (await import('../server/api/platform-facility-mode.js')).default,
-  'ai-insights': (await import('../server/api/platform-ai-insights.js')).default,
-  'clinical-ai-cockpit': (await import('../server/api/platform-clinical-ai-cockpit.js')).default,
-  'public-booking': (await import('../server/api/public-booking.js')).default,
-  'admissions': (await import('../server/api/admissions.js')).default,
-  'marketing': (await import('../server/api/marketing.js')).default,
+  'facility-mode': '../server/api/platform-facility-mode.js',
+  'ai-insights': '../server/api/platform-ai-insights.js',
+  'clinical-ai-cockpit': '../server/api/platform-clinical-ai-cockpit.js',
+  'public-booking': '../server/api/public-booking.js',
+  'admissions': '../server/api/admissions.js',
+  'marketing': '../server/api/marketing.js',
 };
 
 export default async function handler(req, res) {
@@ -36,7 +36,13 @@ export default async function handler(req, res) {
       res.setHeader('content-type', 'application/json; charset=utf-8');
       return res.end(JSON.stringify({ error: 'api_route_not_found' }));
     }
-    return target(req, res);
+    const module = await import(target);
+    if (typeof module.default !== 'function') {
+      res.statusCode = 500;
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      return res.end(JSON.stringify({ error: 'api_handler_invalid' }));
+    }
+    return module.default(req, res);
   } catch (error) {
     res.statusCode = 500;
     res.setHeader('content-type', 'application/json; charset=utf-8');
