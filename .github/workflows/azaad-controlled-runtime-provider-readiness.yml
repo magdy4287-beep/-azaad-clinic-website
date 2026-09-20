@@ -26,15 +26,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout exact revision
+      - name: Resolve candidate SHA
+        id: candidate
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          target="${PR_HEAD_SHA:-$EVENT_SHA}"
+          test -n "$target"
+          echo "sha=$target" >> "$GITHUB_OUTPUT"
+          echo "AZAAD_CANDIDATE_SHA=$target"
+
+      - name: Checkout exact candidate revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ steps.candidate.outputs.sha }}
           fetch-depth: 1
 
-      - name: Verify exact revision
+      - name: Verify exact candidate revision
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+        env:
+          EXPECTED_SHA: ${{ steps.candidate.outputs.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
       - name: Verify canonical provider secrets exist
         env:
@@ -54,6 +69,8 @@ jobs:
           echo 'PASS: canonical Appwrite + Neon secret configuration is present.'
 
       - name: Read-only Appwrite identity inventory
+        id: appwrite_identity
+        continue-on-error: true
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -74,6 +91,8 @@ jobs:
           NODE
 
       - name: Read-only Appwrite storage inventory
+        id: appwrite_storage
+        continue-on-error: true
         env:
           APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
           APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
@@ -95,6 +114,8 @@ jobs:
           NODE
 
       - name: Verify Neon database reachability and runtime contract
+        id: neon
+        continue-on-error: true
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         shell: bash
@@ -106,3 +127,20 @@ jobs:
           SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='private') THEN 1 ELSE 0 END;
           SQL
           echo 'PASS: canonical Neon runtime boundary is reachable.'
+
+      - name: Fail closed if any provider boundary failed
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          failures=0
+          for pair in "Appwrite identity:${{ steps.appwrite_identity.outcome }}" "Appwrite storage:${{ steps.appwrite_storage.outcome }}" "Neon:${{ steps.neon.outcome }}"; do
+            name="${pair%%:*}"; outcome="${pair#*:}"
+            echo "$name => $outcome"
+            if [ "$outcome" != "success" ]; then failures=$((failures+1)); fi
+          done
+          if [ "$failures" -gt 0 ]; then
+            echo "FAIL-CLOSED: $failures provider boundary check(s) failed."
+            exit 1
+          fi
+          echo 'PASS: all controlled provider boundaries verified.'
