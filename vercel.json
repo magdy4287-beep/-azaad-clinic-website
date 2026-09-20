@@ -29,10 +29,7 @@
   ],
   "functions": {
     "api/[...route].js": {
-      "includeFiles": [
-        "api/_*.js",
-        "node_modules/@neondatabase/serverless/**"
-      ]
+      "includeFiles": "{api/_*.js,node_modules/@neondatabase/serverless/**}"
     }
   },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!*.md' ':!docs/**'",
