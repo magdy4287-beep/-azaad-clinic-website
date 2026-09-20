@@ -480,6 +480,85 @@ function applyStaffRole(
 }
 
 /* ============================================================
+   USER IDENTITY
+   ============================================================ */
+
+function updateUserIdentity() {
+  if (
+    !state.user &&
+    !state.staff
+  ) {
+    return;
+  }
+
+  let identity =
+    $("adminIdentity");
+
+  if (!identity) {
+    identity =
+      document.createElement(
+        "div"
+      );
+
+    identity.id =
+      "adminIdentity";
+
+    identity.style.cssText = `
+      margin-top:6px;
+      font-size:13px;
+      color:#6c758c;
+      font-weight:700;
+      line-height:1.7;
+    `;
+
+    const topbar =
+      document.querySelector(
+        ".topbar"
+      );
+
+    if (topbar) {
+      const target =
+        topbar.firstElementChild ||
+        topbar;
+
+      target.appendChild(
+        identity
+      );
+    }
+  }
+
+  const name =
+    state.staff?.full_name ||
+    state.staff?.username ||
+    state.user?.email ||
+    "موظف";
+
+  const username =
+    state.staff?.username ||
+    "";
+
+  const role =
+    state.currentRole ||
+    "";
+
+  identity.innerHTML = `
+    👤 ${escapeHTML(name)}
+
+    ${
+      username
+        ? `<br>🔑 ${escapeHTML(username)}`
+        : ""
+    }
+
+    ${
+      role
+        ? `<br>🎯 ${escapeHTML(role)}`
+        : ""
+    }
+  `;
+}
+
+/* ============================================================
    DOCTOR ROUTING
    ------------------------------------------------------------
    DOCTOR accounts must never land in the Admin UI.
