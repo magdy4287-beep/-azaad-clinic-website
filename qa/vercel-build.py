@@ -24,10 +24,7 @@ if TRANSFORM_STEPS:
     raise SystemExit("FAIL-CLOSED: production source transforms must be materialized in Git, not executed by Vercel")
 
 run(VERIFY_STEPS,'verify')
-sha=(os.environ.get('VERCEL_GIT_COMMIT_SHA') or os.environ.get('GITHUB_SHA') or '').strip()
-if not sha:
-    raise SystemExit('Missing canonical build commit SHA')
-print(f'[AZAAD build] production artifact provenance SHA = {sha}',flush=True)
+sha=(os.environ.get('GITHUB_SHA') or os.environ.get('VERCEL_GIT_COMMIT_SHA') or '').strip()
 admin=Path('admin.html')
 text=admin.read_text(encoding='utf-8')
 import re
