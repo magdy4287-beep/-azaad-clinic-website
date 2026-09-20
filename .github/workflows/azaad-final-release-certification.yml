@@ -88,7 +88,7 @@ jobs:
           test -s /tmp/azaad-vercel.html
           grep -Fq 'Azaad Clinic' /tmp/azaad-vercel.html
           expected="$CANDIDATE_SHA"
-          grep -Fq "<meta name="azaad-build-sha" content="$expected">" /tmp/azaad-vercel.html
+          grep -Fq "<meta name=\"azaad-build-sha\" content=\"$expected\">" /tmp/azaad-vercel.html
           echo "Vercel production artifact matches exact candidate SHA: $expected"
           echo "Vercel production surface: PASS"
 
