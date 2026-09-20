@@ -6,7 +6,7 @@ patients=ROOT/"patients-center.js"; api=ROOT/"api/_admin-appointments.js"; finan
 if not patients.exists(): errors.append("patients-center.js is missing")
 else:
  t=patients.read_text(encoding="utf-8")
- for label,needle in {"canonical MRN normalization":"normalizePatientNumber","five-digit Patient display":"Patient \${n.slice(4)}","patient search API":"api/admin-appointments?api=patients","Patient 360 API":"api/admin-appointments?api=patient&id=","English helper":"const tr = (ar,en) => isEnglish() ? en : ar","Patient 360 entry":"open360"}.items():
+ for label,needle in {"canonical MRN normalization":"normalizePatientNumber","five-digit Patient display":"Patient ${n.slice(-5)}","patient search API":"api/admin-appointments?api=patients","Patient 360 API":"api/admin-appointments?api=patient&id=","English helper":"const tr = (ar,en) => isEnglish() ? en : ar","Patient 360 entry":"open360"}.items():
   if needle not in t: errors.append(f"{label} missing")
 if not api.exists(): errors.append("canonical Patient 360 API is missing")
 else:
