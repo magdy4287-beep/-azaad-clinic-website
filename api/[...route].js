@@ -1,7 +1,9 @@
 import { neon as _neonRuntimeDependency } from '@neondatabase/serverless';
+import { runtimeContract as _runtimeContract } from '../lib/azaad-runtime-contract.js';
 
-// Keep the canonical Neon runtime dependency statically visible to Vercel's function tracer.
+// Keep canonical server dependencies statically visible to Vercel's function tracer.
 void _neonRuntimeDependency;
+void _runtimeContract;
 
 const legacy = {
   'admin-appointments': './_admin-appointments.js',
