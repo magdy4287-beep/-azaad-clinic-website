@@ -42,8 +42,13 @@ async function invokeApi(req, res, pathname) {
   if (rewrite) req.url = effectiveUrl.toString();
   const name = effectivePathname.slice('/api/'.length).replace(/\.js$/, '');
   if (!/^[A-Za-z0-9_-]+$/.test(name)) return false;
-  const file = path.resolve(root, 'api', `${name}.js`);
-  try { await fs.access(file); } catch { return false; }
+  let file = path.resolve(root, 'api', `${name}.js`);
+  let useGateway = false;
+  try { await fs.access(file); } catch {
+    file = path.resolve(root, 'api', '[...route].js');
+    try { await fs.access(file); } catch { return false; }
+    useGateway = true;
+  }
 
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -55,6 +60,7 @@ async function invokeApi(req, res, pathname) {
 
   const module = await import(pathToFileURL(file).href + `?t=${Date.now()}`);
   if (typeof module.default !== 'function') throw new Error(`API_HANDLER_NOT_FOUND:${name}`);
+  if (useGateway) req.url = effectiveUrl.toString();
   const result = await module.default(req, decorateNodeResponse(res));
   if (result instanceof Response && !res.headersSent) await writeWebResponse(res, result);
   return true;
