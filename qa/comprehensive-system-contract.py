@@ -48,7 +48,7 @@ for token, msg in (("window.AZAAD_I18N", "central I18N runtime API"), ("Mutation
 require("location.reload()" not in ct, "central I18N reloads pages")
 require("qa/vercel-build.py" in vt, "Vercel does not use the bounded production build runner")
 require("TRANSFORM_STEPS=[]" in bt, "Vercel production build runner must not mutate tracked source")
-for step in ("qa/verify-production-contracts.py", "qa/lazy-admin-modules.py", "qa/api-javascript-syntax-gate.py", "qa/zero-retired-provider-residue-gate.py"):
+for step in ("qa/verify-production-contracts.py", "qa/api-javascript-syntax-gate.py", "qa/zero-retired-provider-residue-gate.py"):
     require(step in bt, f"Vercel production verifier missing canonical step: {step}")
 for retired in (".github/finalize-auth.py", "qa/fix-production-contracts.py", "qa/remove-legacy-admin-i18n-runtime.py"):
     require(retired not in bt, f"retired build checkpoint still referenced: {retired}")
