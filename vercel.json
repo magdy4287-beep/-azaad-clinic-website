@@ -27,6 +27,11 @@
     { "source": "/api/runtime-health", "destination": "/api/admin-auth?action=runtime-health" },
     { "source": "/api/frontdesk-checkin", "destination": "/api/clinical-assessments?action=check-in" }
   ],
+  "functions": {
+    "api/[...route].js": {
+      "includeFiles": "api/_*.js"
+    }
+  },
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':!*.md' ':!docs/**'",
   "git": {
     "deploymentEnabled": true
