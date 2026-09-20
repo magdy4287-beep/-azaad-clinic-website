@@ -75,7 +75,7 @@ for h in htmls:
     rel = h.relative_to(ROOT).as_posix(); t = read(h)
     if ".git/" in rel: continue
     # admin-login.html is a compatibility redirect, not a rendered UI surface; its canonical runtime is /admin.html.
-    redirect_only = rel == "admin-login.html" and bool(re.search(r"location\\.replace\\(\\s*['\"]/?admin\\.html['\"]", t))
+    redirect_only = rel == "admin-login.html" and ("location.replace('/admin.html')" in t or 'location.replace("/admin.html")' in t)
     if not redirect_only and "central-i18n.js" not in t and "qa/inject-central-i18n.py" not in bt: FAILURES.append(f"{rel}: no central I18N runtime or build injection")
     if re.search(r"(?:lang|language)[^\n]{0,180}location\.reload\s*\(", t, re.I): FAILURES.append(f"{rel}: language switching contains location.reload()")
 
