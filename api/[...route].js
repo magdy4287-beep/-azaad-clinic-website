@@ -1,3 +1,8 @@
+import { neon as _neonRuntimeDependency } from '@neondatabase/serverless';
+
+// Keep the canonical Neon runtime dependency statically visible to Vercel's function tracer.
+void _neonRuntimeDependency;
+
 const legacy = {
   'admin-appointments': './_admin-appointments.js',
   'admin-auth': './_admin-auth.js',
