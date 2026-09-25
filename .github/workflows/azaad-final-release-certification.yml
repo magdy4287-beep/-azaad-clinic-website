@@ -104,7 +104,7 @@ jobs:
           url="https://azaad-clinic-website.vercel.app/"
           curl --fail --silent --show-error --location --max-time 30 "$url" >/tmp/azaad-vercel.html
           test -s /tmp/azaad-vercel.html
-          grep -Fq 'Azaad Clinic' /tmp/azaad-vercel.html
+          grep -Fq 'Azaad Psychotherapy' /tmp/azaad-vercel.html
           echo "Vercel production surface: PASS"
 
       - name: Verify permanent human-approval and AI boundaries
