@@ -111,11 +111,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'AI is assistive only' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'AI is assistive and must not become a single point of failure for core operations.' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'AI must never:' AZAAD_PRODUCTION_HARDENING_UAT_RELEASE_OPERATIONS.md
           grep -Fq 'Refund Request → Doctor Approval → Management/Owner Approval → Refund Execution' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'Evidence must correspond to the exact production commit under certification.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
-          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, not PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'The exact production deployment and exact commit must be identified before interpreting runtime evidence.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
+          grep -Fq 'A missing or stale evidence item is `NOT PROVEN`, never PASS.' AZAAD_PRODUCTION_CERTIFICATION_CONTINUOUS_OPERATIONS_PLAN.md
 
       - name: Final release decision
         env:
@@ -125,4 +125,4 @@ jobs:
           set -euo pipefail
           echo 'AZAAD FINAL RELEASE CERTIFICATION: PASS'
           echo "Exact commit: $CANDIDATE_SHA"
-          echo 'All required exact-commit CI gates, exact production artifact SHA, and the production Vercel surface passed.'
+          echo 'All required exact-commit CI gates, exact production artifact SHA, production Vercel surface, and permanent human/AI boundary evidence passed.'
