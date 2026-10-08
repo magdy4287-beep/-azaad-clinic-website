@@ -934,11 +934,11 @@ ${t('sentFromWebsite')}`;
       const url =
         PUBLIC_SCHEDULING_API +
         '?api=slots' +
-        '&doctor=' +
+        '&doctor_id=' +
         encodeURIComponent(
           doctor
         ) +
-        '&service=' +
+        '&service_id=' +
         encodeURIComponent(
           service
         ) +
