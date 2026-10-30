@@ -64,7 +64,10 @@
   // Success detection must not depend on a WhatsApp anchor already existing:
   // that circular dependency was the reason the previous guard could not
   // recover the exact production state (success message, missing CTA).
-  const bookingSucceeded = () => successTextPresent();
+  // The language bridge may transliterate Arabic success copy in English
+  // mode. A canonical AZD booking code is therefore an independent success
+  // signal and must still activate the recovery path.
+  const bookingSucceeded = () => successTextPresent() || Boolean(bookingCode());
 
   function captureBookingContext() {
     const selected = document.querySelector('#slots .slot.selected');
