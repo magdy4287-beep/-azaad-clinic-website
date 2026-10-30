@@ -597,17 +597,11 @@ ${t('sentFromWebsite')}`;
       container.style.border =
         '1px solid #ccebd8';
     }
-    // Always re-home the confirmation step, including when an older hidden
-    // container already exists outside the booking form.
-    const form = $('bookingForm');
-    if (form && container.parentNode !== form) {
-      form.appendChild(container);
-    } else if (!form && !container.isConnected) {
-      document.body.appendChild(container);
+      const form = $('bookingForm');
+      if (form?.parentNode) {
+        form.parentNode.insertBefore(container, form.nextSibling);
+      }
     }
-
-    // Keep the confirmation CTA in the form's visible flow and override
-    // any generic responsive/legacy rules that could hide it after success.
     container.hidden = false;
     container.removeAttribute('aria-hidden');
     container.setAttribute('role', 'status');
