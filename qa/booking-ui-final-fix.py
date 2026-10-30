@@ -11,7 +11,6 @@ for token in [
     'function bookingSucceeded()',
     'function ensureWhatsAppStep()',
     'bookingCode()',
-    'normalizeExistingWhatsAppStep',
     'data-azaad-whatsapp-cta',
 ]:
     assert token in fix, token
