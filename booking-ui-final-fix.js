@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V1__';
+  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V6__';
   if (window[STATE_KEY]) return;
   const state = { observer: null, timer: null, running: false, lastSuccess: false, context: null, recoveryPromise: null };
   window[STATE_KEY] = state;
@@ -46,7 +46,10 @@
     const text = textOf(el).toLowerCase();
     return href.includes('wa.me/') || href.includes('api.whatsapp.com/') || href.includes('whatsapp.com/send') || text.includes('whatsapp') || text.includes('واتساب');
   };
-  const findWhatsAppAction = () => [...document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"], button, [role="button"]')].find(isWhatsAppAction) || null;
+  const findWhatsAppAction = () => {
+    const bookingAction = $('whatsappBookingStep')?.querySelector('#sendBookingWhatsApp,[data-azaad-whatsapp-cta]');
+    return bookingAction && visible(bookingAction) ? bookingAction : null;
+  };
   const findBookingSubmit = () => $('bookingForm')?.querySelector('.booking-submit[type="submit"]') || $('bookingForm')?.querySelector('button[type="submit"]') || document.querySelector('.booking-submit[type="submit"]');
   const successTextPresent = () => {
     const status = $('message');
@@ -183,11 +186,16 @@
         const ready = en
           ? 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
           : 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.';
+        // Re-check after the async settings request in case app.js rendered
+        // the canonical CTA while the recovery request was in flight.
+        button = container.querySelector('#sendBookingWhatsApp');
+        if (!button) {
         const block = document.createElement('div');
         block.style.textAlign = 'center';
         block.innerHTML = `<span data-azaad-whatsapp-instruction="true" style="display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px">${escapeHtml(instruction)}</span><a id="sendBookingWhatsApp" data-azaad-whatsapp-cta="true" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:16px;min-height:52px">${escapeHtml(buttonText)}</a><p data-booking-whatsapp-ready="true" style="font-size:13px;color:#666;margin-top:12px;line-height:1.7">${escapeHtml(ready)}</p>`;
         container.appendChild(block);
         button = block.querySelector('#sendBookingWhatsApp');
+        }
       }
 
       const en = currentLanguage() === 'en';
