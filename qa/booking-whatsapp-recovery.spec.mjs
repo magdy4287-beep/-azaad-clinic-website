@@ -72,7 +72,18 @@ async function createSuccessWithoutWhatsAppCTA(page, { language = 'ar', existing
     status.style.display = 'block';
     status.style.visibility = 'visible';
   });
-  await expect(page.locator('#sendBookingWhatsApp')).toBeVisible({ timeout: 5000 });
+  const diagnostics = await page.evaluate(() => {
+    const state = window.__AZAAD_BOOKING_UI_FINAL_FIX_V6__;
+    const status = document.getElementById('message');
+    const container = document.getElementById('whatsappBookingStep');
+    return {
+      language: localStorage.getItem('azaadClinicLanguage'),
+      state: state ? { lastSuccess: state.lastSuccess, hasContext: Boolean(state.context), context: state.context, recoveryPending: Boolean(state.recoveryPromise) } : null,
+      status: status ? { text: status.textContent, display: getComputedStyle(status).display, visibility: getComputedStyle(status).visibility, rect: status.getBoundingClientRect().toJSON() } : null,
+      container: container ? { hidden: container.hidden, html: container.innerHTML, display: getComputedStyle(container).display, rect: container.getBoundingClientRect().toJSON() } : null
+    };
+  });
+  await expect(page.locator('#sendBookingWhatsApp'), JSON.stringify(diagnostics)).toBeVisible({ timeout: 5000 });
   expect(bookingPosts).toBe(0);
 }
 
