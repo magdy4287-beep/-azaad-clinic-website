@@ -8,7 +8,7 @@ app = Path('app.js').read_text(encoding='utf-8')
 assert 'booking-ui-final-fix.js?v=' in index
 for token in [
     'captureBookingContext',
-    'function bookingSucceeded()',
+    'const bookingSucceeded = () =>',
     'function ensureWhatsAppStep()',
     'bookingCode()',
     'data-azaad-whatsapp-cta',
@@ -17,7 +17,7 @@ for token in [
 
 # The recovery must be independent of the CTA already existing; otherwise it
 # cannot repair the exact production symptom (success message with no button).
-success_detector = fix[fix.index('function bookingSucceeded()'):fix.index('function bookingCode()')]
+success_detector = fix[fix.index('const bookingSucceeded = () =>'):fix.index('function captureBookingContext()')]
 assert 'findWhatsAppAction()' not in success_detector
 assert 'ensureWhatsAppStep()' in fix
 assert 'state.context' in fix
