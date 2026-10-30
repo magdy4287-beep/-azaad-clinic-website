@@ -113,3 +113,33 @@ test('repairs an existing hidden WhatsApp confirmation container and preserves E
   const href = await button.getAttribute('href');
   expect(new URL(href).searchParams.get('text')).toContain('AZD-TEST123456');
 });
+
+
+test('public booking confirmation copy resolves in the selected Arabic and English language', async ({ page }) => {
+  await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+  const result = await page.evaluate(() => {
+    const keys = ['bookingCreated', 'bookingNumber', 'whatsappTitle', 'whatsappDescription', 'sendToWhatsApp', 'whatsappReady'];
+    const read = language => {
+      window.AZAAD_I18N.setLanguage(language);
+      return Object.fromEntries(keys.map(key => [key, window.AZAAD_I18N.t(key)]));
+    };
+    return { ar: read('ar'), en: read('en') };
+  });
+
+  expect(result.ar).toEqual({
+    bookingCreated: 'تم إنشاء الحجز بنجاح.',
+    bookingNumber: 'رقم الحجز',
+    whatsappTitle: 'تم إنشاء الحجز بنجاح',
+    whatsappDescription: 'يرجى إرسال تفاصيل الموعد إلى العيادة عبر WhatsApp لتأكيد طلبك.',
+    sendToWhatsApp: 'إرسال الموعد إلى العيادة عبر WhatsApp',
+    whatsappReady: 'سيتم فتح WhatsApp برسالة الموعد جاهزة. اضغط إرسال داخل التطبيق لإتمام الإرسال.'
+  });
+  expect(result.en).toEqual({
+    bookingCreated: 'Booking created successfully.',
+    bookingNumber: 'Booking number',
+    whatsappTitle: 'Booking created successfully',
+    whatsappDescription: 'Please send the appointment details to the clinic via WhatsApp to confirm your request.',
+    sendToWhatsApp: 'Send the appointment to the clinic via WhatsApp',
+    whatsappReady: 'WhatsApp will open with the appointment message ready. Press Send in the app to complete sending.'
+  });
+});
