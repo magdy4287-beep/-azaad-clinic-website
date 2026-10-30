@@ -215,6 +215,14 @@
         : 'إرسال الموعد إلى العيادة عبر WhatsApp';
       button.setAttribute('aria-label', button.textContent);
       button.setAttribute('data-azaad-whatsapp-cta', 'true');
+      button.hidden = false;
+      button.removeAttribute('aria-hidden');
+      button.removeAttribute('tabindex');
+      button.style.setProperty('display', 'inline-flex', 'important');
+      button.style.setProperty('visibility', 'visible', 'important');
+      button.style.setProperty('opacity', '1', 'important');
+      button.style.setProperty('pointer-events', 'auto', 'important');
+      styleWhatsAppAction(button);
       container.dir = en ? 'ltr' : 'rtl';
       container.hidden = false;
       container.style.setProperty('display', 'block', 'important');
