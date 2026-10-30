@@ -72,11 +72,6 @@ async function createSuccessWithoutWhatsAppCTA(page, { language = 'ar', existing
     status.style.display = 'block';
     status.style.visibility = 'visible';
   });
-  // Explicitly poke the same refresh signal used by the language switch;
-  // this makes the regression deterministic even if an unrelated mutation
-  // was coalesced with the status update by the browser observer.
-  await page.evaluate(() => window.dispatchEvent(new Event('azaadLanguageChanged')));
-  await page.waitForTimeout(100);
   const diagnostics = await page.evaluate(() => {
     const state = window.__AZAAD_BOOKING_UI_FINAL_FIX_V6__;
     const status = document.getElementById('message');
