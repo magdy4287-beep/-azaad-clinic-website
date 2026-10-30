@@ -15,6 +15,9 @@ for token in ['formatTime12', 'hideConfirmationButton', 'styleWhatsAppAction', '
 # next to its confirmation state, so it cannot be lost below/outside the form.
 assert 'function showWhatsAppStep(' in app
 assert 'form.appendChild(container)' in app
+show_step = app[app.index('function showWhatsAppStep('):app.index('function removeOldWhatsAppStep(')]
+assert show_step.index('if (!container)') < show_step.index('if (form && container.parentNode !== form)'), 'existing confirmation container must be re-parented unconditionally'
+assert show_step.index('if (form && container.parentNode !== form)') < show_step.index("container.style.setProperty('display', 'block', 'important')"), 're-parent before making confirmation visible'
 assert "container.style.setProperty('display', 'block', 'important')" in app
 assert "container.style.setProperty('visibility', 'visible', 'important')" in app
 assert "t('sendToWhatsApp')" in app
