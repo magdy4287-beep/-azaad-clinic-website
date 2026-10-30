@@ -596,7 +596,6 @@ ${t('sentFromWebsite')}`;
         '#f1fbf5';
       container.style.border =
         '1px solid #ccebd8';
-    }
       const form = $('bookingForm');
       if (form?.parentNode) {
         form.parentNode.insertBefore(container, form.nextSibling);
