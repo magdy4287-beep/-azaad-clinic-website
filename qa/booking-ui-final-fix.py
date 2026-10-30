@@ -20,6 +20,7 @@ for token in [
 success_detector = fix[fix.index('const bookingSucceeded = () =>'):fix.index('function captureBookingContext()')]
 assert 'findWhatsAppAction()' not in success_detector
 assert 'ensureWhatsAppStep()' in fix
+assert 'Boolean(bookingCode())' in fix, 'booking code must detect success even when language bridge transliterates the status copy'
 assert 'state.context' in fix
 assert "form.addEventListener('submit', captureBookingContext, true)" in fix
 
