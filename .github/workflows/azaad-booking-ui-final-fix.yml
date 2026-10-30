@@ -8,6 +8,7 @@ on:
       - 'app.js'
       - 'booking-ui-final-fix.js'
       - 'qa/booking-ui-final-fix.py'
+      - 'qa/booking-whatsapp-recovery.spec.mjs'
       - '.github/workflows/azaad-booking-ui-final-fix.yml'
 
 permissions:
@@ -22,5 +23,7 @@ jobs:
         run: node --check app.js
       - name: Validate booking UI hardening syntax
         run: node --check booking-ui-final-fix.js
+      - name: Validate booking UI recovery browser spec syntax
+        run: node --check qa/booking-whatsapp-recovery.spec.mjs
       - name: Validate booking UI contract
         run: python3 qa/booking-ui-final-fix.py

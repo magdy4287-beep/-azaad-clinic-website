@@ -1,9 +1,9 @@
 (() => {
   'use strict';
 
-  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V1__';
+  const STATE_KEY = '__AZAAD_BOOKING_UI_FINAL_FIX_V6__';
   if (window[STATE_KEY]) return;
-  const state = { observer: null, timer: null, running: false, lastSuccess: false };
+  const state = { observer: null, timer: null, running: false, lastSuccess: false, context: null, recoveryPromise: null };
   window[STATE_KEY] = state;
 
   const $ = (id) => document.getElementById(id);
@@ -46,17 +46,196 @@
     const text = textOf(el).toLowerCase();
     return href.includes('wa.me/') || href.includes('api.whatsapp.com/') || href.includes('whatsapp.com/send') || text.includes('whatsapp') || text.includes('واتساب');
   };
-  const findWhatsAppAction = () => [...document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"], button, [role="button"]')].find(isWhatsAppAction) || null;
+  const findWhatsAppAction = () => {
+    const bookingAction = $('whatsappBookingStep')?.querySelector('#sendBookingWhatsApp,[data-azaad-whatsapp-cta]');
+    return bookingAction && visible(bookingAction) ? bookingAction : null;
+  };
   const findBookingSubmit = () => $('bookingForm')?.querySelector('.booking-submit[type="submit"]') || $('bookingForm')?.querySelector('button[type="submit"]') || document.querySelector('.booking-submit[type="submit"]');
   const successTextPresent = () => {
-    const t = String(document.body?.innerText || '').toLowerCase();
-    return t.includes('تم إنشاء الحجز بنجاح') || t.includes('تم إنشاء طلب الحجز بنجاح') || t.includes('booking created successfully') || t.includes('your booking request was created successfully') || t.includes('رقم الحجز') || t.includes('bookingcreated');
+    const status = $('message');
+    const value = textOf(status).toLowerCase();
+    if (!status || !visible(status)) return false;
+    return value.includes('تم إنشاء الحجز بنجاح') ||
+      value.includes('تم إنشاء طلب الحجز بنجاح') ||
+      value.includes('booking created successfully') ||
+      value.includes('your booking request was created successfully') ||
+      /(?:رقم الحجز|booking number)\s*:?\s*[a-z0-9-]+/i.test(value);
   };
-  const successMarkerPresent = () => ['[data-booking-success]','.booking-success','.booking-result','.booking-confirmation','.whatsapp-step','#whatsappStep','#whatsappBookingStep'].some(s => [...document.querySelectorAll(s)].some(visible));
-  const bookingSucceeded = () => {
-    const wa = findWhatsAppAction();
-    return Boolean(wa && (successTextPresent() || successMarkerPresent()));
-  };
+  // Success detection must not depend on a WhatsApp anchor already existing:
+  // that circular dependency was the reason the previous guard could not
+  // recover the exact production state (success message, missing CTA).
+  // The language bridge may transliterate Arabic success copy in English
+  // mode. A canonical AZD booking code is therefore an independent success
+  // signal and must still activate the recovery path.
+  const bookingSucceeded = () => successTextPresent() || Boolean(bookingCode());
+
+  function captureBookingContext() {
+    const selected = document.querySelector('#slots .slot.selected');
+    const doctor = $('doctor');
+    const service = $('service');
+    state.context = {
+      doctorName: doctor?.selectedOptions?.[0]?.textContent?.trim() || '',
+      serviceName: service?.selectedOptions?.[0]?.textContent?.trim() || '',
+      date: $('date')?.value || '',
+      time: selected?.dataset?.slot || '',
+      mode: $('mode')?.value || 'clinic',
+      patientName: $('name')?.value?.trim() || '',
+      phone: $('phone')?.value?.trim() || '',
+      email: $('email')?.value?.trim() || '',
+      notes: $('notes')?.value?.trim() || ''
+    };
+  }
+
+  function bookingCode() {
+    const value = textOf($('message'));
+    return value.match(/(?:رقم الحجز|Booking number)\s*:?\s*([A-Za-z0-9-]+)/i)?.[1] ||
+      value.match(/\b(AZD-[A-Z0-9-]{6,})\b/i)?.[1] || '';
+  }
+
+  async function getClinicWhatsAppNumber() {
+    try {
+      const response = await fetch('/api/public-clinic-data?api=data&_=' + Date.now(), {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const settings = data?.settings || {};
+        const number = String(settings.whatsapp || settings.whatsapp_number ||
+          settings.whatsapp_phone || settings.phone_whatsapp || '').replace(/\D/g, '');
+        if (number) return number;
+      }
+    } catch (_) {}
+    return '201140526294';
+  }
+
+  function createRecoveryMessage(code) {
+    const c = state.context || {};
+    const en = currentLanguage() === 'en';
+    const service = String(c.serviceName || (en ? 'Service' : 'الخدمة'))
+      .replace(/\s+—?\s*\d+\s*(?:دقيقة|minutes?)\s*$/i, '');
+    const date = c.date ? new Date(c.date + 'T00:00:00').toLocaleDateString(
+      en ? 'en-US' : 'ar-EG',
+      { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+    ) : (en ? 'Not specified' : 'غير محدد');
+    const rawTime = String(c.time || '').slice(0, 5);
+    const match = rawTime.match(/^(\d{1,2}):(\d{2})$/);
+    let time = rawTime || (en ? 'Not specified' : 'غير محدد');
+    if (match) {
+      let hour = Number(match[1]);
+      if (hour >= 0 && hour <= 23) time = `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`;
+    }
+    const mode = c.mode === 'online'
+      ? (en ? 'Online' : 'جلسة أونلاين')
+      : (en ? 'In-clinic' : 'داخل العيادة');
+    const lines = [
+      `🏥 ${en ? 'New appointment from Azaad Clinic website' : 'موعد جديد من موقع عيادة آزاد'}`,
+      `📌 ${en ? 'Booking number' : 'رقم الحجز'}: ${code || (en ? 'Not available' : 'غير متوفر')}`,
+      `👤 ${en ? 'Patient name' : 'اسم المريض'}: ${c.patientName || (en ? 'Not specified' : 'غير محدد')}`,
+      `📱 ${en ? 'Phone' : 'رقم الهاتف'}: ${c.phone || (en ? 'Not specified' : 'غير محدد')}`,
+      `👨‍⚕️ ${en ? 'Doctor' : 'الطبيب'}: ${c.doctorName || (en ? 'Doctor' : 'الطبيب')}`,
+      `🩺 ${en ? 'Service' : 'الخدمة'}: ${service}`,
+      `📅 ${en ? 'Date' : 'التاريخ'}: ${date}`,
+      `⏰ ${en ? 'Time' : 'الوقت'}: ${time}`,
+      `💻 ${en ? 'Session type' : 'نوع الجلسة'}: ${mode}`
+    ];
+    if (c.email) lines.push(`📧 ${en ? 'Email' : 'البريد الإلكتروني'}: ${c.email}`);
+    if (c.notes) lines.push(`📝 ${en ? 'Notes' : 'ملاحظات'}: ${c.notes}`);
+    return lines.join('\n');
+  }
+
+  async function ensureWhatsAppStep() {
+    if (!state.lastSuccess || !state.context || state.recoveryPromise) return;
+    const code = bookingCode();
+    if (!code) return;
+
+    state.recoveryPromise = (async () => {
+      let container = $('whatsappBookingStep');
+      const form = $('bookingForm');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'whatsappBookingStep';
+        container.style.marginTop = '20px';
+        container.style.padding = '20px';
+        container.style.borderRadius = '14px';
+        container.style.background = '#f1fbf5';
+        container.style.border = '1px solid #ccebd8';
+        if (form?.parentNode) form.parentNode.insertBefore(container, form.nextSibling);
+        else document.body.appendChild(container);
+      } else if (form && container.parentNode === form && form.parentNode) {
+        // Keep the post-booking action outside the form reset/control lifecycle.
+        form.parentNode.insertBefore(container, form.nextSibling);
+      }
+
+      container.hidden = false;
+      container.removeAttribute('aria-hidden');
+      container.setAttribute('role', 'status');
+      container.setAttribute('aria-live', 'polite');
+      container.style.setProperty('display', 'block', 'important');
+      container.style.setProperty('visibility', 'visible', 'important');
+      container.style.setProperty('opacity', '1', 'important');
+
+      let button = container.querySelector('#sendBookingWhatsApp');
+      if (!button) {
+        const number = await getClinicWhatsAppNumber();
+        const href = `https://wa.me/${number}?text=${encodeURIComponent(createRecoveryMessage(code))}`;
+        const en = currentLanguage() === 'en';
+        const instruction = en
+          ? 'Please click here 👇 to send the appointment to the clinic'
+          : 'يجب الضغط هنا 👇 لإرسال الموعد إلى العيادة';
+        const buttonText = en
+          ? 'Send the appointment to the clinic via WhatsApp'
+          : 'إرسال الموعد إلى العيادة عبر WhatsApp';
+        const ready = en
+          ? 'WhatsApp will open with the message ready. Press “Send” inside WhatsApp to send the appointment to the clinic.'
+          : 'بعد فتح WhatsApp ستظهر الرسالة جاهزة. اضغط «إرسال» داخل WhatsApp لإرسال الموعد إلى العيادة.';
+        // Re-check after the async settings request in case app.js rendered
+        // the canonical CTA while the recovery request was in flight.
+        button = container.querySelector('#sendBookingWhatsApp');
+        if (!button) {
+        const block = document.createElement('div');
+        block.style.textAlign = 'center';
+        block.innerHTML = `<span data-azaad-whatsapp-instruction="true" style="display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px">${escapeHtml(instruction)}</span><a id="sendBookingWhatsApp" data-azaad-whatsapp-cta="true" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:16px;min-height:52px">${escapeHtml(buttonText)}</a><p data-booking-whatsapp-ready="true" style="font-size:13px;color:#666;margin-top:12px;line-height:1.7">${escapeHtml(ready)}</p>`;
+        container.appendChild(block);
+        button = block.querySelector('#sendBookingWhatsApp');
+        }
+      }
+
+      const en = currentLanguage() === 'en';
+      const instructionText = en
+        ? 'Please click here 👇 to send the appointment to the clinic'
+        : 'يجب الضغط هنا 👇 لإرسال الموعد إلى العيادة';
+      let instruction = container.querySelector('[data-azaad-whatsapp-instruction]');
+      if (!instruction && button.parentNode) {
+        instruction = document.createElement('span');
+        instruction.setAttribute('data-azaad-whatsapp-instruction', 'true');
+        instruction.style.cssText = 'display:block;font-size:18px;font-weight:700;line-height:1.8;margin:8px 0 12px';
+        button.parentNode.insertBefore(instruction, button);
+      }
+      if (instruction) instruction.textContent = instructionText;
+      button.textContent = en
+        ? 'Send the appointment to the clinic via WhatsApp'
+        : 'إرسال الموعد إلى العيادة عبر WhatsApp';
+      button.setAttribute('aria-label', button.textContent);
+      button.setAttribute('data-azaad-whatsapp-cta', 'true');
+      button.hidden = false;
+      button.removeAttribute('aria-hidden');
+      button.removeAttribute('tabindex');
+      button.style.setProperty('display', 'inline-flex', 'important');
+      button.style.setProperty('visibility', 'visible', 'important');
+      button.style.setProperty('opacity', '1', 'important');
+      button.style.setProperty('pointer-events', 'auto', 'important');
+      styleWhatsAppAction(button);
+      container.dir = en ? 'ltr' : 'rtl';
+      container.hidden = false;
+      container.style.setProperty('display', 'block', 'important');
+      container.style.setProperty('visibility', 'visible', 'important');
+      container.style.setProperty('opacity', '1', 'important');
+    })().finally(() => {
+      state.recoveryPromise = null;
+    });
+    return state.recoveryPromise;
+  }
 
   function hideConfirmationButton() {
     const button = findBookingSubmit();
@@ -192,13 +371,18 @@
     state.running = true;
     try {
       convertTimeInTextNodes(document.body);
-      if (bookingSucceeded()) {
-        state.lastSuccess = true;
+      state.lastSuccess = bookingSucceeded();
+      if (state.lastSuccess) {
+        // The recovery owner can create the CTA when app.js or another DOM
+        // owner leaves only the success message behind.
+        void ensureWhatsAppStep();
         const wa = findWhatsAppAction();
-        hideConfirmationButton();
-        styleWhatsAppAction(wa);
-        localizeBookingConfirmation();
-        moveStatusBelowWhatsApp(wa);
+        if (wa) {
+          hideConfirmationButton();
+          styleWhatsAppAction(wa);
+          localizeBookingConfirmation();
+          moveStatusBelowWhatsApp(wa);
+        }
       }
     } finally { state.running = false; }
   }
@@ -209,6 +393,8 @@
   }
 
   function init() {
+    const form = $('bookingForm');
+    if (form) form.addEventListener('submit', captureBookingContext, true);
     refresh();
     try {
       state.observer = new MutationObserver(schedule);
