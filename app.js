@@ -598,13 +598,24 @@ ${t('sentFromWebsite')}`;
         '1px solid #ccebd8';
       const form =
         $('bookingForm');
-      if (form?.parentNode) {
-        form.parentNode.insertBefore(
-          container,
-          form.nextSibling
-        );
+      if (form) {
+        if (container.parentNode !== form) {
+          form.appendChild(container);
+        }
+      } else if (!container.isConnected) {
+        document.body.appendChild(container);
       }
     }
+    // Keep the confirmation CTA in the form's visible flow and override
+    // any generic responsive/legacy rules that could hide it after success.
+    container.hidden = false;
+    container.removeAttribute('aria-hidden');
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    container.style.setProperty('display', 'block', 'important');
+    container.style.setProperty('visibility', 'visible', 'important');
+    container.style.setProperty('opacity', '1', 'important');
+
     const phone =
       getClinicWhatsApp();
     const message =
