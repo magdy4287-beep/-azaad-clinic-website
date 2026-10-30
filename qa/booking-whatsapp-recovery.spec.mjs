@@ -72,6 +72,11 @@ async function createSuccessWithoutWhatsAppCTA(page, { language = 'ar', existing
     status.style.display = 'block';
     status.style.visibility = 'visible';
   });
+  // Explicitly poke the same refresh signal used by the language switch;
+  // this makes the regression deterministic even if an unrelated mutation
+  // was coalesced with the status update by the browser observer.
+  await page.evaluate(() => window.dispatchEvent(new Event('azaadLanguageChanged')));
+  await page.waitForTimeout(100);
   const diagnostics = await page.evaluate(() => {
     const state = window.__AZAAD_BOOKING_UI_FINAL_FIX_V6__;
     const status = document.getElementById('message');
@@ -79,7 +84,7 @@ async function createSuccessWithoutWhatsAppCTA(page, { language = 'ar', existing
     return {
       language: localStorage.getItem('azaadClinicLanguage'),
       state: state ? { lastSuccess: state.lastSuccess, hasContext: Boolean(state.context), context: state.context, recoveryPending: Boolean(state.recoveryPromise) } : null,
-      status: status ? { text: status.textContent, display: getComputedStyle(status).display, visibility: getComputedStyle(status).visibility, rect: status.getBoundingClientRect().toJSON() } : null,
+      status: status ? { containsArabicSuccess: status.textContent.includes('تم إنشاء الحجز بنجاح'), containsEnglishSuccess: status.textContent.toLowerCase().includes('booking created successfully'), text: status.textContent, display: getComputedStyle(status).display, visibility: getComputedStyle(status).visibility, rect: status.getBoundingClientRect().toJSON() } : null,
       container: container ? { hidden: container.hidden, html: container.innerHTML, display: getComputedStyle(container).display, rect: container.getBoundingClientRect().toJSON() } : null
     };
   });
