@@ -56,7 +56,7 @@
       value.includes('تم إنشاء طلب الحجز بنجاح') ||
       value.includes('booking created successfully') ||
       value.includes('your booking request was created successfully') ||
-      /(?:رقم الحجز|booking number)\\s*:?\\s*[a-z0-9-]+/i.test(value);
+      /(?:رقم الحجز|booking number)\s*:?\s*[a-z0-9-]+/i.test(value);
   };
   // Success detection must not depend on a WhatsApp anchor already existing:
   // that circular dependency was the reason the previous guard could not
@@ -82,8 +82,8 @@
 
   function bookingCode() {
     const value = textOf($('message'));
-    return value.match(/(?:رقم الحجز|Booking number)\\s*:?\\s*([A-Za-z0-9-]+)/i)?.[1] ||
-      value.match(/\\b(AZD-[A-Z0-9-]{6,})\\b/i)?.[1] || '';
+    return value.match(/(?:رقم الحجز|Booking number)\s*:?\s*([A-Za-z0-9-]+)/i)?.[1] ||
+      value.match(/\b(AZD-[A-Z0-9-]{6,})\b/i)?.[1] || '';
   }
 
   async function getClinicWhatsAppNumber() {
@@ -96,7 +96,7 @@
         const data = await response.json();
         const settings = data?.settings || {};
         const number = String(settings.whatsapp || settings.whatsapp_number ||
-          settings.whatsapp_phone || settings.phone_whatsapp || '').replace(/\\D/g, '');
+          settings.whatsapp_phone || settings.phone_whatsapp || '').replace(/\D/g, '');
         if (number) return number;
       }
     } catch (_) {}
@@ -107,13 +107,13 @@
     const c = state.context || {};
     const en = currentLanguage() === 'en';
     const service = String(c.serviceName || (en ? 'Service' : 'الخدمة'))
-      .replace(/\\s+—?\\s*\\d+\\s*(?:دقيقة|minutes?)\\s*$/i, '');
+      .replace(/\s+—?\s*\d+\s*(?:دقيقة|minutes?)\s*$/i, '');
     const date = c.date ? new Date(c.date + 'T00:00:00').toLocaleDateString(
       en ? 'en-US' : 'ar-EG',
       { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
     ) : (en ? 'Not specified' : 'غير محدد');
     const rawTime = String(c.time || '').slice(0, 5);
-    const match = rawTime.match(/^(\\d{1,2}):(\\d{2})$/);
+    const match = rawTime.match(/^(\d{1,2}):(\d{2})$/);
     let time = rawTime || (en ? 'Not specified' : 'غير محدد');
     if (match) {
       let hour = Number(match[1]);
@@ -135,7 +135,7 @@
     ];
     if (c.email) lines.push(`📧 ${en ? 'Email' : 'البريد الإلكتروني'}: ${c.email}`);
     if (c.notes) lines.push(`📝 ${en ? 'Notes' : 'ملاحظات'}: ${c.notes}`);
-    return lines.join('\\n');
+    return lines.join('\n');
   }
 
   async function ensureWhatsAppStep() {
