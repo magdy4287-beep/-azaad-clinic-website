@@ -18,6 +18,11 @@ async function createSuccessWithoutWhatsAppCTA(page, { language = 'ar', existing
     contentType: 'application/json',
     body: JSON.stringify(clinicData)
   }));
+  await page.route('**/api/public-scheduling**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ slots: [] })
+  }));
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#bookingForm')).toBeVisible();
   await expect(page.locator('#doctor option[value="doctor-e2e"]')).toHaveCount(1);
@@ -81,7 +86,7 @@ test('recreates a missing WhatsApp CTA after a successful booking without creati
   expect(target.origin).toBe('https://wa.me');
   expect(target.pathname).toBe('/201140526294');
   const message = target.searchParams.get('text') || '';
-  for (const value of ['AZD-TEST123456', 'Mohamed WhatsApp Test', '+201001234567', 'Dr. WhatsApp Test', 'Consultation', '13:30']) {
+  for (const value of ['AZD-TEST123456', 'Mohamed WhatsApp Test', '+201001234567', 'Dr. WhatsApp Test', 'Consultation', '1:30 PM']) {
     expect(message).toContain(value);
   }
 });
