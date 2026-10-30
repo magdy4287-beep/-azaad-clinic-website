@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'app.js'
       - 'booking-ui-final-fix.js'
       - 'qa/booking-ui-final-fix.py'
       - '.github/workflows/azaad-booking-ui-final-fix.yml'
@@ -18,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate JavaScript syntax
+        run: node --check app.js
+      - name: Validate booking UI hardening syntax
         run: node --check booking-ui-final-fix.js
       - name: Validate booking UI contract
         run: python3 qa/booking-ui-final-fix.py
