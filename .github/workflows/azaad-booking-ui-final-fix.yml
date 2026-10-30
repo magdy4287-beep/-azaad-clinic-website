@@ -6,6 +6,7 @@ on:
     paths:
       - 'index.html'
       - 'app.js'
+      - 'central-i18n.js'
       - 'booking-ui-final-fix.js'
       - 'qa/booking-ui-final-fix.py'
       - 'qa/booking-whatsapp-recovery.spec.mjs'

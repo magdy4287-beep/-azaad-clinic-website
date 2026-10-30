@@ -58,3 +58,16 @@ for token in ('SUPABASE_SERVICE_ROLE_KEY', 'SERVICE_ROLE_KEY', 'service_role_key
 assert '.click()' not in fix
 
 print('booking WhatsApp recovery contract: PASS')
+
+# Patient-facing booking confirmation labels must exist in both locales.
+i18n = Path('central-i18n.js').read_text(encoding='utf-8')
+for token in [
+    "bookingCreated:['تم إنشاء الحجز بنجاح.','Booking created successfully.']",
+    "bookingNumber:['رقم الحجز','Booking number']",
+    "whatsappTitle:['تم إنشاء الحجز بنجاح','Booking created successfully']",
+    "whatsappDescription:['يرجى إرسال تفاصيل الموعد إلى العيادة عبر WhatsApp لتأكيد طلبك.','Please send the appointment details to the clinic via WhatsApp to confirm your request.']",
+    "sendToWhatsApp:['إرسال الموعد إلى العيادة عبر WhatsApp','Send the appointment to the clinic via WhatsApp']",
+    "whatsappReady:['سيتم فتح WhatsApp برسالة الموعد جاهزة. اضغط إرسال داخل التطبيق لإتمام الإرسال.','WhatsApp will open with the appointment message ready. Press Send in the app to complete sending.']",
+]:
+    assert token in i18n, token
+
